@@ -1,0 +1,20 @@
+# shellcheck disable=SC2148
+# General Aliases
+alias grep="rg -uuu"
+alias diff="diff --color=auto"
+alias rm="rm -ri"
+alias mv="mv -i"
+alias cp="cp -i"
+alias mkdir="mkdir -p"
+alias cat="bat --style header --style snip --style changes --style header"
+alias vim="nvim"
+alias ls="eza -a --icons=always --color=always --group-directories-first"
+alias ll="eza -al --icons=always --color=always --group-directories-first"
+alias df='duf --output mountpoint,size,avail,type,filesystem'
+alias du='dust -r'
+alias free='free -m'
+alias find='fd'
+alias h='history'
+alias up="sudo pacman -Syu"
+# Cleanup orphaned packages
+alias cleanup='sudo pacman -Rns $(pacman -Qtdq)'

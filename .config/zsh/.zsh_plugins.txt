@@ -1,0 +1,7 @@
+mattmc3/ez-compinit
+ryanccn/vivid-zsh
+
+# some plugins support deferred loading
+zdharma-continuum/fast-syntax-highlighting kind:defer
+zsh-users/zsh-autosuggestions kind:defer
+zsh-users/zsh-history-substring-search kind:defer
