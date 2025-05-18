@@ -1,29 +1,40 @@
 #!/usr/bin/env bash
 
-############ Variables ############
-enable_battery=true
-battery_charging=true
+BAT_PATH="/sys/class/power_supply/BAT0"
 
-####### Check availability ########
-for battery in /sys/class/power_supply/*BAT*; do
-  if [[ -f "$battery/uevent" ]]; then
-    enable_battery=true
-    if [[ $(cat /sys/class/power_supply/*/status | head -1) == "Charging" ]]; then
-      battery_charging=true
+# Nerd Font battery icons
+ICON_CHARGING="" # Plug
+ICON_FULL=""
+ICON_75=""
+ICON_50=""
+ICON_25=""
+ICON_LOW=""
+ICON_UNKNOWN=""
+
+# Fallbacks
+icon=$ICON_UNKNOWN
+percent="?"
+
+if [[ -f "$BAT_PATH/capacity" && -f "$BAT_PATH/status" ]]; then
+  percent=$(<"$BAT_PATH/capacity")
+  status=$(<"$BAT_PATH/status")
+
+  # Choose icon based on % and status
+  if [[ "$status" == "Charging" || "$status" == "Full" ]]; then
+    icon=$ICON_CHARGING
+  else
+    if ((percent >= 90)); then
+      icon=$ICON_FULL
+    elif ((percent >= 75)); then
+      icon=$ICON_75
+    elif ((percent >= 50)); then
+      icon=$ICON_50
+    elif ((percent >= 25)); then
+      icon=$ICON_25
+    else
+      icon=$ICON_LOW
     fi
-    break
-  fi
-done
-
-############# Output #############
-if [[ $enable_battery == true ]]; then
-  if [[ $battery_charging == true ]]; then
-    echo -n "(+) "
-  fi
-  echo -n "$(cat /sys/class/power_supply/*/capacity | head -1)"%
-  if [[ $battery_charging == false ]]; then
-    echo -n " remaining"
   fi
 fi
 
-echo ''
+echo "$icon $percent%"
