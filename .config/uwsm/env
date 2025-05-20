@@ -1,4 +1,4 @@
-
+export XDG_MENU_PREFIX=arch-
 #cursor
 export XCURSOR_SIZE=26
 
