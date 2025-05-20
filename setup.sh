@@ -10,7 +10,6 @@ declare -A COLORS=(
   [white]='\033[0m'
 )
 
-
 printc() {
   local color_key="${1,,}"
   shift
@@ -81,11 +80,11 @@ install_yay() {
   pushd "$tmpdir" >/dev/null || exit 1
   makepkg -si --noconfirm || {
     printc red "yay build or install failed."
-    popd >/dev/null
+    popd >/dev/null || exit
     rm -rf "$tmpdir"
     exit 1
   }
-  popd >/dev/null
+  popd >/dev/null || exit
   rm -rf "$tmpdir"
 
   printc green "yay installed successfully."
@@ -119,11 +118,46 @@ install_dependencies() {
   printc green "All dependencies installed."
 }
 
+enable_services() {
+  local user_services=(
+    hyprpolkitagent.service
+    gnome-keyring-daemon.socket
+  )
+  local system_services=(
+    bluetooth.service
+  )
+
+  for service in "${user_services[@]}"; do
+    if systemctl --user is-enabled "$service" &>/dev/null; then
+      printc green "$service is already enabled."
+    else
+      printc yellow "Enabling $service..."
+      systemctl --user enable "$service" || {
+        printc red "Failed to enable $service."
+        exit 1
+      }
+    fi
+  done
+
+  for service in "${system_services[@]}"; do
+    if systemctl is-enabled "$service" &>/dev/null; then
+      printc green "$service is already enabled."
+    else
+      printc yellow "Enabling $service..."
+      sudo systemctl enable "$service" || {
+        printc red "Failed to enable $service."
+        exit 1
+      }
+    fi
+  done
+}
+
 # --- Main ---
 main() {
   configure_pacman
   install_yay
-  install_dependencies
+  # install_dependencies
+  enable_services
 }
 
 main "$@"
