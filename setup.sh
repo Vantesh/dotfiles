@@ -2,85 +2,128 @@
 
 # Hyprland dotfiles setup script for Arch Linux
 
-# 🎨 Color definitions
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-WHITE='\033[0m'
+# --- Color Map ---
+declare -A COLORS=(
+  [red]='\033[0;31m'
+  [green]='\033[0;32m'
+  [yellow]='\033[1;33m'
+  [white]='\033[0m'
+)
 
-#spice up pacman  with colors,progress bar and a ilovecandy
 
-pacman_config() {
+printc() {
+  local color_key="${1,,}"
+  shift
+  local color="${COLORS[$color_key]:-${COLORS[white]}}"
+  echo -e "${color}$*${COLORS[white]}"
+}
+
+# --- Patch pacman.conf with custom options ---
+configure_pacman() {
   local config="/etc/pacman.conf"
-  local options=("Color" "VerbosePkgLists")
-  local ilovecandy="ILoveCandy"
+  local backup="${config}.bak"
 
-  echo "🛠️  Configuring pacman..."
+  printc yellow "Configuring pacman..."
 
-  # Backup first
-  sudo cp "$config" "${config}.bak"
+  [[ -f "$config" ]] || {
+    printc red "pacman.conf not found at $config. Aborting."
+    exit 1
+  }
 
-  # Enable regular options if commented out
-  for option in "${options[@]}"; do
-    if grep -q "^#${option}" "$config"; then
-      sudo sed -i "s/^#${option}/${option}/" "$config"
-      echo "Enabled ${option}"
+  sudo cp "$config" "$backup" || {
+    printc red "Failed to backup pacman.conf. Aborting."
+    exit 1
+  }
+
+  for option in "Color" "VerbosePkgLists"; do
+    if grep -qE "^#?$option" "$config"; then
+      sudo sed -i "s/^#\?$option/$option/" "$config"
+      printc green "Enabled '$option'"
     else
-      echo "${option} already enabled or missing."
+      printc yellow "'$option' already active or missing."
     fi
   done
 
-  # Ensure ILoveCandy is present
-  if ! grep -q "^${ilovecandy}" "$config"; then
-    echo -e "\n${ilovecandy}" | sudo tee -a "$config" >/dev/null
-    echo "🍬 Added ILoveCandy to pacman.conf"
+  if ! grep -q "^ILoveCandy" "$config"; then
+    sudo sed -i "/^Color/a ILoveCandy" "$config"
+    printc green "Inserted 'ILoveCandy' after 'Color'"
   else
-    echo "🍭 ILoveCandy already present."
+    printc yellow "ILoveCandy already present."
   fi
 }
 
-pacman_config
-# 📦 Install yay if not already available
+# --- Install yay from AUR if missing ---
 install_yay() {
-  if ! command -v yay &>/dev/null; then
-    print "$YELLOW" "Installing yay..."
-    sudo pacman -S --needed --noconfirm git base-devel
-    tmpdir=$(mktemp -d)
-    git clone https://aur.archlinux.org/yay-bin.git "$tmpdir"
-    pushd "$tmpdir" >/dev/null || exit 1
-    makepkg -si --noconfirm
-    popd >/dev/null || exit
-    rm -rf "$tmpdir"
-    print "$GREEN" "yay installed successfully."
-  else
-    print "$GREEN" "yay is already installed."
+  if command -v yay &>/dev/null; then
+    printc yellow "yay is already installed."
+    return
   fi
+
+  printc yellow "Installing yay from AUR..."
+
+  sudo pacman -S --noconfirm --needed git base-devel || {
+    printc red "Failed to install build dependencies."
+    exit 1
+  }
+
+  local tmpdir
+  tmpdir=$(mktemp -d) || {
+    printc red "Failed to create temp directory."
+    exit 1
+  }
+
+  git clone https://aur.archlinux.org/yay-bin.git "$tmpdir" || {
+    printc red "Failed to clone yay repository."
+    rm -rf "$tmpdir"
+    exit 1
+  }
+
+  pushd "$tmpdir" >/dev/null || exit 1
+  makepkg -si --noconfirm || {
+    printc red "yay build or install failed."
+    popd >/dev/null
+    rm -rf "$tmpdir"
+    exit 1
+  }
+  popd >/dev/null
+  rm -rf "$tmpdir"
+
+  printc green "yay installed successfully."
 }
 
-# 📦 Install packages listed in dependencies.txt
+# --- Install packages from dependencies.txt ---
 install_dependencies() {
   local deps_file="dependencies.txt"
 
-  if [[ ! -f "$deps_file" ]]; then
-    print "$RED" "Missing $deps_file. Exiting..."
+  [[ -f "$deps_file" ]] || {
+    printc red "Missing $deps_file. Please create it and list required packages."
     exit 1
-  fi
+  }
+
+  printc yellow "Installing dependencies from $deps_file..."
 
   mapfile -t packages < <(grep -Ev '^\s*#|^\s*$' "$deps_file")
 
   for pkg in "${packages[@]}"; do
-    if ! pacman -Qq "$pkg" &>/dev/null; then
-      print "$YELLOW" "Installing $pkg..."
+    if pacman -Qq "$pkg" &>/dev/null; then
+      printc green "$pkg is already installed."
+    else
+      printc yellow "Installing $pkg..."
       yay -S --noconfirm "$pkg" || {
-        print "$RED" "Failed to install $pkg. Exiting..."
+        printc red "Failed to install $pkg."
         exit 1
       }
-    else
-      print "$GREEN" "$pkg is already installed."
     fi
   done
+
+  printc green "All dependencies installed."
 }
 
-# 🚀 Run the setup
-install_yay
-install_dependencies
+# --- Main ---
+main() {
+  configure_pacman
+  install_yay
+  install_dependencies
+}
+
+main "$@"
