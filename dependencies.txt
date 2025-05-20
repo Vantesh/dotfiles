@@ -20,9 +20,9 @@ wget
 brightnessctl
 playerctl
 xdg-desktop-portal-hyprland
+archlinux-xdg-menu
 xdg-desktop-portal-gtk
 oh-my-posh-bin
-auto-cpufreq
 bat
 snap-pac
 snapper
@@ -45,6 +45,5 @@ zsh
 zoxide
 ttf-jetbrains-mono-nerd
 ttf-font-awsome
-swww
 kitty
 hyprpolkitagent
