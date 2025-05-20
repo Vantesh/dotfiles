@@ -118,40 +118,6 @@ install_dependencies() {
   printc green "All dependencies installed."
 }
 
-enable_services() {
-  local user_services=(
-    hyprpolkitagent.service
-    gnome-keyring-daemon.socket
-  )
-  local system_services=(
-    bluetooth.service
-  )
-
-  for service in "${user_services[@]}"; do
-    if systemctl --user is-enabled "$service" &>/dev/null; then
-      printc green "$service is already enabled."
-    else
-      printc yellow "Enabling $service..."
-      systemctl --user enable "$service" || {
-        printc red "Failed to enable $service."
-        exit 1
-      }
-    fi
-  done
-
-  for service in "${system_services[@]}"; do
-    if systemctl is-enabled "$service" &>/dev/null; then
-      printc green "$service is already enabled."
-    else
-      printc yellow "Enabling $service..."
-      sudo systemctl enable "$service" || {
-        printc red "Failed to enable $service."
-        exit 1
-      }
-    fi
-  done
-}
-
 install_fonts() {
   local repo_url="https://github.com/Vantesh/Fonts.git"
   local temp_dir
@@ -201,14 +167,109 @@ install_fonts() {
 
   rm -rf "$temp_dir"
 }
+install_cursor_theme() {
+  local repo_owner="driedpampas"
+  local repo_name="macOS-hyprcursor"
+  local asset_name="macOS.Hyprcursor.White.tar.gz"
+  local icons_dir="$HOME/.local/share/icons"
+  local tmp_dir
+  tmp_dir=$(mktemp -d)
+
+  printc yellow "Querying latest release from $repo_owner/$repo_name..."
+
+  # Fetch latest release JSON and extract download URL
+  local download_url
+  download_url=$(curl -s "https://api.github.com/repos/$repo_owner/$repo_name/releases/latest" |
+    jq -r ".assets[] | select(.name == \"$asset_name\") | .browser_download_url")
+
+  if [[ -z "$download_url" || "$download_url" == "null" ]]; then
+    printc red "Could not find $asset_name in the latest release."
+    rm -rf "$tmp_dir"
+    return 1
+  fi
+
+  printc yellow "Downloading $asset_name..."
+  curl -L --silent "$download_url" -o "$tmp_dir/cursor.tar.gz" || {
+    printc red "Download failed."
+    rm -rf "$tmp_dir"
+    return 1
+  }
+
+  printc yellow "Extracting to $icons_dir..."
+  mkdir -p "$icons_dir"
+  tar -xzf "$tmp_dir/cursor.tar.gz" -C "$icons_dir" || {
+    printc red "Extraction failed."
+    rm -rf "$tmp_dir"
+    return 1
+  }
+
+  printc green "macOS Hyprcursor (white) installed successfully."
+  rm -rf "$tmp_dir"
+}
+
+misc_setup() {
+  printc yellow "Running miscellaneous setup tasks..."
+  # install auto-cpufreq
+  if ! command -v auto-cpufreq &>/dev/null; then
+    printc yellow "Installing auto-cpufreq..."
+    git clone https://github.com/AdnanHodzic/auto-cpufreq.git
+    cd auto-cpufreq && sudo ./auto-cpufreq-installer
+    cd .. && rm -rf auto-cpufreq
+    sudo auto-cpufreq --install
+  else
+    printc green "auto-cpufreq is already installed."
+  fi
+
+}
+
+enable_services() {
+  local user_services=(
+    hyprpolkitagent.service
+    gnome-keyring-daemon.socket
+    waybar.service
+    hypridle.service
+    hyprpaper.service
+
+  )
+  local system_services=(
+    bluetooth.service
+    auto-cpufreq.service
+  )
+
+  for service in "${user_services[@]}"; do
+    if systemctl --user is-enabled "$service" &>/dev/null; then
+      printc green "$service is already enabled."
+    else
+      printc yellow "Enabling $service..."
+      systemctl --user enable "$service" || {
+        printc red "Failed to enable $service."
+        exit 1
+      }
+    fi
+  done
+
+  for service in "${system_services[@]}"; do
+    if systemctl is-enabled "$service" &>/dev/null; then
+      printc green "$service is already enabled."
+    else
+      printc yellow "Enabling $service..."
+      sudo systemctl enable "$service" || {
+        printc red "Failed to enable $service."
+        exit 1
+      }
+    fi
+  done
+}
 
 # --- Main ---
 main() {
   configure_pacman
   install_yay
   install_dependencies
-  enable_services
   install_fonts
+  install_cursor_theme
+  misc_setup
+  enable_services
 }
 
 main "$@"
