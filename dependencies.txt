@@ -9,8 +9,9 @@ hyprlock
 hypridle
 xdg-user-dirs
 gnome-keyring
-nwg-look
+seahorse
 libsecret
+nwg-look
 wf-recorder
 wmctrl
 xdotool
