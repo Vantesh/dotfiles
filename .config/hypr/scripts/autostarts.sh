@@ -1,12 +1,8 @@
 #!/bin/bash
-exec >/tmp/autostart.log 2>&1
 
 apps=(
-  "hyprpanel"
   "clipse -listen"
-  "hyprpaper"
-  "swww-daemon"
-  "hypridle"
+  "udiskie &"
 )
 
 for app in "${apps[@]}"; do
