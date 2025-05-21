@@ -1,0 +1,111 @@
+* {
+    bg-col:  #1e1e2e;
+    bg-col-light: #1e1e2e;
+    border-col: #1e1e2e;
+    selected-col: #1e1e2e;
+    blue: #89b4fa;
+    mauve: #cba6f7;
+    fg-col: #cdd6f4;
+    fg-col2: #f38ba8;
+    grey: #6c7086;
+
+    width: 400;
+    font: "Monolisa Nerd Font 16";
+}
+
+element-text, element-icon , mode-switcher {
+    background-color: inherit;
+    text-color:       inherit;
+}
+
+window {
+    border-color: @mauve;
+    border-radius: 22;
+    border: 2px solid;
+    background-color: @bg-col;
+}
+
+mainbox {
+    background-color: @bg-col;
+    padding: 20px;
+}
+
+inputbar {
+    children: [prompt,entry];
+    background-color: @bg-col;
+    border-radius: 2px;
+}
+
+prompt {
+    enabled: false;
+    background-color: @mauve;
+    padding: 5px;
+    text-color: @bg-col;
+    border-radius: 3px;
+  	margin: 0px 5px 0px 0px;
+  	horizontal-align: 0.5;
+  	vertical-align: 0.5;
+}
+
+textbox-prompt-colon {
+    expand: false;
+    str: ":";
+}
+
+entry {
+    padding: 6px;
+    text-color: @fg-col;
+    background-color: @bg-col;
+    vertical-align: 0.5;
+}
+
+listview {
+    padding: 15px 0px 0px 0px;
+    columns: 1;
+    lines: 7;
+    background-color: @bg-col;
+}
+
+element {
+    margin: 3px 0px 0px 0px;
+    padding: 6px;
+    background-color: @bg-col;
+    text-color: @fg-col;
+}
+
+element-text {
+	vertical-align: 0.5;
+}
+
+element-icon {
+    size: 34px;
+    vertical-align: 0.5;
+}
+
+element selected.normal {
+    background-color:  @mauve;
+    border-radius: 10px;
+    text-color: @bg-col;
+}
+
+mode-switcher {
+    spacing: 0;
+}
+
+button {
+    enabled: false;
+}
+
+message {
+    background-color: @bg-col-light;
+    margin: 2px;
+    padding: 2px;
+    border-radius: 5px;
+}
+
+textbox {
+    padding: 6px;
+    margin: 20px 0px 0px 20px;
+    text-color: @mauve;
+    background-color: @bg-col-light;
+}
