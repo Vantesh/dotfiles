@@ -36,11 +36,11 @@ command = "kitty --class scratchpad-large nvtop"
 lazy = true
 
 [scratchpads.topgrade-system]
-command = "kitty --class scratchpad-large zsh -c 'topgrade'"
+command = "kitty --class scratchpad-large zsh -c 'up'"
 lazy = true
 
 [scratchpads.topgrade-all]
-command = "kitty --class scratchpad-large zsh -c 'topgrade'"
+command = "kitty --class scratchpad-large zsh -c 'upall'"
 lazy = true
 
 [scratchpads.bluetooth]
