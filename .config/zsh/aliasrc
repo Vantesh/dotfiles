@@ -6,7 +6,7 @@ alias rm="rm -ri"
 alias mv="mv -i"
 alias cp="cp -i"
 alias mkdir="mkdir -p"
-alias cat="bat --style header --style snip --style changes --style header"
+alias cat="bat --style=header --style=snip --style=changes"
 alias vim="nvim"
 alias ls="eza -a --icons=always --color=always --group-directories-first"
 alias ll="eza -al --icons=always --color=always --group-directories-first"
@@ -15,6 +15,29 @@ alias du='dust -r'
 alias free='free -m'
 alias find='fd'
 alias h='history'
-alias up="sudo pacman -Syu"
 # Cleanup orphaned packages
 alias cleanup='sudo pacman -Rns $(pacman -Qtdq)'
+
+up() {
+    if command -v topgrade &>/dev/null; then
+        topgrade -k --only system
+    elif command -v yay &>/dev/null; then
+        yay -Syu "$@"
+    else
+        sudo pacman -Syu "$@"
+    fi
+}
+
+upall() {
+    if command -v topgrade &>/dev/null; then
+        topgrade -k --no-self-update "$@"
+    else
+        echo "topgrade is not installed."
+    fi
+}
+
+clean() {
+    sudo paccache -rk1
+    sudo paccache -ruk0
+    cargo cache -a
+}
