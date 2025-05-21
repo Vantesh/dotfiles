@@ -1,0 +1,15 @@
+configuration {
+    modi: "drun";
+    show-icons: true;
+    drun-display-format: "{icon} {name}";
+    terminal: "kitty";
+    icon-theme: "Papirus";
+}
+
+@theme "catppuccin-mocha"
+
+window {
+    width: 40%;
+    height: 50%;
+}
+
