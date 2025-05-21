@@ -1,9 +1,9 @@
 export XDG_MENU_PREFIX=arch-
 #cursor
-export XCURSOR_SIZE=26
+export XCURSOR_SIZE=24
 
 export XCURSOR_THEME=macOS-White
-export HYPRCURSOR_SIZE=26
+export HYPRCURSOR_SIZE=24
 export HYPRCURSOR_THEME=macOS
 
 export GDK_BACKEND=wayland,x11,*
