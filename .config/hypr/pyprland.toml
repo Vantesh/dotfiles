@@ -1,0 +1,56 @@
+
+[pyprland]
+plugins = ["scratchpads", "magnify"]
+
+[scratchpads.volume]
+command = "pavucontrol"
+unfocus = "hide"
+position = "1% 8%"
+lazy = true
+
+
+[scratchpads.terminal]
+command = "kitty --class scratchpad-large"
+lazy = true
+
+[scratchpads.yazi]
+command = "kitty --class scratchpad-large zsh -c yazi"
+unfocus = "hide"
+hysteresis = 0.1
+lazy = true
+
+[scratchpads.gpt]
+command = "kitty --class scratchpad-large tgpt -m"
+lazy = true
+
+[scratchpads.dots]
+command = "kitty --class scratchpad-large yadm enter lazygit"
+lazy = true
+
+[scratchpads.btop]
+command = "kitty --class scratchpad-large btop"
+lazy = true
+
+[scratchpads.nvtop]
+command = "kitty --class scratchpad-large nvtop"
+lazy = true
+
+[scratchpads.topgrade-system]
+command = "kitty --class scratchpad-large zsh -c 'topgrade'"
+lazy = true
+
+[scratchpads.topgrade-all]
+command = "kitty --class scratchpad-large zsh -c 'topgrade'"
+lazy = true
+
+[scratchpads.bluetooth]
+command = "overskride"
+animation = "fromRight"
+margin = 20
+lazy = true
+
+[scratchpads.wifi]
+command = "iwgtk"
+animation = "fromRight"
+margin = 20
+lazy = true
