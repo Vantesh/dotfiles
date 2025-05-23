@@ -11,6 +11,7 @@ core_packages=(
   hypridle      # Idle management
   hyprlock      # Lock screen
   hyprpaper     # Wallpaper daemon
+  pyprland      # for scratchpads
   waybar        # Status bar
   brightnessctl # Screen brightness
   playerctl     # Media controller
@@ -33,6 +34,7 @@ core_packages=(
   bluez-utils
   ufw
 )
+export core_packages
 
 # =======================
 # FONTS
@@ -47,6 +49,7 @@ fonts=(
   noto-fonts-cjk
   noto-fonts-extra
 )
+export fonts
 
 # =======================
 # APPEARANCE / THEMING
@@ -59,13 +62,12 @@ appearance=(
   qt5-wayland
   qt6-wayland
 )
+export appearance
 
 # =======================
-# HYPRLAND SCRIPTING / AUTOMATION
+# Input tools and utilities
 # =======================
-scripting_and_automation=(
-
-  pyprland
+input_tools=(
   wf-recorder
   clipse-gui
   clipse
@@ -75,3 +77,4 @@ scripting_and_automation=(
   libinput-gestures
   libva-intel-driver
 )
+export input_tools
