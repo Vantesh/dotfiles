@@ -11,7 +11,7 @@ source "$ROOT_DIR/dependencies"
 
 install_dependencies() {
   # Combine all package arrays into one big array
-  local all_packages=("${core_packages[@]}" "${fonts[@]}" "${appearance[@]}" "${scripting_and_automation[@]}")
+  local all_packages=("${core_packages[@]}" "${fonts[@]}" "${appearance[@]}" "${input_tools[@]}")
 
   if [[ ${#all_packages[@]} -eq 0 ]]; then
     fail "No packages found in dependencies."
