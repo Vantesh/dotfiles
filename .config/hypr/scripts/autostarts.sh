@@ -2,7 +2,8 @@
 apps=(
   "clipse -listen"
   "udiskie &"
-  "pypr --debug /tmp/pypr.log"
+  "pypr &"
+  "swaync &"
 
 )
 
