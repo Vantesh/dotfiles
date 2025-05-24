@@ -13,4 +13,6 @@ deps=(
 )
 
 # Install dependencies with yay
-yay -S --needed --noconfirm "${deps[@]}"
+for dep in "${deps[@]}"; do
+  install_package "$dep"
+done
