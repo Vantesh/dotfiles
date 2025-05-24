@@ -17,50 +17,53 @@ else
   fail "Failed to install dependencies."
 fi
 
-if systemctl is-active limine-snapper-sync.service &>/dev/null; then
-  printc green "limine-snapper-sync service is already enabled."
-else
-  if systemctl enable limine-snapper-sync.service; then
-    printc green "limine-snapper-sync service enabled successfully."
-  else
-    fail "Failed to enable limine-snapper-sync service."
-  fi
-fi
+enable_services() {
+  local services=(
+    "limine-snapper-sync.service"
+    "snapper-timeline.timer"
+    "snapper-cleanup.timer"
+  )
 
-# copy  file in limine directory to /etc/default/limine
-if sudo cp /etc/limine-snapper-sync.conf /etc/default/limine; then
-  printc green "File copied successfully."
-else
-  fail "Failed to copy file."
-fi
-# edit the file to add snapshot number to 20
+  for service in "${services[@]}"; do
+    if systemctl is-active "$service" &>/dev/null; then
+      printc green "$service is already enabled."
+    else
+      if sudo systemctl enable "$service"; then
+        printc green "$service enabled successfully."
+      else
+        fail "Failed to enable $service."
+      fi
+    fi
+  done
+}
+enable_services
+
+# --- Snapper Config Values for /etc/default/limine ---
 declare -A snapper_config=(
   ["MAX_SNAPSHOT_ENTRIES"]=20
   ["TERMINAL"]="kitty"
   ["TERMINAL_ARG"]="-e"
   ["ENABLE_UKI"]="yes"
-  ["QUIET_MODE"]="yes"
-
 )
 
-for key in "${!snapper_config[@]}"; do
-  value="${snapper_config[$key]}"
-  line="${key}=${value}"
+CONFIG_FILE="/etc/default/limine"
 
-  # Check if key exists either commented or uncommented
-  if grep -qE "^\s*#?\s*${key}=" /etc/default/limine; then
-    # Update the line, uncomment if needed
-    if sudo sed -i "s|^\s*#\?\s*${key}=.*|${line}|" /etc/default/limine; then
-      printc green "Updated $key to $value"
-    else
-      fail "Failed to update $key"
-    fi
-  else
-    # Key doesn't exist at all, add it on a new line
-    if echo -e "\n$line" | sudo tee -a /etc/default/limine >/dev/null; then
-      printc green "Added $key with value $value"
-    else
-      fail "Failed to add $key"
-    fi
-  fi
+for key in "${!snapper_config[@]}"; do
+  update_or_append_config "$CONFIG_FILE" "$key" "${snapper_config[$key]}"
+done
+
+# --- Snapshots cleanup config ---
+declare -A cleanup_config=(
+  ["TIMELINE_MIN_AGE"]="1800"
+  ["TIMELINE_LIMIT_HOURLY"]="5"
+  ["TIMELINE_LIMIT_DAILY"]="7"
+  ["TIMELINE_LIMIT_WEEKLY"]="0"
+  ["TIMELINE_LIMIT_MONTHLY"]="0"
+  ["TIMELINE_LIMIT_YEARLY"]="0"
+)
+
+CONFIG_FILE="/etc/snapper/configs/root"
+
+for key in "${!cleanup_config[@]}"; do
+  update_or_append_config "$CONFIG_FILE" "$key" "${cleanup_config[$key]}"
 done
