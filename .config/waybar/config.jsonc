@@ -1,0 +1,15 @@
+[
+	{
+		"include": "~/.config/waybar/bar/bar.jsonc",
+		"height": 35,
+		"layer": "top",
+		"mode": "dock",
+		"exclusive": true,
+		"passtrough": false,
+		"gtk-layer-shell": true,
+		"margin-top": 5,
+		"margin-left": 1,
+		"margin-bottom": 0,
+		"margin-right": 1
+	}
+]
