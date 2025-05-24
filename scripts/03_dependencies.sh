@@ -96,7 +96,6 @@ input_tools=(
   wmctrl
   xdotool
   libinput-gestures
-  libva-intel-driver
 )
 
 # =======================
@@ -110,6 +109,7 @@ drivers=(
   libva-nvidia-driver
   intel-ucode
   nvidia-dkms
+  nvidia-utils
 
 )
 
@@ -141,13 +141,5 @@ packages=(
 )
 
 for package in "${packages[@]}"; do
-  if yay -Qi "$package" &>/dev/null; then
-    printc green "$package is already installed."
-  else
-    if yay -S --needed --noconfirm "$package"; then
-      printc green "$package installed successfully."
-    else
-      printc red "Failed to install $package."
-    fi
-  fi
+  install_package "$package"
 done
