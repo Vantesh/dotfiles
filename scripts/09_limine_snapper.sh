@@ -53,17 +53,21 @@ for key in "${!snapper_config[@]}"; do
 done
 
 # --- Snapshots cleanup config ---
-declare -A cleanup_config=(
+declare -A snapper_settings=(
+  ["NUMBER_CLEANUP"]="yes"
+  ["NUMBER_LIMIT"]="30"
+  ["TIMELINE_CLEANUP"]="yes"
   ["TIMELINE_MIN_AGE"]="1800"
   ["TIMELINE_LIMIT_HOURLY"]="5"
   ["TIMELINE_LIMIT_DAILY"]="7"
   ["TIMELINE_LIMIT_WEEKLY"]="0"
   ["TIMELINE_LIMIT_MONTHLY"]="0"
   ["TIMELINE_LIMIT_YEARLY"]="0"
+  ["EMPTY_PRE_POST_CLEANUP"]="yes"
+  ["EMPTY_PRE_POST_MIN_AGE"]="3600"
+
 )
 
-CONFIG_FILE="/etc/snapper/configs/root"
-
-for key in "${!cleanup_config[@]}"; do
-  update_or_append_config "$CONFIG_FILE" "$key" "${cleanup_config[$key]}"
+for key in "${!snapper_settings[@]}"; do
+  set_snapper_config_value "root" "$key" "${snapper_settings[$key]}"
 done
