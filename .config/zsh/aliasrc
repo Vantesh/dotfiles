@@ -41,3 +41,11 @@ clean() {
     sudo paccache -ruk0
     cargo cache -a
 }
+
+safetouch() {
+    mkdir -p "$(dirname "$1")" && touch "$1"
+}
+
+ref() {
+    exec zsh
+}

@@ -27,6 +27,10 @@ if [ -f "${ZDOTDIR}/aliasrc" ]; then
   source "${ZDOTDIR}/aliasrc"
 fi
 
+# load exportrc if it exists
+if [ -f "${ZDOTDIR}/exportrc" ]; then
+  source "${ZDOTDIR}/exportrc"
+fi
 # Lazy-load antidote and generate the static load file only when needed
 zsh_plugins=${ZDOTDIR:-$HOME}/.zsh_plugins
 if [[ ! ${zsh_plugins}.zsh -nt ${zsh_plugins}.txt ]]; then
@@ -64,12 +68,4 @@ if command -v oh-my-posh &>/dev/null; then
   eval "$(oh-my-posh init zsh --config "${ZDOTDIR}/ohmyposh/ohmyposh.toml")"
 fi
 
-safetouch() {
-  mkdir -p "$(dirname "$1")" && touch "$1"
-}
 
-ref() {
-  exec zsh
-}
-export PATH=$PATH:/home/vantesh/.spicetify
-export Editor="nvim"
