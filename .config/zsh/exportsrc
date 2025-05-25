@@ -1,0 +1,25 @@
+#!/bin/bash
+# ~/ Clean-up:
+export GTK_RC_FILES="$XDG_CONFIG_HOME"/gtk-1.0/gtkrc
+export GTK2_RC_FILES="$XDG_CONFIG_HOME/gtk-2.0/gtkrc"
+export WGETRC="$XDG_CONFIG_HOME/wgetrc"
+export ANDROID_SDK_HOME="$XDG_CONFIG_HOME/android"
+export CARGO_HOME="$XDG_DATA_HOME/cargo"
+export RUSTUP_HOME="$XDG_DATA_HOME/rustup"
+export LESSHISTFILE="-"
+export FFMPEG_DATADIR="$XDG_CONFIG_HOME"/ffmpeg
+export GOPATH="$XDG_DATA_HOME"/go
+export GOMODCACHE="$XDG_CACHE_HOME"/go/mod
+export LEIN_HOME="$XDG_DATA_HOME"/lein
+export DOTNET_CLI_HOME="$XDG_DATA_HOME"/dotnet
+
+# Defaults:
+export EDITOR="nvim"
+export VISUAL="code"
+export PAGER="less -R"
+
+# setup git path
+export GIT_CONFIG_GLOBAL="$XDG_CONFIG_HOME/git/config"
+
+# spicetify
+export PATH=$PATH:"$HOME/.spicetify"
