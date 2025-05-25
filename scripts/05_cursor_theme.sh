@@ -11,8 +11,9 @@ check_and_install_tools() {
 
   if ((${#missing[@]} > 0)); then
     printc yellow "Missing tools: ${missing[*]}. Installing..."
-    # curl and jq are official repo packages, so pacman is fine
-    yay -S --noconfirm --needed "${missing[@]}" || fail "Failed to install required tools: ${missing[*]}"
+    for tool in "${missing[@]}"; do
+      install_package "$tool"
+    done
     printc green "Required tools installed."
   else
     printc green "All required tools are already installed."
