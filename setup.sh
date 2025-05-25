@@ -7,10 +7,8 @@ LIB_DIR="$SCRIPTS_DIR/lib"
 
 source "$LIB_DIR/utils.sh"
 
-# Source dependencies arrays
-
 source "$SCRIPTS_DIR/01_pacman_config.sh"
-source "$SCRIPTS_DIR/02_install_yay.sh"
+source "$SCRIPTS_DIR/02_AUR_helper.sh"
 source "$SCRIPTS_DIR/03_dependencies.sh"
 source "$SCRIPTS_DIR/04_fonts.sh"
 source "$SCRIPTS_DIR/05_cursor_theme.sh"
@@ -23,6 +21,7 @@ if confirm "Setup ZSH and related tools?"; then
   source "$SCRIPTS_DIR/08_setup_zsh.sh"
 else
   printc yellow "Skipping ZSH setup."
+
 fi
 
 if confirm "This is for limine bootloader setup. Do you want to continue?"; then
@@ -30,4 +29,11 @@ if confirm "This is for limine bootloader setup. Do you want to continue?"; then
   source "$SCRIPTS_DIR/09_limine_snapper.sh"
 else
   printc yellow "Skipping limine bootloader setup."
+fi
+
+if confirm "Setup touchpad gestures?"; then
+  printc yellow "Starting touchpad gestures setup..."
+  source "$SCRIPTS_DIR/10_touchpad-gestures.sh"
+else
+  printc yellow "Skipping touchpad gestures setup."
 fi
