@@ -15,7 +15,7 @@ deps=(
 
 )
 
-# Install dependencies with yay
+# Install dependencies
 for dep in "${deps[@]}"; do
   install_package "$dep"
 done
