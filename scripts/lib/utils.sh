@@ -27,20 +27,52 @@ fail() {
   printc red "$1"
   exit "${2:-1}"
 }
-install_package() {
-  if yay -Qi "$1" &>/dev/null; then
-    printc green "$1 is already installed."
-  else
-    if yay -S --needed --noconfirm "$1"; then
-      printc green "$1 installed successfully."
-    else
-      fail "Failed to install $1."
-    fi
-  fi
 
+spinner() {
+  local pid=$1
+  local pkg="$2"
+  local delay=0.15
+
+  # Pick your spinner here:
+  local spinchars=('⠁' '⠂' '⠄' '⡀' '⢀' '⠠' '⠐' '⠈')
+
+  # Color codes for bright cyan and reset
+  local cyan='\033[1;36m'
+  local reset='\033[0m'
+
+  while kill -0 "$pid" 2>/dev/null; do
+    for ch in "${spinchars[@]}"; do
+      printf "\r%s Installing %b%s%b... " "$ch" "$cyan" "$pkg" "$reset"
+      sleep $delay
+    done
+  done
+  printf "\r"
 }
 
-update_or_append_config() {
+# --- Install package using AUR ---
+install_package() {
+  local pkg="$1"
+
+  if "$AUR_HELPER" -Qi "$pkg" &>/dev/null; then
+    printc green "$pkg is already installed."
+  else
+    "$AUR_HELPER" -S --needed --noconfirm "$pkg" &>/dev/null &
+    local pid=$!
+
+    spinner "$pid" "$pkg"
+
+    wait "$pid"
+    local status=$?
+
+    if ((status == 0)); then
+      printc green "$pkg installed successfully."
+    else
+      fail "Failed to install $pkg."
+    fi
+  fi
+}
+
+update_config() {
   local config_file="$1"
   local key="$2"
   local value="$3"
