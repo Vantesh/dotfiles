@@ -1,6 +1,6 @@
 export XDG_MENU_PREFIX=arch-
 export UWSM_USE_SESSION_SLICE=true
-export SDL_VIDEODRIVER="wayland,x11"
+export SDL_VIDEODRIVER=wayland
 
 #cursor
 export XCURSOR_SIZE=24
@@ -8,17 +8,24 @@ export XCURSOR_THEME=macOS-White
 export HYPRCURSOR_SIZE=24
 export HYPRCURSOR_THEME=macOS
 
-export GDK_BACKEND="wayland,x11,*"
+export GDK_BACKEND=wayland,x11
+export GDK_SCALE=1
 export ELECTRON_OZONE_PLATFORM_HINT=auto
+export CLUTTER_BACKEND=wayland
 
 #QT VARIABLES
-export QT_QPA_PLATFORM="wayland;xcb"
+export QT_QPA_PLATFORM=wayland;xcb
 export QT_AUTO_SCREEN_SCALE_FACTOR=1
 export QT_WAYLAND_DISABLE_WINDOWDECORATION=1
-export QT_QPA_PLATFORMTHEME=qt6ct
+export QT_QPA_PLATFORMTHEME=qt5ct
 
 #GPU
 export GBM_BACKEND=nvidia-drm
 export LIBVA_DRIVER_NAME=nvidia
 export __GLX_VENDOR_LIBRARY_NAME=nvidia
 export __GL_VRR_ALLOWED=0
+
+# Firefox
+export MOZ_DISABLE_RDD_SANDBOX=1
+export EGL_PLATFORM=wayland
+export MOZ_ENABLE_WAYLAND=1
