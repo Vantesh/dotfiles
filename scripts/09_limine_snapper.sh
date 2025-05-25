@@ -10,12 +10,9 @@ deps=(
   sbctl
 )
 
-# Install dependencies with yay
-if yay -S --needed --noconfirm "${deps[@]}"; then
-  printc green "All dependencies installed successfully."
-else
-  fail "Failed to install dependencies."
-fi
+for dep in "${deps[@]}"; do
+  install_package "$dep"
+done
 
 enable_services() {
   local services=(
@@ -49,7 +46,7 @@ declare -A snapper_config=(
 CONFIG_FILE="/etc/default/limine"
 
 for key in "${!snapper_config[@]}"; do
-  update_or_append_config "$CONFIG_FILE" "$key" "${snapper_config[$key]}"
+  update_config "$CONFIG_FILE" "$key" "${snapper_config[$key]}"
 done
 
 # --- Snapshots cleanup config ---
