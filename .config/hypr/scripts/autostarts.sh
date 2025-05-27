@@ -1,9 +1,8 @@
 #!/bin/bash
 apps=(
   "clipse -listen"
-  "udiskie &"
-  "pypr &"
-  "swaync &"
+  "udiskie"
+  "pypr"
 
 )
 
