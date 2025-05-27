@@ -2,12 +2,6 @@
 [pyprland]
 plugins = ["scratchpads", "magnify"]
 
-[scratchpads.volume]
-command = "pavucontrol"
-unfocus = "hide"
-position = "1% 8%"
-lazy = true
-
 
 [scratchpads.terminal]
 command = "kitty --class scratchpad-large"
@@ -19,38 +13,44 @@ unfocus = "hide"
 hysteresis = 0.1
 lazy = true
 
-[scratchpads.gpt]
-command = "kitty --class scratchpad-large tgpt -m"
-lazy = true
-
-[scratchpads.dots]
-command = "kitty --class scratchpad-large yadm enter lazygit"
-lazy = true
 
 [scratchpads.btop]
 command = "kitty --class scratchpad-large btop"
 lazy = true
+close_on_hide = true
 
 [scratchpads.nvtop]
 command = "kitty --class scratchpad-large nvtop"
 lazy = true
+close_on_hide = true
 
 [scratchpads.topgrade-system]
-command = "kitty --class scratchpad-large zsh -c 'up'"
+command = "kitty --class scratchpad-large zsh -c 'topgrade'"
 lazy = true
+close_on_hide = true
 
 [scratchpads.topgrade-all]
 command = "kitty --class scratchpad-large zsh -c 'upall'"
 lazy = true
+close_on_hide = true
 
 [scratchpads.bluetooth]
 command = "overskride"
-animation = "fromRight"
-margin = 20
+animation = "fromTop"
+position = "70% 10%"
+size = "15% 45%"
 lazy = true
 
 [scratchpads.wifi]
 command = "iwgtk"
-animation = "fromRight"
-margin = 20
+class = "org.twosheds.iwgtk"
+animation = "fromTop"
+position = "70% 10%"
+size = "30% 40%"
+close_on_hide = true
 lazy = true
+
+[scratchpads.volume]
+command = "pwvucontrol"
+lazy = true
+close_on_hide = true
