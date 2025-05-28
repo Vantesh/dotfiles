@@ -6,6 +6,9 @@ deps=(
   unzip
   duf
   fastfetch
+  dust
+  pkgfile
+  topgrade
   eza
   fd
   less
