@@ -21,7 +21,7 @@ core_packages=(
   devify          # device notification system
   brightnessctl   # Screen brightness
   playerctl       # Media controller
-  dolphin         # File manager
+  thunar          # File manager
   sddm            # Display manager
   kitty           # Terminal emulator
 

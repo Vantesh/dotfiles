@@ -46,6 +46,7 @@ enable_services() {
   )
   local system_services=(
     bluetooth.service
+    paccache.timer
     auto-cpufreq.service
   )
 
