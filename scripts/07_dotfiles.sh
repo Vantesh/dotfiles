@@ -1,11 +1,21 @@
 #!/bin/bash
 
-#link config files
+#backup existing dotfiles
+if [ -d "$HOME/.config" ]; then
+  printc "green" "Backing up existing .config directory to .config_backup"
+  mv "$HOME/.config" "$HOME/.config_backup"
+else
+  echo "No existing .config directory found, skipping backup."
+fi
+
+#copy new dotfiles
 cp -r .config ~/
-#chmode +x
+
+# make scripts executable
 chmod_config_folders=(
   hypr
   waybar
+  rofi
 
 )
 for folder in "${chmod_config_folders[@]}"; do
