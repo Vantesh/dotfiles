@@ -49,3 +49,7 @@ safetouch() {
 ref() {
     exec zsh
 }
+
+if command -v pkgfile &>/dev/null; then
+    source /usr/share/doc/pkgfile/command-not-found.zsh
+fi
