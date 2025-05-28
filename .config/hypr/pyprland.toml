@@ -25,12 +25,13 @@ lazy = true
 close_on_hide = true
 
 [scratchpads.topgrade-system]
-command = "kitty --class scratchpad-large zsh -c 'topgrade'"
+command = 'kitty --class scratchpad-large zsh -i -c "up"'
+
 lazy = true
 close_on_hide = true
 
 [scratchpads.topgrade-all]
-command = "kitty --class scratchpad-large zsh -c 'upall'"
+command = 'kitty --class scratchpad-large zsh -i -c "upall"'
 lazy = true
 close_on_hide = true
 
