@@ -16,7 +16,7 @@ source "$SCRIPTS_DIR/06_misc.sh"
 source "$SCRIPTS_DIR/07_dotfiles.sh"
 
 if confirm "Setup ZSH and related tools?"; then
-  printc yellow "Starting ZSH setup..."
+  printc cyan "Starting ZSH setup..."
 
   source "$SCRIPTS_DIR/08_setup_zsh.sh"
 else
@@ -25,14 +25,14 @@ else
 fi
 
 if confirm "This is for limine bootloader setup. Do you want to continue?"; then
-  printc yellow "Starting limine bootloader setup..."
+  printc cyan "Starting limine bootloader setup..."
   source "$SCRIPTS_DIR/09_limine_snapper.sh"
 else
   printc yellow "Skipping limine bootloader setup."
 fi
 
 if confirm "Setup touchpad gestures?"; then
-  printc yellow "Starting touchpad gestures setup..."
+  printc cyan "Starting touchpad gestures setup..."
   source "$SCRIPTS_DIR/10_touchpad-gestures.sh"
 else
   printc yellow "Skipping touchpad gestures setup."
