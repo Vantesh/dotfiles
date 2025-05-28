@@ -23,3 +23,9 @@ export GIT_CONFIG_GLOBAL="$XDG_CONFIG_HOME/git/config"
 
 # spicetify
 export PATH=$PATH:"$HOME/.spicetify"
+export TERMINAL='/usr/bin/kitty'
+
+#colors
+export MANPAGER="sh -c 'sed -u -e \"s/\\x1B\[[0-9;]*m//g; s/.\\x08//g\" | bat -p -lman'"
+export MANROFFOPT="-P -c"
+export LESS='-R --use-color -Dd+r$Du+b$'
