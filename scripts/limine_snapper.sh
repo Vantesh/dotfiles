@@ -65,6 +65,17 @@ declare -A snapper_settings=(
 
 )
 
+# create snapper config for root if it doesn't exist
+if ! snapper list-configs | grep -q "^root"; then
+  if snapper -c root create-config /; then
+    printc green "Snapper config for root created successfully."
+  else
+    fail "Failed to create Snapper config for root."
+  fi
+else
+  printc yellow "Snapper config for root already exists."
+fi
+
 for key in "${!snapper_settings[@]}"; do
   set_snapper_config_value "root" "$key" "${snapper_settings[$key]}"
 done

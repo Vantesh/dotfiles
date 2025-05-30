@@ -89,7 +89,6 @@ appearance=(
 # =======================
 input_tools=(
   gpu-screen-recorder
-  gpu-screenrecorder-gtk
   clipse-gui
   clipse
   wtype
@@ -119,7 +118,7 @@ drivers=(
 optional=(
   google-chrome
   bemoji
-  zen-browser
+  zen-browser-bin
   visual-studio-code-bin
   vlc
   ark
