@@ -1,7 +1,7 @@
 [
 	{
 		"include": "~/.config/waybar/bar/bar.jsonc",
-		"height": 35,
+		"height": 39,
 		"layer": "top",
 		"mode": "dock",
 		"exclusive": true,
