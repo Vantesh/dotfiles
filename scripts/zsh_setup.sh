@@ -43,3 +43,6 @@ if [[ -f "$ZSHENV_FILE" ]]; then
 else
   fail "Failed to create ZSH environment file at $ZSHENV_FILE"
 fi
+
+# make sure zsh is the default shell
+chsh -s "$(which zsh)" "$USER"
