@@ -33,8 +33,8 @@ has_cmd() {
 
 # --- Confirm action ---
 confirm() {
-  read -rp "$(printc yellow "$1 [y/N]: ")" response
-  [[ "$response" =~ ^[Yy]$ ]]
+  read -rp "$(printc yellow "$1 [Y/n]: ")" response
+  [[ -z "$response" || "$response" =~ ^[Yy]$ ]]
 }
 
 # --- Safe exit with message ---
