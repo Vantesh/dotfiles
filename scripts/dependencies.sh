@@ -107,6 +107,7 @@ drivers=(
   libva-intel-driver
   libva-nvidia-driver
   intel-ucode
+  linux-zen-headers
   nvidia-dkms
   nvidia-utils
 
