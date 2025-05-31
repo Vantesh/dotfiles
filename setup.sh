@@ -30,9 +30,9 @@ else
   printc yellow "Skipping limine bootloader setup."
 fi
 
-if confirm "Setup touchpad gestures?"; then
-  printc cyan "Starting touchpad gestures setup..."
-  source "$SCRIPTS_DIR/touchpad_gestures.sh"
+if confirm "Setup laptop tweaks?"; then
+  printc cyan "Starting laptop tweaks setup..."
+  source "$SCRIPTS_DIR/laptop_tweaks.sh"
 else
-  printc yellow "Skipping touchpad gestures setup."
+  printc yellow "Skipping laptop tweaks setup."
 fi
