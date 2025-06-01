@@ -14,26 +14,14 @@ for dep in "${deps[@]}"; do
   install_package "$dep"
 done
 
-enable_services() {
-  local services=(
-    "limine-snapper-sync.service"
-    "snapper-timeline.timer"
-    "snapper-cleanup.timer"
-  )
-
-  for service in "${services[@]}"; do
-    if systemctl is-active "$service" &>/dev/null; then
-      printc green "$service is already enabled."
-    else
-      if sudo systemctl enable "$service"; then
-        printc green "$service enabled successfully."
-      else
-        fail "Failed to enable $service."
-      fi
-    fi
-  done
-}
-enable_services
+services=(
+  "limine-snapper-sync.service"
+  "snapper-timeline.timer"
+  "snapper-cleanup.timer"
+)
+for service in "${services[@]}"; do
+  enable_service "$service" "system"
+done
 
 # --- Snapper Config Values for /etc/default/limine ---
 declare -A snapper_config=(
