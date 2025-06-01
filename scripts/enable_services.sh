@@ -12,6 +12,7 @@ enable_services() {
     bluetooth.service
     paccache.timer
     sddm.service
+    ufw.service
   )
 
   for service in "${user_services[@]}"; do
