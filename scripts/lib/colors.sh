@@ -4,7 +4,6 @@
 # shellcheck disable=SC2034
 declare -A COLORS=(
   [reset]='\033[0m'
-  [black]='\033[0;30m'
   [red]='\033[0;31m'
   [green]='\033[0;32m'
   [yellow]='\033[0;33m'
