@@ -1,8 +1,7 @@
 #!/bin/bash
-# ~/ Clean-up:
+# Clean-up home directory environment variables
 export GTK_RC_FILES="$XDG_CONFIG_HOME"/gtk-1.0/gtkrc
 export GTK2_RC_FILES="$XDG_CONFIG_HOME/gtk-2.0/gtkrc"
-export WGETRC="$XDG_CONFIG_HOME/wgetrc"
 export ANDROID_SDK_HOME="$XDG_CONFIG_HOME/android"
 export CARGO_HOME="$XDG_DATA_HOME/cargo"
 export RUSTUP_HOME="$XDG_DATA_HOME/rustup"
@@ -12,6 +11,8 @@ export GOPATH="$XDG_DATA_HOME"/go
 export GOMODCACHE="$XDG_CACHE_HOME"/go/mod
 export LEIN_HOME="$XDG_DATA_HOME"/lein
 export DOTNET_CLI_HOME="$XDG_DATA_HOME"/dotnet
+export CUDA_CACHE_PATH="$XDG_CACHE_HOME"/nv
+export __GL_SHADER_DISK_CACHE_PATH="${XDG_CACHE_HOME}/nv"
 
 # Defaults:
 export EDITOR="nvim"
@@ -23,6 +24,13 @@ export GIT_CONFIG_GLOBAL="$XDG_CONFIG_HOME/git/config"
 
 # spicetify
 export PATH=$PATH:"$HOME/.spicetify"
+
+# cargo
+export PATH=$PATH:"$CARGO_HOME"/bin
+export PATH=$PATH:"$RUSTUP_HOME"/bin
+# go
+export PATH=$PATH:"$GOPATH"/bin
+
 export TERMINAL='/usr/bin/kitty'
 
 #colors
