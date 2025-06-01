@@ -15,6 +15,7 @@ alias du='dust -r'
 alias free='free -m'
 alias find='fd'
 alias h='history'
+alias wget='wget --hsts-file="$XDG_DATA_HOME/wget-hsts"'
 # Cleanup orphaned packages
 alias cleanup='sudo pacman -Rns $(pacman -Qtdq)'
 
