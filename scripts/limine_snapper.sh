@@ -45,6 +45,10 @@ declare -A snapper_config=(
 
 CONFIG_FILE="/etc/default/limine"
 
+if [[ ! -f "$CONFIG_FILE" ]]; then
+  sudo cp /etc/limine-snapper-sync.conf "$CONFIG_FILE"
+fi
+
 for key in "${!snapper_config[@]}"; do
   update_config "$CONFIG_FILE" "$key" "${snapper_config[$key]}"
 done
@@ -64,17 +68,6 @@ declare -A snapper_settings=(
   ["EMPTY_PRE_POST_MIN_AGE"]="3600"
 
 )
-
-# create snapper config for root if it doesn't exist
-if ! snapper list-configs | grep -q "^root"; then
-  if snapper -c root create-config /; then
-    printc green "Snapper config for root created successfully."
-  else
-    fail "Failed to create Snapper config for root."
-  fi
-else
-  printc yellow "Snapper config for root already exists."
-fi
 
 for key in "${!snapper_settings[@]}"; do
   set_snapper_config_value "root" "$key" "${snapper_settings[$key]}"
