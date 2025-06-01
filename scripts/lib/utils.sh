@@ -55,7 +55,7 @@ spinner() {
   local pid=$1
   local pkg="$2"
   local delay=0.15
-  local spinchars=('⠁' '⠂' '⠄' '⡀' '⢀' '⠠' '⠐' '⠈')
+  local spinchars=('|' '/' '-' '\\')
 
   local cyan='\033[1;36m'
   local reset='\033[0m'
@@ -75,7 +75,7 @@ install_package() {
   local pkg="$1"
 
   if "$AUR_HELPER" -Qi "$pkg" &>/dev/null; then
-    printc "<cyan>$pkg</cyan> <green>is already installed</green> ✔"
+    printc "<cyan>$pkg</cyan> <green>is already installed</green>"
     return 0
   else
     ensure_sudo # ensure sudo won't interrupt the spinner
@@ -88,7 +88,7 @@ install_package() {
     local status=$?
 
     if ((status == 0)); then
-      printc "<cyan>$pkg</cyan> <green>has been installed</green> ✔"
+      printc "<cyan>$pkg</cyan> <green>has been installed</green>"
     else
       fail "Failed to install $pkg."
     fi
@@ -131,12 +131,18 @@ set_snapper_config_value() {
   local key="$2"
   local value="$3"
 
-  # Check if config exists
-  if ! sudo snapper list-configs | awk '{print $1}' | grep -qx "$config_name"; then
-    fail "Snapper config '$config_name' does not exist."
+  if ! sudo snapper list-configs | grep -q "^$config_name"; then
+    if [ "$config_name" = "root" ]; then
+      sudo snapper create-config -c "$config_name" /
+    elif [ "$config_name" = "home" ]; then
+      sudo snapper create-config -c "$config_name" /home
+    else
+      printc yellow "Snapper config '$config_name' does not exist. Create it first."
+      return 1
+    fi
+
   fi
 
-  # Set config value
   if sudo snapper -c "$config_name" set-config "${key}=${value}"; then
     printc green "Set $key=$value in snapper config '$config_name'"
   else
