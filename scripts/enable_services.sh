@@ -42,7 +42,7 @@ options edns0
 EOF
   printc cyan "Making /etc/resolv.conf immutable..."
   sudo chattr +i /etc/resolv.conf || fail "Failed to make resolv.conf immutable."
-  sudo systemctl enable --now dnscrypt-proxy || fail "Failed to enable dnscrypt-proxy."
+  enable_service "dnscrypt-proxy.service" "system"
 
   CONFIG_FILE="/etc/dnscrypt-proxy/dnscrypt-proxy.toml"
   declare -A config_values=(
