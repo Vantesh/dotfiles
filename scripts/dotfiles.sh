@@ -9,8 +9,14 @@ else
 fi
 
 #copy new dotfiles
-printc "cyan" "Copying new dotfiles to $HOME/.config"
+printc "cyan" "Applying dotfiles"
 cp -r .config ~/
+
+if pacman -qe | grep -q "visual-studio-code-bin"; then
+  cp -r .vscode ~/
+else
+  echo "visual-studio-code-bin is not installed, skipping .vscode copy."
+fi
 
 # make scripts executable
 chmod_config_folders=(
