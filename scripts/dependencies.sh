@@ -52,8 +52,7 @@ core_packages=(
   pipewire-jack
   pavucontrol
   wireplumber
-  iwd
-  iwgtk
+
 )
 
 # =======================
