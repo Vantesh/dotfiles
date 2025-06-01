@@ -50,8 +50,9 @@ core_packages=(
   pipewire-alsa
   pipewire-pulse
   pipewire-jack
-  pavucontrol
+  pwvucontrol
   wireplumber
+  networkmanager
 
 )
 
