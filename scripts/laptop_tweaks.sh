@@ -37,12 +37,7 @@ install_auto_cpufreq() {
 
 enable_auto_cpufreq_service() {
   printc cyan "Enabling auto-cpufreq service..."
-  if ! systemctl --user is-active auto-cpufreq.service >/dev/null 2>&1; then
-    sudo systemctl enable --now auto-cpufreq.service || fail "Failed to enable auto-cpufreq service."
-    printc green "auto-cpufreq service enabled and started."
-  else
-    printc yellow "auto-cpufreq service is already active."
-  fi
+  enable_service "auto-cpufreq.service" "user"
 }
 
 create_btrfs_swap_subvolume() {
@@ -128,7 +123,7 @@ enable_libinput_gestures() {
   if ! has_cmd "libinput-gestures"; then
     install_package "libinput-gestures"
   fi
-  systemctl --user enable --now libinput-gestures.service
+  enable_service "libinput-gestures.service" "user"
 }
 
 main() {
