@@ -4,7 +4,7 @@ configure_pacman() {
   local config="/etc/pacman.conf"
   local backup="${config}.bak"
 
-  printc cyan "📦 Configuring pacman..."
+  printc cyan "Configuring pacman..."
 
   [[ -f "$config" ]] || fail "pacman.conf not found at $config. Aborting."
 
@@ -24,7 +24,7 @@ configure_pacman() {
   # Insert ILoveCandy after Color if not already present
   if ! sudo grep -q "^\s*ILoveCandy" "$config"; then
     sudo sed -i "/^\s*Color/a ILoveCandy" "$config" &&
-      printc green "🍬 Inserted 'ILoveCandy' after 'Color'" ||
+      printc green "Inserted 'ILoveCandy'" ||
       fail "Failed to insert 'ILoveCandy'"
   else
     printc yellow "'ILoveCandy' already present."
