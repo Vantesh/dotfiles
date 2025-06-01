@@ -12,7 +12,7 @@ fi
 printc "cyan" "Applying dotfiles"
 cp -r .config ~/
 
-if pacman -qe | grep -q "visual-studio-code-bin"; then
+if pacman -Qe | grep -q "visual-studio-code-bin"; then
   cp -r .vscode ~/
 else
   echo "visual-studio-code-bin is not installed, skipping .vscode copy."
