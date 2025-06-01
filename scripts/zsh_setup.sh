@@ -46,3 +46,11 @@ fi
 
 # make sure zsh is the default shell
 chsh -s "$(which zsh)" "$USER"
+
+# update pkgfile database
+printc cyan "Updating pkgfile database..."
+sudo pkgfile --update >/dev/null || fail "Failed to update pkgfile database."
+
+# rebuild bat cache
+printc yellow "Rebuilding bat cache..."
+bat cache --build || fail "Failed to rebuild bat cache."
