@@ -95,11 +95,11 @@ install_package() {
   fi
 }
 
+# --- Update config file ---
 update_config() {
   local config_file="$1"
   local key="$2"
   local value="$3"
-  local line="${key}=${value}"
 
   # Ensure the file exists
   if [[ ! -f "$config_file" ]]; then
@@ -108,24 +108,24 @@ update_config() {
     sudo chmod 644 "$config_file"
   fi
 
-  # Check if the key (commented or not) already exists
-  if sudo grep -qE "^\s*#?\s*${key}=" "$config_file"; then
-    # Update the existing line
-    if sudo sed -i "s|^\s*#\?\s*${key}=.*|${line}|" "$config_file"; then
+  # Check if the key exists (commented or not, with or without spacing)
+  if sudo grep -qE "^\s*#*\s*${key}\s*=" "$config_file"; then
+    # Update in place, preserving original spacing
+    if sudo sed -i -E "s|^\s*#*\s*(${key})(\s*)=(\s*).*|\1\2=\3${value}|" "$config_file"; then
       printc green "Updated $key to $value in $config_file"
     else
       fail "Failed to update $key"
     fi
   else
-    # Append on a new line if key doesn't exist
-    if echo -e "\n$line" | sudo tee -a "$config_file" >/dev/null; then
-      printc green "Appended $key=$value to $config_file"
+    if echo -e "\n${key}=${value}" | sudo tee -a "$config_file" >/dev/null; then
+      printc green "Appended $key=${value} to $config_file"
     else
       fail "Failed to append $key"
     fi
   fi
 }
 
+# --- Set snapper config value ---
 set_snapper_config_value() {
   local config_name="$1"
   local key="$2"
@@ -147,5 +147,37 @@ set_snapper_config_value() {
     printc green "Set $key=$value in snapper config '$config_name'"
   else
     fail "Failed to set $key in snapper config '$config_name'"
+  fi
+}
+
+# --- enable services ---
+
+enable_service() {
+  local service="$1" scope="$2"
+  local prefix=()
+  local cmd=("systemctl")
+
+  if [[ $scope == "user" ]]; then
+    cmd+=("--user")
+  else
+    prefix=(sudo)
+  fi
+
+  # Check if service exists in the scope
+  if "${prefix[@]}" "${cmd[@]}" list-unit-files | grep -q "^$service"; then
+    # Skip if already enabled
+    if "${prefix[@]}" "${cmd[@]}" is-enabled "$service" &>/dev/null; then
+
+      printc "<yellow>[$scope]</yellow> <white>Already enabled: $service</white>"
+
+    else
+      if "${prefix[@]}" "${cmd[@]}" enable --now "$service" &>/dev/null; then
+        printc "<cyan>[$scope]</cyan> <green>Enabled $service</green>"
+      else
+        fail "[$scope] Failed to enable $service"
+      fi
+    fi
+  else
+    printc yellow "[$scope] Not found: $service"
   fi
 }
