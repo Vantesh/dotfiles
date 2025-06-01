@@ -28,8 +28,8 @@ if [ -f "${ZDOTDIR}/aliasrc" ]; then
 fi
 
 # load exportrc if it exists
-if [ -f "${ZDOTDIR}/exportrc" ]; then
-  source "${ZDOTDIR}/exportrc"
+if [ -f "${ZDOTDIR}/exportsrc" ]; then
+  source "${ZDOTDIR}/exportsrc"
 fi
 # Lazy-load antidote and generate the static load file only when needed
 zsh_plugins=${ZDOTDIR:-$HOME}/.zsh_plugins
