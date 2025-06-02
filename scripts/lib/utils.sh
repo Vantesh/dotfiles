@@ -181,3 +181,7 @@ enable_service() {
     printc yellow "[$scope] Not found: $service"
   fi
 }
+
+is_btrfs() {
+  findmnt -n -o FSTYPE / | grep -q btrfs
+}
