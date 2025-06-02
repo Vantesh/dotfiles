@@ -29,6 +29,7 @@ class PlayerManager:
         "firefox": "",
         "chromium": "",
         "mpv": "",
+        "brave": "󰊯",
         "default": ""
     }
     def __init__(self, selected_player=None, excluded_player=[]):
