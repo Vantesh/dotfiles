@@ -117,9 +117,8 @@ drivers=(
 # optionals
 # =======================
 optional=(
-  google-chrome
   bemoji
-  zen-browser-bin
+  brave-bin
   visual-studio-code-bin
   vlc
   ark
