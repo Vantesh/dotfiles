@@ -38,3 +38,13 @@ for folder in "${chmod_config_folders[@]}"; do
     echo "Warning: Directory $config_dir does not exist." >&2
   fi
 done
+
+# run xdg-user-dirs-update to populate user directories
+if ! has_cmd xdg-user-dirs-update; then
+  install_package xdg-user-dirs
+else
+  printc "cyan" "Running xdg-user-dirs-update"
+  xdg-user-dirs-update || {
+    fail "Failed to run xdg-user-dirs-update. Please check your installation."
+  }
+fi
