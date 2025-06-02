@@ -51,6 +51,12 @@ size = "30% 40%"
 close_on_hide = true
 lazy = true
 
+[scratchpads.network]
+command = "nm-connection-editor"
+animation = "fromRight"
+margin = 20
+lazy = true
+
 [scratchpads.volume]
 command = "pwvucontrol"
 lazy = true
