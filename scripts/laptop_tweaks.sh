@@ -41,24 +41,29 @@ enable_auto_cpufreq_service() {
 }
 
 create_btrfs_swap_subvolume() {
-  printc cyan "Creating btrfs subvolume for swap..."
-  if ! btrfs subvolume list / | grep -q "swap"; then
-    sudo btrfs subvolume create /mnt/@swap || fail "Failed to create btrfs subvolume for swap."
-    printc green "Btrfs subvolume for swap created successfully."
-  else
-    printc yellow "Btrfs subvolume for swap already exists."
-  fi
-}
+  printc cyan "Ensuring Btrfs subvolume for swap exists and is properly mounted..."
 
-mount_swap_subvolume() {
-  local root_device
-  root_device=$(findmnt -no SOURCE / | sed 's/\[.*\]//')
-  if ! mountpoint -q /swap; then
-    printc cyan "Mounting @swap subvolume..."
-    sudo mkdir -p /swap
-    sudo mount -o subvol=@swap "$root_device" /swap || fail "Failed to mount @swap subvolume to /swap."
+  local subvol_name="@swap"
+  local subvol_path="/mnt/${subvol_name}"
+  local mount_point="/swap"
+
+  # Check if the subvolume exists
+  if ! sudo btrfs subvolume list /mnt | grep -q "path ${subvol_name}$"; then
+    sudo btrfs subvolume create "$subvol_path" || fail "Failed to create Btrfs subvolume for swap."
+    printc green "Created Btrfs subvolume ${subvol_name}."
   else
-    printc yellow "/swap is already mounted."
+    printc yellow "Btrfs subvolume ${subvol_name} already exists."
+  fi
+
+  # Ensure mount point exists
+  sudo mkdir -p "$mount_point"
+
+  # Mount the subvolume to /swap if not already mounted
+  if ! mountpoint -q "$mount_point"; then
+    sudo mount -o subvol=${subvol_name} /dev/your_btrfs_device "$mount_point" || fail "Failed to mount @swap at /swap."
+    printc green "Mounted ${subvol_name} at ${mount_point}."
+  else
+    printc yellow "${mount_point} is already mounted."
   fi
 }
 
@@ -127,16 +132,16 @@ enable_libinput_gestures() {
 }
 
 main() {
-  install_auto_cpufreq
-  enable_auto_cpufreq_service
+  # install_auto_cpufreq
+  # enable_auto_cpufreq_service
   create_btrfs_swap_subvolume
-  mount_swap_subvolume
-  create_and_activate_swapfile
-  add_swapfile_to_fstab
-  set_resume_offset
-  configure_initramfs_resume_hook
-  setup_touchpad_udev_rule
-  enable_libinput_gestures
+
+  # create_and_activate_swapfile
+  # add_swapfile_to_fstab
+  # set_resume_offset
+  # configure_initramfs_resume_hook
+  # setup_touchpad_udev_rule
+  # enable_libinput_gestures
 }
 
 main
