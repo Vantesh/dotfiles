@@ -56,3 +56,9 @@ install_aur_helper() {
 
 get_choice
 install_aur_helper
+
+# sync the AUR database
+printc cyan "Synchronizing database..."
+"$AUR_HELPER" -Syu --noconfirm || {
+  fail "Failed to synchronize AUR database."
+}
