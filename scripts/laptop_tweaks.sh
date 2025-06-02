@@ -1,5 +1,13 @@
 #!/bin/bash
 
+# Constants
+readonly SWAP_SIZE="38G"
+readonly SWAP_SUBVOL="@swap"
+readonly SWAP_MOUNT_POINT="/swap"
+readonly SWAP_FILE_PATH="/swap/swapfile"
+readonly MKINIT_CONF="/etc/mkinitcpio.conf"
+readonly UDEV_RULE_FILE="/etc/udev/rules.d/90-touchpad-access.rules"
+
 install_auto_cpufreq() {
   printc cyan "Checking auto-cpufreq installation..."
 
@@ -8,6 +16,11 @@ install_auto_cpufreq() {
     return 0
   fi
 
+  download_and_install_auto_cpufreq
+  finalize_auto_cpufreq_installation
+}
+
+download_and_install_auto_cpufreq() {
   printc yellow "Installing auto-cpufreq..."
   local tmp_dir
   tmp_dir=$(mktemp -d) || fail "Failed to create temp directory for auto-cpufreq."
@@ -30,7 +43,9 @@ install_auto_cpufreq() {
 
   popd >/dev/null || exit 1
   rm -rf "$tmp_dir"
+}
 
+finalize_auto_cpufreq_installation() {
   sudo auto-cpufreq --install || fail "Failed to finalize auto-cpufreq installation."
   printc green "auto-cpufreq installed successfully."
 }
@@ -43,84 +58,137 @@ enable_auto_cpufreq_service() {
 create_btrfs_swap_subvolume() {
   printc cyan "Ensuring Btrfs subvolume for swap exists and is properly mounted..."
 
-  local subvol_name="@swap"
-  local subvol_path="/mnt/${subvol_name}"
-  local mount_point="/swap"
+  local subvol_path="/mnt/${SWAP_SUBVOL}"
 
-  # Check if the subvolume exists
-  if ! sudo btrfs subvolume list /mnt | grep -q "path ${subvol_name}$"; then
+  if ! btrfs_subvolume_exists "$SWAP_SUBVOL"; then
     sudo btrfs subvolume create "$subvol_path" || fail "Failed to create Btrfs subvolume for swap."
-    printc green "Created Btrfs subvolume ${subvol_name}."
+    printc green "Created Btrfs subvolume ${SWAP_SUBVOL}."
   else
-    printc yellow "Btrfs subvolume ${subvol_name} already exists."
+    printc yellow "Btrfs subvolume ${SWAP_SUBVOL} already exists."
   fi
 
-  # Ensure mount point exists
-  sudo mkdir -p "$mount_point"
+  mount_swap_subvolume
+}
 
-  # Mount the subvolume to /swap if not already mounted
-  if ! mountpoint -q "$mount_point"; then
-    sudo mount -o subvol=${subvol_name} /dev/your_btrfs_device "$mount_point" || fail "Failed to mount @swap at /swap."
-    printc green "Mounted ${subvol_name} at ${mount_point}."
+btrfs_subvolume_exists() {
+  local subvol_name="$1"
+  sudo btrfs subvolume list /mnt | grep -q "path ${subvol_name}$"
+}
+
+get_btrfs_root_device() {
+  local device
+  device=$(findmnt -n -o SOURCE --target /mnt 2>/dev/null || findmnt -n -o SOURCE --target / 2>/dev/null)
+  if [[ -z "$device" ]]; then
+    return 1
+  fi
+  # Strip subvolume suffix if present (format: /dev/device[subvol])
+  device="${device%%\[*}"
+  echo "$device"
+}
+
+mount_swap_subvolume() {
+  sudo mkdir -p "$SWAP_MOUNT_POINT"
+  if ! mountpoint -q "$SWAP_MOUNT_POINT"; then
+    local btrfs_device
+    btrfs_device=$(get_btrfs_root_device) || fail "Failed to detect Btrfs root device."
+    sudo mount -o subvol="$SWAP_SUBVOL" "$btrfs_device" "$SWAP_MOUNT_POINT" || fail "Failed to mount $SWAP_SUBVOL at $SWAP_MOUNT_POINT."
+    printc green "Mounted ${SWAP_SUBVOL} at ${SWAP_MOUNT_POINT}."
   else
-    printc yellow "${mount_point} is already mounted."
+    printc yellow "${SWAP_MOUNT_POINT} is already mounted."
   fi
 }
 
 create_and_activate_swapfile() {
+  create_swapfile
+  activate_swapfile
+}
+
+create_swapfile() {
   printc cyan "Creating swap file..."
-  local swapsize=38G # Adjust this value based on your system's RAM size
-  if [[ ! -f /swap/swapfile ]]; then
-    btrfs filesystem mkswapfile --size "$swapsize" --uuid clear /swap/swapfile || fail "Failed to create swap file."
+  if [[ ! -f "$SWAP_FILE_PATH" ]]; then
+    sudo btrfs filesystem mkswapfile --size "$SWAP_SIZE" --uuid clear "$SWAP_FILE_PATH" ||
+      fail "Failed to create swap file."
+    printc green "Swap file created successfully."
   else
     printc yellow "Swap file already exists."
   fi
+}
 
+activate_swapfile() {
   printc cyan "Activating swap file..."
-  if ! swapon --show | grep -q "/swap/swapfile"; then
-    sudo swapon /swap/swapfile || fail "Failed to activate swap file."
+  if ! is_swapfile_active; then
+    sudo swapon "$SWAP_FILE_PATH" || fail "Failed to activate swap file."
+    printc green "Swap file activated successfully."
   else
     printc yellow "Swap file is already active."
   fi
 }
 
+is_swapfile_active() {
+  sudo swapon --show | grep -q "$SWAP_FILE_PATH"
+}
+
 add_swapfile_to_fstab() {
   printc cyan "Adding swap file to fstab..."
-  if ! grep -q "/swap/swapfile" /etc/fstab; then
-    echo "/swap/swapfile none swap defaults 0 0" | sudo tee -a /etc/fstab || fail "Failed to add swap file to fstab."
+  if ! grep -q "$SWAP_FILE_PATH" /etc/fstab; then
+    echo "$SWAP_FILE_PATH none swap defaults 0 0" | sudo tee -a /etc/fstab ||
+      fail "Failed to add swap file to fstab."
     printc green "Swap file added to fstab successfully."
   else
     printc yellow "Swap file already exists in fstab."
   fi
 }
 
+configure_hibernation_support() {
+  set_resume_offset
+  configure_initramfs_resume_hook
+}
+
 set_resume_offset() {
+  printc cyan "Configuring hibernation resume offset..."
   local resume_offset
-  resume_offset=$(sudo btrfs inspect-internal map-swapfile -r /swap/swapfile)
-  echo "$resume_offset" | sudo tee /sys/power/resume_offset
-  echo lz4 | sudo tee /sys/module/hibernate/parameters/compressor
+  resume_offset=$(sudo btrfs inspect-internal map-swapfile -r "$SWAP_FILE_PATH") ||
+    fail "Failed to get resume offset."
+
+  echo "$resume_offset" | sudo tee /sys/power/resume_offset >/dev/null ||
+    fail "Failed to get resume offset for hibernation."
+  echo lz4 | sudo tee /sys/module/hibernate/parameters/compressor >/dev/null ||
+    fail "Failed to set hibernation compressor."
+
+  printc green "Hibernation support configured."
 }
 
 configure_initramfs_resume_hook() {
   printc cyan "Configuring initramfs for swap file..."
-  local MKINIT_CONF="/etc/mkinitcpio.conf"
   if ! grep -q 'HOOKS=.*resume' "$MKINIT_CONF"; then
     printc cyan "Adding resume hook to mkinitcpio.conf..."
-    sudo sed -i -E 's/^(HOOKS=.* )(udev|base)(.*)$/\1\2 resume\3/' "$MKINIT_CONF"
+    sudo sed -i -E 's/^(HOOKS=.* )(udev|base)(.*)$/\1\2 resume\3/' "$MKINIT_CONF" ||
+      fail "Failed to add resume hook to mkinitcpio.conf."
+    printc green "Resume hook added to mkinitcpio.conf."
   else
     printc yellow "'resume' hook is already present."
   fi
 }
 
 setup_touchpad_udev_rule() {
-  local UDEV_RULE_FILE="/etc/udev/rules.d/90-touchpad-access.rules"
+  printc cyan "Setting up touchpad udev rule..."
+  write_touchpad_udev_rule
+  reload_udev_rules
+}
+
+write_touchpad_udev_rule() {
   printc cyan "Writing udev rule..."
-  sudo tee "$UDEV_RULE_FILE" >/dev/null <<EOF
+  sudo tee "$UDEV_RULE_FILE" >/dev/null <<EOF || fail "Failed to write udev rule."
 KERNEL=="event*", SUBSYSTEM=="input", ENV{ID_INPUT_TOUCHPAD}=="1", TAG+="uaccess"
 EOF
+  printc green "Touchpad udev rule written."
+}
+
+reload_udev_rules() {
   printc cyan "Reloading and triggering udev rules..."
-  sudo udevadm control --reload-rules
-  sudo udevadm trigger
+  sudo udevadm control --reload-rules || fail "Failed to reload udev rules."
+  sudo udevadm trigger || fail "Failed to trigger udev rules."
+  printc green "Udev rules reloaded successfully."
 }
 
 enable_libinput_gestures() {
@@ -131,17 +199,30 @@ enable_libinput_gestures() {
   enable_service "libinput-gestures.service" "user"
 }
 
-main() {
-  # install_auto_cpufreq
-  # enable_auto_cpufreq_service
+setup_btrfs_swap() {
+  printc cyan "Setting up Btrfs swap configuration..."
   create_btrfs_swap_subvolume
+  create_and_activate_swapfile
+  add_swapfile_to_fstab
+  configure_hibernation_support
+}
 
-  # create_and_activate_swapfile
-  # add_swapfile_to_fstab
-  # set_resume_offset
-  # configure_initramfs_resume_hook
-  # setup_touchpad_udev_rule
-  # enable_libinput_gestures
+main() {
+  install_auto_cpufreq
+  enable_auto_cpufreq_service
+
+  if is_btrfs; then
+    if confirm "Setup hibernation ?"; then
+      setup_btrfs_swap
+    else
+      printc yellow "Skipping Btrfs swap setup."
+    fi
+  else
+    printc yellow "Btrfs is not detected. Skipping Btrfs-specific swap setup."
+  fi
+
+  setup_touchpad_udev_rule
+  enable_libinput_gestures
 }
 
 main
