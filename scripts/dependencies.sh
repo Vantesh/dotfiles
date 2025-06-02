@@ -17,7 +17,6 @@ core_packages=(
   waybar          # Status bar
   waybar-updates  # Updates module for waybar
   swaync-git      # Notifications
-  wlogout         # Logout menu
   devify          # device notification system
   brightnessctl   # Screen brightness
   playerctl       # Media controller
@@ -82,6 +81,8 @@ appearance=(
   kvantum-qt5
   qt5-wayland
   qt6-wayland
+  qt6ct
+  qt5ct
 )
 
 # =======================
