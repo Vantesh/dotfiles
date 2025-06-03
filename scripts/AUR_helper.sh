@@ -38,13 +38,13 @@ install_aur_helper() {
   printc cyan "Installing $AUR_HELPER..."
 
   temp_dir=$(mktemp -d)
-  git clone "https://aur.archlinux.org/$AUR_HELPER.git" "$temp_dir" || {
+  git clone "https://aur.archlinux.org/$AUR_HELPER.git" "$temp_dir" &>/dev/null || {
     fail "Failed to clone $AUR_HELPER repository."
   }
 
   (
     cd "$temp_dir" || exit
-    makepkg -si --noconfirm
+    makepkg -si --noconfirm &>/dev/null
   ) || {
     rm -rf "$temp_dir"
     fail "Failed to build and install $AUR_HELPER."
