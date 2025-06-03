@@ -6,7 +6,8 @@ readonly SWAP_SUBVOL="@swap"
 readonly SWAP_MOUNT_POINT="/swap"
 readonly SWAP_FILE_PATH="/swap/swapfile"
 readonly MKINIT_CONF="/etc/mkinitcpio.conf"
-readonly UDEV_RULE_FILE="/etc/udev/rules.d/90-touchpad-access.rules"
+readonly TOUCHPAD_RULE_FILE="/etc/udev/rules.d/90-touchpad-access.rules"
+readonly WAKE_DEVICES_RULE_FILE="/etc/udev/rules.d/90-wake-devices.rules"
 
 install_auto_cpufreq() {
   printc cyan "Checking auto-cpufreq installation..."
@@ -80,7 +81,8 @@ create_btrfs_swap_subvolume() {
 
 btrfs_subvolume_exists() {
   local subvol_name="$1"
-  sudo btrfs subvolume list /mnt | grep -q "path ${subvol_name}$"
+  local mount_point="$2"
+  sudo btrfs subvolume list "$mount_point" | grep -q "path ${subvol_name}$"
 }
 
 get_btrfs_root_device() {
@@ -104,6 +106,11 @@ mount_swap_subvolume() {
   else
     printc yellow "${SWAP_MOUNT_POINT} is already mounted."
   fi
+
+  # Verify the mount is working and directory is accessible
+  if [[ ! -d "$SWAP_MOUNT_POINT" ]] || ! sudo test -w "$SWAP_MOUNT_POINT"; then
+    fail "Swap mount point $SWAP_MOUNT_POINT is not accessible or writable."
+  fi
 }
 
 create_and_activate_swapfile() {
@@ -113,12 +120,24 @@ create_and_activate_swapfile() {
 
 create_swapfile() {
   printc cyan "Creating swap file..."
+
+  # Ensure swap mount point is properly mounted first
+  if ! mountpoint -q "$SWAP_MOUNT_POINT"; then
+    printc yellow "Swap mount point not mounted, attempting to mount..."
+    mount_swap_subvolume
+  fi
+
   if [[ ! -f "$SWAP_FILE_PATH" ]]; then
     sudo btrfs filesystem mkswapfile --size "$SWAP_SIZE" --uuid clear "$SWAP_FILE_PATH" ||
       fail "Failed to create swap file."
-    printc green "Swap file created successfully."
+    printc green "Swap file created successfully at $SWAP_FILE_PATH."
   else
-    printc yellow "Swap file already exists."
+    printc yellow "Swap file already exists at $SWAP_FILE_PATH."
+  fi
+
+  # Verify the swapfile is accessible
+  if [[ ! -f "$SWAP_FILE_PATH" ]]; then
+    fail "Swapfile was not created successfully at $SWAP_FILE_PATH."
   fi
 }
 
@@ -139,11 +158,29 @@ is_swapfile_active() {
 add_swapfile_to_fstab() {
   printc cyan "Adding swap file to fstab..."
   if ! grep -q "$SWAP_FILE_PATH" /etc/fstab; then
-    echo "$SWAP_FILE_PATH none swap defaults 0 0" | sudo tee -a /etc/fstab ||
+    echo -e "\n$SWAP_FILE_PATH none swap defaults 0 0\n" | sudo tee -a /etc/fstab ||
       fail "Failed to add swap file to fstab."
     printc green "Swap file added to fstab successfully."
   else
     printc yellow "Swap file already exists in fstab."
+  fi
+}
+
+add_swap_subvolume_to_fstab() {
+  printc cyan "Adding swap subvolume mount to fstab..."
+  local btrfs_device
+  btrfs_device=$(get_btrfs_root_device) || fail "Failed to detect Btrfs root device."
+  UUID=$(sudo blkid -s UUID -o value "$btrfs_device") ||
+    fail "Failed to get UUID of Btrfs device."
+
+  local fstab_entry="UUID=$UUID $SWAP_MOUNT_POINT btrfs defaults,nodatacow,noatime,subvol=$SWAP_SUBVOL 0 0"
+
+  if ! grep -q "$fstab_entry" /etc/fstab; then
+    echo -e "\n$fstab_entry\n" | sudo tee -a /etc/fstab ||
+      fail "Failed to add swap subvolume mount to fstab."
+    printc green "Swap subvolume mount added to fstab successfully."
+  else
+    printc yellow "Swap subvolume mount already exists in fstab."
   fi
 }
 
@@ -186,7 +223,7 @@ setup_touchpad_udev_rule() {
 
 write_touchpad_udev_rule() {
   printc cyan "Writing udev rule..."
-  sudo tee "$UDEV_RULE_FILE" >/dev/null <<EOF || fail "Failed to write udev rule."
+  sudo tee "$TOUCHPAD_RULE_FILE" >/dev/null <<EOF || fail "Failed to write udev rule."
 KERNEL=="event*", SUBSYSTEM=="input", ENV{ID_INPUT_TOUCHPAD}=="1", TAG+="uaccess"
 EOF
   printc green "Touchpad udev rule written."
@@ -210,9 +247,22 @@ enable_libinput_gestures() {
 setup_btrfs_swap() {
   printc cyan "Setting up Btrfs swap configuration..."
   create_btrfs_swap_subvolume
+  add_swap_subvolume_to_fstab
   create_and_activate_swapfile
   add_swapfile_to_fstab
   configure_hibernation_support
+}
+
+# configure wake device through udev
+wake_devices(){
+  printc cyan "Configuring wake devices through udev..."
+ sudo tee "$WAKE_DEVICES_RULE_FILE" >/dev/null <<EOF || fail "Failed to write wake devices udev rule."
+ACTION=="change", SUBSYSTEM=="power_supply", KERNEL=="AC", ENV{POWER_SUPPLY_ONLINE}=="0", RUN+="/usr/local/bin/toggle_wake_devices.sh disable"
+ACTION=="change", SUBSYSTEM=="power_supply", KERNEL=="AC", ENV{POWER_SUPPLY_ONLINE}=="1", RUN+="/usr/local/bin/toggle_wake_devices.sh enable"
+EOF
+  printc green "Wake devices udev rule written."
+  reload_udev_rules
+  printc green "Wake devices configured successfully."
 }
 
 main() {
