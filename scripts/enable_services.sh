@@ -2,10 +2,8 @@
 user_services=(
   hyprpolkitagent.service
   gnome-keyring-daemon.service
-  waybar.service
   hypridle.service
   hyprpaper.service
-  swaync.service
 )
 system_services=(
   bluetooth.service
@@ -79,28 +77,7 @@ else
   printc yellow "Skipping DNS over HTTPS setup."
 fi
 
-# use iwd as backed for NetworkManager
-if confirm "Use iwd as backend for NetworkManager?"; then
-  printc cyan "Setting up iwd as NetworkManager backend..."
-
-  if ! has_cmd iwctl; then
-    install_package "iwd" || fail "Failed to install iwd."
-  fi
-
-  # Configure NetworkManager to use iwd
-  NM_CONFIG="/etc/NetworkManager/conf.d/wifi_backend.conf"
-  if [[ ! -f "$NM_CONFIG" ]]; then
-    sudo tee "$NM_CONFIG" >/dev/null <<EOF
-[device]
-wifi.backend=iwd
-wifi.iwd.autoconnect=yes
-EOF
-
-  # Enable and start iwd service
-  enable_service "iwd.service" "system" || fail "Failed to enable iwd service."
-  sudo systemctl start iwd.service || fail "Failed to start iwd service."
-
-  # Restart NetworkManager to apply changes
+ # Restart NetworkManager to apply changes
   sudo systemctl restart NetworkManager || fail "Failed to restart NetworkManager."
 else
   printc yellow "Skipping iwd setup."
