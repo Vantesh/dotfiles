@@ -33,6 +33,7 @@ has_cmd() {
 
 # --- Confirm action ---
 confirm() {
+  echo
   read -rp "$(printc yellow "$1 [Y/n]: ")" response
   [[ -z "$response" || "$response" =~ ^[Yy]$ ]]
 }
@@ -48,7 +49,8 @@ ensure_sudo() {
     echo
     sudo -v
   fi
- 
+
+
 }
 
 # --- Spinner function for showing install progress ---
