@@ -39,6 +39,15 @@ for folder in "${chmod_config_folders[@]}"; do
   fi
 done
 
+# copy local to usr/local/bin
+printc "cyan" "Copying scripts to /usr/local/bin"
+if [ -d "local/bin" ]; then
+  sudo cp -r local/bin/* /usr/local/bin/
+  sudo chmod +x /usr/local/bin/*
+else
+ printc yellow "No local/bin directory found, skipping copy."
+fi
+
 # run xdg-user-dirs-update to populate user directories
 if ! has_cmd xdg-user-dirs-update; then
   install_package xdg-user-dirs
