@@ -122,6 +122,7 @@ optional=(
   bemoji
   brave-bin
   visual-studio-code-bin
+  qbittorrent
   vlc
   ark
   btop
