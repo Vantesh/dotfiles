@@ -54,6 +54,54 @@ EOF
     update_config "$CONFIG_FILE" "$key" "${config_values[$key]}"
   done
 
+# disable systemd-resolved being started by networkmanager
+SYM_CONF="/etc/NetworkManager/conf.d/no-systemd-resolved.conf"
+  if [[ ! -f "$SYM_CONF" ]]; then
+    sudo tee "$SYM_CONF" >/dev/null <<EOF
+[main]
+systemd-resolved=false
+EOF
+    printc green "Created $SYM_CONF to disable systemd-resolved."
+  else
+    printc yellow "$SYM_CONF already exists, skipping creation."
+  fi
+
+ # disable systemd-resolved service
+  if sudo systemctl is-active --quiet systemd-resolved; then
+    sudo systemctl stop systemd-resolved || fail "Failed to stop systemd-resolved."
+    sudo systemctl disable systemd-resolved || fail "Failed to disable systemd-resolved."
+    printc green "systemd-resolved service stopped and disabled."
+  else
+    printc yellow "systemd-resolved service is not active, skipping stop/disable."
+  fi
+
 else
   printc yellow "Skipping DNS over HTTPS setup."
+fi
+
+# use iwd as backed for NetworkManager
+if confirm "Use iwd as backend for NetworkManager?"; then
+  printc cyan "Setting up iwd as NetworkManager backend..."
+
+  if ! has_cmd iwctl; then
+    install_package "iwd" || fail "Failed to install iwd."
+  fi
+
+  # Configure NetworkManager to use iwd
+  NM_CONFIG="/etc/NetworkManager/conf.d/wifi_backend.conf"
+  if [[ ! -f "$NM_CONFIG" ]]; then
+    sudo tee "$NM_CONFIG" >/dev/null <<EOF
+[device]
+wifi.backend=iwd
+wifi.iwd.autoconnect=yes
+EOF
+
+  # Enable and start iwd service
+  enable_service "iwd.service" "system" || fail "Failed to enable iwd service."
+  sudo systemctl start iwd.service || fail "Failed to start iwd service."
+
+  # Restart NetworkManager to apply changes
+  sudo systemctl restart NetworkManager || fail "Failed to restart NetworkManager."
+else
+  printc yellow "Skipping iwd setup."
 fi
