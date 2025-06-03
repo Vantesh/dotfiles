@@ -59,6 +59,6 @@ install_aur_helper
 
 # sync the AUR database
 printc cyan "Synchronizing database..."
-"$AUR_HELPER" -Syu --noconfirm || {
+"$AUR_HELPER" -Syu --noconfirm &>/dev/null || {
   fail "Failed to synchronize AUR database."
 }
