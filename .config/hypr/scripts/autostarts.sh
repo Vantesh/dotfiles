@@ -1,8 +1,12 @@
 #!/bin/bash
 apps=(
+  "swww-daemon"
   "clipse -listen"
   "udiskie"
   "pypr"
+  "hyprpanel"
+
+
 
 )
 
