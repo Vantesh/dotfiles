@@ -10,13 +10,14 @@ core_packages=(
   app2unit-git    # Run applications as units
   hypridle        # Idle management
   hyprlock        # Lock screen
+  hyprpicker      # Color picker
+  grimblast       # Screenshot tool
   hyprpaper       # Wallpaper daemon
   hyprshot        # Screenshot tool
+  matugen-bin     # Color generator
+  ags-hyprpanel-git # panel
   hyprpolkitagent # Polkit agent for Hyprland
   pyprland        # for scratchpads
-  waybar          # Status bar
-  waybar-updates  # Updates module for waybar
-  swaync-git      # Notifications
   devify          # device notification system
   brightnessctl   # Screen brightness
   playerctl       # Media controller
@@ -30,6 +31,7 @@ core_packages=(
   xdg-user-dirs               # User directories
   xdg-utils                   # XDG utilities
   xdg-desktop-portal          # Desktop portal
+  selectdefaultapplication-git # Tool to change default apps
 
   #required by vscode and other apps to store keyrings
   gnome-keyring
