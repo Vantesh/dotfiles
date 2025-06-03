@@ -48,6 +48,7 @@ ensure_sudo() {
     echo
     sudo -v
   fi
+ 
 }
 
 # --- Spinner function for showing install progress ---
@@ -55,7 +56,7 @@ spinner() {
   local pid=$1
   local pkg="$2"
   local delay=0.15
-  local spinchars=('|' '/' '-' '\\')
+  local spinchars=('|' '/' '-' '\')
 
   local cyan='\033[1;36m'
   local reset='\033[0m'
@@ -67,7 +68,8 @@ spinner() {
     done
   done
 
-  printf "\r\033[K" # Clear spinner line
+  printf "\r\033[K"    # Clear spinner line
+  printf "\n"          # Add newline for any potential sudo prompts
 }
 
 # --- Install package using AUR ---
@@ -80,12 +82,24 @@ install_package() {
   else
     ensure_sudo # ensure sudo won't interrupt the spinner
 
+    # Keep sudo session alive during installation
+    (
+      while kill -0 $$ 2>/dev/null; do
+        sudo -n true 2>/dev/null || break
+        sleep 30
+      done
+    ) &
+    local keepalive_pid=$!
+
     "$AUR_HELPER" -S --needed --noconfirm "$pkg" &>/dev/null &
     local pid=$!
 
     spinner "$pid" "$pkg"
     wait "$pid"
     local status=$?
+
+    # Stop keepalive process
+    kill $keepalive_pid 2>/dev/null || true
 
     if ((status == 0)); then
       printc "<cyan>$pkg</cyan> <green>has been installed</green>"
@@ -133,9 +147,9 @@ set_snapper_config_value() {
 
   if ! sudo snapper list-configs | grep -q "^$config_name"; then
     if [ "$config_name" = "root" ]; then
-      sudo snapper create-config -c "$config_name" /
+      sudo snapper -c "$config_name" create-config /
     elif [ "$config_name" = "home" ]; then
-      sudo snapper create-config -c "$config_name" /home
+      sudo snapper -c "$config_name" create-config /home
     else
       printc yellow "Snapper config '$config_name' does not exist. Create it first."
       return 1
@@ -171,7 +185,7 @@ enable_service() {
       printc "<yellow>[$scope]</yellow> <white>Already enabled: $service</white>"
 
     else
-      if "${prefix[@]}" "${cmd[@]}" enable --now "$service" &>/dev/null; then
+      if "${prefix[@]}" "${cmd[@]}" enable "$service" &>/dev/null; then
         printc "<cyan>[$scope]</cyan> <green>Enabled $service</green>"
       else
         fail "[$scope] Failed to enable $service"
