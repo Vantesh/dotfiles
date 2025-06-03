@@ -64,7 +64,6 @@ fonts=(
   ttf-nerd-fonts-symbols-mono
   ttf-nerd-fonts-symbols-common
   ttf-apple-emoji
-  ttf-tabler-icons
   ttf-jetbrains-mono-nerd
   ttf-font-awesome
   noto-fonts-cjk
