@@ -52,20 +52,28 @@ finalize_auto_cpufreq_installation() {
 
 enable_auto_cpufreq_service() {
   printc cyan "Enabling auto-cpufreq service..."
-  enable_service "auto-cpufreq.service" "user"
+  enable_service "auto-cpufreq.service" "system"
 }
 
 create_btrfs_swap_subvolume() {
   printc cyan "Ensuring Btrfs subvolume for swap exists and is properly mounted..."
 
-  local subvol_path="/mnt/${SWAP_SUBVOL}"
+  local btrfs_device
+  btrfs_device=$(get_btrfs_root_device) || fail "Failed to detect Btrfs root device."
 
-  if ! btrfs_subvolume_exists "$SWAP_SUBVOL"; then
-    sudo btrfs subvolume create "$subvol_path" || fail "Failed to create Btrfs subvolume for swap."
+  # Temporarily mount root of Btrfs to access top-level subvolumes
+  local temp_mount="/tmp/btrfs-root"
+  sudo mkdir -p "$temp_mount"
+  sudo mount "$btrfs_device" "$temp_mount" || fail "Failed to mount Btrfs root at $temp_mount."
+
+  if ! btrfs_subvolume_exists "$SWAP_SUBVOL" "$temp_mount"; then
+    sudo btrfs subvolume create "$temp_mount/$SWAP_SUBVOL" || fail "Failed to create Btrfs subvolume for swap."
     printc green "Created Btrfs subvolume ${SWAP_SUBVOL}."
   else
     printc yellow "Btrfs subvolume ${SWAP_SUBVOL} already exists."
   fi
+
+  sudo umount "$temp_mount"
 
   mount_swap_subvolume
 }
