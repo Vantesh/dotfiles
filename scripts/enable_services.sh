@@ -52,8 +52,8 @@ EOF
     update_config "$CONFIG_FILE" "$key" "${config_values[$key]}"
   done
 
-# disable systemd-resolved being started by networkmanager
-SYM_CONF="/etc/NetworkManager/conf.d/no-systemd-resolved.conf"
+  # disable systemd-resolved being started by networkmanager
+  SYM_CONF="/etc/NetworkManager/conf.d/no-systemd-resolved.conf"
   if [[ ! -f "$SYM_CONF" ]]; then
     sudo tee "$SYM_CONF" >/dev/null <<EOF
 [main]
@@ -64,21 +64,19 @@ EOF
     printc yellow "$SYM_CONF already exists, skipping creation."
   fi
 
- # disable systemd-resolved service
+  # disable systemd-resolved service
   if sudo systemctl is-active --quiet systemd-resolved; then
     sudo systemctl stop systemd-resolved || fail "Failed to stop systemd-resolved."
     sudo systemctl disable systemd-resolved || fail "Failed to disable systemd-resolved."
     printc green "systemd-resolved service stopped and disabled."
+
+    # Restart NetworkManager to apply changes
+    sudo systemctl restart NetworkManager || fail "Failed to restart NetworkManager."
+
   else
     printc yellow "systemd-resolved service is not active, skipping stop/disable."
   fi
 
 else
   printc yellow "Skipping DNS over HTTPS setup."
-fi
-
- # Restart NetworkManager to apply changes
-  sudo systemctl restart NetworkManager || fail "Failed to restart NetworkManager."
-else
-  printc yellow "Skipping iwd setup."
 fi
