@@ -9,17 +9,41 @@ readonly MKINIT_CONF="/etc/mkinitcpio.conf"
 readonly TOUCHPAD_RULE_FILE="/etc/udev/rules.d/90-touchpad-access.rules"
 readonly WAKE_DEVICES_RULE_FILE="/etc/udev/rules.d/90-wake-devices.rules"
 
-install_auto_cpufreq() {
-  printc cyan "Checking auto-cpufreq installation..."
+# =============================================================================
+# UTILITY FUNCTIONS
+# =============================================================================
 
-  if has_cmd auto-cpufreq; then
-    printc green "auto-cpufreq is already installed."
-    return 0
+get_btrfs_root_device() {
+  local device
+  device=$(findmnt -n -o SOURCE --target /mnt 2>/dev/null || findmnt -n -o SOURCE --target / 2>/dev/null)
+  if [[ -z "$device" ]]; then
+    return 1
   fi
-
-  download_and_install_auto_cpufreq
-  finalize_auto_cpufreq_installation
+  # Strip subvolume suffix if present (format: /dev/device[subvol])
+  device="${device%%\[*}"
+  echo "$device"
 }
+
+btrfs_subvolume_exists() {
+  local subvol_name="$1"
+  local mount_point="$2"
+  sudo btrfs subvolume list "$mount_point" | grep -q "path ${subvol_name}$"
+}
+
+is_swapfile_active() {
+  sudo swapon --show | grep -q "$SWAP_FILE_PATH"
+}
+
+reload_udev_rules() {
+  printc cyan "Reloading and triggering udev rules..."
+  sudo udevadm control --reload-rules || fail "Failed to reload udev rules."
+  sudo udevadm trigger || fail "Failed to trigger udev rules."
+  printc green "Udev rules reloaded successfully."
+}
+
+# =============================================================================
+# AUTO-CPUFREQ INSTALLATION AND CONFIGURATION
+# =============================================================================
 
 download_and_install_auto_cpufreq() {
   printc yellow "Installing auto-cpufreq..."
@@ -51,9 +75,42 @@ finalize_auto_cpufreq_installation() {
   printc green "auto-cpufreq installed successfully."
 }
 
+install_auto_cpufreq() {
+  printc cyan "Checking auto-cpufreq installation..."
+
+  if has_cmd auto-cpufreq; then
+    printc green "auto-cpufreq is already installed."
+    return 0
+  fi
+
+  download_and_install_auto_cpufreq
+  finalize_auto_cpufreq_installation
+}
+
 enable_auto_cpufreq_service() {
   printc cyan "Enabling auto-cpufreq service..."
   enable_service "auto-cpufreq.service" "system"
+}
+
+# =============================================================================
+# BTRFS SWAP CONFIGURATION
+# =============================================================================
+
+mount_swap_subvolume() {
+  sudo mkdir -p "$SWAP_MOUNT_POINT"
+  if ! mountpoint -q "$SWAP_MOUNT_POINT"; then
+    local btrfs_device
+    btrfs_device=$(get_btrfs_root_device) || fail "Failed to detect Btrfs root device."
+    sudo mount -o subvol="$SWAP_SUBVOL" "$btrfs_device" "$SWAP_MOUNT_POINT" || fail "Failed to mount $SWAP_SUBVOL at $SWAP_MOUNT_POINT."
+    printc green "Mounted ${SWAP_SUBVOL} at ${SWAP_MOUNT_POINT}."
+  else
+    printc yellow "${SWAP_MOUNT_POINT} is already mounted."
+  fi
+
+  # Verify the mount is working and directory is accessible
+  if [[ ! -d "$SWAP_MOUNT_POINT" ]] || ! sudo test -w "$SWAP_MOUNT_POINT"; then
+    fail "Swap mount point $SWAP_MOUNT_POINT is not accessible or writable."
+  fi
 }
 
 create_btrfs_swap_subvolume() {
@@ -75,47 +132,7 @@ create_btrfs_swap_subvolume() {
   fi
 
   sudo umount "$temp_mount"
-
   mount_swap_subvolume
-}
-
-btrfs_subvolume_exists() {
-  local subvol_name="$1"
-  local mount_point="$2"
-  sudo btrfs subvolume list "$mount_point" | grep -q "path ${subvol_name}$"
-}
-
-get_btrfs_root_device() {
-  local device
-  device=$(findmnt -n -o SOURCE --target /mnt 2>/dev/null || findmnt -n -o SOURCE --target / 2>/dev/null)
-  if [[ -z "$device" ]]; then
-    return 1
-  fi
-  # Strip subvolume suffix if present (format: /dev/device[subvol])
-  device="${device%%\[*}"
-  echo "$device"
-}
-
-mount_swap_subvolume() {
-  sudo mkdir -p "$SWAP_MOUNT_POINT"
-  if ! mountpoint -q "$SWAP_MOUNT_POINT"; then
-    local btrfs_device
-    btrfs_device=$(get_btrfs_root_device) || fail "Failed to detect Btrfs root device."
-    sudo mount -o subvol="$SWAP_SUBVOL" "$btrfs_device" "$SWAP_MOUNT_POINT" || fail "Failed to mount $SWAP_SUBVOL at $SWAP_MOUNT_POINT."
-    printc green "Mounted ${SWAP_SUBVOL} at ${SWAP_MOUNT_POINT}."
-  else
-    printc yellow "${SWAP_MOUNT_POINT} is already mounted."
-  fi
-
-  # Verify the mount is working and directory is accessible
-  if [[ ! -d "$SWAP_MOUNT_POINT" ]] || ! sudo test -w "$SWAP_MOUNT_POINT"; then
-    fail "Swap mount point $SWAP_MOUNT_POINT is not accessible or writable."
-  fi
-}
-
-create_and_activate_swapfile() {
-  create_swapfile
-  activate_swapfile
 }
 
 create_swapfile() {
@@ -151,19 +168,9 @@ activate_swapfile() {
   fi
 }
 
-is_swapfile_active() {
-  sudo swapon --show | grep -q "$SWAP_FILE_PATH"
-}
-
-add_swapfile_to_fstab() {
-  printc cyan "Adding swap file to fstab..."
-  if ! grep -q "$SWAP_FILE_PATH" /etc/fstab; then
-    echo -e "\n$SWAP_FILE_PATH none swap defaults 0 0\n" | sudo tee -a /etc/fstab ||
-      fail "Failed to add swap file to fstab."
-    printc green "Swap file added to fstab successfully."
-  else
-    printc yellow "Swap file already exists in fstab."
-  fi
+create_and_activate_swapfile() {
+  create_swapfile
+  activate_swapfile
 }
 
 add_swap_subvolume_to_fstab() {
@@ -184,10 +191,28 @@ add_swap_subvolume_to_fstab() {
   fi
 }
 
-configure_hibernation_support() {
-  set_resume_offset
-  configure_initramfs_resume_hook
+add_swapfile_to_fstab() {
+  printc cyan "Adding swap file to fstab..."
+  if ! grep -q "$SWAP_FILE_PATH" /etc/fstab; then
+    echo -e "\n$SWAP_FILE_PATH none swap defaults 0 0\n" | sudo tee -a /etc/fstab ||
+      fail "Failed to add swap file to fstab."
+    printc green "Swap file added to fstab successfully."
+  else
+    printc yellow "Swap file already exists in fstab."
+  fi
 }
+
+setup_btrfs_swap() {
+  printc cyan "Setting up Btrfs swap configuration..."
+  create_btrfs_swap_subvolume
+  add_swap_subvolume_to_fstab
+  create_and_activate_swapfile
+  add_swapfile_to_fstab
+}
+
+# =============================================================================
+# HIBERNATION CONFIGURATION
+# =============================================================================
 
 set_resume_offset() {
   printc cyan "Configuring hibernation resume offset..."
@@ -215,11 +240,51 @@ configure_initramfs_resume_hook() {
   fi
 }
 
-setup_touchpad_udev_rule() {
-  printc cyan "Setting up touchpad udev rule..."
-  write_touchpad_udev_rule
+wake_devices() {
+  printc cyan "Configuring wake devices through udev..."
+  sudo tee "$WAKE_DEVICES_RULE_FILE" >/dev/null <<EOF || fail "Failed to write wake devices udev rule."
+ACTION=="change", SUBSYSTEM=="power_supply", KERNEL=="AC", ENV{POWER_SUPPLY_ONLINE}=="0", RUN+="/usr/local/bin/toggle_wake_devices.sh disable"
+ACTION=="change", SUBSYSTEM=="power_supply", KERNEL=="AC", ENV{POWER_SUPPLY_ONLINE}=="1", RUN+="/usr/local/bin/toggle_wake_devices.sh enable"
+EOF
+  printc green "Wake devices udev rule written."
   reload_udev_rules
+  printc green "Wake devices configured successfully."
 }
+
+edit_hibernation_conf() {
+  printc cyan "Editing hibernation configuration..."
+  sudo tee /etc/systemd/sleep.conf.d/hibernation.conf >/dev/null <<EOF || fail "Failed to write hibernation configuration."
+[Sleep]
+AllowSuspend=yes
+AllowHibernation=yes
+AllowSuspendThenHibernate=yes
+SuspendState=freeze mem disk
+HibernateMode=platform shutdown
+HibernateDelaySec=2h
+#MemorySleepMode=
+#HibernateDelaySec=
+#HibernateOnACPower=yes
+#SuspendEstimationSec=60min
+EOF
+  printc green "Hibernation configuration written."
+}
+
+configure_hibernation_support() {
+  if confirm "Setup hibernation support?"; then
+    printc cyan "Setting up hibernation support..."
+    set_resume_offset
+    configure_initramfs_resume_hook
+    wake_devices
+    edit_hibernation_conf
+  else
+    printc yellow "Skipping hibernation setup."
+  fi
+
+}
+
+# =============================================================================
+# TOUCHPAD AND INPUT CONFIGURATION
+# =============================================================================
 
 write_touchpad_udev_rule() {
   printc cyan "Writing udev rule..."
@@ -229,11 +294,10 @@ EOF
   printc green "Touchpad udev rule written."
 }
 
-reload_udev_rules() {
-  printc cyan "Reloading and triggering udev rules..."
-  sudo udevadm control --reload-rules || fail "Failed to reload udev rules."
-  sudo udevadm trigger || fail "Failed to trigger udev rules."
-  printc green "Udev rules reloaded successfully."
+setup_touchpad_udev_rule() {
+  printc cyan "Setting up touchpad udev rule..."
+  write_touchpad_udev_rule
+  reload_udev_rules
 }
 
 enable_libinput_gestures() {
@@ -244,26 +308,9 @@ enable_libinput_gestures() {
   enable_service "libinput-gestures.service" "user"
 }
 
-setup_btrfs_swap() {
-  printc cyan "Setting up Btrfs swap configuration..."
-  create_btrfs_swap_subvolume
-  add_swap_subvolume_to_fstab
-  create_and_activate_swapfile
-  add_swapfile_to_fstab
-  configure_hibernation_support
-}
-
-# configure wake device through udev
-wake_devices(){
-  printc cyan "Configuring wake devices through udev..."
- sudo tee "$WAKE_DEVICES_RULE_FILE" >/dev/null <<EOF || fail "Failed to write wake devices udev rule."
-ACTION=="change", SUBSYSTEM=="power_supply", KERNEL=="AC", ENV{POWER_SUPPLY_ONLINE}=="0", RUN+="/usr/local/bin/toggle_wake_devices.sh disable"
-ACTION=="change", SUBSYSTEM=="power_supply", KERNEL=="AC", ENV{POWER_SUPPLY_ONLINE}=="1", RUN+="/usr/local/bin/toggle_wake_devices.sh enable"
-EOF
-  printc green "Wake devices udev rule written."
-  reload_udev_rules
-  printc green "Wake devices configured successfully."
-}
+# =============================================================================
+# MAIN EXECUTION
+# =============================================================================
 
 main() {
   install_auto_cpufreq
@@ -272,11 +319,12 @@ main() {
   if is_btrfs; then
     if confirm "Setup hibernation ?"; then
       setup_btrfs_swap
+      configure_hibernation_support
     else
-      printc yellow "Skipping Btrfs swap setup."
+      printc yellow "Skipping hibernation setup."
     fi
   else
-    printc yellow "Btrfs is not detected. Skipping Btrfs-specific swap setup."
+    printc yellow "Btrfs is not detected. Skipping Btrfs-specific setup."
   fi
 
   setup_touchpad_udev_rule
