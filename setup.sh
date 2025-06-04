@@ -2,39 +2,37 @@
 # shellcheck disable=SC1091
 
 # =============================================================================
-# CONSTANTS
+# CONSTANTS AND INITIALIZATION
 # =============================================================================
 
-readonly BASE_DIR
 BASE_DIR="$(cd -- "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
-readonly SCRIPTS_DIR="$BASE_DIR/scripts"
-readonly LIB_DIR="$SCRIPTS_DIR/lib"
+SCRIPTS_DIR="$BASE_DIR/scripts"
+LIB_DIR="$SCRIPTS_DIR/lib"
 
-# =============================================================================
-# INITIALIZATION
-# =============================================================================
-
-initialize_environment() {
-  printc cyan "Initializing setup environment..."
-  source "$LIB_DIR/utils.sh"
-  printc green "Environment initialized successfully."
-}
+# Load utilities
+source "$LIB_DIR/colors.sh"
+source "$LIB_DIR/utils.sh"
 
 # =============================================================================
 # CORE SETUP FUNCTIONS
 # =============================================================================
 
 run_core_setup() {
-  printc cyan "Running core system setup..."
-
+  printc_box "PACMAN" "Configuring Pacman"
   source "$SCRIPTS_DIR/pacman_config.sh"
   source "$SCRIPTS_DIR/AUR_helper.sh"
-  source "$SCRIPTS_DIR/dependencies.sh"
-  source "$SCRIPTS_DIR/theming.sh"
-  source "$SCRIPTS_DIR/enable_services.sh"
-  source "$SCRIPTS_DIR/dotfiles.sh"
 
-  printc green "Core setup completed successfully."
+  printc_box "DEPENDENCIES" "Installing core dependencies and tools"
+  source "$SCRIPTS_DIR/dependencies.sh"
+
+  printc_box "THEMING" "Setting up Fonts, cursors and themes"
+  source "$SCRIPTS_DIR/theming.sh"
+
+  printc_box "SYSTEM CONFIGURATION" "Configuring system settings and services"
+  source "$SCRIPTS_DIR/enable_services.sh"
+
+  printc_box "DOTFILES SETUP" "Applying dotfiles and configurations"
+  source "$SCRIPTS_DIR/dotfiles.sh"
 }
 
 # =============================================================================
@@ -43,7 +41,7 @@ run_core_setup() {
 
 setup_zsh() {
   if confirm "Setup ZSH and related tools?"; then
-    printc cyan "Starting ZSH setup..."
+    printc_box "ZSH SETUP" "Configuring ZSH shell and tools"
     source "$SCRIPTS_DIR/zsh_setup.sh"
   else
     printc yellow "Skipping ZSH setup."
@@ -52,7 +50,7 @@ setup_zsh() {
 
 setup_limine_bootloader() {
   if confirm "This is for limine bootloader setup. Do you want to continue?"; then
-    printc cyan "Starting limine bootloader setup..."
+    printc_box "LIMINE SETUP" "Configuring Limine bootloader and Snapper"
     source "$SCRIPTS_DIR/limine_snapper.sh"
   else
     printc yellow "Skipping limine bootloader setup."
@@ -61,11 +59,16 @@ setup_limine_bootloader() {
 
 setup_laptop_tweaks() {
   if confirm "Setup laptop tweaks?"; then
-    printc cyan "Starting laptop tweaks setup..."
+    printc_box "LAPTOP TWEAKS" "Applying laptop-specific optimizations"
     source "$SCRIPTS_DIR/laptop_tweaks.sh"
   else
     printc yellow "Skipping laptop tweaks setup."
   fi
+}
+
+reboot_system() {
+  printc cyan "Rebooting system to apply changes..."
+  sudo reboot
 }
 
 # =============================================================================
@@ -73,15 +76,18 @@ setup_laptop_tweaks() {
 # =============================================================================
 
 main() {
-  printc cyan "Starting dotfiles setup..."
-
-  initialize_environment
+  printc_box "WELCOME" "Arch Linux Dotfiles Setup"
+  ensure_sudo
   run_core_setup
   setup_zsh
   setup_limine_bootloader
   setup_laptop_tweaks
 
-  printc green "Setup completed successfully!"
+  if confirm "Reboot system now to apply all changes?"; then
+    reboot_system
+  else
+    printc yellow "Please remember to reboot your system later to apply all changes."
+  fi
 }
 
 main
