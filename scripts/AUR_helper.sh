@@ -5,56 +5,40 @@
 # =============================================================================
 
 readonly AVAILABLE_AUR_HELPERS=("yay" "paru")
-readonly DEFAULT_AUR_HELPER="yay"
 
 # =============================================================================
 # USER INTERACTION FUNCTIONS
 # =============================================================================
 
-display_aur_helper_menu() {
-  printc cyan "\nAvailable AUR helpers:\n"
-  for i in "${!AVAILABLE_AUR_HELPERS[@]}"; do
-    printc yellow "  $((i + 1)). ${AVAILABLE_AUR_HELPERS[i]}"
-  done
-}
-
-validate_user_input() {
-  local input="$1"
-  local max_options="${#AVAILABLE_AUR_HELPERS[@]}"
-
-  if [[ -z "$input" ]]; then
-    return 0 # Default choice
-  elif [[ "$input" =~ ^[1-9]$ ]] && ((input >= 1 && input <= max_options)); then
-    return 0 # Valid choice
-  else
-    return 1 # Invalid choice
-  fi
-}
-
 get_user_choice() {
   local input=""
   local index=0
 
-  while true; do
-    display_aur_helper_menu
+  printc_box "AUR HELPER SELECTION" "1) yay (default)  2) paru"
 
-    printc cyan "\nPlease select an AUR helper to install (1-${#AVAILABLE_AUR_HELPERS[@]}): (default is '$DEFAULT_AUR_HELPER'): "
+  while true; do
+    printc magenta "Enter your choice [1-2] or press Enter for default: "
+    printc -n cyan "> "
     read -r input
 
-    if validate_user_input "$input"; then
-      if [[ -z "$input" ]]; then
-        index=0 # Default to first option (yay)
-      else
-        index=$((input - 1))
-      fi
+    case "$input" in
+    "" | "1" | "yay")
+      index=0
       break
-    else
-      printc red "Invalid input. Please enter a number between 1 and ${#AVAILABLE_AUR_HELPERS[@]}, or press Enter to default to '$DEFAULT_AUR_HELPER'."
-    fi
+      ;;
+    "2" | "paru")
+      index=1
+      break
+      ;;
+    *)
+      printc red "Invalid choice. Please try again."
+      echo
+      ;;
+    esac
   done
 
   AUR_HELPER="${AVAILABLE_AUR_HELPERS[$index]}"
-  printc cyan "Selected $AUR_HELPER as the AUR helper."
+  printc green "Selected: $AUR_HELPER"
 }
 
 # =============================================================================
