@@ -4,33 +4,33 @@
 # CORE COMPONENTS
 # =======================
 core_packages=(
-  hyprland        # Wayland compositor
-  uwsm            # Universal Wayland Session Manager
-  rofi-wayland    # Wayland launcher
-  app2unit-git    # Run applications as units
-  hypridle        # Idle management
-  hyprlock        # Lock screen
-  hyprpicker      # Color picker
-  grimblast       # Screenshot tool
-  hyprpaper       # Wallpaper daemon
-  hyprshot        # Screenshot tool
-  matugen-bin     # Color generator
+  hyprland          # Wayland compositor
+  uwsm              # Universal Wayland Session Manager
+  rofi-wayland      # Wayland launcher
+  app2unit-git      # Run applications as units
+  hypridle          # Idle management
+  hyprlock          # Lock screen
+  hyprpicker        # Color picker
+  grimblast         # Screenshot tool
+  swww              # Wallpaper daemon
+  hyprshot          # Screenshot tool
+  matugen-bin       # Color generator
   ags-hyprpanel-git # panel
-  hyprpolkitagent # Polkit agent for Hyprland
-  pyprland        # for scratchpads
-  devify          # device notification system
-  brightnessctl   # Screen brightness
-  playerctl       # Media controller
-  thunar          # File manager
-  sddm            # Display manager
-  kitty           # Terminal emulator
+  hyprpolkitagent   # Polkit agent for Hyprland
+  pyprland          # for scratchpads
+  devify            # device notification system
+  brightnessctl     # Screen brightness
+  playerctl         # Media controller
+  thunar            # File manager
+  sddm              # Display manager
+  kitty             # Terminal emulator
 
-  xdg-desktop-portal-gtk      # Desktop portal for GTK apps
-  xdg-desktop-portal-hyprland # Desktop portal for Hyprland
-  archlinux-xdg-menu          # Arch Linux menu integration
-  xdg-user-dirs               # User directories
-  xdg-utils                   # XDG utilities
-  xdg-desktop-portal          # Desktop portal
+  xdg-desktop-portal-gtk       # Desktop portal for GTK apps
+  xdg-desktop-portal-hyprland  # Desktop portal for Hyprland
+  archlinux-xdg-menu           # Arch Linux menu integration
+  xdg-user-dirs                # User directories
+  xdg-utils                    # XDG utilities
+  xdg-desktop-portal           # Desktop portal
   selectdefaultapplication-git # Tool to change default apps
 
   #required by vscode and other apps to store keyrings
@@ -54,6 +54,7 @@ core_packages=(
   pwvucontrol
   wireplumber
   networkmanager
+  usbutils
 
 )
 
@@ -130,6 +131,7 @@ optional=(
   yazi
   neovim
   spotify-launcher
+  antidot-bin # clean up home directory
 
 )
 
