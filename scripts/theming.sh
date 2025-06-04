@@ -18,11 +18,9 @@ readonly CURSOR_THEME_NAME="macOS"
 # =============================================================================
 
 install_dependencies() {
-  printc cyan "Installing dependencies..."
   for dep in "${DEPENDENCIES[@]}"; do
     install_package "$dep"
   done
-  printc green "Dependencies installed successfully."
 }
 
 # =============================================================================
@@ -31,7 +29,7 @@ install_dependencies() {
 
 check_existing_fonts() {
   if compgen -G "$FONTS_TARGET_DIR/*.ttf" >/dev/null || compgen -G "$FONTS_TARGET_DIR/*.otf" >/dev/null; then
-    printc green "Fonts already exist in $FONTS_TARGET_DIR. Skipping download."
+    printc green "Fonts already installed"
     return 0
   fi
   return 1
@@ -39,11 +37,13 @@ check_existing_fonts() {
 
 clone_fonts_repository() {
   local temp_dir="$1"
-  printc yellow "Cloning fonts from $FONTS_REPO_URL..."
-  git clone --depth=1 "$FONTS_REPO_URL" "$temp_dir" || {
+  printc -n cyan "Cloning fonts... "
+  if git clone --depth=1 "$FONTS_REPO_URL" "$temp_dir" 2>/dev/null; then
+    printc green "OK"
+  else
     rm -rf "$temp_dir"
-    fail "Failed to clone font repo."
-  }
+    fail "FAILED"
+  fi
 }
 
 copy_font_files() {
@@ -51,11 +51,13 @@ copy_font_files() {
   local new_count=0
   local update_count=0
 
+  printc -n cyan "Installing fonts... "
+
   mapfile -t font_files < <(find "$temp_dir" -type f \( -iname "*.ttf" -o -iname "*.otf" \))
 
   if [[ ${#font_files[@]} -eq 0 ]]; then
     rm -rf "$temp_dir"
-    fail "No font files found in the repository."
+    fail "No fonts found"
   fi
 
   for font_file in "${font_files[@]}"; do
@@ -75,31 +77,27 @@ copy_font_files() {
   done
 
   if ((new_count > 0 || update_count > 0)); then
-    printc yellow "Refreshing font cache..."
-    fc-cache -f "$FONTS_TARGET_DIR"
-    printc green "Installed $new_count new fonts and updated $update_count fonts."
+    fc-cache -f "$FONTS_TARGET_DIR" 2>/dev/null
+    printc green "OK ($new_count new, $update_count updated)"
   else
-    printc green "All fonts are already up to date."
+    printc green "up to date"
   fi
 }
 
 install_fonts() {
-  printc cyan "Installing fonts..."
-  local temp_dir
-
   mkdir -p "$FONTS_TARGET_DIR"
 
   if check_existing_fonts; then
     return 0
   fi
 
-  temp_dir=$(mktemp -d) || fail "Failed to create temp directory."
+  local temp_dir
+  temp_dir=$(mktemp -d) || fail "Failed to create temp directory"
 
   clone_fonts_repository "$temp_dir"
   copy_font_files "$temp_dir"
 
   rm -rf "$temp_dir"
-  printc green "Font installation completed successfully."
 }
 
 # =============================================================================
@@ -109,21 +107,19 @@ install_fonts() {
 check_existing_cursor_theme() {
   local cursor_theme_dir="$ICONS_DIR/$CURSOR_THEME_NAME"
   if [[ -d "$cursor_theme_dir" ]]; then
-    printc green "Cursor theme '$CURSOR_THEME_NAME' already exists in $cursor_theme_dir. Skipping download."
+    printc green "Cursor theme already installed"
     return 0
   fi
   return 1
 }
 
 get_cursor_download_url() {
-  printc yellow "Querying latest release from $CURSOR_REPO_OWNER/$CURSOR_REPO_NAME..."
-
   local download_url
   download_url=$(curl -s "https://api.github.com/repos/$CURSOR_REPO_OWNER/$CURSOR_REPO_NAME/releases/latest" |
     jq -r ".assets[] | select(.name == \"$CURSOR_ASSET_NAME\") | .browser_download_url")
 
   if [[ -z "$download_url" || "$download_url" == "null" ]]; then
-    fail "Could not find $CURSOR_ASSET_NAME in the latest release."
+    fail "Could not find $CURSOR_ASSET_NAME"
   fi
 
   echo "$download_url"
@@ -133,27 +129,29 @@ download_cursor_theme() {
   local download_url="$1"
   local tmp_dir="$2"
 
-  printc yellow "Downloading $CURSOR_ASSET_NAME..."
-  curl -L --silent "$download_url" -o "$tmp_dir/cursor.tar.gz" || {
+  printc -n cyan "Downloading cursor theme... "
+  if curl -L --silent "$download_url" -o "$tmp_dir/cursor.tar.gz"; then
+    printc green "OK"
+  else
     rm -rf "$tmp_dir"
-    fail "Download failed."
-  }
+    fail "FAILED"
+  fi
 }
 
 extract_cursor_theme() {
   local tmp_dir="$1"
 
-  printc yellow "Extracting to $ICONS_DIR..."
+  printc -n cyan "Extracting cursor theme... "
   mkdir -p "$ICONS_DIR"
-  tar -xzf "$tmp_dir/cursor.tar.gz" -C "$ICONS_DIR" || {
+  if tar -xzf "$tmp_dir/cursor.tar.gz" -C "$ICONS_DIR"; then
+    printc green "OK"
+  else
     rm -rf "$tmp_dir"
-    fail "Extraction failed."
-  }
+    fail "FAILED"
+  fi
 }
 
 install_cursor_theme() {
-  printc cyan "Installing cursor theme..."
-
   if check_existing_cursor_theme; then
     return 0
   fi
@@ -161,13 +159,12 @@ install_cursor_theme() {
   local tmp_dir
   local download_url
 
-  tmp_dir=$(mktemp -d) || fail "Failed to create temp directory."
+  tmp_dir=$(mktemp -d) || fail "Failed to create temp directory"
 
   download_url=$(get_cursor_download_url)
   download_cursor_theme "$download_url" "$tmp_dir"
   extract_cursor_theme "$tmp_dir"
 
-  printc green "macOS Hyprcursor (white) installed successfully."
   rm -rf "$tmp_dir"
 }
 
@@ -179,6 +176,8 @@ main() {
   install_dependencies
   install_fonts
   install_cursor_theme
+  echo
+  printc green "Theming setup completed"
 }
 
 main
