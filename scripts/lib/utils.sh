@@ -1,20 +1,21 @@
 #!/bin/bash
 
 # =============================================================================
-# INITIALIZATION
-# =============================================================================
-
-# Load color map
-SCRIPT_DIR="$(cd -- "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
-source "$SCRIPT_DIR/colors.sh"
-
-# =============================================================================
 # OUTPUT AND MESSAGING FUNCTIONS
 # =============================================================================
 
 # Print colored messages with tag support
 printc() {
-  local color_key="${1,,}"
+  local newline=true
+  local color_key=""
+
+  # Check for -n flag to disable newline
+  if [[ "$1" == "-n" ]]; then
+    newline=false
+    shift
+  fi
+
+  color_key="${1,,}"
   shift
   local str="$*"
   # Check if first word is a valid color tag
@@ -32,7 +33,58 @@ printc() {
     str="${str//<\/$color>/${COLORS[reset]}}"
   done
 
-  echo -e "$str"
+  if [[ "$newline" == true ]]; then
+    echo -e "$str"
+  else
+    printf "%b" "$str"
+  fi
+}
+
+# Print boxed messages for cleaner output
+printc_box() {
+  local title="$1"
+  local message="$2"
+  local width=30
+
+  # Calculate padding for centering
+  local title_len=${#title}
+  local message_len=${#message}
+  local max_len=$((title_len > message_len ? title_len : message_len))
+
+  # Adjust width if content is longer but keep it reasonable
+  if ((max_len + 6 > width)); then
+    width=$((max_len + 6))
+    if ((width > 70)); then
+      width=70
+    fi
+  fi
+
+  local title_padding=$(((width - title_len - 2) / 2))
+  local message_padding=$(((width - message_len - 2) / 2))
+
+  # Create box components
+  local top_border
+  top_border="┌$(printf '─%.0s' $(seq 1 $((width - 2))))┐"
+  local bottom_border
+  bottom_border="└$(printf '─%.0s' $(seq 1 $((width - 2))))┘"
+  local empty_line
+  empty_line="│$(printf ' %.0s' $(seq 1 $((width - 2))))│"
+
+  echo
+  echo -e "${COLORS[cyan]}${top_border}${COLORS[reset]}"
+  if [[ -n "$title" ]]; then
+    # Bold cyan title
+    echo -e "${COLORS[cyan]}│$(printf ' %.0s' $(seq 1 $title_padding))${COLORS[cyan]}${COLORS[bold]}${title}${COLORS[reset]}${COLORS[cyan]}$(printf ' %.0s' $(seq 1 $((width - title_len - title_padding - 2))))│${COLORS[reset]}"
+    if [[ -n "$message" ]]; then
+      echo -e "${COLORS[cyan]}${empty_line}${COLORS[reset]}"
+      # Magenta message
+      echo -e "${COLORS[cyan]}│$(printf ' %.0s' $(seq 1 $message_padding))${COLORS[magenta]}${message}${COLORS[cyan]}$(printf ' %.0s' $(seq 1 $((width - message_len - message_padding - 2))))│${COLORS[reset]}"
+    fi
+  elif [[ -n "$message" ]]; then
+    echo -e "${COLORS[cyan]}│$(printf ' %.0s' $(seq 1 $message_padding))${COLORS[magenta]}${message}${COLORS[cyan]}$(printf ' %.0s' $(seq 1 $((width - message_len - message_padding - 2))))│${COLORS[reset]}"
+  fi
+  echo -e "${COLORS[cyan]}${bottom_border}${COLORS[reset]}"
+  echo
 }
 
 # Safe exit with message
@@ -74,23 +126,12 @@ has_cmd() {
 # Confirm action
 confirm() {
   echo
-  read -rp "$(printc yellow "$1 [Y/n]: ")" response
+  read -rp "$(printc magenta "$1 [Y/n]: ")" response
   [[ -z "$response" || "$response" =~ ^[Yy]$ ]]
 }
 
-# Check if filesystem is Btrfs
-is_btrfs() {
-  findmnt -n -o FSTYPE / | grep -q btrfs
-}
-
-# =============================================================================
-# SUDO AND SECURITY FUNCTIONS
-# =============================================================================
-
-# Ensure sudo is ready before background processes
 ensure_sudo() {
   if ! sudo -n true 2>/dev/null; then
-    echo
     sudo -v
   fi
 }
@@ -104,20 +145,9 @@ install_package() {
   local pkg="$1"
 
   if "$AUR_HELPER" -Qi "$pkg" &>/dev/null; then
-    printc "<cyan>$pkg</cyan> <green>is already installed</green>"
+    printc "<cyan>$pkg</cyan> <green>exists</green>"
     return 0
   else
-    ensure_sudo # ensure sudo won't interrupt the spinner
-
-    # Keep sudo session alive during installation
-    (
-      while kill -0 $$ 2>/dev/null; do
-        sudo -n true 2>/dev/null || break
-        sleep 30
-      done
-    ) &
-    local keepalive_pid=$!
-
     "$AUR_HELPER" -S --needed --noconfirm "$pkg" &>/dev/null &
     local pid=$!
 
@@ -125,11 +155,8 @@ install_package() {
     wait "$pid"
     local status=$?
 
-    # Stop keepalive process
-    kill $keepalive_pid 2>/dev/null || true
-
     if ((status == 0)); then
-      printc "<cyan>$pkg</cyan> <green>has been installed</green>"
+      printc "<cyan>$pkg</cyan> <green>installed</green>"
     else
       fail "Failed to install $pkg."
     fi
@@ -157,13 +184,13 @@ update_config() {
   if sudo grep -qE "^\s*#*\s*${key}\s*=" "$config_file"; then
     # Update in place, preserving original spacing
     if sudo sed -i -E "s|^\s*#*\s*(${key})(\s*)=(\s*).*|\1\2=\3${value}|" "$config_file"; then
-      printc green "Updated $key to $value in $config_file"
+      return 0
     else
       fail "Failed to update $key"
     fi
   else
     if echo -e "\n${key}=${value}" | sudo tee -a "$config_file" >/dev/null; then
-      printc green "Appended $key=${value} to $config_file"
+      return 0
     else
       fail "Failed to append $key"
     fi
@@ -188,7 +215,7 @@ set_snapper_config_value() {
   fi
 
   if sudo snapper -c "$config_name" set-config "${key}=${value}"; then
-    printc green "Set $key=$value in snapper config '$config_name'"
+    return 0
   else
     fail "Failed to set $key in snapper config '$config_name'"
   fi
@@ -214,7 +241,7 @@ enable_service() {
   if "${prefix[@]}" "${cmd[@]}" list-unit-files | grep -q "^$service"; then
     # Skip if already enabled
     if "${prefix[@]}" "${cmd[@]}" is-enabled "$service" &>/dev/null; then
-      printc "<yellow>[$scope]</yellow> <white>Already enabled: $service</white>"
+      printc "<magenta>[$scope]</magenta> <yellow>$service</yellow> <green>already enabled</green>"
     else
       if "${prefix[@]}" "${cmd[@]}" enable "$service" &>/dev/null; then
         printc "<cyan>[$scope]</cyan> <green>Enabled $service</green>"
@@ -236,11 +263,6 @@ backup_with_timestamp() {
   local src="$1"
   local dest="$2"
 
-  if [[ ! -e "$src" ]]; then
-    printc red "Source $src does not exist."
-    return 1
-  fi
-
   if [[ ! -d "$dest" ]]; then
     printc yellow "Destination directory $dest does not exist. Creating it..."
     mkdir -p "$dest" || {
@@ -259,22 +281,19 @@ backup_with_timestamp() {
 
   if [[ -d "$src" ]]; then
     if cp -r "$src" "$backup_path"; then
-      printc green "Directory backup created at $backup_path"
+      printc green "Backup created at $backup_path"
       return 0
     else
-      printc red "Failed to create directory backup."
-      return 1
+      fail "Failed to create directory backup."
     fi
   elif [[ -f "$src" ]]; then
     if cp "$src" "$backup_path"; then
-      printc green "File backup created at $backup_path"
+      printc green "Backup created at $backup_path"
       return 0
     else
-      printc red "Failed to create file backup."
       return 1
     fi
   else
-    printc red "Source $src is neither a file nor a directory."
     return 1
   fi
 }
