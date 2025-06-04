@@ -34,11 +34,16 @@ is_swapfile_active() {
   sudo swapon --show | grep -q "$SWAP_FILE_PATH"
 }
 
+is_btrfs() {
+  findmnt -n -o FSTYPE / | grep -q btrfs
+}
 reload_udev_rules() {
-  printc cyan "Reloading and triggering udev rules..."
-  sudo udevadm control --reload-rules || fail "Failed to reload udev rules."
-  sudo udevadm trigger || fail "Failed to trigger udev rules."
-  printc green "Udev rules reloaded successfully."
+  printc -n cyan "Reloading udev rules... "
+  if sudo udevadm control --reload-rules && sudo udevadm trigger; then
+    printc green "OK"
+  else
+    fail "FAILED"
+  fi
 }
 
 # =============================================================================
@@ -46,40 +51,32 @@ reload_udev_rules() {
 # =============================================================================
 
 download_and_install_auto_cpufreq() {
-  printc yellow "Installing auto-cpufreq..."
+  printc -n cyan "Installing auto-cpufreq... "
   local tmp_dir
-  tmp_dir=$(mktemp -d) || fail "Failed to create temp directory for auto-cpufreq."
+  tmp_dir=$(mktemp -d) || fail "Failed to create temp directory"
 
-  git clone https://github.com/AdnanHodzic/auto-cpufreq.git "$tmp_dir" || {
+  if git clone https://github.com/AdnanHodzic/auto-cpufreq.git "$tmp_dir" 2>/dev/null &&
+    cd "$tmp_dir" && sudo ./auto-cpufreq-installer >/dev/null 2>&1; then
     rm -rf "$tmp_dir"
-    fail "Failed to clone auto-cpufreq repo."
-  }
-
-  pushd "$tmp_dir" >/dev/null || {
+    printc green "OK"
+  else
     rm -rf "$tmp_dir"
-    fail "Failed to enter auto-cpufreq directory."
-  }
-
-  sudo ./auto-cpufreq-installer || {
-    popd >/dev/null || exit 1
-    rm -rf "$tmp_dir"
-    fail "auto-cpufreq installation failed."
-  }
-
-  popd >/dev/null || exit 1
-  rm -rf "$tmp_dir"
+    fail "FAILED"
+  fi
 }
 
 finalize_auto_cpufreq_installation() {
-  sudo auto-cpufreq --install || fail "Failed to finalize auto-cpufreq installation."
-  printc green "auto-cpufreq installed successfully."
+  printc -n cyan "Finalizing auto-cpufreq... "
+  if sudo auto-cpufreq --install >/dev/null 2>&1; then
+    printc green "OK"
+  else
+    fail "FAILED"
+  fi
 }
 
 install_auto_cpufreq() {
-  printc cyan "Checking auto-cpufreq installation..."
-
   if has_cmd auto-cpufreq; then
-    printc green "auto-cpufreq is already installed."
+    printc green "auto-cpufreq already installed"
     return 0
   fi
 
@@ -97,38 +94,39 @@ enable_auto_cpufreq_service() {
 # =============================================================================
 
 mount_swap_subvolume() {
+  printc -n cyan "Mounting swap subvolume... "
   sudo mkdir -p "$SWAP_MOUNT_POINT"
   if ! mountpoint -q "$SWAP_MOUNT_POINT"; then
     local btrfs_device
-    btrfs_device=$(get_btrfs_root_device) || fail "Failed to detect Btrfs root device."
-    sudo mount -o subvol="$SWAP_SUBVOL" "$btrfs_device" "$SWAP_MOUNT_POINT" || fail "Failed to mount $SWAP_SUBVOL at $SWAP_MOUNT_POINT."
-    printc green "Mounted ${SWAP_SUBVOL} at ${SWAP_MOUNT_POINT}."
+    btrfs_device=$(get_btrfs_root_device) || fail "Failed to detect Btrfs device"
+    if sudo mount -o subvol="$SWAP_SUBVOL" "$btrfs_device" "$SWAP_MOUNT_POINT"; then
+      printc green "OK"
+    else
+      fail "FAILED"
+    fi
   else
-    printc yellow "${SWAP_MOUNT_POINT} is already mounted."
-  fi
-
-  # Verify the mount is working and directory is accessible
-  if [[ ! -d "$SWAP_MOUNT_POINT" ]] || ! sudo test -w "$SWAP_MOUNT_POINT"; then
-    fail "Swap mount point $SWAP_MOUNT_POINT is not accessible or writable."
+    printc yellow "already mounted"
   fi
 }
 
 create_btrfs_swap_subvolume() {
-  printc cyan "Ensuring Btrfs subvolume for swap exists and is properly mounted..."
-
+  printc -n cyan "Creating swap subvolume... "
   local btrfs_device
-  btrfs_device=$(get_btrfs_root_device) || fail "Failed to detect Btrfs root device."
+  btrfs_device=$(get_btrfs_root_device) || fail "Failed to detect Btrfs device"
 
-  # Temporarily mount root of Btrfs to access top-level subvolumes
   local temp_mount="/tmp/btrfs-root"
   sudo mkdir -p "$temp_mount"
-  sudo mount "$btrfs_device" "$temp_mount" || fail "Failed to mount Btrfs root at $temp_mount."
+  sudo mount "$btrfs_device" "$temp_mount" || fail "Failed to mount Btrfs root"
 
   if ! btrfs_subvolume_exists "$SWAP_SUBVOL" "$temp_mount"; then
-    sudo btrfs subvolume create "$temp_mount/$SWAP_SUBVOL" || fail "Failed to create Btrfs subvolume for swap."
-    printc green "Created Btrfs subvolume ${SWAP_SUBVOL}."
+    if sudo btrfs subvolume create "$temp_mount/$SWAP_SUBVOL" >/dev/null 2>&1; then
+      printc green "OK"
+    else
+      sudo umount "$temp_mount"
+      fail "FAILED"
+    fi
   else
-    printc yellow "Btrfs subvolume ${SWAP_SUBVOL} already exists."
+    printc yellow "already exists"
   fi
 
   sudo umount "$temp_mount"
@@ -136,70 +134,70 @@ create_btrfs_swap_subvolume() {
 }
 
 create_swapfile() {
-  printc cyan "Creating swap file..."
-
-  # Ensure swap mount point is properly mounted first
+  printc -n cyan "Creating swapfile... "
   if ! mountpoint -q "$SWAP_MOUNT_POINT"; then
-    printc yellow "Swap mount point not mounted, attempting to mount..."
     mount_swap_subvolume
   fi
 
   if [[ ! -f "$SWAP_FILE_PATH" ]]; then
-    sudo btrfs filesystem mkswapfile --size "$SWAP_SIZE" --uuid clear "$SWAP_FILE_PATH" ||
-      fail "Failed to create swap file."
-    printc green "Swap file created successfully at $SWAP_FILE_PATH."
+    if sudo btrfs filesystem mkswapfile --size "$SWAP_SIZE" --uuid clear "$SWAP_FILE_PATH" >/dev/null 2>&1; then
+      printc green "OK"
+    else
+      fail "FAILED"
+    fi
   else
-    printc yellow "Swap file already exists at $SWAP_FILE_PATH."
-  fi
-
-  # Verify the swapfile is accessible
-  if [[ ! -f "$SWAP_FILE_PATH" ]]; then
-    fail "Swapfile was not created successfully at $SWAP_FILE_PATH."
+    printc yellow "already exists"
   fi
 }
 
 activate_swapfile() {
-  printc cyan "Activating swap file..."
+  printc -n cyan "Activating swapfile... "
   if ! is_swapfile_active; then
-    sudo swapon "$SWAP_FILE_PATH" || fail "Failed to activate swap file."
-    printc green "Swap file activated successfully."
+    if sudo swapon "$SWAP_FILE_PATH"; then
+      printc green "OK"
+    else
+      fail "FAILED"
+    fi
   else
-    printc yellow "Swap file is already active."
+    printc yellow "already active"
+  fi
+}
+
+add_swap_subvolume_to_fstab() {
+  printc -n cyan "Adding swap mount to fstab... "
+  local btrfs_device
+  btrfs_device=$(get_btrfs_root_device) || fail "Failed to detect Btrfs device"
+  UUID=$(sudo blkid -s UUID -o value "$btrfs_device") || fail "Failed to get UUID"
+
+  local fstab_entry="UUID=$UUID $SWAP_MOUNT_POINT btrfs defaults,nodatacow,noatime,subvol=$SWAP_SUBVOL 0 0"
+
+  if ! grep -q "$fstab_entry" /etc/fstab; then
+    if echo -e "\n$fstab_entry\n" | sudo tee -a /etc/fstab >/dev/null; then
+      printc green "OK"
+    else
+      fail "FAILED"
+    fi
+  else
+    printc yellow "already exists"
+  fi
+}
+
+add_swapfile_to_fstab() {
+  printc -n cyan "Adding swapfile to fstab... "
+  if ! grep -q "$SWAP_FILE_PATH" /etc/fstab; then
+    if echo -e "\n$SWAP_FILE_PATH none swap defaults 0 0\n" | sudo tee -a /etc/fstab >/dev/null; then
+      printc green "OK"
+    else
+      fail "FAILED"
+    fi
+  else
+    printc yellow "already exists"
   fi
 }
 
 create_and_activate_swapfile() {
   create_swapfile
   activate_swapfile
-}
-
-add_swap_subvolume_to_fstab() {
-  printc cyan "Adding swap subvolume mount to fstab..."
-  local btrfs_device
-  btrfs_device=$(get_btrfs_root_device) || fail "Failed to detect Btrfs root device."
-  UUID=$(sudo blkid -s UUID -o value "$btrfs_device") ||
-    fail "Failed to get UUID of Btrfs device."
-
-  local fstab_entry="UUID=$UUID $SWAP_MOUNT_POINT btrfs defaults,nodatacow,noatime,subvol=$SWAP_SUBVOL 0 0"
-
-  if ! grep -q "$fstab_entry" /etc/fstab; then
-    echo -e "\n$fstab_entry\n" | sudo tee -a /etc/fstab ||
-      fail "Failed to add swap subvolume mount to fstab."
-    printc green "Swap subvolume mount added to fstab successfully."
-  else
-    printc yellow "Swap subvolume mount already exists in fstab."
-  fi
-}
-
-add_swapfile_to_fstab() {
-  printc cyan "Adding swap file to fstab..."
-  if ! grep -q "$SWAP_FILE_PATH" /etc/fstab; then
-    echo -e "\n$SWAP_FILE_PATH none swap defaults 0 0\n" | sudo tee -a /etc/fstab ||
-      fail "Failed to add swap file to fstab."
-    printc green "Swap file added to fstab successfully."
-  else
-    printc yellow "Swap file already exists in fstab."
-  fi
 }
 
 setup_btrfs_swap() {
@@ -215,45 +213,45 @@ setup_btrfs_swap() {
 # =============================================================================
 
 set_resume_offset() {
-  printc cyan "Configuring hibernation resume offset..."
+  printc -n cyan "Setting resume offset... "
   local resume_offset
-  resume_offset=$(sudo btrfs inspect-internal map-swapfile -r "$SWAP_FILE_PATH") ||
-    fail "Failed to get resume offset."
-
-  echo "$resume_offset" | sudo tee /sys/power/resume_offset >/dev/null ||
-    fail "Failed to get resume offset for hibernation."
-  echo lz4 | sudo tee /sys/module/hibernate/parameters/compressor >/dev/null ||
-    fail "Failed to set hibernation compressor."
-
-  printc green "Hibernation support configured."
+  if resume_offset=$(sudo btrfs inspect-internal map-swapfile -r "$SWAP_FILE_PATH") &&
+    echo "$resume_offset" | sudo tee /sys/power/resume_offset >/dev/null &&
+    echo lz4 | sudo tee /sys/module/hibernate/parameters/compressor >/dev/null; then
+    printc green "OK"
+  else
+    fail "FAILED"
+  fi
 }
 
 configure_initramfs_resume_hook() {
-  printc cyan "Configuring initramfs for swap file..."
+  printc -n cyan "Configuring initramfs... "
   if ! grep -q 'HOOKS=.*resume' "$MKINIT_CONF"; then
-    printc cyan "Adding resume hook to mkinitcpio.conf..."
-    sudo sed -i -E 's/^(HOOKS=.* )(udev|base)(.*)$/\1\2 resume\3/' "$MKINIT_CONF" ||
-      fail "Failed to add resume hook to mkinitcpio.conf."
-    printc green "Resume hook added to mkinitcpio.conf."
+    if sudo sed -i -E 's/^(HOOKS=.* )(udev|base)(.*)$/\1\2 resume\3/' "$MKINIT_CONF"; then
+      printc green "OK"
+    else
+      fail "FAILED"
+    fi
   else
-    printc yellow "'resume' hook is already present."
+    printc yellow "already configured"
   fi
 }
 
 wake_devices() {
-  printc cyan "Configuring wake devices through udev..."
-  sudo tee "$WAKE_DEVICES_RULE_FILE" >/dev/null <<EOF || fail "Failed to write wake devices udev rule."
+  printc -n cyan "Configuring wake devices... "
+  if sudo tee "$WAKE_DEVICES_RULE_FILE" >/dev/null <<'EOF' && reload_udev_rules >/dev/null 2>&1; then
 ACTION=="change", SUBSYSTEM=="power_supply", KERNEL=="AC", ENV{POWER_SUPPLY_ONLINE}=="0", RUN+="/usr/local/bin/toggle_wake_devices.sh disable"
 ACTION=="change", SUBSYSTEM=="power_supply", KERNEL=="AC", ENV{POWER_SUPPLY_ONLINE}=="1", RUN+="/usr/local/bin/toggle_wake_devices.sh enable"
 EOF
-  printc green "Wake devices udev rule written."
-  reload_udev_rules
-  printc green "Wake devices configured successfully."
+    printc green "OK"
+  else
+    fail "FAILED"
+  fi
 }
 
 edit_hibernation_conf() {
-  printc cyan "Editing hibernation configuration..."
-  sudo tee /etc/systemd/sleep.conf.d/hibernation.conf >/dev/null <<EOF || fail "Failed to write hibernation configuration."
+  printc -n cyan "Writing hibernation config... "
+  if sudo mkdir -p /etc/systemd/sleep.conf.d && sudo tee /etc/systemd/sleep.conf.d/hibernation.conf >/dev/null <<'EOF'; then
 [Sleep]
 AllowSuspend=yes
 AllowHibernation=yes
@@ -261,25 +259,11 @@ AllowSuspendThenHibernate=yes
 SuspendState=freeze mem disk
 HibernateMode=platform shutdown
 HibernateDelaySec=2h
-#MemorySleepMode=
-#HibernateDelaySec=
-#HibernateOnACPower=yes
-#SuspendEstimationSec=60min
 EOF
-  printc green "Hibernation configuration written."
-}
-
-configure_hibernation_support() {
-  if confirm "Setup hibernation support?"; then
-    printc cyan "Setting up hibernation support..."
-    set_resume_offset
-    configure_initramfs_resume_hook
-    wake_devices
-    edit_hibernation_conf
+    printc green "OK"
   else
-    printc yellow "Skipping hibernation setup."
+    fail "FAILED"
   fi
-
 }
 
 # =============================================================================
@@ -287,21 +271,22 @@ configure_hibernation_support() {
 # =============================================================================
 
 write_touchpad_udev_rule() {
-  printc cyan "Writing udev rule..."
-  sudo tee "$TOUCHPAD_RULE_FILE" >/dev/null <<EOF || fail "Failed to write udev rule."
+  printc -n cyan "Writing touchpad udev rule... "
+  if sudo tee "$TOUCHPAD_RULE_FILE" >/dev/null <<'EOF'; then
 KERNEL=="event*", SUBSYSTEM=="input", ENV{ID_INPUT_TOUCHPAD}=="1", TAG+="uaccess"
 EOF
-  printc green "Touchpad udev rule written."
+    printc green "OK"
+  else
+    fail "FAILED"
+  fi
 }
 
 setup_touchpad_udev_rule() {
-  printc cyan "Setting up touchpad udev rule..."
   write_touchpad_udev_rule
   reload_udev_rules
 }
 
 enable_libinput_gestures() {
-  printc cyan "Enabling libinput-gestures service..."
   if ! has_cmd "libinput-gestures"; then
     install_package "libinput-gestures"
   fi
@@ -313,6 +298,7 @@ enable_libinput_gestures() {
 # =============================================================================
 
 main() {
+  ensure_sudo
   install_auto_cpufreq
   enable_auto_cpufreq_service
 
