@@ -13,6 +13,7 @@ export LEIN_HOME="$XDG_DATA_HOME"/lein
 export DOTNET_CLI_HOME="$XDG_DATA_HOME"/dotnet
 export CUDA_CACHE_PATH="$XDG_CACHE_HOME"/nv
 export __GL_SHADER_DISK_CACHE_PATH="${XDG_CACHE_HOME}/nv"
+export GNUPGHOME="${XDG_DATA_HOME}/gnupg"
 
 # Defaults:
 export EDITOR="nvim"
