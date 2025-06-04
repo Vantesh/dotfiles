@@ -55,6 +55,8 @@ core_packages=(
   wireplumber
   networkmanager
   usbutils
+  man-db
+  tealdeer
 
 )
 
@@ -67,6 +69,7 @@ fonts=(
   ttf-nerd-fonts-symbols-mono
   ttf-nerd-fonts-symbols-common
   ttf-apple-emoji
+  apple-fonts
   ttf-jetbrains-mono-nerd
   ttf-font-awesome
   noto-fonts-cjk
@@ -122,9 +125,11 @@ drivers=(
 optional=(
   bemoji
   brave-bin
+  zen-browser-bin
   visual-studio-code-bin
   qbittorrent
   vlc
+  mpv
   ark
   btop
   nvtop
