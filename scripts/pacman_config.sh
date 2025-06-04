@@ -13,15 +13,16 @@ readonly PACMAN_OPTIONS=("Color" "VerbosePkgLists")
 # =============================================================================
 
 validate_pacman_config() {
-  printc cyan "Validating pacman configuration..."
-  [[ -f "$PACMAN_CONFIG" ]] || fail "pacman.conf not found at $PACMAN_CONFIG. Aborting."
-  printc green "pacman.conf found and accessible."
+  [[ -f "$PACMAN_CONFIG" ]] || fail "pacman.conf not found at $PACMAN_CONFIG"
 }
 
 create_pacman_backup() {
-  printc cyan "Creating backup of pacman.conf..."
-  sudo cp "$PACMAN_CONFIG" "$PACMAN_BACKUP" || fail "Failed to backup pacman.conf. Aborting."
-  printc green "Backup created at $PACMAN_BACKUP."
+  printc -n cyan "Backing up pacman.conf... "
+  if sudo cp "$PACMAN_CONFIG" "$PACMAN_BACKUP"; then
+    printc green "OK"
+  else
+    fail "FAILED"
+  fi
 }
 
 # =============================================================================
@@ -30,31 +31,37 @@ create_pacman_backup() {
 
 enable_pacman_option() {
   local option="$1"
+  printc -n cyan "Enabling $option... "
 
   if sudo grep -q "^\s*#\?\s*$option" "$PACMAN_CONFIG"; then
-    sudo sed -i "s/^\s*#\?\s*${option}/${option}/" "$PACMAN_CONFIG" &&
-      printc green "Enabled '${option}'" ||
-      fail "Failed to enable '${option}'"
+    if sudo sed -i "s/^\s*#\?\s*${option}/${option}/" "$PACMAN_CONFIG"; then
+      printc green "OK"
+    else
+      printc red "FAILED"
+      return 1
+    fi
   else
-    printc yellow "'${option}' already enabled or missing."
+    printc yellow "already enabled"
   fi
 }
 
 enable_pacman_options() {
-  printc cyan "Enabling pacman options..."
   for option in "${PACMAN_OPTIONS[@]}"; do
     enable_pacman_option "$option"
   done
 }
 
 add_ilovecandy_option() {
-  printc cyan "Adding ILoveCandy option..."
+  printc -n cyan "Adding ILoveCandy... "
   if ! sudo grep -q "^\s*ILoveCandy" "$PACMAN_CONFIG"; then
-    sudo sed -i "/^\s*Color/a ILoveCandy" "$PACMAN_CONFIG" &&
-      printc green "Inserted 'ILoveCandy'" ||
-      fail "Failed to insert 'ILoveCandy'"
+    if sudo sed -i "/^\s*Color/a ILoveCandy" "$PACMAN_CONFIG"; then
+      printc green "OK"
+    else
+      printc red "FAILED"
+      return 1
+    fi
   else
-    printc yellow "'ILoveCandy' already present."
+    printc yellow "already present"
   fi
 }
 
@@ -63,13 +70,11 @@ add_ilovecandy_option() {
 # =============================================================================
 
 configure_pacman() {
-  printc cyan "Configuring pacman..."
-
   validate_pacman_config
   create_pacman_backup
   enable_pacman_options
   add_ilovecandy_option
-
+  echo
   printc green "pacman configuration completed successfully."
 }
 
