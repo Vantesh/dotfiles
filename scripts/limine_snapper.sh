@@ -28,11 +28,9 @@ readonly LIMINE_CONFIG_TEMPLATE="/etc/limine-snapper-sync.conf"
 # =============================================================================
 
 install_dependencies() {
-  printc cyan "Installing Limine and Snapper dependencies..."
   for dep in "${DEPENDENCIES[@]}"; do
     install_package "$dep"
   done
-  printc green "Dependencies installed successfully."
 }
 
 # =============================================================================
@@ -40,11 +38,9 @@ install_dependencies() {
 # =============================================================================
 
 enable_snapper_services() {
-  printc cyan "Enabling Snapper services..."
   for service in "${SERVICES[@]}"; do
     enable_service "$service" "system"
   done
-  printc green "Snapper services enabled successfully."
 }
 
 # =============================================================================
@@ -52,17 +48,20 @@ enable_snapper_services() {
 # =============================================================================
 
 setup_limine_config_file() {
-  printc cyan "Setting up Limine configuration file..."
+  printc -n cyan "Setting up Limine config... "
   if [[ ! -f "$LIMINE_CONFIG_FILE" ]]; then
-    sudo cp "$LIMINE_CONFIG_TEMPLATE" "$LIMINE_CONFIG_FILE" || fail "Failed to copy Limine configuration template."
-    printc green "Limine configuration file created."
+    if sudo cp "$LIMINE_CONFIG_TEMPLATE" "$LIMINE_CONFIG_FILE"; then
+      printc green "OK"
+    else
+      fail "FAILED"
+    fi
   else
-    printc yellow "Limine configuration file already exists."
+    printc yellow "already exists"
   fi
 }
 
 configure_limine_settings() {
-  printc cyan "Configuring Limine settings..."
+  printc -n cyan "Configuring Limine settings... "
   declare -A snapper_config=(
     ["MAX_SNAPSHOT_ENTRIES"]=20
     ["TERMINAL"]="kitty"
@@ -70,10 +69,19 @@ configure_limine_settings() {
     ["ENABLE_UKI"]="yes"
   )
 
+  local success=true
   for key in "${!snapper_config[@]}"; do
-    update_config "$LIMINE_CONFIG_FILE" "$key" "${snapper_config[$key]}"
+    if ! update_config "$LIMINE_CONFIG_FILE" "$key" "${snapper_config[$key]}"; then
+      success=false
+      break
+    fi
   done
-  printc green "Limine settings configured successfully."
+
+  if [[ "$success" == true ]]; then
+    printc green "OK"
+  else
+    fail "FAILED"
+  fi
 }
 
 # =============================================================================
@@ -81,7 +89,7 @@ configure_limine_settings() {
 # =============================================================================
 
 configure_snapper_cleanup() {
-  printc cyan "Configuring Snapper cleanup settings..."
+  printc -n cyan "Configuring Snapper cleanup... "
   declare -A snapper_settings=(
     ["NUMBER_CLEANUP"]="yes"
     ["NUMBER_LIMIT"]="30"
@@ -96,10 +104,19 @@ configure_snapper_cleanup() {
     ["EMPTY_PRE_POST_MIN_AGE"]="3600"
   )
 
+  local success=true
   for key in "${!snapper_settings[@]}"; do
-    set_snapper_config_value "root" "$key" "${snapper_settings[$key]}"
+    if ! set_snapper_config_value "root" "$key" "${snapper_settings[$key]}"; then
+      success=false
+      break
+    fi
   done
-  printc green "Snapper cleanup settings configured successfully."
+
+  if [[ "$success" == true ]]; then
+    printc green "OK"
+  else
+    fail "FAILED"
+  fi
 }
 
 # =============================================================================
@@ -107,13 +124,14 @@ configure_snapper_cleanup() {
 # =============================================================================
 
 main() {
+  ensure_sudo
   install_dependencies
   enable_snapper_services
   setup_limine_config_file
   configure_limine_settings
   configure_snapper_cleanup
-
-  printc green "Limine and Snapper setup completed successfully."
+  echo
+  printc green "Limine and Snapper setup completed"
 }
 
 main
