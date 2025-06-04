@@ -21,10 +21,12 @@ readonly EXECUTABLE_CONFIG_FOLDERS=(
 
 backup_existing_config() {
   if [[ -d "$HOME/.config" ]]; then
-    printc cyan "Backing up existing .config directory..."
-    backup_with_timestamp "$HOME/.config" "$HOME" || fail "Failed to backup existing .config directory."
-  else
-    printc yellow "No existing .config directory found, skipping backup."
+    printc -n cyan "Backing up .config... "
+    if backup_with_timestamp "$HOME/.config" "$HOME" >/dev/null 2>&1; then
+      printc green "OK"
+    else
+      fail "FAILED"
+    fi
   fi
 }
 
@@ -33,26 +35,30 @@ backup_existing_config() {
 # =============================================================================
 
 copy_config_files() {
-  printc cyan "Applying dotfiles"
+  printc -n cyan "Copying config files... "
   if [[ -d "$CONFIG_SOURCE_DIR" ]]; then
-    cp -r "$CONFIG_SOURCE_DIR" ~/ || fail "Failed to copy .config directory."
-    printc green "Configuration files copied successfully."
+    if cp -r "$CONFIG_SOURCE_DIR" ~/; then
+      printc green "OK"
+    else
+      fail "FAILED"
+    fi
   else
-    fail "Source .config directory not found."
+    fail "Source .config directory not found"
   fi
 }
 
 copy_vscode_config() {
   if pacman -Qe | grep -q "visual-studio-code-bin"; then
-    printc cyan "Copying VSCode configuration..."
+    printc -n cyan "Copying VSCode config... "
     if [[ -d "$VSCODE_SOURCE_DIR" ]]; then
-      cp -r "$VSCODE_SOURCE_DIR" ~/ || fail "Failed to copy .vscode directory."
-      printc green "VSCode configuration copied successfully."
+      if cp -r "$VSCODE_SOURCE_DIR" ~/; then
+        printc green "OK"
+      else
+        printc red "FAILED"
+      fi
     else
-      printc yellow "VSCode source directory not found, skipping."
+      printc yellow "not found"
     fi
-  else
-    printc yellow "visual-studio-code-bin is not installed, skipping .vscode copy."
   fi
 }
 
@@ -65,26 +71,17 @@ make_scripts_executable_in_folder() {
   local config_dir="$HOME/.config/$folder"
 
   if [[ -d "$config_dir" ]]; then
-    printc cyan "Making scripts executable in $folder..."
-
-    if ! find "$config_dir" -type f -name "*.sh" -exec chmod +x {} \;; then
-      printc red "Error: Failed to chmod .sh files in $config_dir"
+    printc -n cyan "Making $folder scripts executable... "
+    if find "$config_dir" -type f \( -name "*.sh" -o -name "*.py" \) -exec chmod +x {} \; 2>/dev/null; then
+      printc green "OK"
+    else
+      printc red "FAILED"
       return 1
     fi
-
-    if ! find "$config_dir" -type f -name "*.py" -exec chmod +x {} \;; then
-      printc red "Error: Failed to chmod .py files in $config_dir"
-      return 1
-    fi
-
-    printc green "Scripts in $folder made executable."
-  else
-    printc yellow "Warning: Directory $config_dir does not exist."
   fi
 }
 
 make_config_scripts_executable() {
-  printc cyan "Making configuration scripts executable..."
   for folder in "${EXECUTABLE_CONFIG_FOLDERS[@]}"; do
     make_scripts_executable_in_folder "$folder"
   done
@@ -95,14 +92,13 @@ make_config_scripts_executable() {
 # =============================================================================
 
 copy_local_scripts() {
-  printc cyan "Copying scripts to $LOCAL_BIN_TARGET"
-
   if [[ -d "$LOCAL_BIN_SOURCE" ]]; then
-    sudo cp -r "$LOCAL_BIN_SOURCE"/* "$LOCAL_BIN_TARGET"/ || fail "Failed to copy local scripts."
-    sudo chmod +x "$LOCAL_BIN_TARGET"/* || fail "Failed to make local scripts executable."
-    printc green "Local scripts copied and made executable."
-  else
-    printc yellow "No $LOCAL_BIN_SOURCE directory found, skipping copy."
+    printc -n cyan "Copying local scripts... "
+    if sudo cp -r "$LOCAL_BIN_SOURCE"/* "$LOCAL_BIN_TARGET"/ && sudo chmod +x "$LOCAL_BIN_TARGET"/*; then
+      printc green "OK"
+    else
+      fail "FAILED"
+    fi
   fi
 }
 
@@ -112,13 +108,15 @@ copy_local_scripts() {
 
 setup_user_directories() {
   if ! has_cmd xdg-user-dirs-update; then
-    printc cyan "Installing xdg-user-dirs..."
     install_package xdg-user-dirs
   fi
 
-  printc cyan "Running xdg-user-dirs-update"
-  xdg-user-dirs-update || fail "Failed to run xdg-user-dirs-update. Please check your installation."
-  printc green "User directories updated successfully."
+  printc -n cyan "Setting up user directories... "
+  if xdg-user-dirs-update; then
+    printc green "OK"
+  else
+    fail "FAILED"
+  fi
 }
 
 # =============================================================================
@@ -132,8 +130,8 @@ main() {
   make_config_scripts_executable
   copy_local_scripts
   setup_user_directories
-
-  printc green "Dotfiles installation completed successfully."
+  echo
+  printc green "Dotfiles applied successfully"
 }
 
 main
