@@ -1,9 +1,18 @@
 #!/bin/bash
 
-# --- Load color map ---
+# =============================================================================
+# INITIALIZATION
+# =============================================================================
+
+# Load color map
 SCRIPT_DIR="$(cd -- "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
 source "$SCRIPT_DIR/colors.sh"
-# --- Print colored messages ---
+
+# =============================================================================
+# OUTPUT AND MESSAGING FUNCTIONS
+# =============================================================================
+
+# Print colored messages with tag support
 printc() {
   local color_key="${1,,}"
   shift
@@ -26,34 +35,13 @@ printc() {
   echo -e "$str"
 }
 
-# --- Check if command exists ---
-has_cmd() {
-  command -v "$1" &>/dev/null
-}
-
-# --- Confirm action ---
-confirm() {
-  echo
-  read -rp "$(printc yellow "$1 [Y/n]: ")" response
-  [[ -z "$response" || "$response" =~ ^[Yy]$ ]]
-}
-
-# --- Safe exit with message ---
+# Safe exit with message
 fail() {
   printc red "$1"
   exit "${2:-1}"
 }
-# --- Ensure sudo is ready before background processes ---
-ensure_sudo() {
-  if ! sudo -n true 2>/dev/null; then
-    echo
-    sudo -v
-  fi
 
-
-}
-
-# --- Spinner function for showing install progress ---
+# Spinner function for showing install progress
 spinner() {
   local pid=$1
   local pkg="$2"
@@ -70,11 +58,48 @@ spinner() {
     done
   done
 
-  printf "\r\033[K"    # Clear spinner line
-  printf "\n"          # Add newline for any potential sudo prompts
+  printf "\r\033[K" # Clear spinner line
+  printf "\n"       # Add newline for any potential sudo prompts
 }
 
-# --- Install package using AUR ---
+# =============================================================================
+# VALIDATION AND UTILITY FUNCTIONS
+# =============================================================================
+
+# Check if command exists
+has_cmd() {
+  command -v "$1" &>/dev/null
+}
+
+# Confirm action
+confirm() {
+  echo
+  read -rp "$(printc yellow "$1 [Y/n]: ")" response
+  [[ -z "$response" || "$response" =~ ^[Yy]$ ]]
+}
+
+# Check if filesystem is Btrfs
+is_btrfs() {
+  findmnt -n -o FSTYPE / | grep -q btrfs
+}
+
+# =============================================================================
+# SUDO AND SECURITY FUNCTIONS
+# =============================================================================
+
+# Ensure sudo is ready before background processes
+ensure_sudo() {
+  if ! sudo -n true 2>/dev/null; then
+    echo
+    sudo -v
+  fi
+}
+
+# =============================================================================
+# PACKAGE MANAGEMENT FUNCTIONS
+# =============================================================================
+
+# Install package using AUR helper
 install_package() {
   local pkg="$1"
 
@@ -111,7 +136,11 @@ install_package() {
   fi
 }
 
-# --- Update config file ---
+# =============================================================================
+# CONFIGURATION MANAGEMENT FUNCTIONS
+# =============================================================================
+
+# Update config file key-value pairs
 update_config() {
   local config_file="$1"
   local key="$2"
@@ -141,7 +170,7 @@ update_config() {
   fi
 }
 
-# --- Set snapper config value ---
+# Set snapper config value
 set_snapper_config_value() {
   local config_name="$1"
   local key="$2"
@@ -156,7 +185,6 @@ set_snapper_config_value() {
       printc yellow "Snapper config '$config_name' does not exist. Create it first."
       return 1
     fi
-
   fi
 
   if sudo snapper -c "$config_name" set-config "${key}=${value}"; then
@@ -166,8 +194,11 @@ set_snapper_config_value() {
   fi
 }
 
-# --- enable services ---
+# =============================================================================
+# SYSTEM SERVICE MANAGEMENT FUNCTIONS
+# =============================================================================
 
+# Enable systemd services
 enable_service() {
   local service="$1" scope="$2"
   local prefix=()
@@ -183,9 +214,7 @@ enable_service() {
   if "${prefix[@]}" "${cmd[@]}" list-unit-files | grep -q "^$service"; then
     # Skip if already enabled
     if "${prefix[@]}" "${cmd[@]}" is-enabled "$service" &>/dev/null; then
-
       printc "<yellow>[$scope]</yellow> <white>Already enabled: $service</white>"
-
     else
       if "${prefix[@]}" "${cmd[@]}" enable "$service" &>/dev/null; then
         printc "<cyan>[$scope]</cyan> <green>Enabled $service</green>"
@@ -198,6 +227,54 @@ enable_service() {
   fi
 }
 
-is_btrfs() {
-  findmnt -n -o FSTYPE / | grep -q btrfs
+# =============================================================================
+# BACKUP AND FILE MANAGEMENT FUNCTIONS
+# =============================================================================
+
+# Backup with timestamp
+backup_with_timestamp() {
+  local src="$1"
+  local dest="$2"
+
+  if [[ ! -e "$src" ]]; then
+    printc red "Source $src does not exist."
+    return 1
+  fi
+
+  if [[ ! -d "$dest" ]]; then
+    printc yellow "Destination directory $dest does not exist. Creating it..."
+    mkdir -p "$dest" || {
+      printc red "Failed to create destination directory $dest."
+      return 1
+    }
+  fi
+
+  local timestamp
+  local backup_name
+  local backup_path
+
+  timestamp=$(date +"%Y%m%d_%H%M%S")
+  backup_name="$(basename "$src")_backup_$timestamp"
+  backup_path="$dest/$backup_name"
+
+  if [[ -d "$src" ]]; then
+    if cp -r "$src" "$backup_path"; then
+      printc green "Directory backup created at $backup_path"
+      return 0
+    else
+      printc red "Failed to create directory backup."
+      return 1
+    fi
+  elif [[ -f "$src" ]]; then
+    if cp "$src" "$backup_path"; then
+      printc green "File backup created at $backup_path"
+      return 0
+    else
+      printc red "Failed to create file backup."
+      return 1
+    fi
+  else
+    printc red "Source $src is neither a file nor a directory."
+    return 1
+  fi
 }
