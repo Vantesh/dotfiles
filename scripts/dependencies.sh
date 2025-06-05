@@ -42,6 +42,8 @@ core_packages=(
   pacman-contrib
   topgrade
   udiskie
+  ntfs-3g
+  partitionmanager
   unzip
   bluez
   bluez-utils
