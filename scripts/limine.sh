@@ -4,7 +4,7 @@
 # CONSTANTS
 # =============================================================================
 
-readonly DEPENDENCIES=(
+DEPS=(
   snapper
   snap-pac
   limine-mkinitcpio-hook
@@ -28,7 +28,7 @@ readonly LIMINE_CONFIG_TEMPLATE="/etc/limine-snapper-sync.conf"
 # =============================================================================
 
 install_dependencies() {
-  for dep in "${DEPENDENCIES[@]}"; do
+  for dep in "${DEPS[@]}"; do
     install_package "$dep"
   done
 }
