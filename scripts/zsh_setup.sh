@@ -3,8 +3,7 @@
 # =============================================================================
 # CONSTANTS
 # =============================================================================
-
-readonly DEPENDENCIES=(
+DEPS=(
   oh-my-posh-bin
   zsh
   zoxide
@@ -31,7 +30,7 @@ readonly ZSH_CONFIG_DIR="/etc/zsh"
 
 install_dependencies() {
   printc cyan "Installing ZSH dependencies..."
-  for dep in "${DEPENDENCIES[@]}"; do
+  for dep in "${DEPS[@]}"; do
     install_package "$dep"
   done
   printc green "Dependencies installed successfully."
@@ -91,7 +90,7 @@ update_pkgfile_database() {
 
 rebuild_bat_cache() {
   printc yellow "Rebuilding bat cache..."
-  bat cache --build || fail "Failed to rebuild bat cache."
+  bat cache --build >/dev/null || fail "Failed to rebuild bat cache."
   printc green "Bat cache rebuilt successfully."
 }
 
