@@ -256,14 +256,19 @@ edit_hibernation_conf() {
 AllowSuspend=yes
 AllowHibernation=yes
 AllowSuspendThenHibernate=yes
-SuspendState=freeze mem disk
-HibernateMode=platform shutdown
-HibernateDelaySec=2h
+HibernateMode=shutdown
 EOF
     printc green "OK"
   else
     fail "FAILED"
   fi
+}
+
+configure_hibernation_support() {
+  set_resume_offset
+  configure_initramfs_resume_hook
+  wake_devices
+  edit_hibernation_conf
 }
 
 # =============================================================================
