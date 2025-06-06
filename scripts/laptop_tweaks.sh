@@ -51,14 +51,14 @@ reload_udev_rules() {
 # =============================================================================
 
 download_and_install_auto_cpufreq() {
-  printc -n cyan "Installing auto-cpufreq... "
+  printc cyan "Installing auto-cpufreq... "
   local tmp_dir
   tmp_dir=$(mktemp -d) || fail "Failed to create temp directory"
 
   if git clone https://github.com/AdnanHodzic/auto-cpufreq.git "$tmp_dir" 2>/dev/null &&
-    cd "$tmp_dir" && sudo ./auto-cpufreq-installer >/dev/null 2>&1; then
+    cd "$tmp_dir" && sudo ./auto-cpufreq-installer; then
     rm -rf "$tmp_dir"
-    printc green "OK"
+
   else
     rm -rf "$tmp_dir"
     fail "FAILED"
