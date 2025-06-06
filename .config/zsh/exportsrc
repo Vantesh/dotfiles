@@ -23,6 +23,11 @@ export PAGER="less -R"
 # setup git path
 export GIT_CONFIG_GLOBAL="$XDG_CONFIG_HOME/git/config"
 
+if [[ ! -f "$GIT_CONFIG_GLOBAL" ]]; then
+  mkdir -p "$XDG_CONFIG_HOME/git"
+  touch "$GIT_CONFIG_GLOBAL"
+fi
+
 # spicetify
 export PATH=$PATH:"$HOME/.spicetify"
 
