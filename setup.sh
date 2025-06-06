@@ -28,11 +28,13 @@ run_core_setup() {
   printc_box "THEMING" "Setting up Fonts, cursors and themes"
   source "$SCRIPTS_DIR/theming.sh"
 
-  printc_box "SYSTEM CONFIGURATION" "Configuring system settings and services"
-  source "$SCRIPTS_DIR/enable_services.sh"
-
   printc_box "DOTFILES SETUP" "Applying dotfiles and configurations"
   source "$SCRIPTS_DIR/dotfiles.sh"
+}
+
+configure_services() {
+  printc_box "SYSTEM CONFIGURATION" "Configuring system settings and services"
+  source "$SCRIPTS_DIR/enable_services.sh"
 }
 
 # =============================================================================
@@ -51,7 +53,7 @@ setup_zsh() {
 setup_limine_bootloader() {
   if confirm "This is for limine bootloader setup. Do you want to continue?"; then
     printc_box "LIMINE SETUP" "Configuring Limine bootloader and Snapper"
-    source "$SCRIPTS_DIR/limine_snapper.sh"
+    source "$SCRIPTS_DIR/limine.sh"
   else
     printc yellow "Skipping limine bootloader setup."
   fi
@@ -82,6 +84,7 @@ main() {
   setup_zsh
   setup_limine_bootloader
   setup_laptop_tweaks
+  configure_services
 
   if confirm "Reboot system now to apply all changes?"; then
     reboot_system
