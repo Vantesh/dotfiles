@@ -2,132 +2,123 @@ version = 3
 final_space = true
 console_title_template = "{{if .Root}}{{.UserName}} :: {{end}}{{.Folder}}"
 [upgrade]
-  source = 'cdn'
-  interval = '168h'
-  auto = false
-  notice = false
+source = 'cdn'
+interval = '168h'
+auto = false
+notice = false
 
 [[blocks]]
-  type = 'prompt'
-  alignment = 'left'
-  newline = true
-  [[blocks.segments]]
-    template = '{{ if .WSL }}{{ end }}{{.Icon}} '
-    background = 'transparent'
-    foreground ='p:blue'
-    type = 'os'
-    style = 'plain'
-
-    [blocks.segments.properties]
-      cache_duration = 'none'
-      linux= ''
+type = 'prompt'
+alignment = 'left'
+newline = true
 
 
-  [[blocks.segments]]
-    template = "{{if .Root}}<p:red>{{.UserName}}</>{{else}}{{ if .SSHSession }} {{ end }}{{.UserName}}{{ end }}"
-    foreground = 'lightYellow'
-    type = 'session'
-    style = 'plain'
+[[blocks.segments]]
+template = "{{if .Root}}<p:red> {{.UserName}}</>{{else}}{{ if .SSHSession }} {{ end }}<p:sapphire></> {{.UserName}}{{ end }}"
+foreground = 'lightYellow'
+type = 'session'
+style = 'plain'
 
-  [[blocks.segments]]
-    template = ' <p:overlay2>in</> {{if .Writable}}{{.Path}}{{else}}{{.Path}}<p:red> 󰌾</>{{end}}'
-    foreground = 'p:blue'
-    type = 'path'
-    style = 'plain'
+[[blocks.segments]]
+template = ' <p:overlay2>in</> {{if .Writable}}{{.Path}}{{else}}{{.Path}}<p:red> 󰌾</>{{end}}'
+foreground = 'p:blue'
+type = 'path'
+style = 'plain'
 
-    [blocks.segments.properties]
-      style = 'folder'
-      cache_duration = 'none'
+[blocks.segments.properties]
+style = 'folder'
+cache_duration = 'none'
 
-  [[blocks.segments]]
-    type = 'git'
-    style = 'plain'
-    template = "{{ .HEAD }}{{ if .BranchStatus }} {{ .BranchStatus }}{{ end }}{{ if .Working.Changed }} \uF044 {{ .Working.String }}{{ end }}{{ if and (.Staging.Changed) (.Working.Changed) }} |{{ end }}{{ if .Staging.Changed }}  {{ .Staging.String }}{{ end }}"
-    foreground = 'p:mauve'
+[[blocks.segments]]
+type = 'git'
+style = 'plain'
+template = "{{ .HEAD }}{{ if .BranchStatus }} {{ .BranchStatus }}{{ end }}{{ if .Working.Changed }} \uF044 {{ .Working.String }}{{ end }}{{ if and (.Staging.Changed) (.Working.Changed) }} |{{ end }}{{ if .Staging.Changed }}  {{ .Staging.String }}{{ end }}"
+foreground = 'p:mauve'
 
-    [blocks.segments.properties]
-      branch_icon = ' <p:mauve><b> </b></>'
-      branch_behind_icon = '<p:mauve><b>⇣</b></>'
-      branch_ahead_icon = '<p:mauve><b>⇡</b></>'
-      commit_icon = '@'
-      cache_duration = 'none'
-      cherry_pick_icon = ' '
-      merge_icon = ' '
-      rebase_icon = ' '
-      revert_icon = ' '
-      tag_icon = ' '
-      fetch_status = true
-      fetch_upstream_icon = true
-      source = 'cli'
-      fetch_stash_count = true
+[blocks.segments.properties]
+branch_icon = ' <p:mauve><b> </b></>'
+branch_behind_icon = '<p:mauve><b>⇣</b></>'
+branch_ahead_icon = '<p:mauve><b>⇡</b></>'
+commit_icon = '@'
+cache_duration = 'none'
+cherry_pick_icon = ' '
+merge_icon = ' '
+rebase_icon = ' '
+revert_icon = ' '
+tag_icon = ' '
+fetch_status = true
+fetch_upstream_icon = true
+source = 'cli'
+fetch_stash_count = true
 
 [[blocks]]
-  type = 'prompt'
-  alignment = 'left'
-  newline = true
+type = 'prompt'
+alignment = 'left'
+newline = true
 
-  [[blocks.segments]]
-    template = ''
-    foreground = 'p:green'
-    type = 'text'
-    style = 'plain'
-    foreground_templates = ["{{ if gt .Code 0 }}p:red{{ end }}"]
+[[blocks.segments]]
+
+"template" = "{{ if .Root }}<p:green>#</>{{ else }}<p:green>\u276f</>{{ end }}"
+foreground = 'p:green'
+type = 'text'
+style = 'plain'
+foreground_templates = ["{{ if gt .Code 0 }}p:red{{ end }}"]
 
 [transient_prompt]
-  template = ' '
-  foreground = 'p:green'
-  type = 'text'
-  style = 'plain'
-  foreground_templates = ['{{ if gt .Code 0 }}p:red{{ end }}']
+template = "\u276f "
+foreground = 'p:green'
+type = 'text'
+style = 'plain'
+foreground_templates = ['{{ if gt .Code 0 }}p:red{{ end }}']
 
-    [blocks.segments.properties]
-      always_enabled = true
+[blocks.segments.properties]
+always_enabled = true
 
 
 [secondary_prompt]
-  background = "transparent"
-  foreground = "p:green"
-  foreground_templates = ['{{ if gt .Code 0 }}p:red{{ end }}']
-  template = "▶ "
+background = "transparent"
+foreground = "p:green"
+foreground_templates = ['{{ if gt .Code 0 }}p:red{{ end }}']
+template = "▶ "
 
 [[blocks]]
-  type = 'rprompt'
-  overflow = "hidden"
+type = 'rprompt'
+overflow = "hidden"
 
-  [[blocks.segments]]
-    type = "executiontime"
-    style = "plain"
-    foreground = "p:yellow"
-    template = " {{ .FormattedMs }} "
+[[blocks.segments]]
+type = "executiontime"
+style = "plain"
+foreground = "p:yellow"
+template = " {{ .FormattedMs }} "
 
-    [blocks.segments.properties]
-      threshold = 5000
-      style = "austin"
+[blocks.segments.properties]
+threshold = 5000
+style = "austin"
 
 [palette]
-  rosewater = "#f5e0dc"
-  flamingo = "#f2cdcd"
-  pink = "#f5c2e7"
-  mauve = "#cba6f7"
-  red = "#f38ba8"
-  maroon = "#eba0ac"
-  peach = "#fab387"
-  yellow = "#f9e2af"
-  green = "#a6e3a1"
-  teal = "#94e2d5"
-  sky = "#89dceb"
-  sapphire = "#74c7ec"
-  blue = "#89b4fa"
-  lavender = "#b4befe"
-  text = "#cdd6f4"
-  subtext1 = "#bac2de"
-  subtext0 = "#a6adc8"
-  overlay2 = "#9399b2"
-  overlay1 = "#7f849c"
-  overlay0 = "#6c7086"
-  surface2 = "#585b70"
-  surface1 = "#45475a"
-  surface0 = "#313244"
-  base = "#1e1e2e"
-  mantle = "#181825"
-  crust = "#11111b"
+rosewater = "#f5e0dc"
+flamingo = "#f2cdcd"
+pink = "#f5c2e7"
+mauve = "#cba6f7"
+red = "#f38ba8"
+maroon = "#eba0ac"
+peach = "#fab387"
+yellow = "#f9e2af"
+green = "#a6e3a1"
+teal = "#94e2d5"
+sky = "#89dceb"
+sapphire = "#74c7ec"
+blue = "#89b4fa"
+lavender = "#b4befe"
+text = "#cdd6f4"
+subtext1 = "#bac2de"
+subtext0 = "#a6adc8"
+overlay2 = "#9399b2"
+overlay1 = "#7f849c"
+overlay0 = "#6c7086"
+surface2 = "#585b70"
+surface1 = "#45475a"
+surface0 = "#313244"
+base = "#1e1e2e"
+mantle = "#181825"
+crust = "#11111b"
