@@ -14,7 +14,7 @@ get_user_choice() {
   local input=""
   local index=0
 
-  printc_box "AUR HELPER SELECTION" "1) yay (default)  2) paru"
+  printc_box "AUR HELPER SELECTION" "1) yay (default) 2) paru"
 
   while true; do
     printc magenta "Enter your choice [1-2] or press Enter for default: "
@@ -38,7 +38,6 @@ get_user_choice() {
   done
 
   AUR_HELPER="${AVAILABLE_AUR_HELPERS[$index]}"
-  printc green "Selected: $AUR_HELPER"
 }
 
 # =============================================================================
@@ -55,7 +54,6 @@ check_existing_aur_helper() {
 
 clone_aur_helper_repository() {
   local temp_dir="$1"
-  printc cyan "Cloning $AUR_HELPER repository..."
   git clone "https://aur.archlinux.org/$AUR_HELPER.git" "$temp_dir" &>/dev/null || {
     rm -rf "$temp_dir"
     fail "Failed to clone $AUR_HELPER repository."
@@ -64,7 +62,6 @@ clone_aur_helper_repository() {
 
 build_and_install_aur_helper() {
   local temp_dir="$1"
-  printc cyan "Building and installing $AUR_HELPER..."
   (
     cd "$temp_dir" || exit
     makepkg -si --noconfirm &>/dev/null
@@ -79,14 +76,14 @@ install_aur_helper() {
     return 0
   fi
 
-  printc cyan "Installing $AUR_HELPER..."
+  printc -n cyan "Installing $AUR_HELPER..."
   local temp_dir
   temp_dir=$(mktemp -d) || fail "Failed to create temporary directory."
 
   clone_aur_helper_repository "$temp_dir"
   build_and_install_aur_helper "$temp_dir"
 
-  printc green "$AUR_HELPER installed successfully."
+  printc green "OK"
   rm -rf "$temp_dir"
 }
 
@@ -95,11 +92,11 @@ install_aur_helper() {
 # =============================================================================
 
 sync_aur_database() {
-  printc cyan "Synchronizing database..."
-  "$AUR_HELPER" -Syu --noconfirm &>/dev/null || {
+  printc -n cyan "Synchronizing database..."
+  "$AUR_HELPER" -Sy --noconfirm &>/dev/null || {
     fail "Failed to synchronize AUR database."
   }
-  printc green "Database synchronized successfully."
+  printc green "OK"
 }
 
 # =============================================================================
