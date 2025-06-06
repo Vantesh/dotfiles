@@ -111,7 +111,6 @@ spinner() {
   done
 
   printf "\r\033[K" # Clear spinner line
-  printf "\n"       # Add newline for any potential sudo prompts
 }
 
 # =============================================================================
