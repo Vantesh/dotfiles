@@ -4,7 +4,7 @@
 # CONSTANTS
 # =============================================================================
 
-readonly DEPENDENCIES=("jq" "curl")
+DEPS=("jq" "curl")
 readonly FONTS_REPO_URL="https://github.com/Vantesh/Fonts.git"
 readonly FONTS_TARGET_DIR="$HOME/.local/share/fonts"
 readonly CURSOR_REPO_OWNER="driedpampas"
@@ -18,7 +18,7 @@ readonly CURSOR_THEME_NAME="macOS"
 # =============================================================================
 
 install_dependencies() {
-  for dep in "${DEPENDENCIES[@]}"; do
+  for dep in "${DEPS[@]}"; do
     install_package "$dep"
   done
 }
