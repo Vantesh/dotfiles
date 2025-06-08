@@ -59,6 +59,7 @@ core_packages=(
   usbutils
   man-db
   tealdeer
+  xorg-xhost
 
 )
 
@@ -76,6 +77,7 @@ fonts=(
   ttf-font-awesome
   noto-fonts-cjk
   noto-fonts-extra
+  ttf-liberation
 )
 
 # =======================
@@ -96,30 +98,84 @@ appearance=(
 # Input tools and utilities
 # =======================
 input_tools=(
-  gpu-screen-recorder
   clipse-gui
   clipse
   wtype
   wmctrl
   xdotool
-  libinput-gestures
+  gpu-screen-recorder
 )
 
 # =======================
 # DRIVERS
 # =======================
-drivers=(
+# Base graphics drivers
+base_drivers=(
   mesa
   libva
   libva-utils
+  linux-firmware
+  vulkan-tools
+  vulkan-headers
+
+)
+
+# Intel-specific drivers
+intel_drivers=(
   libva-intel-driver
+  intel-media-driver
+  vulkan-intel
+)
+
+# AMD-specific drivers
+amd_drivers=(
+  libva-mesa-driver
+  vulkan-radeon
+
+)
+# NVIDIA-specific drivers
+nvidia_drivers=(
   libva-nvidia-driver
-  intel-ucode
   linux-zen-headers
   nvidia-dkms
   nvidia-utils
-
 )
+install_gpu_drivers() {
+  for package in "${base_drivers[@]}"; do
+    install_package "$package"
+  done
+
+  local gpu_info
+  gpu_info=$(lspci -nn | grep -Ei "VGA compatible controller|3D controller|Display controller")
+
+  local -A gpu_vendors=(
+    ["Intel Corporation"]="intel_drivers[@]"
+    ["Advanced Micro Devices"]="amd_drivers[@]"
+    ["NVIDIA Corporation"]="nvidia_drivers[@]"
+  )
+
+  local gpu_found=false
+
+  for vendor in "${!gpu_vendors[@]}"; do
+    if echo "$gpu_info" | grep -Eiq "$vendor"; then
+      gpu_found=true
+      local vendor_name="${vendor%% *}" # Get first word
+      echo
+      printc cyan "$vendor_name GPU detected, installing $vendor_name drivers..."
+      local driver_array_name="${gpu_vendors[$vendor]}"
+      case "$driver_array_name" in
+      "intel_drivers[@]") for pkg in "${intel_drivers[@]}"; do install_package "$pkg"; done ;;
+      "amd_drivers[@]") for pkg in "${amd_drivers[@]}"; do install_package "$pkg"; done ;;
+      "nvidia_drivers[@]") for pkg in "${nvidia_drivers[@]}"; do install_package "$pkg"; done ;;
+      esac
+    fi
+  done
+
+  if ! $gpu_found; then
+    echo
+    printc yellow "No known GPU vendor detected. Skipping GPU driver installation."
+  fi
+}
 
 # =======================
 # optionals
@@ -147,10 +203,16 @@ packages=(
   "${fonts[@]}"
   "${appearance[@]}"
   "${input_tools[@]}"
-  "${drivers[@]}"
   "${optional[@]}"
 )
 
 for package in "${packages[@]}"; do
   install_package "$package"
 done
+
+# Install GPU-specific drivers
+if confirm "Do you want to install GPU-specific drivers?"; then
+  install_gpu_drivers
+else
+  printc yellow "Skipping GPU driver installation."
+fi
