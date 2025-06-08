@@ -13,6 +13,12 @@ LIB_DIR="$SCRIPTS_DIR/lib"
 source "$LIB_DIR/colors.sh"
 source "$LIB_DIR/utils.sh"
 
+# Check if gum is installed
+if ! has_cmd gum; then
+  sudo pacman -S --noconfirm gum || {
+    fail "gum is not installed. Please install it first."
+  }
+fi
 # =============================================================================
 # CORE SETUP FUNCTIONS
 # =============================================================================
@@ -21,7 +27,6 @@ run_core_setup() {
   printc_box "PACMAN" "Configuring Pacman"
   source "$SCRIPTS_DIR/pacman_config.sh"
   source "$SCRIPTS_DIR/AUR_helper.sh"
-
   printc_box "DEPENDENCIES" "Installing core dependencies and tools"
   source "$SCRIPTS_DIR/dependencies.sh"
 
