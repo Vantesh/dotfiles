@@ -10,6 +10,17 @@ readonly TOUCHPAD_RULE_FILE="/etc/udev/rules.d/90-touchpad-access.rules"
 readonly WAKE_DEVICES_RULE_FILE="/etc/udev/rules.d/90-wake-devices.rules"
 
 # =============================================================================
+# DEPENDENCIES
+# =============================================================================
+deps=(
+  upower
+
+)
+
+for dep in "${deps[@]}"; do
+  install_package "$dep"
+done
+# =============================================================================
 # UTILITY FUNCTIONS
 # =============================================================================
 
@@ -298,6 +309,7 @@ enable_libinput_gestures() {
   enable_service "libinput-gestures.service" "user"
 }
 
+enable_service "upower.service" "system"
 # =============================================================================
 # MAIN EXECUTION
 # =============================================================================
