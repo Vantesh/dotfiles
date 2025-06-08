@@ -44,8 +44,16 @@ fpath=(${ZDOTDIR:-$HOME}/.antidote/functions $fpath)
 autoload -Uz antidote
 
 # other zstyles after loading antidote
+
 zstyle ':completion:*' list-colors "${(s.:.)LS_COLORS}"
-zstyle ':completion:*' completer _extensions _complete _approximate
+zstyle ':completion:*' completer _expand _complete _ignored _approximate
+zstyle ':completion:*' rehash true  # automatically find new commands
+
+# Speed up completions
+zstyle ':completion:*' accept-exact '*(N)'
+zstyle ':completion:*' use-cache on
+zstyle ':completion:*' cache-path "${XDG_CACHE_HOME:-$HOME/.cache}/zsh/completion"
+
 
 
 if command -v fzf &>/dev/null; then
