@@ -67,20 +67,11 @@ download_and_install_auto_cpufreq() {
   tmp_dir=$(mktemp -d) || fail "Failed to create temp directory"
 
   if git clone https://github.com/AdnanHodzic/auto-cpufreq.git "$tmp_dir" 2>/dev/null &&
-    cd "$tmp_dir" && sudo ./auto-cpufreq-installer; then
+    cd "$tmp_dir" && sudo ./auto-cpufreq-installer 2>/dev/null; then
     rm -rf "$tmp_dir"
 
   else
     rm -rf "$tmp_dir"
-    fail "FAILED"
-  fi
-}
-
-finalize_auto_cpufreq_installation() {
-  printc -n cyan "Finalizing auto-cpufreq... "
-  if sudo auto-cpufreq --install >/dev/null 2>&1; then
-    printc green "OK"
-  else
     fail "FAILED"
   fi
 }
@@ -92,12 +83,7 @@ install_auto_cpufreq() {
   fi
 
   download_and_install_auto_cpufreq
-  finalize_auto_cpufreq_installation
-}
 
-enable_auto_cpufreq_service() {
-  printc cyan "Enabling auto-cpufreq service..."
-  enable_service "auto-cpufreq.service" "system"
 }
 
 # =============================================================================
