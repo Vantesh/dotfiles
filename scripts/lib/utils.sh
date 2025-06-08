@@ -44,47 +44,14 @@ printc() {
 printc_box() {
   local title="$1"
   local message="$2"
-  local width=30
 
-  # Calculate padding for centering
-  local title_len=${#title}
-  local message_len=${#message}
-  local max_len=$((title_len > message_len ? title_len : message_len))
-
-  # Adjust width if content is longer but keep it reasonable
-  if ((max_len + 6 > width)); then
-    width=$((max_len + 6))
-    if ((width > 70)); then
-      width=70
-    fi
-  fi
-
-  local title_padding=$(((width - title_len - 2) / 2))
-  local message_padding=$(((width - message_len - 2) / 2))
-
-  # Create box components
-  local top_border
-  top_border="┌$(printf '─%.0s' $(seq 1 $((width - 2))))┐"
-  local bottom_border
-  bottom_border="└$(printf '─%.0s' $(seq 1 $((width - 2))))┘"
-  local empty_line
-  empty_line="│$(printf ' %.0s' $(seq 1 $((width - 2))))│"
-
-  echo
-  echo -e "${COLORS[cyan]}${top_border}${COLORS[reset]}"
-  if [[ -n "$title" ]]; then
-    # Bold cyan title
-    echo -e "${COLORS[cyan]}│$(printf ' %.0s' $(seq 1 $title_padding))${COLORS[cyan]}${COLORS[bold]}${title}${COLORS[reset]}${COLORS[cyan]}$(printf ' %.0s' $(seq 1 $((width - title_len - title_padding - 2))))│${COLORS[reset]}"
-    if [[ -n "$message" ]]; then
-      echo -e "${COLORS[cyan]}${empty_line}${COLORS[reset]}"
-      # Magenta message
-      echo -e "${COLORS[cyan]}│$(printf ' %.0s' $(seq 1 $message_padding))${COLORS[magenta]}${message}${COLORS[cyan]}$(printf ' %.0s' $(seq 1 $((width - message_len - message_padding - 2))))│${COLORS[reset]}"
-    fi
-  elif [[ -n "$message" ]]; then
-    echo -e "${COLORS[cyan]}│$(printf ' %.0s' $(seq 1 $message_padding))${COLORS[magenta]}${message}${COLORS[cyan]}$(printf ' %.0s' $(seq 1 $((width - message_len - message_padding - 2))))│${COLORS[reset]}"
-  fi
-  echo -e "${COLORS[cyan]}${bottom_border}${COLORS[reset]}"
-  echo
+  gum style \
+    --border normal \
+    --margin "1" \
+    --padding "1 2" \
+    --border-foreground "#22d3ee" \
+    "$(gum style --bold --foreground "#22d3ee" "$title")" \
+    "$(gum style --foreground "#f783ac" "$message")"
 }
 
 # Safe exit with message
@@ -97,20 +64,8 @@ fail() {
 spinner() {
   local pid=$1
   local pkg="$2"
-  local delay=0.15
-  local spinchars=('|' '/' '-' '\')
 
-  local cyan='\033[1;36m'
-  local reset='\033[0m'
-
-  while kill -0 "$pid" 2>/dev/null; do
-    for char in "${spinchars[@]}"; do
-      printf "\r%s Installing %b%s%b... " "$char" "$cyan" "$pkg" "$reset"
-      sleep $delay
-    done
-  done
-
-  printf "\r\033[K" # Clear spinner line
+  gum spin --spinner line --title "Installing $pkg..." -- sh -c "while kill -0 $pid 2>/dev/null; do sleep 0.1; done"
 }
 
 # =============================================================================
@@ -124,9 +79,15 @@ has_cmd() {
 
 # Confirm action
 confirm() {
-  echo
-  read -rp "$(printc magenta "$1 [Y/n]: ")" response
-  [[ -z "$response" || "$response" =~ ^[Yy]$ ]]
+  gum confirm --no-show-help --default=true "$1"
+}
+
+# Choice selection with gum styling
+choice() {
+  local prompt="$1"
+  shift
+  local options=("$@")
+  gum choose --no-show-help --cursor "* " --header "$prompt" "${options[@]}"
 }
 
 ensure_sudo() {
