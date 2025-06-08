@@ -6,6 +6,7 @@
 
 DEPS=(
   snapper
+  snapper-support
   snap-pac
   limine-mkinitcpio-hook
   limine-snapper-sync
@@ -16,7 +17,6 @@ DEPS=(
 
 readonly SERVICES=(
   "limine-snapper-sync.service"
-  "snapper-timeline.timer"
   "snapper-cleanup.timer"
 )
 
@@ -63,7 +63,7 @@ setup_limine_config_file() {
 configure_limine_settings() {
   printc -n cyan "Configuring Limine settings... "
   declare -A snapper_config=(
-    ["MAX_SNAPSHOT_ENTRIES"]=20
+    ["MAX_SNAPSHOT_ENTRIES"]=15
     ["TERMINAL"]="kitty"
     ["TERMINAL_ARG"]="-e"
     ["ENABLE_UKI"]="yes"
@@ -92,7 +92,8 @@ configure_snapper_cleanup() {
   printc -n cyan "Configuring Snapper cleanup... "
   declare -A snapper_settings=(
     ["NUMBER_CLEANUP"]="yes"
-    ["NUMBER_LIMIT"]="30"
+    ["NUMBER_LIMIT"]="20"
+    ["TIMELINE_CREATE"]="no"
     ["TIMELINE_CLEANUP"]="yes"
     ["TIMELINE_MIN_AGE"]="1800"
     ["TIMELINE_LIMIT_HOURLY"]="5"
@@ -101,7 +102,7 @@ configure_snapper_cleanup() {
     ["TIMELINE_LIMIT_MONTHLY"]="0"
     ["TIMELINE_LIMIT_YEARLY"]="0"
     ["EMPTY_PRE_POST_CLEANUP"]="yes"
-    ["EMPTY_PRE_POST_MIN_AGE"]="3600"
+    ["EMPTY_PRE_POST_MIN_AGE"]="1800"
   )
 
   local success=true
