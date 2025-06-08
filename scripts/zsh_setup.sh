@@ -16,7 +16,7 @@ DEPS=(
   eza
   fd
   less
-  ripgrep
+  ugrep
   bat
   fzf
 )
