@@ -6,7 +6,6 @@
 
 DEPS=(
   snapper
-  snapper-support
   snap-pac
   limine-mkinitcpio-hook
   limine-snapper-sync
