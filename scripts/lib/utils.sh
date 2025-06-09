@@ -87,6 +87,7 @@ choice() {
   local prompt="$1"
   shift
   local options=("$@")
+  echo
   gum choose --no-show-help --cursor "* " --header "$prompt" "${options[@]}"
 }
 
@@ -140,10 +141,16 @@ update_config() {
     sudo chmod 644 "$config_file"
   fi
 
+  # Escape square brackets in the key for regex matching if they exist
+  local escaped_key="$key"
+  if [[ "$key" == *"["* && "$key" == *"]"* ]]; then
+    escaped_key=$(printf '%s\n' "$key" | sed 's/\[/\\[/g; s/\]/\\]/g')
+  fi
+
   # Check if the key exists (commented or not, with or without spacing)
-  if sudo grep -qE "^\s*#*\s*${key}\s*=" "$config_file"; then
-    # Update in place, preserving original spacing
-    if sudo sed -i -E "s|^\s*#*\s*(${key})(\s*)=(\s*).*|\1\2=\3${value}|" "$config_file"; then
+  if sudo grep -qE "^\s*#*\s*${escaped_key}\s*=" "$config_file"; then
+    # Update in place, preserving original spacing, handle commented lines
+    if sudo sed -i -E "s|^\s*#*\s*(${escaped_key})(\s*)=(\s*).*|\1\2=\3${value}|" "$config_file"; then
       return 0
     else
       fail "Failed to update $key"
