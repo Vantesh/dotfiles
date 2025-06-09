@@ -149,7 +149,7 @@ update_config() {
 
   # Check if the key exists (commented or not, with or without spacing)
   if sudo grep -qE "^\s*#*\s*${escaped_key}\s*=" "$config_file"; then
-    # Update in place, preserving original spacing, handle commented lines
+
     if sudo sed -i -E "s|^\s*#*\s*(${escaped_key})(\s*)=(\s*).*|\1\2=\3${value}|" "$config_file"; then
       return 0
     else

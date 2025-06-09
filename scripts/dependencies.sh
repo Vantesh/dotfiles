@@ -43,7 +43,8 @@ core_packages=(
   topgrade
   udiskie
   ntfs-3g
-  partitionmanager
+  gparted
+  gpart
   unzip
   bluez
   bluez-utils
@@ -125,6 +126,7 @@ intel_drivers=(
   libva-intel-driver
   intel-media-driver
   vulkan-intel
+  xf86-video-intel
 )
 
 # AMD-specific drivers
