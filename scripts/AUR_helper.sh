@@ -41,14 +41,14 @@ install_aur_helper() {
     return
   else
 
-    printc -n cyan "Installing $AUR_HELPER..."
+    printc cyan "Installing $AUR_HELPER..."
     local temp_dir
     temp_dir=$(mktemp -d) || fail "Failed to create temporary directory."
 
     clone_aur_helper_repository "$temp_dir"
     build_and_install_aur_helper "$temp_dir"
 
-    printc green "OK"
+    printc green "$AUR_HELPER installed successfully."
     rm -rf "$temp_dir"
   fi
 }
