@@ -6,7 +6,7 @@
 
 readonly PACMAN_CONFIG="/etc/pacman.conf"
 readonly PACMAN_BACKUP="${PACMAN_CONFIG}.bak"
-readonly PACMAN_OPTIONS=("Color" "VerbosePkgLists")
+readonly PACMAN_OPTIONS=("Color" "VerbosePkgLists" "ILoveCandy")
 
 # =============================================================================
 # VALIDATION FUNCTIONS
@@ -33,35 +33,14 @@ enable_pacman_option() {
   local option="$1"
   printc -n cyan "Enabling $option... "
 
-  if sudo grep -q "^\s*#\?\s*$option" "$PACMAN_CONFIG"; then
-    if sudo sed -i "s/^\s*#\?\s*${option}/${option}/" "$PACMAN_CONFIG"; then
-      printc green "OK"
-    else
-      printc red "FAILED"
-      return 1
-    fi
+  if sudo grep -q "^\s*$option\s*$" "$PACMAN_CONFIG"; then
+    printc yellow "Exists"
+  elif sudo grep -q "^\s*#\s*$option" "$PACMAN_CONFIG"; then
+    sudo sed -i "s/^\s*#\s*${option}/${option}/" "$PACMAN_CONFIG" && printc green "OK"
+  elif [[ "$option" == "ILoveCandy" ]]; then
+    sudo sed -i "/^\s*Color/a $option" "$PACMAN_CONFIG" && printc green "OK"
   else
-    printc yellow "already enabled"
-  fi
-}
-
-enable_pacman_options() {
-  for option in "${PACMAN_OPTIONS[@]}"; do
-    enable_pacman_option "$option"
-  done
-}
-
-add_ilovecandy_option() {
-  printc -n cyan "Adding ILoveCandy... "
-  if ! sudo grep -q "^\s*ILoveCandy" "$PACMAN_CONFIG"; then
-    if sudo sed -i "/^\s*Color/a ILoveCandy" "$PACMAN_CONFIG"; then
-      printc green "OK"
-    else
-      printc red "FAILED"
-      return 1
-    fi
-  else
-    printc yellow "already present"
+    printc yellow "not found"
   fi
 }
 
@@ -113,8 +92,9 @@ setup_chaotic_aur() {
 configure_pacman() {
   validate_pacman_config
   create_pacman_backup
-  enable_pacman_options
-  add_ilovecandy_option
+  for option in "${PACMAN_OPTIONS[@]}"; do
+    enable_pacman_option "$option"
+  done
 
   echo
   if confirm "Do you want to setup Chaotic AUR repository?"; then
@@ -123,8 +103,6 @@ configure_pacman() {
     printc yellow "Skipping Chaotic AUR setup."
   fi
 
-  echo
-  printc green "pacman configuration completed successfully."
 }
 
 # =============================================================================
