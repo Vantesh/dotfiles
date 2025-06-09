@@ -130,8 +130,6 @@ main() {
   make_config_scripts_executable
   copy_local_scripts
   setup_user_directories
-  echo
-  printc green "Dotfiles applied successfully"
 }
 
 main

@@ -127,7 +127,7 @@ main() {
   enable_user_services
   enable_system_services
   enable_ufw_firewall
-
+  echo
   if confirm "Setup DNS over HTTPS using dnscrypt-proxy?"; then
     setup_dns_over_https
   else
