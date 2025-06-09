@@ -213,6 +213,7 @@ for package in "${packages[@]}"; do
 done
 
 # Install GPU-specific drivers
+echo
 if confirm "Do you want to install GPU-specific drivers?"; then
   install_gpu_drivers
 else
