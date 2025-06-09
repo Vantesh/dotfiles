@@ -73,7 +73,7 @@ set_default_shell() {
   printc cyan "Setting ZSH as default shell..."
   local zsh_path
   zsh_path=$(which zsh) || fail "Failed to find ZSH executable."
-
+  echo
   chsh -s "$zsh_path" "$USER" || fail "Failed to set ZSH as default shell."
   printc green "ZSH set as default shell for user $USER."
 }
@@ -83,15 +83,15 @@ set_default_shell() {
 # =============================================================================
 
 update_pkgfile_database() {
-  printc cyan "Updating pkgfile database..."
+  printc -n cyan "Updating pkgfile database..."
   sudo pkgfile --update >/dev/null || fail "Failed to update pkgfile database."
-  printc green "Pkgfile database updated successfully."
+  printc green "OK"
 }
 
 rebuild_bat_cache() {
-  printc yellow "Rebuilding bat cache..."
+  printc -n cyan "Rebuilding bat cache..."
   bat cache --build >/dev/null || fail "Failed to rebuild bat cache."
-  printc green "Bat cache rebuilt successfully."
+  printc green "OK"
 }
 
 # =============================================================================
