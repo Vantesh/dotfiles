@@ -13,15 +13,17 @@ LIB_DIR="$SCRIPTS_DIR/lib"
 source "$LIB_DIR/colors.sh"
 source "$LIB_DIR/utils.sh"
 
-# Check if gum is installed
-if ! has_cmd gum; then
-  sudo pacman -S --noconfirm gum || {
-    fail "gum is not installed. Please install it first."
-  }
-fi
 # =============================================================================
 # CORE SETUP FUNCTIONS
 # =============================================================================
+
+initialize_environment() {
+  if ! has_cmd gum; then
+    sudo pacman -S --noconfirm gum 2>/dev/null || {
+      fail "gum is not installed and could not be installed automatically. Please install it manually."
+    }
+  fi
+}
 
 run_core_setup() {
   printc_box "PACMAN" "Configuring Pacman"
@@ -83,12 +85,12 @@ reboot_system() {
 # =============================================================================
 
 main() {
-  printc_box "WELCOME" "Arch Linux Dotfiles Setup"
   ensure_sudo
+  initialize_environment
   run_core_setup
   setup_zsh
-  setup_limine_bootloader
   setup_laptop_tweaks
+  setup_limine_bootloader
   configure_services
 
   if confirm "Reboot system now to apply all changes?"; then
