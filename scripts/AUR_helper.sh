@@ -72,6 +72,7 @@ sync_aur_database() {
 # =============================================================================
 
 main() {
+  echo
   get_user_choice
   install_aur_helper
   sync_aur_database
