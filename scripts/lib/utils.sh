@@ -47,8 +47,8 @@ printc_box() {
 
   gum style \
     --border normal \
-    --margin "1" \
-    --padding "1 2" \
+    --margin "0" \
+    --padding "0.1 0.1" \
     --border-foreground "#22d3ee" \
     "$(gum style --bold --foreground "#22d3ee" "$title")" \
     "$(gum style --foreground "#f783ac" "$message")"
@@ -87,8 +87,10 @@ choice() {
   local prompt="$1"
   shift
   local options=("$@")
-  echo
-  gum choose --no-show-help --cursor "* " --header "$prompt" "${options[@]}"
+  gum choose \
+    --no-show-help \
+    --cursor="* " \
+    --header="$prompt" "${options[@]}"
 }
 
 ensure_sudo() {
