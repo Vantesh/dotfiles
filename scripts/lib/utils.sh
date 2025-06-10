@@ -99,6 +99,14 @@ ensure_sudo() {
   fi
 }
 
+is_laptop() {
+  for bat in /sys/class/power_supply/BAT*; do
+    [[ -d "$bat" ]] && return 0
+  done
+  [[ -d /proc/acpi/battery ]] && return 0
+  return 1
+}
+
 # =============================================================================
 # PACKAGE MANAGEMENT FUNCTIONS
 # =============================================================================
