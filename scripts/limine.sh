@@ -187,6 +187,67 @@ configure_kernel_parameters() {
 }
 
 # =============================================================================
+# LIMINE INTERFACE CONFIGURATION
+# =============================================================================
+
+configure_limine_interface() {
+  printc cyan "Configuring Limine interface..."
+
+  local limine_conf="/boot/limine.conf"
+
+  if [[ ! -f "$limine_conf" ]]; then
+    printc red "Limine config file not found at $limine_conf"
+    return 1
+  fi
+
+  printc -n cyan "Setting interface options... "
+
+  # Interface configuration parameters
+  local PARAMS=(
+    "term_palette: 1e1e2e;f38ba8;a6e3a1;f9e2af;89b4fa;f5c2e7;94e2d5;cdd6f4"
+    "term_palette_bright: 585b70;f38ba8;a6e3a1;f9e2af;89b4fa;f5c2e7;94e2d5;cdd6f4"
+    "term_background: 1e1e2e"
+    "term_foreground: cdd6f4"
+    "term_background_bright: 1e1e2e"
+    "term_foreground_bright: cdd6f4"
+    "timeout: 2"
+    "interface_branding: Arch Linux"
+
+  )
+
+  # Build interface configuration block
+  local interface_config=$'\n# Interface Configuration\n'
+  for param in "${PARAMS[@]}"; do
+    interface_config+="$param"$'\n'
+  done
+
+  # Find the line with "/+Arch Linux" and insert interface config above it
+  if grep -q "/+Arch Linux" "$limine_conf"; then
+    # Create a temporary file with the interface config inserted
+    if awk -v config="$interface_config" '
+      /\/\+Arch Linux/ {
+        print config
+        print $0
+        next
+      }
+      # Skip existing interface config lines if they exist
+      /^term_palette:|^term_palette_bright:|^term_background:|^term_foreground:|^term_background_bright:|^term_foreground_bright:|^timeout:|^wallpaper:|^interface_branding:|^default_entry:/ {
+        next
+      }
+      { print }
+    ' "$limine_conf" | sudo tee "${limine_conf}.tmp" >/dev/null && sudo mv "${limine_conf}.tmp" "$limine_conf"; then
+      printc green "OK"
+    else
+      printc red "FAILED"
+      return 1
+    fi
+  else
+    printc yellow "Arch Linux entry not found in $limine_conf"
+    return 1
+  fi
+}
+
+# =============================================================================
 # MAIN EXECUTION
 # =============================================================================
 
@@ -197,6 +258,12 @@ main() {
   setup_limine_config_file
   configure_limine_settings
   configure_snapper_cleanup
+
+  if confirm "Configure Limine interface settings?"; then
+    configure_limine_interface
+  else
+    printc yellow "Skipping Limine interface configuration."
+  fi
 
   if confirm "Install and configure Plymouth for boot splash?"; then
     setup_plymouth
