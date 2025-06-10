@@ -7,6 +7,7 @@ readonly SWAP_FILE_PATH="/swap/swapfile"
 readonly MKINIT_CONF="/etc/mkinitcpio.conf"
 readonly TOUCHPAD_RULE_FILE="/etc/udev/rules.d/90-touchpad-access.rules"
 readonly WAKE_DEVICES_RULE_FILE="/etc/udev/rules.d/90-wake-devices.rules"
+readonly MKINIT_HOOKS="HOOKS=(systemd autodetect microcode modconf kms keyboard sd-vconsole block filesystems)"
 
 # =============================================================================
 # DEPENDENCIES
@@ -56,6 +57,10 @@ detect_nvidia_gpu() {
   lspci -nn | grep -Eiq "NVIDIA Corporation.*(GeForce|RTX|GTX|Quadro)"
 }
 
+detect_limine_bootloader() {
+  has_cmd limine-update || [[ -x /usr/bin/limine-update ]]
+}
+
 btrfs_subvolume_exists() {
   sudo btrfs subvolume list "$2" | grep -q "path $1$"
 }
@@ -78,30 +83,25 @@ reload_udev_rules() {
 # =============================================================================
 
 install_auto_cpufreq() {
+  printc -n cyan "Installing auto-cpufreq..."
   if has_cmd auto-cpufreq; then
-    printc green "auto-cpufreq already installed"
+    printc green "Exists"
     return 0
   fi
-
-  printc cyan "Installing auto-cpufreq..."
   local tmp_dir
   tmp_dir=$(mktemp -d) || fail "Failed to create temp directory"
-
   if git clone https://github.com/AdnanHodzic/auto-cpufreq.git "$tmp_dir" 2>/dev/null &&
     cd "$tmp_dir" && echo "I" | sudo ./auto-cpufreq-installer >/dev/null 2>&1; then
-
-    printc -n cyan "Enabling auto-cpufreq daemon..."
     sleep 2
     if sudo auto-cpufreq --install >/dev/null 2>&1; then
       printc green "OK"
     else
       printc yellow "Failed, trying to set up manually"
     fi
-
     rm -rf "$tmp_dir"
   else
     rm -rf "$tmp_dir"
-    fail "Failed to install auto-cpufreq"
+    fail "Failed"
   fi
 }
 
@@ -231,12 +231,12 @@ configure_limine_hibernation() {
   resume_offset=$(sudo btrfs inspect-internal map-swapfile -r "$SWAP_FILE_PATH") || fail "Failed to get resume offset"
   root_partuuid=$(sudo blkid -s PARTUUID -o value "$btrfs_device") || fail "Failed to get root PARTUUID"
 
-  local limine_conf="/etc/limine-entry-tool.conf"
+  local limine_conf="/etc/default/limine"
   local kernel_params="root=PARTUUID=$root_partuuid rootfstype=btrfs rootflags=subvol=@ rw resume=$btrfs_device resume_offset=$resume_offset hibernate=lz4"
 
   if [[ ! -f "$limine_conf" ]]; then
-    printc yellow "Limine config not found at $limine_conf"
-    return 1
+    install_package "limine-mkinitcpio-hook"
+    sudo cp /etc/limine-entry-tool.conf "$limine_conf"
   fi
 
   if grep -q "resume=" "$limine_conf"; then
@@ -251,12 +251,12 @@ configure_limine_hibernation() {
 configure_initramfs() {
   printc -n cyan "Configuring initramfs... "
 
-  if grep -q 'HOOKS=.*systemd' "$MKINIT_CONF"; then
+  if grep -q '^[[:space:]]*HOOKS=.*systemd' "$MKINIT_CONF"; then
     printc yellow "Exists"
     return 0
   fi
 
-  if sudo sed -i -E 's/^(HOOKS=.* )(udev|base)(.*)$/\1\2 systemd\3/' "$MKINIT_CONF"; then
+  if sudo sed -i -E "s/^HOOKS=\(.*\)$/$MKINIT_HOOKS/" "$MKINIT_CONF"; then
     printc green "OK"
   else
     fail "FAILED"
@@ -356,13 +356,17 @@ main() {
   install_dependencies
   enable_service "upower.service" "system"
 
-  if is_btrfs && confirm "Setup hibernation?"; then
+  if is_btrfs && detect_limine_bootloader && confirm "Setup hibernation?"; then
     setup_btrfs_swap
     configure_hibernation_support
-  elif ! is_btrfs; then
-    printc yellow "Btrfs not detected. Skipping hibernation setup."
   else
-    printc yellow "Skipping hibernation setup."
+    if ! is_btrfs; then
+      printc yellow "No Btrfs filesystem detected. Skipping Btrfs setup"
+    elif ! detect_limine_bootloader; then
+      printc yellow "Limine bootloader not detected. Skipping hibernation setup"
+    else
+      printc yellow "Skipping Btrfs swap and hibernation setup."
+    fi
   fi
 
   setup_touchpad
