@@ -53,6 +53,16 @@ install_aur_helper() {
   fi
 }
 
+configure_paru() {
+  if [[ "$AUR_HELPER" == "paru" ]]; then
+    printc -n cyan "Configuring paru... "
+    if ! sudo sed -i 's/^#BottomUp/BottomUp/' /etc/paru.conf; then
+      fail "Fail"
+    fi
+    printc green "OK"
+  fi
+}
+
 # =============================================================================
 # DATABASE SYNCHRONIZATION
 # =============================================================================
@@ -75,6 +85,7 @@ main() {
   echo
   get_user_choice
   install_aur_helper
+  configure_paru
   sync_aur_database
 }
 
