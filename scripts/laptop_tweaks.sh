@@ -213,7 +213,7 @@ setup_btrfs_swap() {
   uuid=$(sudo blkid -s UUID -o value "$btrfs_device") || fail "Failed to get UUID"
 
   create_btrfs_swap_subvolume
-  add_to_fstab "UUID=$uuid $SWAP_MOUNT_POINT btrfs defaults,nodatacow,noatime,subvol=$SWAP_SUBVOL 0 0" "swap mount"
+  add_to_fstab "UUID=$uuid $SWAP_MOUNT_POINT btrfs defaults,noatime,subvol=$SWAP_SUBVOL 0 0" "swap mount"
   create_swapfile
   activate_swapfile
   add_to_fstab "$SWAP_FILE_PATH none swap defaults 0 0" "swapfile"
@@ -348,6 +348,31 @@ EOF
 }
 
 # =============================================================================
+# BTRFS CONFIGURATION
+# =============================================================================
+
+update_btrfs_fstab_options() {
+  printc -n cyan "Updating Btrfs fstab options to use noatime... "
+
+  local fstab_backup
+  fstab_backup="/etc/fstab.bak.$(date +%s)"
+  sudo cp /etc/fstab "$fstab_backup"
+
+  # Update relatime to noatime for btrfs filesystems
+  if sudo sed -i 's/\(.*btrfs.*\)relatime\(.*\)/\1noatime\2/g' /etc/fstab; then
+    # Also ensure defaults includes noatime for btrfs entries that don't have explicit relatime
+    sudo sed -i '/btrfs.*defaults[^,]*$/s/defaults/defaults,noatime/' /etc/fstab
+    sudo sed -i '/btrfs.*defaults,/s/defaults,/defaults,noatime,/' /etc/fstab
+    # Remove duplicate noatime entries
+    sudo sed -i 's/noatime,noatime/noatime/g' /etc/fstab
+    printc green "OK"
+  else
+    printc yellow "FAILED"
+    sudo cp "$fstab_backup" /etc/fstab
+  fi
+}
+
+# =============================================================================
 # MAIN EXECUTION
 # =============================================================================
 
@@ -355,6 +380,11 @@ main() {
   ensure_sudo
   install_dependencies
   enable_service "upower.service" "system"
+
+  # Update existing Btrfs fstab entries to use noatime
+  if is_btrfs; then
+    update_btrfs_fstab_options
+  fi
 
   if is_btrfs && detect_limine_bootloader && confirm "Setup hibernation?"; then
     setup_btrfs_swap
