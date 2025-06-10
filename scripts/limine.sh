@@ -20,8 +20,8 @@ readonly SERVICES=(
 )
 
 readonly LIMINE_CONFIG_FILE="/etc/default/limine"
-readonly LIMINE_CONFIG_TEMPLATE="/etc/limine-snapper-sync.conf"
-
+readonly LIMINE_ENTRY_TEMPLATE="/etc/limine-entry-tool.conf"
+readonly LIMINE_SNAPPER_TEMPLATE="/etc/limine-snapper-sync.conf"
 # =============================================================================
 # DEPENDENCY MANAGEMENT
 # =============================================================================
@@ -48,14 +48,21 @@ enable_snapper_services() {
 
 setup_limine_config_file() {
   printc -n cyan "Setting up Limine config... "
-  if [[ ! -f "$LIMINE_CONFIG_FILE" ]]; then
-    if sudo cp "$LIMINE_CONFIG_TEMPLATE" "$LIMINE_CONFIG_FILE"; then
-      printc green "OK"
-    else
-      fail "FAILED"
-    fi
+
+  if [[ -f "$LIMINE_CONFIG_FILE" ]]; then
+    printc yellow "exists"
+    return 0
+  fi
+
+  if [[ ! -f "$LIMINE_ENTRY_TEMPLATE" || ! -f "$LIMINE_SNAPPER_TEMPLATE" ]]; then
+    printc red "FAILED - Missing template(s)"
+    return 1
+  fi
+
+  if cat "$LIMINE_ENTRY_TEMPLATE" "$LIMINE_SNAPPER_TEMPLATE" | sudo tee "$LIMINE_CONFIG_FILE" >/dev/null; then
+    printc green "OK"
   else
-    printc yellow "already exists"
+    fail "FAILED"
   fi
 }
 
@@ -132,8 +139,7 @@ setup_plymouth() {
   local mkinitcpio_conf="/etc/mkinitcpio.conf"
 
   if ! grep -q "plymouth" "$mkinitcpio_conf"; then
-    if sudo sed -i 's/\(HOOKS=.*\) encrypt \(.*\)/\1 plymouth-encrypt \2/' "$mkinitcpio_conf" &&
-      sudo sed -i 's/\(HOOKS=.*\) \(.*\) filesystems \(.*\)/\1 \2 plymouth filesystems \3/' "$mkinitcpio_conf"; then
+    if sudo sed -i '/^HOOKS=/ s/\(.*\) filesystems \(.*\)/\1 plymouth filesystems \2/' "$mkinitcpio_conf"; then
       printc green "OK"
     else
       printc red "FAILED"
