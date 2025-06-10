@@ -176,13 +176,13 @@ configure_kernel_parameters() {
   # Get current KERNEL_CMDLINE value and append quiet splash
   if grep -q "^KERNEL_CMDLINE\[default\]=" "$limine_conf"; then
     # Append to existing KERNEL_CMDLINE
-    sudo sed -i '/^KERNEL_CMDLINE\[default\]=/s/"$/ quiet splash"/' "$limine_conf" && printc green "OK"
+    sudo sed -i '/^KERNEL_CMDLINE\[default\]=/s/"$/ quiet loglevel=3 splash"/' "$limine_conf" && printc green "OK"
   elif grep -q "^#KERNEL_CMDLINE\[default\]=" "$limine_conf"; then
     # Uncomment and set with quiet splash
-    sudo sed -i 's/^#KERNEL_CMDLINE\[default\]=""/KERNEL_CMDLINE[default]="quiet splash"/' "$limine_conf" && printc green "OK"
+    sudo sed -i 's/^#KERNEL_CMDLINE\[default\]=""/KERNEL_CMDLINE[default]="quiet loglevel=3 splash"/' "$limine_conf" && printc green "OK"
   else
     # Add new KERNEL_CMDLINE entry
-    echo 'KERNEL_CMDLINE[default]="quiet splash"' | sudo tee -a "$limine_conf" >/dev/null && printc green "OK"
+    echo 'KERNEL_CMDLINE[default]="quiet loglevel=3 splash"' | sudo tee -a "$limine_conf" >/dev/null && printc green "OK"
   fi
 }
 
