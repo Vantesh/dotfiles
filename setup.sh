@@ -58,7 +58,8 @@ setup_zsh() {
 }
 
 setup_limine_bootloader() {
-  if confirm "This is for limine bootloader setup. Do you want to continue?"; then
+  echo
+  if confirm "ONLY FOR LIMINE BOOTLOADER. Do you want to continue?"; then
     printc_box "LIMINE SETUP" "Configuring Limine bootloader and Snapper"
     source "$SCRIPTS_DIR/limine.sh"
   else
@@ -67,11 +68,11 @@ setup_limine_bootloader() {
 }
 
 setup_laptop_tweaks() {
-  if confirm "Setup laptop tweaks?"; then
-    printc_box "LAPTOP TWEAKS" "Applying laptop-specific optimizations"
+  if is_laptop; then
+    printc_box "LAPTOP TWEAKS" "Applying laptop-specific tweaks"
     source "$SCRIPTS_DIR/laptop_tweaks.sh"
   else
-    printc yellow "Skipping laptop tweaks setup."
+    printc yellow "Skipping laptop tweaks."
   fi
 }
 
@@ -89,8 +90,8 @@ main() {
   initialize_environment
   run_core_setup
   setup_zsh
-  setup_laptop_tweaks
   setup_limine_bootloader
+  setup_laptop_tweaks
   configure_services
 
   if confirm "Reboot system now to apply all changes?"; then
