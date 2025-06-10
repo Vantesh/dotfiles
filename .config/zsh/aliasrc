@@ -1,6 +1,8 @@
 # shellcheck disable=SC2148
 # Aliases
 alias grep="ugrep --color=auto"
+alias fgrep="ugrep -F --color=auto"
+alias egrep="ugrep -E --color=auto"
 alias diff="diff --color=auto"
 alias ip="ip -color"
 alias rm="rm -ri"
@@ -16,7 +18,7 @@ alias du='dust -r'
 alias free='free -m'
 alias find='fd'
 alias h='history'
-alias wget='wget --hsts-file="$XDG_DATA_HOME/wget-hsts"'
+alias wget='wget --hsts-file="$XDG_DATA_HOME/wget-hsts" -c'
 alias jtcl='journalctl -p 3 -xb'
 
 # pacman aliases
