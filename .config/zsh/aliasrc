@@ -1,13 +1,20 @@
-# shellcheck disable=SC2148
-# Aliases
+#!/bin/bash
+# Add color support to various commands
 alias grep="ugrep --color=auto"
 alias fgrep="ugrep -F --color=auto"
 alias egrep="ugrep -E --color=auto"
 alias diff="diff --color=auto"
+alias dir="dir --color=auto"
+alias vdir="vdir --color=auto"
 alias ip="ip -color"
+
+# less destructive aliases
 alias rm="rm -ri"
 alias mv="mv -i"
 alias cp="cp -i"
+alias ln="ln -i"
+
+# common aliases
 alias mkdir="mkdir -p"
 alias cat="bat --style=header --style=snip --style=changes"
 alias vim="nvim"
@@ -61,5 +68,6 @@ ref() {
 }
 
 if command -v pkgfile &>/dev/null; then
+    # shellcheck disable=SC1091
     source /usr/share/doc/pkgfile/command-not-found.zsh
 fi
