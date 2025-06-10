@@ -1,5 +1,23 @@
 #!/bin/bash
 # Clean-up home directory environment variables
+
+# export XDG Base Directories if not running under uwsm
+if [[ -z "$XDG_CONFIG_HOME" ]]; then
+  export XDG_CONFIG_HOME="$HOME/.config"
+fi
+if [[ -z "$XDG_DATA_HOME" ]]; then
+  export XDG_DATA_HOME="$HOME/.local/share"
+fi
+if [[ -z "$XDG_CACHE_HOME" ]]; then
+  export XDG_CACHE_HOME="$HOME/.cache"
+fi
+if [[ -z "$XDG_RUNTIME_DIR" ]]; then
+  export XDG_RUNTIME_DIR="$HOME/.local/run"
+fi
+if [[ -z "$XDG_STATE_HOME" ]]; then
+  export XDG_STATE_HOME="$HOME/.local/state"
+fi
+
 export GTK_RC_FILES="$XDG_CONFIG_HOME"/gtk-1.0/gtkrc
 export GTK2_RC_FILES="$XDG_CONFIG_HOME/gtk-2.0/gtkrc"
 export ANDROID_SDK_HOME="$XDG_CONFIG_HOME/android"
@@ -21,7 +39,7 @@ export VISUAL="code"
 export PAGER="less -R"
 
 # setup git path
-export GIT_CONFIG_GLOBAL="$XDG_CONFIG_HOME/git/config"
+export GIT_CONFIG_GLOBAL="${XDG_CONFIG_HOME:-$HOME/.config}/git/config"
 
 if [[ ! -f "$GIT_CONFIG_GLOBAL" ]]; then
   mkdir -p "$XDG_CONFIG_HOME/git"
