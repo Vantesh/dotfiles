@@ -7,7 +7,7 @@ readonly SWAP_FILE_PATH="/swap/swapfile"
 readonly MKINIT_CONF="/etc/mkinitcpio.conf"
 readonly TOUCHPAD_RULE_FILE="/etc/udev/rules.d/90-touchpad-access.rules"
 readonly WAKE_DEVICES_RULE_FILE="/etc/udev/rules.d/90-wake-devices.rules"
-readonly MKINIT_HOOKS="HOOKS=(systemd autodetect microcode modconf kms keyboard sd-vconsole block filesystems)"
+readonly MKINIT_HOOKS="HOOKS=(base systemd autodetect microcode modconf kms keyboard sd-vconsole block filesystems)"
 
 # =============================================================================
 # DEPENDENCIES
@@ -75,6 +75,15 @@ reload_udev_rules() {
     printc green "OK"
   else
     fail "FAILED"
+  fi
+}
+
+reload_systemd_daemon() {
+  printc -n cyan "Reloading systemd daemon... "
+  if sudo systemctl daemon-reload; then
+    printc green "OK"
+  else
+    printc yellow "FAILED"
   fi
 }
 
@@ -199,6 +208,7 @@ add_to_fstab() {
 
   if echo -e "\n$entry\n" | sudo tee -a /etc/fstab >/dev/null; then
     printc green "OK"
+    reload_systemd_daemon
   else
     fail "FAILED"
   fi
@@ -283,7 +293,13 @@ configure_hibernation_services() {
 AllowSuspend=yes
 AllowHibernation=yes
 AllowSuspendThenHibernate=yes
+AllowHybridSleep=yes
+SuspendState=mem freeze disk
 HibernateMode=shutdown
+#MemorySleepMode=
+HibernateDelaySec=1h
+HibernateOnACPower=no
+#SuspendEstimationSec=60min
 EOF
 
   # Wake devices rule
@@ -366,6 +382,7 @@ update_btrfs_fstab_options() {
     # Remove duplicate noatime entries
     sudo sed -i 's/noatime,noatime/noatime/g' /etc/fstab
     printc green "OK"
+    reload_systemd_daemon
   else
     printc yellow "FAILED"
     sudo cp "$fstab_backup" /etc/fstab
@@ -397,6 +414,13 @@ main() {
     else
       printc yellow "Skipping Btrfs swap and hibernation setup."
     fi
+  fi
+
+  if confirm "Install and configure Plymouth for boot splash?"; then
+    setup_plymouth
+    configure_kernel_parameters
+  else
+    printc yellow "Skipping Plymouth setup."
   fi
 
   setup_touchpad
