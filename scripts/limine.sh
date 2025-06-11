@@ -160,29 +160,28 @@ setup_plymouth() {
 
 configure_kernel_parameters() {
   printc -n cyan "Configuring kernel parameters... "
-  local limine_conf="/etc/limine-entry-tool.conf"
 
-  if [[ ! -f "$limine_conf" ]]; then
+  if [[ ! -f "$LIMINE_CONFIG_FILE" ]]; then
     printc yellow "Limine config not found"
     return 1
   fi
 
   # Check if quiet and splash are already present
-  if grep -q "quiet.*splash\|splash.*quiet" "$limine_conf"; then
+  if grep -q "quiet.*splash\|splash.*quiet" "$LIMINE_CONFIG_FILE"; then
     printc yellow "already configured"
     return 0
   fi
 
   # Get current KERNEL_CMDLINE value and append quiet splash
-  if grep -q "^KERNEL_CMDLINE\[default\]=" "$limine_conf"; then
+  if grep -q "^KERNEL_CMDLINE\[default\]=" "$LIMINE_CONFIG_FILE"; then
     # Append to existing KERNEL_CMDLINE
-    sudo sed -i '/^KERNEL_CMDLINE\[default\]=/s/"$/ quiet loglevel=3 splash"/' "$limine_conf" && printc green "OK"
-  elif grep -q "^#KERNEL_CMDLINE\[default\]=" "$limine_conf"; then
+    sudo sed -i '/^KERNEL_CMDLINE\[default\]=/s/"$/ quiet loglevel=3 splash"/' "$LIMINE_CONFIG_FILE" && printc green "OK"
+  elif grep -q "^#KERNEL_CMDLINE\[default\]=" "$LIMINE_CONFIG_FILE"; then
     # Uncomment and set with quiet splash
-    sudo sed -i 's/^#KERNEL_CMDLINE\[default\]=""/KERNEL_CMDLINE[default]="quiet loglevel=3 splash"/' "$limine_conf" && printc green "OK"
+    sudo sed -i 's/^#KERNEL_CMDLINE\[default\]=""/KERNEL_CMDLINE[default]="quiet loglevel=3 splash"/' "$LIMINE_CONFIG_FILE" && printc green "OK"
   else
     # Add new KERNEL_CMDLINE entry
-    echo 'KERNEL_CMDLINE[default]="quiet loglevel=3 splash"' | sudo tee -a "$limine_conf" >/dev/null && printc green "OK"
+    echo 'KERNEL_CMDLINE[default]="quiet loglevel=3 splash"' | sudo tee -a "$LIMINE_CONFIG_FILE" >/dev/null && printc green "OK"
   fi
 }
 
@@ -211,6 +210,7 @@ configure_limine_interface() {
     "term_background_bright: 1e1e2e"
     "term_foreground_bright: cdd6f4"
     "timeout: 2"
+    "default_entry: 2"
     "interface_branding: Arch Linux"
 
   )

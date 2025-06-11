@@ -416,13 +416,6 @@ main() {
     fi
   fi
 
-  if confirm "Install and configure Plymouth for boot splash?"; then
-    setup_plymouth
-    configure_kernel_parameters
-  else
-    printc yellow "Skipping Plymouth setup."
-  fi
-
   setup_touchpad
   enable_service "libinput-gestures.service" "user"
 }
