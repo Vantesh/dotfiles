@@ -55,11 +55,35 @@ setup_zshenv() {
 
   sudo tee "$ZSHENV_FILE" >/dev/null <<EOF || fail "Failed to create ZSH environment file."
 # ZSH environment file
-if [[ -d "\$XDG_CONFIG_HOME/zsh" ]]; then
-  export ZDOTDIR="\$XDG_CONFIG_HOME/zsh"
-else
-  export ZDOTDIR="\$HOME/.config/zsh"
+# This file is sourced by ZSH at startup to set environment variables.
+# XDG BASE DIRS
+
+# export XDG Base Directories if not running under uwsm
+if [[ -z "$XDG_CONFIG_HOME" ]]; then
+  export XDG_CONFIG_HOME="$HOME/.config"
 fi
+
+if [[ -z "$XDG_DATA_HOME" ]]; then
+  export XDG_DATA_HOME="$HOME/.local/share"
+fi
+
+if [[ -z "$XDG_CACHE_HOME" ]]; then
+  export XDG_CACHE_HOME="$HOME/.cache"
+fi
+
+fi
+if [[ -z "$XDG_STATE_HOME" ]]; then
+  export XDG_STATE_HOME="$HOME/.local/state"
+fi
+
+# export ZDOTDIR
+if [[ -d "$XDG_CONFIG_HOME/zsh" ]]; then
+  export ZDOTDIR="$XDG_CONFIG_HOME/zsh"
+else
+  export ZDOTDIR="$HOME/.config/zsh"
+fi
+
+
 EOF
 
   if [[ -f "$ZSHENV_FILE" ]]; then
