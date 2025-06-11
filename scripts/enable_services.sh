@@ -51,10 +51,11 @@ enable_ufw_firewall() {
 
 install_dnscrypt_proxy() {
   if ! has_cmd dnscrypt-proxy; then
-    printc cyan "Installing dnscrypt-proxy..."
-    install_package "dnscrypt-proxy" || fail "Failed to install dnscrypt-proxy."
+    printc -n cyan "Installing dnscrypt-proxy... "
+    install_package "dnscrypt-proxy" || fail "FAILED"
+    printc green "OK"
   else
-    printc yellow "dnscrypt-proxy is already installed."
+    printc yellow "Exists"
   fi
 }
 
@@ -77,14 +78,12 @@ configure_dnscrypt_proxy() {
   declare -A config_values=(
     ["server_names"]="['cloudflare', 'cloudflare-ipv6']"
   )
-
-  printc cyan "Updating $DNSCRYPT_CONFIG_FILE with DNS settings..."
   for key in "${!config_values[@]}"; do
     update_config "$DNSCRYPT_CONFIG_FILE" "$key" "${config_values[$key]}"
   done
-
-  enable_service "dnscrypt-proxy.service" "system"
   printc green "OK"
+  enable_service "dnscrypt-proxy.service" "system"
+
 }
 
 disable_systemd_resolved() {
@@ -109,13 +108,11 @@ EOF
 }
 
 setup_dns_over_https() {
-  printc cyan "Setting up DNS over HTTPS..."
 
   install_dnscrypt_proxy
   configure_resolv_conf
   configure_dnscrypt_proxy
   disable_systemd_resolved
-
   printc green "DNS over HTTPS setup completed successfully."
 }
 
