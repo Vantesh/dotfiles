@@ -25,13 +25,14 @@ core_packages=(
   sddm              # Display manager
   kitty             # Terminal emulator
 
-  xdg-desktop-portal-gtk       # Desktop portal for GTK apps
+  xdg-desktop-portal-gtk       # Desktop portal for GTK
   xdg-desktop-portal-hyprland  # Desktop portal for Hyprland
   archlinux-xdg-menu           # Arch Linux menu integration
   xdg-user-dirs                # User directories
   xdg-utils                    # XDG utilities
   xdg-desktop-portal           # Desktop portal
   selectdefaultapplication-git # Tool to change default apps
+  yad                          # Yet Another Dialog - GUI for scripts
 
   #required by vscode and other apps to store keyrings
   gnome-keyring
@@ -39,7 +40,6 @@ core_packages=(
   libsecret
 
   # Sytem tools
-  pacman-contrib
   topgrade
   udiskie
   ntfs-3g
