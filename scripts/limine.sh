@@ -149,13 +149,7 @@ setup_plymouth() {
     printc yellow "already configured"
   fi
 
-  printc -n cyan "Regenerating initramfs... "
-  if sudo limine-update &>/dev/null; then
-    printc green "OK"
-  else
-    printc red "FAILED"
-    return 1
-  fi
+  regenerate_initramfs || return 1
 }
 
 configure_kernel_parameters() {
