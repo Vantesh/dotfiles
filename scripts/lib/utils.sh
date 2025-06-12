@@ -274,3 +274,23 @@ backup_with_timestamp() {
     return 1
   fi
 }
+
+# Regenerate initramfs using the appropriate tool
+regenerate_initramfs() {
+  printc -n cyan "Regenerating initramfs... "
+
+  if has_cmd limine-update; then
+    if sudo limine-update &>/dev/null; then
+      printc green "OK"
+      return 0
+    fi
+  elif has_cmd mkinitcpio; then
+    if sudo mkinitcpio -P &>/dev/null; then
+      printc green "OK"
+      return 0
+    fi
+  fi
+
+  printc red "FAILED"
+  return 1
+}
