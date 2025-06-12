@@ -235,13 +235,14 @@ setup_btrfs_swap() {
 configure_limine_hibernation() {
   printc -n cyan "Configuring Limine for hibernation... "
 
-  local btrfs_device resume_offset root_partuuid
+  local btrfs_device resume_offset root_partuuid btrfs_uuid
   btrfs_device=$(get_btrfs_root_device) || fail "Failed to detect Btrfs device"
   resume_offset=$(sudo btrfs inspect-internal map-swapfile -r "$SWAP_FILE_PATH") || fail "Failed to get resume offset"
   root_partuuid=$(sudo blkid -s PARTUUID -o value "$btrfs_device") || fail "Failed to get root PARTUUID"
+  btrfs_uuid=$(sudo blkid -s UUID -o value "$btrfs_device") || fail "Failed to get Btrfs UUID"
 
   local limine_conf="/etc/default/limine"
-  local kernel_params="root=PARTUUID=$root_partuuid rootfstype=btrfs rootflags=subvol=@ rw resume=$btrfs_device resume_offset=$resume_offset hibernate.compressor=lz4 nowatchdog vt.global_cursor_default=0"
+  local kernel_params="root=PARTUUID=$root_partuuid rootfstype=btrfs rootflags=subvol=@ rw resume=UUID=$btrfs_uuid resume_offset=$resume_offset hibernate.compressor=lz4 nowatchdog vt.global_cursor_default=0"
 
   if [[ ! -f "$limine_conf" ]]; then
     install_package "limine-mkinitcpio-hook"
