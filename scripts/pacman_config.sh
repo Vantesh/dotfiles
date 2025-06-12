@@ -8,6 +8,22 @@ readonly PACMAN_CONFIG="/etc/pacman.conf"
 readonly PACMAN_BACKUP="${PACMAN_CONFIG}.bak"
 readonly PACMAN_OPTIONS=("Color" "VerbosePkgLists" "ILoveCandy")
 
+deps=(
+  "pacman-contrib"
+  "reflector"
+
+)
+
+for dep in "${deps[@]}"; do
+  if ! pacman -Qi "$dep" &>/dev/null; then
+    printc -n cyan "Installing $dep... "
+    if sudo pacman -S --noconfirm "$dep"; then
+      printc green "OK"
+    else
+      fail "FAILED"
+    fi
+  fi
+done
 # =============================================================================
 # VALIDATION FUNCTIONS
 # =============================================================================
@@ -86,6 +102,56 @@ setup_chaotic_aur() {
 }
 
 # =============================================================================
+# PACCACHE CONFIGURATION
+# =============================================================================
+
+configure_paccache() {
+  # Configure paccache arguments
+  printc -n cyan "Configuring paccache arguments... "
+  local paccache_config="/etc/conf.d/pacman-contrib"
+
+  if update_config "$paccache_config" "PACCACHE_ARGS" "'-k1'"; then
+    printc green "OK"
+  else
+    printc red "FAILED"
+    return 1
+  fi
+
+  # Enable and start paccache timer
+  enable_service "paccache.timer" "system"
+}
+
+# =============================================================================
+# MIRRORLIST CONFIGURATION
+# =============================================================================
+
+update_mirrorlist() {
+
+  # Backup current mirrorlist
+  printc -n cyan "Backing up current mirrorlist... "
+  if sudo cp /etc/pacman.d/mirrorlist /etc/pacman.d/mirrorlist.backup; then
+    printc green "OK"
+  else
+    printc red "FAILED"
+    return 1
+  fi
+
+  # Update mirrorlist using reflector
+  printc -n cyan "Generating new mirrorlist... "
+  if sudo reflector --verbose --latest 20 --protocol https --sort rate --save /etc/pacman.d/mirrorlist &>/dev/null; then
+    printc green "OK"
+  else
+    printc red "FAILED"
+    # Restore backup on failure
+    sudo cp /etc/pacman.d/mirrorlist.backup /etc/pacman.d/mirrorlist
+    return 1
+  fi
+
+  # Enable reflector timer for automatic updates
+  enable_service "reflector.timer" "system"
+}
+
+# =============================================================================
 # MAIN CONFIGURATION FUNCTION
 # =============================================================================
 
@@ -95,23 +161,22 @@ configure_pacman() {
   for option in "${PACMAN_OPTIONS[@]}"; do
     enable_pacman_option "$option"
   done
-
+  configure_paccache
+  echo
+  if confirm "Do you want to update mirrorlist?"; then
+    update_mirrorlist
+  else
+    printc yellow "Skipping mirrorlist update."
+  fi
   echo
   if confirm "Do you want to setup Chaotic AUR repository?"; then
     setup_chaotic_aur
   else
     printc yellow "Skipping Chaotic AUR setup."
   fi
-
 }
 
 # =============================================================================
 # MAIN EXECUTION
 # =============================================================================
-
-main() {
-  configure_pacman
-
-}
-
-main
+configure_pacman
