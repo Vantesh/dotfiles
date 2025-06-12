@@ -146,7 +146,7 @@ create_btrfs_swap_subvolume() {
   sudo mount "$btrfs_device" "$temp_mount" || fail "Failed to mount Btrfs root"
 
   if btrfs_subvolume_exists "$SWAP_SUBVOL" "$temp_mount"; then
-    printc yellow "already exists"
+    printc yellow "exists"
   else
     if sudo btrfs subvolume create "$temp_mount/$SWAP_SUBVOL" >/dev/null 2>&1; then
       printc green "OK"
@@ -168,7 +168,7 @@ create_swapfile() {
   mountpoint -q "$SWAP_MOUNT_POINT" || mount_swap_subvolume
 
   if [[ -f "$SWAP_FILE_PATH" ]]; then
-    printc yellow "already exists"
+    printc yellow "exists"
     return 0
   fi
 
@@ -201,7 +201,7 @@ add_to_fstab() {
   printc -n cyan "Adding $description to fstab... "
 
   if grep -q "$entry" /etc/fstab; then
-    printc yellow "already exists"
+    printc yellow "exists"
     return 0
   fi
 
@@ -294,20 +294,6 @@ configure_initramfs() {
   fi
 }
 
-write_system_config() {
-  local config_file="$1"
-  local description="$2"
-  shift 2
-
-  printc -n cyan "Writing $description... "
-
-  if sudo mkdir -p "$(dirname "$config_file")" && sudo tee "$config_file" >/dev/null; then
-    printc green "OK"
-  else
-    fail "FAILED"
-  fi
-}
-
 configure_hibernation_services() {
   write_system_config "/etc/systemd/sleep.conf.d/hibernation.conf" "hibernation config" <<'EOF'
 [Sleep]
@@ -329,6 +315,33 @@ HandleSuspendKey=ignore
 HandleHibernateKey=ignore
 HandleLidSwitch=suspend-then-hibernate
 EOF
+
+  # User suspend service for hyprlock
+  write_system_config "/etc/systemd/system/user-suspend@.service" "user suspend service" <<'EOF'
+[Unit]
+Description=User Suspend Actions
+Before=sleep.target
+
+[Service]
+User=%i
+Type=simple
+Environment=XDG_RUNTIME_DIR="/run/user/$(id -u %i)"
+ExecStart=/usr/bin/hyprlock
+ExecStartPost=/usr/bin/sleep 1
+
+[Install]
+WantedBy=sleep.target
+EOF
+
+  # Enable user suspend service for current user
+  printc -n cyan "Enabling user suspend service... "
+  local current_user
+  current_user=$(logname 2>/dev/null || whoami)
+  if enable_service "user-suspend@${current_user}.service" "system" >/dev/null 2>&1; then
+    printc green "OK"
+  else
+    printc yellow "FAILED"
+  fi
 
   # Configure hibernation image size for systems with more than 16GB RAM
   local ram_gb
