@@ -16,16 +16,17 @@ source "$LIB_DIR/utils.sh"
 # =============================================================================
 # CORE SETUP FUNCTIONS
 # =============================================================================
-
 initialize_environment() {
   if ! has_cmd gum; then
-    sudo pacman -S --noconfirm gum 2>/dev/null || {
+    sudo pacman -S --noconfirm gum &>/dev/null || {
       fail "gum is not installed and could not be installed automatically. Please install it manually."
     }
   fi
 }
 
 run_core_setup() {
+  printc_box "SUDO" "Configuring QOL sudo settings"
+  source "$SCRIPTS_DIR/sudo_config.sh"
   printc_box "PACMAN" "Configuring Pacman"
   source "$SCRIPTS_DIR/pacman_config.sh"
   source "$SCRIPTS_DIR/AUR_helper.sh"
