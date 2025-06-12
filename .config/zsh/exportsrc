@@ -18,7 +18,7 @@ export GNUPGHOME="${XDG_DATA_HOME}/gnupg"
 
 # Defaults:
 export EDITOR="nvim"
-export VISUAL="code"
+export VISUAL="nvim"
 export PAGER="less -R"
 
 # setup git path
