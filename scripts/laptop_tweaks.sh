@@ -7,7 +7,6 @@ readonly SWAP_FILE_PATH="/swap/swapfile"
 readonly MKINIT_CONF="/etc/mkinitcpio.conf"
 readonly TOUCHPAD_RULE_FILE="/etc/udev/rules.d/90-touchpad-access.rules"
 readonly WAKE_DEVICES_RULE_FILE="/etc/udev/rules.d/90-wake-devices.rules"
-readonly MKINIT_HOOKS="HOOKS=(base systemd autodetect microcode modconf kms keyboard sd-vconsole block filesystems)"
 
 # =============================================================================
 # DEPENDENCIES
@@ -242,7 +241,7 @@ configure_limine_hibernation() {
   root_partuuid=$(sudo blkid -s PARTUUID -o value "$btrfs_device") || fail "Failed to get root PARTUUID"
 
   local limine_conf="/etc/default/limine"
-  local kernel_params="root=PARTUUID=$root_partuuid rootfstype=btrfs rootflags=subvol=@ rw resume=$btrfs_device resume_offset=$resume_offset hibernate=lz4"
+  local kernel_params="root=PARTUUID=$root_partuuid rootfstype=btrfs rootflags=subvol=@ rw resume=$btrfs_device resume_offset=$resume_offset hibernate.compressor=lz4 nowatchdog vt.global_cursor_default=0"
 
   if [[ ! -f "$limine_conf" ]]; then
     install_package "limine-mkinitcpio-hook"
@@ -260,13 +259,14 @@ configure_limine_hibernation() {
 
 configure_initramfs() {
   printc -n cyan "Configuring initramfs... "
-
-  if grep -q '^[[:space:]]*HOOKS=.*systemd' "$MKINIT_CONF"; then
-    printc yellow "Exists"
-    return 0
+  # Check if plymouth is installed, if so preserve it
+  local hooks="HOOKS=(systemd autodetect microcode modconf kms keyboard sd-vconsole block"
+  if pacman -Qi plymouth &>/dev/null; then
+    hooks+=" plymouth"
   fi
+  hooks+=" filesystems)"
 
-  if sudo sed -i -E "s/^HOOKS=\(.*\)$/$MKINIT_HOOKS/" "$MKINIT_CONF"; then
+  if sudo sed -i -E "s/^HOOKS=\(.*\)$/$hooks/" "$MKINIT_CONF"; then
     printc green "OK"
   else
     fail "FAILED"
@@ -294,13 +294,30 @@ AllowSuspend=yes
 AllowHibernation=yes
 AllowSuspendThenHibernate=yes
 AllowHybridSleep=yes
-SuspendState=mem freeze disk
+SuspendState=mem disk
 HibernateMode=shutdown
 #MemorySleepMode=
-HibernateDelaySec=1h
-HibernateOnACPower=no
+HibernateDelaySec=30min
+#HibernateOnACPower=no
 #SuspendEstimationSec=60min
 EOF
+
+  write_system_config "/etc/systemd/logind.conf.d/hibernation.conf" "logind hibernation config" <<'EOF'
+[Login]
+HandleSuspendKey=ignore
+HandleHibernateKey=ignore
+HandleLidSwitch=suspend-then-hibernate
+EOF
+
+  # Configure hibernation image size for systems with more than 16GB RAM
+  local ram_gb
+  ram_gb=$(get_ram_size_gb)
+  if [[ $ram_gb -gt 16 ]]; then
+    write_system_config "/etc/tmpfiles.d/hibernation_image_size.conf" "hibernation image size config" <<'EOF'
+#    Path                   Mode UID  GID  Age Argument
+w    /sys/power/image_size  -    -    -    -   0
+EOF
+  fi
 
   # Wake devices rule
   write_system_config "$WAKE_DEVICES_RULE_FILE" "wake devices rule" <<'EOF'
@@ -324,9 +341,6 @@ enable_nvidia_hibernation_services() {
   printc -n cyan "Enabling NVIDIA hibernation services... "
 
   local nvidia_services=(
-    "nvidia-suspend.service"
-    "nvidia-hibernate.service"
-    "nvidia-resume.service"
     "nvidia-suspend-then-hibernate.service"
   )
 
@@ -348,8 +362,11 @@ configure_hibernation_support() {
   configure_hibernation_services
   configure_limine_hibernation
   configure_initramfs
-
   detect_nvidia_gpu && enable_nvidia_hibernation_services
+  regenerate_initramfs
+
+  # fix for suspend-then-hibernate based on https://bbs.archlinux.org/viewtopic.php?id=248616
+  # sudo ln -s /usr/lib/systemd/system/systemd-suspend-then-hibernate.service /etc/systemd/system/systemd-suspend.service
 }
 
 # =============================================================================
