@@ -16,6 +16,10 @@ get_user_choice() {
 # AUR HELPER INSTALLATION FUNCTIONS
 # =============================================================================
 
+has_chaotic_aur() {
+  grep -q "chaotic-aur" /etc/pacman.conf
+}
+
 clone_aur_helper_repository() {
   local temp_dir="$1"
   git clone "https://aur.archlinux.org/$AUR_HELPER.git" "$temp_dir" &>/dev/null || {
@@ -39,18 +43,29 @@ install_aur_helper() {
   if has_cmd "$AUR_HELPER"; then
     printc yellow "$AUR_HELPER is already installed."
     return
-  else
-
-    printc cyan "Installing $AUR_HELPER..."
-    local temp_dir
-    temp_dir=$(mktemp -d) || fail "Failed to create temporary directory."
-
-    clone_aur_helper_repository "$temp_dir"
-    build_and_install_aur_helper "$temp_dir"
-
-    printc green "$AUR_HELPER installed successfully."
-    rm -rf "$temp_dir"
   fi
+
+  # Try installing from Chaotic AUR first if available
+  if has_chaotic_aur; then
+    printc cyan "Installing $AUR_HELPER from Chaotic AUR repository..."
+    if sudo pacman -S --noconfirm "$AUR_HELPER" &>/dev/null; then
+      printc green "$AUR_HELPER installed successfully from repository."
+      return
+    else
+      printc yellow "Failed to install from repository, falling back to manual build."
+    fi
+  fi
+
+  # Fall back to manual build
+  printc cyan "Building $AUR_HELPER from source..."
+  local temp_dir
+  temp_dir=$(mktemp -d) || fail "Failed to create temporary directory."
+
+  clone_aur_helper_repository "$temp_dir"
+  build_and_install_aur_helper "$temp_dir"
+
+  printc green "$AUR_HELPER installed successfully."
+  rm -rf "$temp_dir"
 }
 
 configure_paru() {
