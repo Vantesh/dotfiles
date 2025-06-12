@@ -12,7 +12,6 @@ readonly USER_SERVICES=(
 
 readonly SYSTEM_SERVICES=(
   bluetooth.service
-  paccache.timer
   sddm.service
   ufw.service
 )
