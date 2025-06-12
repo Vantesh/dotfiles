@@ -259,14 +259,35 @@ configure_limine_hibernation() {
 
 configure_initramfs() {
   printc -n cyan "Configuring initramfs... "
-  # Check if plymouth is installed, if so preserve it
-  local hooks="HOOKS=(systemd autodetect microcode modconf kms keyboard sd-vconsole block"
-  if pacman -Qi plymouth &>/dev/null; then
+
+  # Configure NVIDIA modules if NVIDIA GPU is detected
+  if detect_nvidia_gpu; then
+    # Check if NVIDIA modules are already present
+    if ! grep -q "^MODULES=.*nvidia" "$MKINIT_CONF"; then
+      local nvidia_modules="nvidia nvidia_modeset nvidia_uvm nvidia_drm"
+      sudo sed -i -E "s/^MODULES=\(([^)]*)\)/MODULES=(\1 $nvidia_modules)/" "$MKINIT_CONF"
+      # Clean up extra spaces
+      sudo sed -i -E 's/MODULES=\([ ]+/MODULES=(/' "$MKINIT_CONF"
+      sudo sed -i -E 's/[ ]+\)/\)/' "$MKINIT_CONF"
+      sudo sed -i -E 's/[ ]+/ /g' "$MKINIT_CONF"
+    fi
+  fi
+
+  # Update HOOKS - preserve existing hooks and add missing ones
+  local current_hooks
+  current_hooks=$(grep "^HOOKS=" "$MKINIT_CONF" | sed -E 's/^HOOKS=\(([^)]*)\)/\1/')
+
+  # Build new hooks string, preserving existing order
+  local hooks="systemd autodetect microcode modconf kms keyboard sd-vconsole block"
+
+  # Check if plymouth is installed and present in current hooks
+  if pacman -Qi plymouth &>/dev/null && echo "$current_hooks" | grep -q "plymouth"; then
     hooks+=" plymouth"
   fi
-  hooks+=" filesystems)"
 
-  if sudo sed -i -E "s/^HOOKS=\(.*\)$/$hooks/" "$MKINIT_CONF"; then
+  hooks+=" filesystems"
+
+  if sudo sed -i -E "s/^HOOKS=\([^)]*\)/HOOKS=($hooks)/" "$MKINIT_CONF"; then
     printc green "OK"
   else
     fail "FAILED"
@@ -294,9 +315,9 @@ AllowSuspend=yes
 AllowHibernation=yes
 AllowSuspendThenHibernate=yes
 AllowHybridSleep=yes
-SuspendState=mem disk
+#SuspendState=mem disk
 HibernateMode=shutdown
-#MemorySleepMode=
+#MemorySleepMode=deep
 HibernateDelaySec=30min
 #HibernateOnACPower=no
 #SuspendEstimationSec=60min
@@ -342,6 +363,9 @@ enable_nvidia_hibernation_services() {
 
   local nvidia_services=(
     "nvidia-suspend-then-hibernate.service"
+    "nvidia-suspend.service"
+    "nvidia-hibernate.service"
+    "nvidia-resume.service"
   )
 
   local enabled_count=0
