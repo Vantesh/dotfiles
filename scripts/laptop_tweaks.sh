@@ -334,14 +334,9 @@ WantedBy=sleep.target
 EOF
 
   # Enable user suspend service for current user
-  printc -n cyan "Enabling user suspend service... "
   local current_user
   current_user=$(logname 2>/dev/null || whoami)
-  if enable_service "user-suspend@${current_user}.service" "system" >/dev/null 2>&1; then
-    printc green "OK"
-  else
-    printc yellow "FAILED"
-  fi
+  enable_service "user-suspend@${current_user}.service" "system"
 
   # Configure hibernation image size for systems with more than 16GB RAM
   local ram_gb

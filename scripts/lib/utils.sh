@@ -214,8 +214,22 @@ enable_service() {
     prefix=(sudo)
   fi
 
-  # Check if service exists in the scope
-  if "${prefix[@]}" "${cmd[@]}" list-unit-files | grep -q "^$service"; then
+  # Handle template services (services with @)
+  local template_service=""
+  if [[ "$service" == *@*.service ]]; then
+    template_service="${service%@*}@.service"
+  fi
+
+  # Check if service or template exists
+  local service_exists=false
+  if "${prefix[@]}" "${cmd[@]}" list-unit-files | grep -q "^$service" ||
+    [[ -n "$template_service" ]] && "${prefix[@]}" "${cmd[@]}" list-unit-files | grep -q "^$template_service"; then
+    service_exists=true
+  elif [[ -n "$template_service" ]] && [[ -f "/etc/systemd/system/$template_service" || -f "/usr/lib/systemd/system/$template_service" ]]; then
+    service_exists=true
+  fi
+
+  if [[ "$service_exists" == true ]]; then
     # Skip if already enabled
     if "${prefix[@]}" "${cmd[@]}" is-enabled "$service" &>/dev/null; then
       printc "<magenta>[$scope]</magenta> <yellow>$service</yellow> <green>already enabled</green>"
@@ -293,4 +307,18 @@ regenerate_initramfs() {
 
   printc red "FAILED"
   return 1
+}
+
+write_system_config() {
+  local config_file="$1"
+  local description="$2"
+  shift 2
+
+  printc -n cyan "Writing $description... "
+
+  if sudo mkdir -p "$(dirname "$config_file")" && sudo tee "$config_file" >/dev/null; then
+    printc green "OK"
+  else
+    fail "FAILED"
+  fi
 }
