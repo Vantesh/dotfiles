@@ -17,7 +17,7 @@ deps=(
 for dep in "${deps[@]}"; do
   if ! pacman -Qi "$dep" &>/dev/null; then
     printc -n cyan "Installing $dep... "
-    if sudo pacman -S --noconfirm "$dep"; then
+    if sudo pacman -S --noconfirm "$dep" &>/dev/null; then
       printc green "OK"
     else
       fail "FAILED"
@@ -138,7 +138,7 @@ update_mirrorlist() {
 
   # Update mirrorlist using reflector
   printc -n cyan "Generating new mirrorlist... "
-  if sudo reflector --verbose --latest 20 --protocol https --sort rate --save /etc/pacman.d/mirrorlist &>/dev/null; then
+  if sudo reflector --latest 20 --protocol https --sort rate --save /etc/pacman.d/mirrorlist &>/dev/null; then
     printc green "OK"
   else
     printc red "FAILED"
