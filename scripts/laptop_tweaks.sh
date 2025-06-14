@@ -264,21 +264,22 @@ configure_limine_hibernation() {
     return 0
   fi
 
-  # Read existing kernel parameters
+  # Read existing kernel parameters, strip surrounding quotes
   local existing_params
   existing_params=$(grep '^KERNEL_CMDLINE\[default\]' "$limine_conf" | sed 's/^KERNEL_CMDLINE\[default\]=//' | tr -d '"')
 
-  # Define hibernation-specific parameters
-  local hibernation_params="resume=UUID=$btrfs_uuid resume_offset=$resume_offset hibernate.compressor=lz4"
+  # Remove conflicting or duplicate parameters
+  existing_params=$(echo "$existing_params" |
+    sed -E 's/\<(root|resume|resume_offset|hibernate\.compressor|rootfstype|rootflags|quiet|splash)=[^ ]+\>//g' |
+    sed -E 's/\<(quiet|splash)\>//g')
 
-  # Combine existing and new parameters
-  local combined_params
-  if [[ -n "$existing_params" ]]; then
-    combined_params="$existing_params $hibernation_params"
-  else
-    # Fallback kernel parameters if none exist
-    combined_params="root=PARTUUID=$root_partuuid rootfstype=btrfs rootflags=subvol=@ rw $hibernation_params nowatchdog vt.global_cursor_default=0"
-  fi
+  # Define mandatory root and hibernation parameters
+  local root_params="root=PARTUUID=$root_partuuid rootfstype=btrfs rootflags=subvol=@ rw"
+  local hibernation_params="resume=UUID=$btrfs_uuid resume_offset=$resume_offset hibernate.compressor=lz4"
+  local tail_flags="quiet splash"
+
+  # Combine all parts cleanly
+  local combined_params="$root_params $existing_params $hibernation_params $tail_flags"
 
   update_config "$limine_conf" "KERNEL_CMDLINE[default]" "\"$combined_params\""
   printc green "OK"
@@ -305,7 +306,7 @@ configure_initramfs() {
   current_hooks=$(grep "^HOOKS=" "$MKINIT_CONF" | sed -E 's/^HOOKS=\(([^)]*)\)/\1/')
 
   # Build new hooks string, preserving existing order
-  local hooks="systemd autodetect microcode modconf kms keyboard sd-vconsole block"
+  local hooks="base systemd autodetect microcode modconf kms keyboard sd-vconsole block"
 
   # Check if plymouth is installed and present in current hooks
   if pacman -Qi plymouth &>/dev/null && echo "$current_hooks" | grep -q "plymouth"; then
