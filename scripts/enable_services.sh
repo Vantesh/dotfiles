@@ -116,10 +116,54 @@ setup_dns_over_https() {
 }
 
 # =============================================================================
+# PLYMOUTH CONFIGURATION FUNCTIONS
+# =============================================================================
+
+setup_plymouth() {
+  printc cyan "Setting up Plymouth..."
+
+  install_package "plymouth"
+
+  printc -n cyan "Configuring Plymouth hooks... "
+  local mkinitcpio_conf="/etc/mkinitcpio.conf"
+  if ! grep -q "plymouth" "$mkinitcpio_conf"; then
+    if sudo sed -i '/^HOOKS=/ s/\(.*\) filesystems\(.*\)/\1 plymouth filesystems\2/' "$mkinitcpio_conf"; then
+      printc green "OK"
+    else
+      printc red "FAILED"
+      return 1
+    fi
+  else
+    printc yellow "already configured"
+  fi
+
+  # Add quiet flags to /etc/kernel/cmdline if not present
+  local cmdline_file="/etc/kernel/cmdline"
+  local quiet_flags="quiet loglevel=3 splash vt.global_cursor_default=0"
+  if ! grep -qw "quiet" "$cmdline_file"; then
+    local existing_params
+    existing_params=$(cat "$cmdline_file" 2>/dev/null || echo "")
+    local combined_params="$existing_params $quiet_flags"
+    combined_params=$(echo "$combined_params" | sed 's/[ ]\+/ /g' | sed 's/^ *//' | sed 's/ *$//')
+    echo "$combined_params" | sudo tee "$cmdline_file" >/dev/null
+    printc green "Added quiet flags to $cmdline_file"
+  else
+    printc yellow "quiet flags already present in $cmdline_file"
+  fi
+
+  regenerate_initramfs || return 1
+}
+
+# =============================================================================
 # MAIN EXECUTION FUNCTIONS
 # =============================================================================
 
 main() {
+  if confirm "Install and configure Plymouth for boot splash?"; then
+    setup_plymouth
+  else
+    printc yellow "Skipping Plymouth setup."
+  fi
   enable_user_services
   enable_system_services
   enable_ufw_firewall
@@ -129,6 +173,7 @@ main() {
   else
     printc yellow "Skipping DNS over HTTPS setup."
   fi
+
 }
 
 main
