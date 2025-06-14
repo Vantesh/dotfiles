@@ -140,15 +140,16 @@ setup_plymouth() {
   # Add quiet flags to /etc/kernel/cmdline if not present
   local cmdline_file="/etc/kernel/cmdline"
   local quiet_flags="quiet loglevel=3 splash vt.global_cursor_default=0"
+  printc -n cyan "Adding quiet flags to $cmdline_file... "
   if ! grep -qw "quiet" "$cmdline_file"; then
     local existing_params
     existing_params=$(cat "$cmdline_file" 2>/dev/null || echo "")
     local combined_params="$existing_params $quiet_flags"
     combined_params=$(echo "$combined_params" | sed 's/[ ]\+/ /g' | sed 's/^ *//' | sed 's/ *$//')
     echo "$combined_params" | sudo tee "$cmdline_file" >/dev/null
-    printc green "Added quiet flags to $cmdline_file"
+    printc green "OK"
   else
-    printc yellow "quiet flags already present in $cmdline_file"
+    printc yellow "already present"
   fi
 
   regenerate_initramfs || return 1
