@@ -138,11 +138,12 @@ amd_drivers=(
 # NVIDIA-specific drivers
 nvidia_drivers=(
   libva-nvidia-driver
-  linux-zen-headers
-  nvidia-dkms
   nvidia-utils
+
 )
+
 install_gpu_drivers() {
+  # Install base GPU-related packages
   for package in "${base_drivers[@]}"; do
     install_package "$package"
   done
@@ -150,6 +151,7 @@ install_gpu_drivers() {
   local gpu_info
   gpu_info=$(lspci -nn | grep -Ei "VGA compatible controller|3D controller|Display controller")
 
+  # Define vendor -> driver array mappings
   local -A gpu_vendors=(
     ["Intel Corporation"]="intel_drivers[@]"
     ["Advanced Micro Devices"]="amd_drivers[@]"
@@ -161,14 +163,37 @@ install_gpu_drivers() {
   for vendor in "${!gpu_vendors[@]}"; do
     if echo "$gpu_info" | grep -Eiq "$vendor"; then
       gpu_found=true
-      local vendor_name="${vendor%% *}" # Get first word
+      local vendor_name="${vendor%% *}" # Get first word for message
       echo
       printc cyan "$vendor_name GPU detected, installing $vendor_name drivers..."
+
       local driver_array_name="${gpu_vendors[$vendor]}"
+
       case "$driver_array_name" in
-      "intel_drivers[@]") for pkg in "${intel_drivers[@]}"; do install_package "$pkg"; done ;;
-      "amd_drivers[@]") for pkg in "${amd_drivers[@]}"; do install_package "$pkg"; done ;;
-      "nvidia_drivers[@]") for pkg in "${nvidia_drivers[@]}"; do install_package "$pkg"; done ;;
+      "intel_drivers[@]")
+        for pkg in "${intel_drivers[@]}"; do install_package "$pkg"; done
+        ;;
+      "amd_drivers[@]")
+        for pkg in "${amd_drivers[@]}"; do install_package "$pkg"; done
+        ;;
+      "nvidia_drivers[@]")
+        for pkg in "${nvidia_drivers[@]}"; do install_package "$pkg"; done
+
+        # Extract kernel flavor (e.g. zen, lts, etc)
+        local kernel_flavor
+        kernel_flavor=$(uname -r | grep -oP '(?<=-)[^-]+$')
+
+        # Install matching headers
+        if [[ -n "$kernel_flavor" ]] && pacman -Qq "linux-$kernel_flavor-headers" &>/dev/null; then
+          install_package "linux-$kernel_flavor-headers"
+          install_package "nvidia-dkms"
+        elif pacman -Qq "linux-headers" &>/dev/null; then
+          install_package "linux-headers"
+          install_package "nvidia"
+        else
+          printc yellow "⚠️  Could not detect a matching kernel headers package for: $(uname -r)"
+        fi
+        ;;
       esac
     fi
   done
