@@ -67,7 +67,7 @@ setup_limine_config_file() {
 }
 
 configure_limine_settings() {
-  printc -n cyan "Configuring Limine settings... "
+  printc -n cyan "Configuring limine snapper settings... "
   declare -A snapper_config=(
     ["MAX_SNAPSHOT_ENTRIES"]=15
     ["TERMINAL"]="kitty"
@@ -136,59 +136,6 @@ EOF
 }
 
 # =============================================================================
-# PLYMOUTH CONFIGURATION
-# =============================================================================
-
-setup_plymouth() {
-  printc cyan "Setting up Plymouth..."
-
-  install_package "plymouth"
-
-  printc -n cyan "Configuring Plymouth hooks... "
-  local mkinitcpio_conf="/etc/mkinitcpio.conf"
-
-  if ! grep -q "plymouth" "$mkinitcpio_conf"; then
-    if sudo sed -i '/^HOOKS=/ s/\(.*\) filesystems \(.*\)/\1 plymouth filesystems \2/' "$mkinitcpio_conf"; then
-      printc green "OK"
-    else
-      printc red "FAILED"
-      return 1
-    fi
-  else
-    printc yellow "already configured"
-  fi
-
-  regenerate_initramfs || return 1
-}
-
-configure_kernel_parameters() {
-  printc -n cyan "Configuring kernel parameters... "
-
-  if [[ ! -f "$LIMINE_CONFIG_FILE" ]]; then
-    printc yellow "Limine config not found"
-    return 1
-  fi
-
-  # Check if quiet and splash are already present
-  if grep -q "quiet.*splash\|splash.*quiet" "$LIMINE_CONFIG_FILE"; then
-    printc yellow "already configured"
-    return 0
-  fi
-
-  # Get current KERNEL_CMDLINE value and append quiet splash
-  if grep -q "^KERNEL_CMDLINE\[default\]=" "$LIMINE_CONFIG_FILE"; then
-    # Append to existing KERNEL_CMDLINE
-    sudo sed -i '/^KERNEL_CMDLINE\[default\]=/s/"$/ quiet loglevel=3 splash"/' "$LIMINE_CONFIG_FILE" && printc green "OK"
-  elif grep -q "^#KERNEL_CMDLINE\[default\]=" "$LIMINE_CONFIG_FILE"; then
-    # Uncomment and set with quiet splash
-    sudo sed -i 's/^#KERNEL_CMDLINE\[default\]=""/KERNEL_CMDLINE[default]="quiet loglevel=3 splash"/' "$LIMINE_CONFIG_FILE" && printc green "OK"
-  else
-    # Add new KERNEL_CMDLINE entry
-    echo 'KERNEL_CMDLINE[default]="quiet loglevel=3 splash"' | sudo tee -a "$LIMINE_CONFIG_FILE" >/dev/null && printc green "OK"
-  fi
-}
-
-# =============================================================================
 # LIMINE INTERFACE CONFIGURATION
 # =============================================================================
 
@@ -212,7 +159,7 @@ configure_limine_interface() {
     "term_foreground: cdd6f4"
     "term_background_bright: 1e1e2e"
     "term_foreground_bright: cdd6f4"
-    "timeout: 2"
+    "timeout: 1"
     "default_entry: 2"
     "interface_branding: Arch Linux"
 
@@ -262,19 +209,8 @@ main() {
   configure_limine_settings
   configure_snapper_cleanup
   create_updatedb
+  configure_limine_interface
 
-  if confirm "Configure Limine interface settings?"; then
-    configure_limine_interface
-  else
-    printc yellow "Skipping Limine interface configuration."
-  fi
-
-  if confirm "Install and configure Plymouth for boot splash?"; then
-    setup_plymouth
-    configure_kernel_parameters
-  else
-    printc yellow "Skipping Plymouth setup."
-  fi
 }
 
 main
