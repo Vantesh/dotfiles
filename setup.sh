@@ -19,7 +19,7 @@ source "$LIB_DIR/utils.sh"
 initialize_environment() {
   if ! has_cmd gum; then
     sudo pacman -S --noconfirm gum &>/dev/null || {
-      fail "gum is not installed and could not be installed automatically. Please install it manually."
+      fail "Install gum to use this script."
     }
   fi
 }
@@ -59,12 +59,11 @@ setup_zsh() {
 }
 
 setup_limine_bootloader() {
-  echo
-  if confirm "ONLY FOR LIMINE BOOTLOADER. Do you want to continue?"; then
-    printc_box "LIMINE SETUP" "Configuring Limine bootloader and Snapper"
-    source "$SCRIPTS_DIR/limine.sh"
+  if detect_limine_bootloader; then
+    printc_box "LIMINE BOOTLOADER" "Configuring Limine bootloader"
+    source "$SCRIPTS_DIR/limine_setup.sh"
   else
-    printc yellow "Skipping limine bootloader setup."
+    printc yellow "Limine bootloader not detected. Skipping setup."
   fi
 }
 
@@ -78,8 +77,12 @@ setup_laptop_tweaks() {
 }
 
 reboot_system() {
-  printc cyan "Rebooting system to apply changes..."
-  sudo reboot
+  if confirm "Reboot the system to apply changes?"; then
+    sudo reboot
+  else
+    printc yellow "You can reboot later to apply changes."
+  fi
+
 }
 
 # =============================================================================
@@ -94,12 +97,7 @@ main() {
   setup_limine_bootloader
   setup_laptop_tweaks
   configure_services
-
-  if confirm "Reboot system now to apply all changes?"; then
-    reboot_system
-  else
-    printc yellow "Please remember to reboot your system later to apply all changes."
-  fi
+  reboot_system
 }
 
 main
