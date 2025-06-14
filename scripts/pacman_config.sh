@@ -15,14 +15,7 @@ deps=(
 )
 
 for dep in "${deps[@]}"; do
-  if ! pacman -Qi "$dep" &>/dev/null; then
-    printc -n cyan "Installing $dep... "
-    if sudo pacman -S --noconfirm "$dep" &>/dev/null; then
-      printc green "OK"
-    else
-      fail "FAILED"
-    fi
-  fi
+  install_package "$dep"
 done
 # =============================================================================
 # VALIDATION FUNCTIONS
