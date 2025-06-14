@@ -49,7 +49,7 @@ printc_box() {
   gum style \
     --border normal \
     --margin "0" \
-    --padding "1 1" \
+    --padding "0.1 0.1" \
     --border-foreground "#22d3ee" \
     "$(gum style --bold --foreground "#22d3ee" "$title")" \
     "$(gum style --foreground "#f783ac" "$message")"
@@ -117,15 +117,25 @@ detect_limine_bootloader() {
 # PACKAGE MANAGEMENT FUNCTIONS
 # =============================================================================
 
-# Install package using AUR helper
 install_package() {
   local pkg="$1"
+  local installer query_cmd install_cmd
 
-  if "$AUR_HELPER" -Qi "$pkg" &>/dev/null; then
+  if has_cmd "$AUR_HELPER"; then
+    installer="$AUR_HELPER"
+    query_cmd="$installer -Qi"
+    install_cmd="$installer -S --needed --noconfirm"
+  else
+    installer="pacman"
+    query_cmd="pacman -Qi"
+    install_cmd="pacman -S --needed --noconfirm"
+  fi
+
+  if $query_cmd "$pkg" &>/dev/null; then
     printc "<cyan>$pkg</cyan> <green>exists</green>"
     return 0
   else
-    "$AUR_HELPER" -S --needed --noconfirm "$pkg" &>/dev/null &
+    $install_cmd "$pkg" &>/dev/null &
     local pid=$!
 
     spinner "$pid" "$pkg"
