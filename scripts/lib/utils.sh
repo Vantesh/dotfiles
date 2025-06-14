@@ -45,13 +45,15 @@ printc_box() {
   local title="$1"
   local message="$2"
 
+  echo # Blank line at the top
   gum style \
     --border normal \
     --margin "0" \
-    --padding "0.1 0.1" \
+    --padding "1 0.1" \
     --border-foreground "#22d3ee" \
     "$(gum style --bold --foreground "#22d3ee" "$title")" \
     "$(gum style --foreground "#f783ac" "$message")"
+  echo # Blank line at the bottom
 }
 
 # Safe exit with message
@@ -105,6 +107,10 @@ is_laptop() {
   done
   [[ -d /proc/acpi/battery ]] && return 0
   return 1
+}
+
+detect_limine_bootloader() {
+  has_cmd limine-update || [[ -x /usr/bin/limine-update ]]
 }
 
 # =============================================================================
