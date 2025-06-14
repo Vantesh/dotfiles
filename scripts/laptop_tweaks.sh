@@ -30,9 +30,9 @@ install_dependencies() {
 # =============================================================================
 # UTILITY FUNCTIONS
 # =============================================================================
-
 get_ram_size_gb() {
-  awk '/MemTotal/ {print int($2/1024/1024)}' /proc/meminfo
+  # Use awk to round up to the nearest whole GB
+  awk '/MemTotal/ {printf "%d\n", int(($2 + 1024 * 1024 - 1) / (1024 * 1024)) + ((($2 + 1024 * 1024 - 1) % (1024 * 1024)) > 0 ? 1 : 0)}' /proc/meminfo
 }
 
 calculate_swap_size() {
@@ -51,7 +51,6 @@ calculate_swap_size() {
 
   echo "${swap_gb}G"
 }
-
 get_btrfs_root_device() {
   local device
   device=$(findmnt -n -o SOURCE --target / 2>/dev/null)
@@ -64,10 +63,6 @@ is_btrfs() {
 
 detect_nvidia_gpu() {
   lspci -nn | grep -Eiq "NVIDIA Corporation.*(GeForce|RTX|GTX|Quadro)"
-}
-
-detect_limine_bootloader() {
-  has_cmd limine-update || [[ -x /usr/bin/limine-update ]]
 }
 
 btrfs_subvolume_exists() {
@@ -232,7 +227,7 @@ setup_btrfs_swap() {
   uuid=$(sudo blkid -s UUID -o value "$btrfs_device") || fail "Failed to get UUID"
 
   create_btrfs_swap_subvolume
-  add_to_fstab "UUID=$uuid $SWAP_MOUNT_POINT btrfs defaults,noatime,subvol=$SWAP_SUBVOL 0 0" "swap mount"
+  add_to_fstab "UUID=$uuid $SWAP_MOUNT_POINT btrfs defaults,noatime,nodatacow,subvol=$SWAP_SUBVOL 0 0" "swap mount"
   create_swapfile
   activate_swapfile
   add_to_fstab "$SWAP_FILE_PATH none swap defaults 0 0" "swapfile"
@@ -242,47 +237,42 @@ setup_btrfs_swap() {
 # HIBERNATION CONFIGURATION
 # =============================================================================
 
-configure_limine_hibernation() {
-  printc -n cyan "Configuring Limine for hibernation... "
+configure_hibernation_cmdline() {
+  printc -n cyan "Configuring kernel cmdline for hibernation... "
 
-  local btrfs_device resume_offset root_partuuid btrfs_uuid
+  local btrfs_device resume_offset btrfs_uuid
   btrfs_device=$(get_btrfs_root_device) || fail "Failed to detect Btrfs device"
   resume_offset=$(sudo btrfs inspect-internal map-swapfile -r "$SWAP_FILE_PATH") || fail "Failed to get resume offset"
-  root_partuuid=$(sudo blkid -s PARTUUID -o value "$btrfs_device") || fail "Failed to get root PARTUUID"
   btrfs_uuid=$(sudo blkid -s UUID -o value "$btrfs_device") || fail "Failed to get Btrfs UUID"
 
-  local limine_conf="/etc/default/limine"
-
-  if [[ ! -f "$limine_conf" ]]; then
-    install_package "limine-mkinitcpio-hook"
-    sudo cp /etc/limine-entry-tool.conf "$limine_conf"
-  fi
+  local cmdline_file="/etc/kernel/cmdline"
 
   # Check if hibernation parameters are already present
-  if grep -q "resume=" "$limine_conf"; then
-    printc yellow "Exists"
+  if grep -q "resume=" "$cmdline_file"; then
+    printc yellow "exists"
     return 0
   fi
 
-  # Read existing kernel parameters, strip surrounding quotes
+  # Read existing parameters
   local existing_params
-  existing_params=$(grep '^KERNEL_CMDLINE\[default\]' "$limine_conf" | sed 's/^KERNEL_CMDLINE\[default\]=//' | tr -d '"')
+  existing_params=$(cat "$cmdline_file" 2>/dev/null || echo "")
 
-  # Remove conflicting or duplicate parameters
+  # Remove any existing hibernation parameters to avoid conflicts
   existing_params=$(echo "$existing_params" |
-    sed -E 's/\<(root|resume|resume_offset|hibernate\.compressor|rootfstype|rootflags|quiet|splash)=[^ ]+\>//g' |
-    sed -E 's/\<(quiet|splash)\>//g')
+    sed -E 's/\<(resume|resume_offset|hibernate\.compressor)=[^ ]+\>//g')
 
-  # Define mandatory root and hibernation parameters
-  local root_params="root=PARTUUID=$root_partuuid rootfstype=btrfs rootflags=subvol=@ rw"
+  # Add hibernation parameters
   local hibernation_params="resume=UUID=$btrfs_uuid resume_offset=$resume_offset hibernate.compressor=lz4"
-  local tail_flags="quiet splash"
 
-  # Combine all parts cleanly
-  local combined_params="$root_params $existing_params $hibernation_params $tail_flags"
+  # Combine parameters cleanly
+  local combined_params="$existing_params $hibernation_params"
 
-  update_config "$limine_conf" "KERNEL_CMDLINE[default]" "\"$combined_params\""
-  printc green "OK"
+  # Write to cmdline file
+  if echo "$combined_params" | sudo tee "$cmdline_file" >/dev/null; then
+    printc green "OK"
+  else
+    fail "FAILED"
+  fi
 }
 
 configure_initramfs() {
@@ -301,19 +291,8 @@ configure_initramfs() {
     fi
   fi
 
-  # Update HOOKS - preserve existing hooks and add missing ones
-  local current_hooks
-  current_hooks=$(grep "^HOOKS=" "$MKINIT_CONF" | sed -E 's/^HOOKS=\(([^)]*)\)/\1/')
-
   # Build new hooks string, preserving existing order
-  local hooks="base systemd autodetect microcode modconf kms keyboard sd-vconsole block"
-
-  # Check if plymouth is installed and present in current hooks
-  if pacman -Qi plymouth &>/dev/null && echo "$current_hooks" | grep -q "plymouth"; then
-    hooks+=" plymouth"
-  fi
-
-  hooks+=" filesystems"
+  local hooks="base systemd autodetect microcode modconf kms keyboard sd-vconsole block filesystems"
 
   if sudo sed -i -E "s/^HOOKS=\([^)]*\)/HOOKS=($hooks)/" "$MKINIT_CONF"; then
     printc green "OK"
@@ -420,13 +399,11 @@ enable_nvidia_hibernation_services() {
 
 configure_hibernation_support() {
   configure_hibernation_services
-  configure_limine_hibernation
+  configure_hibernation_cmdline
   configure_initramfs
   detect_nvidia_gpu && enable_nvidia_hibernation_services
   regenerate_initramfs
 
-  # fix for suspend-then-hibernate based on https://bbs.archlinux.org/viewtopic.php?id=248616
-  # sudo ln -s /usr/lib/systemd/system/systemd-suspend-then-hibernate.service /etc/systemd/system/systemd-suspend.service
 }
 
 # =============================================================================
@@ -480,16 +457,12 @@ main() {
     update_btrfs_fstab_options
   fi
 
-  if is_btrfs && detect_limine_bootloader && confirm "Setup hibernation?"; then
+  if is_btrfs && confirm "Setup hibernation?"; then
     setup_btrfs_swap
     configure_hibernation_support
   else
     if ! is_btrfs; then
       printc yellow "No Btrfs filesystem detected. Skipping Btrfs setup"
-    elif ! detect_limine_bootloader; then
-      printc yellow "Limine bootloader not detected. Skipping hibernation setup"
-    else
-      printc yellow "Skipping Btrfs swap and hibernation setup."
     fi
   fi
 
