@@ -77,6 +77,8 @@ configure_limine_settings() {
     ["MAX_SNAPSHOT_ENTRIES"]=15
     ["TERMINAL"]="kitty"
     ["TERMINAL_ARG"]="-e"
+    ["SNAPSHOT_FORMAT_CHOICE"]=0
+    ["Quiet_Mode"]="yes"
     ["ENABLE_UKI"]="yes"
   )
 
