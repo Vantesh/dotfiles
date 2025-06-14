@@ -17,13 +17,22 @@ source "$LIB_DIR/utils.sh"
 # CORE SETUP FUNCTIONS
 # =============================================================================
 initialize_environment() {
-  if ! has_cmd gum; then
-    sudo pacman -S --noconfirm gum &>/dev/null || {
-      fail "Install gum to use this script."
-    }
-  fi
-}
+  apps=(
+    "git"
+    "gum"
+  )
+  for app in "${apps[@]}"; do
+    if ! has_cmd "$app"; then
+      printc -n cyan "Initializing environment..."
+      if sudo pacman -S --noconfirm "$app" &>/dev/null; then
+        printc green "OK"
+      else
+        fail "FAILED to install $app"
+      fi
 
+    fi
+  done
+}
 run_core_setup() {
   printc_box "SUDO" "Configuring QOL sudo settings"
   source "$SCRIPTS_DIR/sudo_config.sh"
@@ -61,7 +70,7 @@ setup_zsh() {
 setup_limine_bootloader() {
   if detect_limine_bootloader; then
     printc_box "LIMINE BOOTLOADER" "Configuring Limine bootloader"
-    source "$SCRIPTS_DIR/limine_setup.sh"
+    source "$SCRIPTS_DIR/limine.sh"
   else
     printc yellow "Limine bootloader not detected. Skipping setup."
   fi
