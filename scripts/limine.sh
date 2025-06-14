@@ -59,7 +59,12 @@ setup_limine_config_file() {
     return 1
   fi
 
-  if cat "$LIMINE_ENTRY_TEMPLATE" "$LIMINE_SNAPPER_TEMPLATE" | sudo tee "$LIMINE_CONFIG_FILE" >/dev/null; then
+  if {
+    cat "$LIMINE_ENTRY_TEMPLATE"
+    echo
+    echo
+    cat "$LIMINE_SNAPPER_TEMPLATE"
+  } | sudo tee "$LIMINE_CONFIG_FILE" >/dev/null; then
     printc green "OK"
   else
     fail "FAILED"
