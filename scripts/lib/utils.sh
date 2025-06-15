@@ -76,7 +76,7 @@ spinner() {
 
 # Check if command exists
 has_cmd() {
-  command -v "$1" &>/dev/null
+  [[ -n "$1" ]] && command -v "$1" &>/dev/null
 }
 
 # Confirm action
