@@ -1,0 +1,8 @@
+#50-usb_autosuspend.rules
+
+# Goodix Fingerprint Reader (not used)
+ACTION=="add", SUBSYSTEM=="usb", TEST=="power/control", ATTR{idVendor}=="27c6", ATTR{idProduct}=="5395", ATTR{power/control}="auto"
+
+# Linux Foundation root hubs
+ACTION=="add", SUBSYSTEM=="usb", TEST=="power/control", ATTR{idVendor}=="1d6b", ATTR{idProduct}=="0002", ATTR{power/control}="auto"
+ACTION=="add", SUBSYSTEM=="usb", TEST=="power/control", ATTR{idVendor}=="1d6b", ATTR{idProduct}=="0003", ATTR{power/control}="auto"
