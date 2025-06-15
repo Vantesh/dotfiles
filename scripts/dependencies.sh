@@ -33,10 +33,11 @@ core_packages=(
   xdg-desktop-portal           # Desktop portal
   selectdefaultapplication-git # Tool to change default apps
   yad                          # Yet Another Dialog - GUI for scripts
+  bemoji                       # Emoji picker
 
   #required by vscode and other apps to store keyrings
   gnome-keyring
-  seahorse
+  libgnome-keyring
   libsecret
 
   # Sytem tools
@@ -113,6 +114,7 @@ input_tools=(
 # Base graphics drivers
 base_drivers=(
   mesa
+  mesa-utils
   libva
   libva-utils
   linux-firmware
@@ -139,11 +141,12 @@ amd_drivers=(
 nvidia_drivers=(
   libva-nvidia-driver
   nvidia-utils
+  nvidia-dkms
+  nvidia-settings
 
 )
 
 install_gpu_drivers() {
-  # Install base GPU-related packages
   for package in "${base_drivers[@]}"; do
     install_package "$package"
   done
@@ -151,7 +154,6 @@ install_gpu_drivers() {
   local gpu_info
   gpu_info=$(lspci -nn | grep -Ei "VGA compatible controller|3D controller|Display controller")
 
-  # Define vendor -> driver array mappings
   local -A gpu_vendors=(
     ["Intel Corporation"]="intel_drivers[@]"
     ["Advanced Micro Devices"]="amd_drivers[@]"
@@ -163,7 +165,7 @@ install_gpu_drivers() {
   for vendor in "${!gpu_vendors[@]}"; do
     if echo "$gpu_info" | grep -Eiq "$vendor"; then
       gpu_found=true
-      local vendor_name="${vendor%% *}" # Get first word for message
+      local vendor_name="${vendor%% *}"
       echo
       printc cyan "$vendor_name GPU detected, installing $vendor_name drivers..."
 
@@ -179,19 +181,16 @@ install_gpu_drivers() {
       "nvidia_drivers[@]")
         for pkg in "${nvidia_drivers[@]}"; do install_package "$pkg"; done
 
-        # Extract kernel flavor (e.g. zen, lts, etc)
-        local kernel_flavor
-        kernel_flavor=$(uname -r | grep -oP '(?<=-)[^-]+$')
+        # Check for specific kernel flavors
+        local kernel_version
+        kernel_version=$(uname -r)
 
-        # Install matching headers
-        if [[ -n "$kernel_flavor" ]] && pacman -Qq "linux-$kernel_flavor-headers" &>/dev/null; then
-          install_package "linux-$kernel_flavor-headers"
-          install_package "nvidia-dkms"
-        elif pacman -Qq "linux-headers" &>/dev/null; then
-          install_package "linux-headers"
-          install_package "nvidia"
+        if [[ "$kernel_version" == *"-zen"* ]]; then
+          install_package "linux-zen-headers"
+        elif [[ "$kernel_version" == *"-lts"* ]]; then
+          install_package "linux-lts-headers"
         else
-          printc yellow "⚠️  Could not detect a matching kernel headers package for: $(uname -r)"
+          install_package "linux-headers"
         fi
         ;;
       esac
@@ -208,14 +207,12 @@ install_gpu_drivers() {
 # optionals
 # =======================
 optional=(
-  bemoji
   brave-bin
   zen-browser-bin
   visual-studio-code-bin
   qbittorrent
   vlc
   mpv
-  ark
   btop
   nvtop
   yazi
