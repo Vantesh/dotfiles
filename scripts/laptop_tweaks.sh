@@ -65,12 +65,105 @@ detect_nvidia_gpu() {
   lspci -nn | grep -Eiq "NVIDIA Corporation.*(GeForce|RTX|GTX|Quadro)"
 }
 
+detect_bootloader() {
+  if detect_limine_bootloader; then
+    echo "limine"
+  elif has_cmd grub-mkconfig && [[ -f /etc/default/grub ]]; then
+    echo "grub"
+  else
+    echo "unknown"
+  fi
+}
+
+update_grub_cmdline() {
+  local params="$1"
+  local grub_file="/etc/default/grub"
+
+  printc -n cyan "Updating GRUB configuration... "
+
+  # Read current GRUB_CMDLINE_LINUX_DEFAULT
+  local current_cmdline
+  current_cmdline=$(grep '^GRUB_CMDLINE_LINUX_DEFAULT=' "$grub_file" | sed 's/GRUB_CMDLINE_LINUX_DEFAULT="\(.*\)"/\1/')
+
+  # Add new parameters if not already present
+  local updated_cmdline="$current_cmdline"
+  for param in $params; do
+    if [[ ! "$current_cmdline" =~ $param ]]; then
+      updated_cmdline="$updated_cmdline $param"
+    fi
+  done
+
+  # Clean up extra spaces
+  updated_cmdline=$(echo "$updated_cmdline" | sed 's/[ ]\+/ /g' | sed 's/^ *//' | sed 's/ *$//')
+
+  # Update GRUB configuration
+  if sudo sed -i "s|^GRUB_CMDLINE_LINUX_DEFAULT=.*|GRUB_CMDLINE_LINUX_DEFAULT=\"$updated_cmdline\"|" "$grub_file"; then
+    if sudo grub-mkconfig -o /boot/grub/grub.cfg >/dev/null 2>&1; then
+      printc green "OK"
+    else
+      fail "FAILED to generate GRUB config"
+    fi
+  else
+    fail "FAILED to update GRUB defaults"
+  fi
+}
+
+update_kernel_cmdline() {
+  local params="$1"
+  local bootloader
+  bootloader=$(detect_bootloader)
+
+  case "$bootloader" in
+  "limine")
+    local cmdline_file="/etc/kernel/cmdline"
+    printc -n cyan "Adding parameters to $cmdline_file... "
+
+    local existing_params
+    existing_params=$(cat "$cmdline_file" 2>/dev/null || echo "")
+
+    # Check if any of the new parameters are already present
+    local needs_update=false
+    for param in $params; do
+      if [[ ! "$existing_params" =~ $param ]]; then
+        needs_update=true
+        break
+      fi
+    done
+
+    if [[ "$needs_update" == true ]]; then
+      local combined_params="$existing_params $params"
+      combined_params=$(echo "$combined_params" | sed 's/[ ]\+/ /g' | sed 's/^ *//' | sed 's/ *$//')
+
+      if echo "$combined_params" | sudo tee "$cmdline_file" >/dev/null; then
+        printc green "OK"
+      else
+        fail "FAILED"
+      fi
+    else
+      printc yellow "already present"
+    fi
+    ;;
+  "grub")
+    update_grub_cmdline "$params"
+    ;;
+  *)
+    printc yellow "Unknown bootloader, skipping kernel parameter update"
+    ;;
+  esac
+}
+
 btrfs_subvolume_exists() {
   sudo btrfs subvolume list "$2" | grep -q "path $1$"
 }
 
 is_swapfile_active() {
   sudo swapon --show | grep -q "$SWAP_FILE_PATH"
+}
+
+has_existing_swap_partition() {
+  local swap_devices
+  swap_devices=$(sudo swapon --show --noheadings | awk '{print $1}' | grep -v '^/dev/zram')
+  [[ -n "$swap_devices" ]]
 }
 
 reload_udev_rules() {
@@ -221,6 +314,12 @@ add_to_fstab() {
 setup_btrfs_swap() {
   printc cyan "Setting up Btrfs swap configuration..."
 
+  # Check for existing swap partitions (excluding zram)
+  if has_existing_swap_partition; then
+    printc yellow "Existing swap partition detected. Skipping swap file creation."
+    return 0
+  fi
+
   local btrfs_device
   btrfs_device=$(get_btrfs_root_device) || fail "Failed to detect Btrfs device"
   local uuid
@@ -245,42 +344,47 @@ configure_hibernation_cmdline() {
   resume_offset=$(sudo btrfs inspect-internal map-swapfile -r "$SWAP_FILE_PATH") || fail "Failed to get resume offset"
   btrfs_uuid=$(sudo blkid -s UUID -o value "$btrfs_device") || fail "Failed to get Btrfs UUID"
 
-  local cmdline_file="/etc/kernel/cmdline"
+  local bootloader
+  bootloader=$(detect_bootloader)
 
-  # Check if hibernation parameters are already present
-  if grep -q "resume=" "$cmdline_file"; then
-    printc yellow "exists"
-    return 0
-  fi
+  case "$bootloader" in
+  "limine")
+    local cmdline_file="/etc/kernel/cmdline"
 
-  # Read existing parameters
-  local existing_params
-  existing_params=$(cat "$cmdline_file" 2>/dev/null || echo "")
+    if grep -q "resume=" "$cmdline_file"; then
+      printc yellow "exists"
+      return 0
+    fi
 
-  # Remove any existing hibernation parameters to avoid conflicts
-  existing_params=$(echo "$existing_params" |
-    sed -E 's/\<(resume|resume_offset|hibernate\.compressor)=[^ ]+\>//g')
+    local existing_params
+    existing_params=$(cat "$cmdline_file" 2>/dev/null || echo "")
+    existing_params=$(echo "$existing_params" |
+      sed -E 's/\<(resume|resume_offset|hibernate\.compressor)=[^ ]+\>//g')
 
-  # Add hibernation parameters
-  local hibernation_params="resume=UUID=$btrfs_uuid resume_offset=$resume_offset hibernate.compressor=lz4"
+    local hibernation_params="resume=UUID=$btrfs_uuid resume_offset=$resume_offset hibernate.compressor=lz4"
 
-  # Combine parameters cleanly
-  local combined_params="$existing_params $hibernation_params"
+    local combined_params="$existing_params $hibernation_params"
 
-  # Write to cmdline file
-  if echo "$combined_params" | sudo tee "$cmdline_file" >/dev/null; then
-    printc green "OK"
-  else
-    fail "FAILED"
-  fi
+    if echo "$combined_params" | sudo tee "$cmdline_file" >/dev/null; then
+      printc green "OK"
+    else
+      fail "FAILED"
+    fi
+    ;;
+  "grub")
+    local hibernation_params="resume=UUID=$btrfs_uuid resume_offset=$resume_offset hibernate.compressor=lz4"
+    update_grub_cmdline "$hibernation_params"
+    ;;
+  *)
+    printc yellow "Unknown bootloader detected"
+    ;;
+  esac
 }
 
 configure_initramfs() {
   printc -n cyan "Configuring initramfs... "
 
-  # Configure NVIDIA modules if NVIDIA GPU is detected
   if detect_nvidia_gpu; then
-    # Check if NVIDIA modules are already present
     if ! grep -q "^MODULES=.*nvidia" "$MKINIT_CONF"; then
       local nvidia_modules="nvidia nvidia_modeset nvidia_uvm nvidia_drm"
       sudo sed -i -E "s/^MODULES=\(([^)]*)\)/MODULES=(\1 $nvidia_modules)/" "$MKINIT_CONF"
@@ -291,7 +395,6 @@ configure_initramfs() {
     fi
   fi
 
-  # Build new hooks string, preserving existing order
   local hooks="base systemd autodetect microcode modconf kms keyboard sd-vconsole block filesystems"
 
   if sudo sed -i -E "s/^HOOKS=\([^)]*\)/HOOKS=($hooks)/" "$MKINIT_CONF"; then
@@ -340,7 +443,6 @@ ExecStartPost=/usr/bin/sleep 1
 WantedBy=sleep.target
 EOF
 
-  # Enable user suspend service for current user
   local current_user
   current_user=$(logname 2>/dev/null || whoami)
   enable_service "user-suspend@${current_user}.service" "system"
@@ -452,7 +554,6 @@ main() {
   install_dependencies
   enable_service "upower.service" "system"
 
-  # Update existing Btrfs fstab entries to use noatime
   if is_btrfs; then
     update_btrfs_fstab_options
   fi
