@@ -214,6 +214,20 @@ set_snapper_config_value() {
   fi
 }
 
+write_system_config() {
+  local config_file="$1"
+  local description="$2"
+  shift 2
+
+  printc -n cyan "Writing $description... "
+
+  if sudo mkdir -p "$(dirname "$config_file")" && sudo tee "$config_file" >/dev/null; then
+    printc green "OK"
+  else
+    fail "FAILED"
+  fi
+}
+
 # =============================================================================
 # SYSTEM SERVICE MANAGEMENT FUNCTIONS
 # =============================================================================
@@ -261,6 +275,28 @@ enable_service() {
   fi
 }
 
+disable_service() {
+  local service="$1" scope="$2"
+  local prefix=()
+  local cmd=("systemctl")
+
+  if [[ $scope == "user" ]]; then
+    cmd+=("--user")
+  else
+    prefix=(sudo)
+  fi
+
+  if "${prefix[@]}" "${cmd[@]}" is-enabled "$service" >/dev/null 2>&1; then
+    if "${prefix[@]}" "${cmd[@]}" disable "$service" >/dev/null 2>&1; then
+      printc "<cyan>[$scope]</cyan> <green>Disabled $service</green>"
+    else
+      fail "[$scope] Failed to disable $service"
+    fi
+  else
+    printc "<magenta>[$scope]</magenta> <yellow>$service</yellow> <green>already disabled</green>"
+  fi
+}
+
 # =============================================================================
 # BACKUP AND FILE MANAGEMENT FUNCTIONS
 # =============================================================================
@@ -305,6 +341,10 @@ backup_with_timestamp() {
   fi
 }
 
+# =============================================================================
+# INITRAMFS REGENERATION FUNCTION
+# =============================================================================
+
 # Regenerate initramfs using the appropriate tool
 regenerate_initramfs() {
   printc -n cyan "Regenerating initramfs... "
@@ -325,19 +365,5 @@ regenerate_initramfs() {
     fi
   else
     fail "No initramfs tool found."
-  fi
-}
-
-write_system_config() {
-  local config_file="$1"
-  local description="$2"
-  shift 2
-
-  printc -n cyan "Writing $description... "
-
-  if sudo mkdir -p "$(dirname "$config_file")" && sudo tee "$config_file" >/dev/null; then
-    printc green "OK"
-  else
-    fail "FAILED"
   fi
 }
