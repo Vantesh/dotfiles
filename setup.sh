@@ -51,7 +51,7 @@ run_core_setup() {
 
 configure_services() {
   printc_box "SYSTEM CONFIGURATION" "Configuring system settings and services"
-  source "$SCRIPTS_DIR/enable_services.sh"
+  source "$SCRIPTS_DIR/services.sh"
 }
 
 # =============================================================================
@@ -80,6 +80,14 @@ setup_laptop_tweaks() {
   if is_laptop; then
     printc_box "LAPTOP TWEAKS" "Applying laptop-specific tweaks"
     source "$SCRIPTS_DIR/laptop_tweaks.sh"
+    if confirm "Apply udev rules? (ONLY FOR PRECISION 5530)"; then
+      printc -n cyan "Applying udev rules...."
+      if sudo cp "$SCRIPTS_DIR/udev/rules.d/"*.rules /etc/udev/rules.d/ && reload_udev_rules &>/dev/null; then
+        printc green "OK"
+      else
+        fail "FAILED to apply udev rules."
+      fi
+    fi
   else
     printc yellow "Skipping laptop tweaks."
   fi
