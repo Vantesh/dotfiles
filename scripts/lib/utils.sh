@@ -116,28 +116,26 @@ detect_limine_bootloader() {
 # =============================================================================
 # PACKAGE MANAGEMENT FUNCTIONS
 # =============================================================================
-
 install_package() {
   local pkg="$1"
   local installer query_cmd install_cmd
 
-  if has_cmd "$AUR_HELPER"; then
+  if [[ -n "${AUR_HELPER:-}" ]] && command -v "$AUR_HELPER" &>/dev/null; then
     installer="$AUR_HELPER"
-    query_cmd="$installer -Qi"
-    install_cmd="$installer -S --needed --noconfirm"
+    query_cmd=("$installer" "-Qi")
+    install_cmd=("$installer" "-S" "--needed" "--noconfirm")
   else
     installer="pacman"
-    query_cmd="pacman -Qi"
-    install_cmd="pacman -S --needed --noconfirm"
+    query_cmd=("sudo" "$installer" "-Qi")
+    install_cmd=("sudo" "$installer" "-S" "--needed" "--noconfirm")
   fi
 
-  if $query_cmd "$pkg" &>/dev/null; then
+  if "${query_cmd[@]}" "$pkg" &>/dev/null; then
     printc "<cyan>$pkg</cyan> <green>exists</green>"
     return 0
   else
-    $install_cmd "$pkg" &>/dev/null &
+    "${install_cmd[@]}" "$pkg" &>/dev/null &
     local pid=$!
-
     spinner "$pid" "$pkg"
     wait "$pid"
     local status=$?
