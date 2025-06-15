@@ -86,7 +86,7 @@ setup_chaotic_aur() {
 
   # Update package databases
   printc -n cyan "Updating package databases... "
-  if sudo pacman -Sy --noconfirm &>/dev/null; then
+  if sudo pacman -Syy --noconfirm &>/dev/null; then
     printc green "OK"
   else
     printc red "FAILED"
