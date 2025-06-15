@@ -110,7 +110,7 @@ is_laptop() {
 }
 
 detect_limine_bootloader() {
-  has_cmd limine-update || [[ -x /usr/bin/limine-update ]]
+  has_cmd limine || [[ -x /usr/bin/limine ]]
 }
 
 # =============================================================================
@@ -313,16 +313,19 @@ regenerate_initramfs() {
     if sudo limine-update &>/dev/null; then
       printc green "OK"
       return 0
+    else
+      fail "limine-update failed"
     fi
   elif has_cmd mkinitcpio; then
     if sudo mkinitcpio -P &>/dev/null; then
       printc green "OK"
       return 0
+    else
+      fail "mkinitcpio failed"
     fi
+  else
+    fail "No initramfs tool found."
   fi
-
-  printc red "FAILED"
-  return 1
 }
 
 write_system_config() {
