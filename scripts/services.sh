@@ -44,6 +44,12 @@ enable_ufw_firewall() {
   fi
 }
 
+services_to_disable=(
+  NetworkManager-wait-online.service
+)
+for service in "${services_to_disable[@]}"; do
+  disable_service "$service" "system"
+done
 # =============================================================================
 # DNS CONFIGURATION FUNCTIONS
 # =============================================================================
