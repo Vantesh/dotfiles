@@ -1,5 +1,17 @@
 #!/bin/bash
 
+# Source bootloader detection functions
+# shellcheck disable=SC1091
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BOOTLOADER_SCRIPT="$SCRIPT_DIR/bootloader.sh"
+
+if [[ -f "$BOOTLOADER_SCRIPT" ]]; then
+  # shellcheck source=./bootloader.sh
+  source "$BOOTLOADER_SCRIPT"
+else
+  fail "Bootloader script not found: $BOOTLOADER_SCRIPT"
+fi
+
 # =============================================================================
 # CONFIGURATION ARRAYS
 # =============================================================================
@@ -161,44 +173,6 @@ setup_dns_over_https() {
 # PLYMOUTH CONFIGURATION FUNCTIONS
 # =============================================================================
 
-detect_bootloader() {
-  if detect_limine_bootloader; then
-    echo "limine"
-  elif has_cmd grub-mkconfig && [[ -f /etc/default/grub ]]; then
-    echo "grub"
-  else
-    echo "unknown"
-  fi
-}
-
-update_grub_cmdline() {
-  local params="$1"
-  local grub_file="/etc/default/grub"
-
-  printc -n cyan "Updating GRUB configuration... "
-  local current_cmdline
-  current_cmdline=$(grep '^GRUB_CMDLINE_LINUX_DEFAULT=' "$grub_file" | sed 's/GRUB_CMDLINE_LINUX_DEFAULT="\(.*\)"/\1/')
-
-  local updated_cmdline="$current_cmdline"
-  for param in $params; do
-    if [[ ! "$current_cmdline" =~ $param ]]; then
-      updated_cmdline="$updated_cmdline $param"
-    fi
-  done
-
-  updated_cmdline=$(echo "$updated_cmdline" | sed 's/[ ]\+/ /g' | sed 's/^ *//' | sed 's/ *$//')
-
-  if sudo sed -i "s|^GRUB_CMDLINE_LINUX_DEFAULT=.*|GRUB_CMDLINE_LINUX_DEFAULT=\"$updated_cmdline\"|" "$grub_file"; then
-    if sudo grub-mkconfig -o /boot/grub/grub.cfg >/dev/null 2>&1; then
-      printc green "OK"
-    else
-      fail "FAILED to generate GRUB config"
-    fi
-  else
-    fail "FAILED to update GRUB defaults"
-  fi
-}
-
 setup_plymouth() {
   printc cyan "Setting up Plymouth..."
 
@@ -219,32 +193,7 @@ setup_plymouth() {
 
   # Add quiet flags based on bootloader
   local quiet_flags="quiet loglevel=3 splash vt.global_cursor_default=0 nowatchdog"
-  local bootloader
-  bootloader=$(detect_bootloader)
-
-  case "$bootloader" in
-  "limine")
-    local cmdline_file="/etc/kernel/cmdline"
-    printc -n cyan "Adding quiet flags to $cmdline_file... "
-    if ! grep -qw "quiet" "$cmdline_file"; then
-      local existing_params
-      existing_params=$(cat "$cmdline_file" 2>/dev/null || echo "")
-      local combined_params="$existing_params $quiet_flags"
-      combined_params=$(echo "$combined_params" | sed 's/[ ]\+/ /g' | sed 's/^ *//' | sed 's/ *$//')
-      echo "$combined_params" | sudo tee "$cmdline_file" >/dev/null
-      printc green "OK"
-    else
-      printc yellow "already present"
-    fi
-    ;;
-  "grub")
-    update_grub_cmdline "$quiet_flags"
-    ;;
-  *)
-    printc yellow "Unknown bootloader, skipping kernel parameter update"
-    ;;
-  esac
-
+  update_kernel_cmdline "$quiet_flags"
   regenerate_initramfs || return 1
 }
 
