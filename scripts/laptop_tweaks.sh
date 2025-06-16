@@ -42,14 +42,12 @@ calculate_swap_size() {
   local ram_gb
   ram_gb=$(get_ram_size_gb)
 
-  # Calculate square root of RAM size using awk for floating point math
   local sqrt_ram
   sqrt_ram=$(awk "BEGIN {printf \"%.0f\", sqrt($ram_gb)}")
 
-  # Swap = RAM + √RAM
+  # Swap = RAM + √RAM (Ubuntu recommendation)
   local swap_gb=$((ram_gb + sqrt_ram))
 
-  # Ensure minimum of 1GB
   [[ $swap_gb -lt 1 ]] && swap_gb=1
 
   echo "${swap_gb}G"
@@ -262,11 +260,10 @@ configure_hibernation_cmdline() {
   local resume_uuid hibernation_params
 
   if has_existing_swap_partition; then
-    # Use swap partition UUID
     resume_uuid=$(get_swap_device_uuid) || fail "Failed to get swap partition UUID"
     hibernation_params="resume=UUID=$resume_uuid hibernate.compressor=lz4"
   else
-    # Use Btrfs device UUID and add resume_offset for swap file
+
     local btrfs_device resume_offset
     btrfs_device=$(get_btrfs_root_device) || fail "Failed to detect Btrfs device"
     resume_uuid=$(sudo blkid -s UUID -o value "$btrfs_device") || fail "Failed to get Btrfs UUID"
@@ -274,7 +271,6 @@ configure_hibernation_cmdline() {
     hibernation_params="resume=UUID=$resume_uuid resume_offset=$resume_offset hibernate.compressor=lz4"
   fi
 
-  # Use the function from bootloader.sh
   update_kernel_cmdline "$hibernation_params"
 }
 
@@ -299,7 +295,7 @@ AllowSuspendThenHibernate=yes
 AllowHybridSleep=yes
 #SuspendState=mem disk
 HibernateMode=shutdown
-#MemorySleepMode=deep
+MemorySleepMode=deep
 HibernateDelaySec=30min
 #HibernateOnACPower=no
 #SuspendEstimationSec=60min
