@@ -17,21 +17,42 @@ source "$LIB_DIR/utils.sh"
 # CORE SETUP FUNCTIONS
 # =============================================================================
 initialize_environment() {
+  printc -n cyan "Installing required applications..."
   apps=(
     "git"
     "gum"
   )
+
+  missing_apps=()
   for app in "${apps[@]}"; do
     if ! has_cmd "$app"; then
-      printc -n cyan "Initializing environment..."
-      if sudo pacman -S --noconfirm "$app" &>/dev/null; then
-        printc green "OK"
-      else
-        fail "FAILED to install $app"
-      fi
-
+      missing_apps+=("$app")
     fi
   done
+
+  if [ ${#missing_apps[@]} -gt 0 ]; then
+    if sudo pacman -S --noconfirm "${missing_apps[@]}" &>/dev/null; then
+      printc green "OK"
+    else
+      fail "FAILED to install required applications"
+    fi
+  else
+    printc green "Already installed"
+  fi
+
+  # Check if running on TTY and configure console font
+  if [[ $(tty) =~ ^/dev/tty[0-9]+$ ]]; then
+    printc -n cyan "Installing and setting TTY console font..."
+    if sudo pacman -S --noconfirm terminus-font &>/dev/null; then
+      if sudo setfont ter-124b &>/dev/null; then
+        printc green "OK"
+      else
+        printc yellow "Font installed but failed to set ter-124b"
+      fi
+    else
+      printc yellow "Failed to install terminus-font"
+    fi
+  fi
 }
 run_core_setup() {
   printc_box "SUDO" "Configuring QOL sudo settings"
@@ -82,7 +103,7 @@ setup_laptop_tweaks() {
     source "$SCRIPTS_DIR/laptop_tweaks.sh"
     if confirm "Apply udev rules? (ONLY FOR PRECISION 5530)"; then
       printc -n cyan "Applying udev rules...."
-      if sudo cp "$SCRIPTS_DIR/udev/rules.d/"*.rules /etc/udev/rules.d/ && reload_udev_rules &>/dev/null; then
+      if sudo cp "$BASE_DIR/udev/rules.d/"*.rules /etc/udev/rules.d/ && reload_udev_rules &>/dev/null; then
         printc green "OK"
       else
         fail "FAILED to apply udev rules."
