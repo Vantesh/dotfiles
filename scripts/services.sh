@@ -191,8 +191,7 @@ setup_plymouth() {
     printc yellow "already configured"
   fi
 
-  # Add quiet flags based on bootloader
-  local quiet_flags="quiet loglevel=3 splash vt.global_cursor_default=0 nowatchdog"
+  local quiet_flags="quiet loglevel=3 splash vt.global_cursor_default=0 nowatchdog rd.udev.log_level=3"
   update_kernel_cmdline "$quiet_flags"
   regenerate_initramfs || return 1
 }
