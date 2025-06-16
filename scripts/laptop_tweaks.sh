@@ -116,38 +116,31 @@ update_kernel_cmdline() {
   case "$bootloader" in
   "limine")
     local cmdline_file="/etc/kernel/cmdline"
-    printc -n cyan "Adding parameters to $cmdline_file... "
+    printc -n cyan "Updating kernel cmdline... "
+
+    if grep -q "resume=" "$cmdline_file"; then
+      printc yellow "exists"
+      return 0
+    fi
 
     local existing_params
     existing_params=$(cat "$cmdline_file" 2>/dev/null || echo "")
+    existing_params=$(echo "$existing_params" |
+      sed -E 's/\<(resume|resume_offset|hibernate\.compressor)=[^ ]+\>//g')
 
-    # Check if any of the new parameters are already present
-    local needs_update=false
-    for param in $params; do
-      if [[ ! "$existing_params" =~ $param ]]; then
-        needs_update=true
-        break
-      fi
-    done
+    local combined_params="$existing_params $hibernation_params"
 
-    if [[ "$needs_update" == true ]]; then
-      local combined_params="$existing_params $params"
-      combined_params=$(echo "$combined_params" | sed 's/[ ]\+/ /g' | sed 's/^ *//' | sed 's/ *$//')
-
-      if echo "$combined_params" | sudo tee "$cmdline_file" >/dev/null; then
-        printc green "OK"
-      else
-        fail "FAILED"
-      fi
+    if echo "$combined_params" | sudo tee "$cmdline_file" >/dev/null; then
+      printc green "OK"
     else
-      printc yellow "already present"
+      fail "FAILED"
     fi
     ;;
   "grub")
     update_grub_cmdline "$params"
     ;;
   *)
-    printc yellow "Unknown bootloader, skipping kernel parameter update"
+    printc yellow "Only supported for Limine or GRUB bootloaders. Skipping kernel cmdline update."
     ;;
   esac
 }
@@ -164,6 +157,12 @@ has_existing_swap_partition() {
   local swap_devices
   swap_devices=$(sudo swapon --show --noheadings | awk '{print $1}' | grep -v '^/dev/zram')
   [[ -n "$swap_devices" ]]
+}
+
+get_swap_device_uuid() {
+  local swap_device
+  swap_device=$(sudo swapon --show --noheadings | awk '{print $1}' | grep -v '^/dev/zram' | head -n1)
+  [[ -n "$swap_device" ]] && sudo blkid -s UUID -o value "$swap_device"
 }
 
 reload_udev_rules() {
@@ -337,12 +336,21 @@ setup_btrfs_swap() {
 # =============================================================================
 
 configure_hibernation_cmdline() {
-  printc -n cyan "Configuring kernel cmdline for hibernation... "
 
-  local btrfs_device resume_offset btrfs_uuid
-  btrfs_device=$(get_btrfs_root_device) || fail "Failed to detect Btrfs device"
-  resume_offset=$(sudo btrfs inspect-internal map-swapfile -r "$SWAP_FILE_PATH") || fail "Failed to get resume offset"
-  btrfs_uuid=$(sudo blkid -s UUID -o value "$btrfs_device") || fail "Failed to get Btrfs UUID"
+  local resume_uuid hibernation_params
+
+  if has_existing_swap_partition; then
+    # Use swap partition UUID
+    resume_uuid=$(get_swap_device_uuid) || fail "Failed to get swap partition UUID"
+    hibernation_params="resume=UUID=$resume_uuid hibernate.compressor=lz4"
+  else
+    # Use Btrfs device UUID and add resume_offset for swap file
+    local btrfs_device resume_offset
+    btrfs_device=$(get_btrfs_root_device) || fail "Failed to detect Btrfs device"
+    resume_uuid=$(sudo blkid -s UUID -o value "$btrfs_device") || fail "Failed to get Btrfs UUID"
+    resume_offset=$(sudo btrfs inspect-internal map-swapfile -r "$SWAP_FILE_PATH") || fail "Failed to get resume offset"
+    hibernation_params="resume=UUID=$resume_uuid resume_offset=$resume_offset hibernate.compressor=lz4"
+  fi
 
   local bootloader
   bootloader=$(detect_bootloader)
@@ -350,6 +358,7 @@ configure_hibernation_cmdline() {
   case "$bootloader" in
   "limine")
     local cmdline_file="/etc/kernel/cmdline"
+    printc -n cyan "  Updating kernel cmdline... "
 
     if grep -q "resume=" "$cmdline_file"; then
       printc yellow "exists"
@@ -361,8 +370,6 @@ configure_hibernation_cmdline() {
     existing_params=$(echo "$existing_params" |
       sed -E 's/\<(resume|resume_offset|hibernate\.compressor)=[^ ]+\>//g')
 
-    local hibernation_params="resume=UUID=$btrfs_uuid resume_offset=$resume_offset hibernate.compressor=lz4"
-
     local combined_params="$existing_params $hibernation_params"
 
     if echo "$combined_params" | sudo tee "$cmdline_file" >/dev/null; then
@@ -372,11 +379,10 @@ configure_hibernation_cmdline() {
     fi
     ;;
   "grub")
-    local hibernation_params="resume=UUID=$btrfs_uuid resume_offset=$resume_offset hibernate.compressor=lz4"
     update_grub_cmdline "$hibernation_params"
     ;;
   *)
-    printc yellow "Unknown bootloader detected"
+    printc yellow "  Unknown bootloader detected"
     ;;
   esac
 }
@@ -464,14 +470,16 @@ ACTION=="change", SUBSYSTEM=="power_supply", KERNEL=="AC", ENV{POWER_SUPPLY_ONLI
 EOF
   reload_udev_rules >/dev/null 2>&1
 
-  # Set resume offset
-  printc -n cyan "Setting resume offset... "
-  local resume_offset
-  if resume_offset=$(sudo btrfs inspect-internal map-swapfile -r "$SWAP_FILE_PATH") &&
-    echo "$resume_offset" | sudo tee /sys/power/resume_offset >/dev/null; then
-    printc green "OK"
-  else
-    fail "FAILED"
+  # Set resume offset only if using swap file (not swap partition)
+  if ! has_existing_swap_partition; then
+    printc -n cyan "Setting resume offset... "
+    local resume_offset
+    if resume_offset=$(sudo btrfs inspect-internal map-swapfile -r "$SWAP_FILE_PATH") &&
+      echo "$resume_offset" | sudo tee /sys/power/resume_offset >/dev/null; then
+      printc green "OK"
+    else
+      fail "FAILED"
+    fi
   fi
 }
 
