@@ -107,6 +107,7 @@ enable_snapper_services() {
   elif [[ "$BOOTLOADER" == "grub" ]]; then
     # Only enable snapper cleanup for GRUB, not limine-snapper-sync
     enable_service "snapper-cleanup.timer" "system"
+    enable_service "grub-btrfsd.service" "system"
   fi
 }
 
@@ -168,17 +169,6 @@ configure_limine_settings() {
 # =============================================================================
 # GRUB CONFIGURATION
 # =============================================================================
-
-configure_grub_btrfs() {
-  printc -n cyan "Configuring GRUB BTRFS... "
-
-  # Enable grub-btrfs service for automatic snapshot detection
-  if enable_service "grub-btrfsd.service" "system"; then
-    printc green "OK"
-  else
-    fail "FAILED to enable grub-btrfsd service"
-  fi
-}
 
 update_grub_config() {
   printc -n cyan "Updating GRUB configuration... "
