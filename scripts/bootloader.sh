@@ -94,7 +94,7 @@ update_kernel_cmdline() {
 }
 
 # =============================================================================
-# LIMINE INTERFACE CONFIGURATION
+# LIMINE THEMING
 # =============================================================================
 
 configure_limine_interface() {
@@ -154,3 +154,59 @@ configure_limine_interface() {
     return 1
   fi
 }
+
+# =============================================================================
+# GRUB THEMING
+# =============================================================================
+
+install_grub_theme() {
+  local git_url="https://github.com/semimqmo/sekiro_grub_theme"
+  temp_folder=$(mktemp -d)
+  printc -n cyan "Cloning GRUB theme... "
+  if git clone "$git_url" "$temp_folder" >/dev/null 2>&1; then
+    printc green "OK"
+  else
+    fail "FAILED to clone GRUB theme repository"
+
+  fi
+  printc -n cyan "Installing GRUB theme... "
+  if cd "$temp_folder" && sudo ./install.sh >/dev/null 2>&1; then
+    printc green "OK"
+  else
+    fail "FAILED to install GRUB theme"
+  fi
+
+}
+
+edit_grub_config() {
+  local grub_file="/etc/default/grub"
+  declare -A grub_config=(
+    ["GRUB_TIMEOUT"]="2"
+    ["GRUB_DEFAULT"]="0"
+  )
+  success=true
+  printc -n cyan "Editing GRUB configuration... "
+  for key in "${!grub_config[@]}"; do
+    if ! update_config "$grub_file" "$key" "${grub_config[$key]}"; then
+      success=false
+      break
+    fi
+  done
+  if [[ "$success" == true ]]; then
+    printc green "OK"
+  else
+    fail "FAILED"
+  fi
+
+}
+
+if [[ "$(detect_bootloader)" == "limine" ]]; then
+
+  configure_limine_interface
+elif [[ "$(detect_bootloader)" == "grub" ]]; then
+  ensure_sudo
+  install_grub_theme
+  edit_grub_config
+else
+  printc yellow "No supported bootloader detected, skipping theming setup"
+fi
