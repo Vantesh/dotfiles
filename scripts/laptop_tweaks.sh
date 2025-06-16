@@ -390,17 +390,6 @@ configure_hibernation_cmdline() {
 configure_initramfs() {
   printc -n cyan "Configuring initramfs... "
 
-  if detect_nvidia_gpu; then
-    if ! grep -q "^MODULES=.*nvidia" "$MKINIT_CONF"; then
-      local nvidia_modules="nvidia nvidia_modeset nvidia_uvm nvidia_drm"
-      sudo sed -i -E "s/^MODULES=\(([^)]*)\)/MODULES=(\1 $nvidia_modules)/" "$MKINIT_CONF"
-
-      sudo sed -i -E 's/MODULES=\([ ]+/MODULES=(/' "$MKINIT_CONF"
-      sudo sed -i -E 's/[ ]+\)/\)/' "$MKINIT_CONF"
-      sudo sed -i -E 's/[ ]+/ /g' "$MKINIT_CONF"
-    fi
-  fi
-
   local hooks="base systemd autodetect microcode modconf kms keyboard sd-vconsole block filesystems"
 
   if sudo sed -i -E "s/^HOOKS=\([^)]*\)/HOOKS=($hooks)/" "$MKINIT_CONF"; then
