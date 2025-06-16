@@ -4,6 +4,7 @@
 # CORE COMPONENTS
 # =======================
 core_packages=(
+  xdg-utils-mimeo  # xdg-utils
   hyprland          # Wayland compositor
   uwsm              # Universal Wayland Session Manager
   rofi-wayland      # Wayland launcher
@@ -30,8 +31,7 @@ core_packages=(
   xdg-desktop-portal-hyprland  # Desktop portal for Hyprland
   archlinux-xdg-menu           # Arch Linux menu integration
   xdg-user-dirs                # User directories
-  xdg-autostart                # XDG autostart support
-  xdg-utils-mimeo              # XDG utilities
+  xdg-autostart                # XDG autostart
   selectdefaultapplication-git # Tool to change default apps
   yad                          # Yet Another Dialog - GUI for scripts
   bemoji                       # Emoji picker
