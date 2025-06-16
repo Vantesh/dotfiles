@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# shellcheck disable=SC1091
+source "$(dirname "${BASH_SOURCE[0]}")/bootloader.sh"
+
 # Constants
 readonly SWAP_SUBVOL="@swap"
 readonly SWAP_MOUNT_POINT="/swap"
@@ -63,86 +66,6 @@ is_btrfs() {
 
 detect_nvidia_gpu() {
   lspci -nn | grep -Eiq "NVIDIA Corporation.*(GeForce|RTX|GTX|Quadro)"
-}
-
-detect_bootloader() {
-  if detect_limine_bootloader; then
-    echo "limine"
-  elif has_cmd grub-mkconfig && [[ -f /etc/default/grub ]]; then
-    echo "grub"
-  else
-    echo "unknown"
-  fi
-}
-
-update_grub_cmdline() {
-  local params="$1"
-  local grub_file="/etc/default/grub"
-
-  printc -n cyan "Updating GRUB configuration... "
-
-  # Read current GRUB_CMDLINE_LINUX_DEFAULT
-  local current_cmdline
-  current_cmdline=$(grep '^GRUB_CMDLINE_LINUX_DEFAULT=' "$grub_file" | sed 's/GRUB_CMDLINE_LINUX_DEFAULT="\(.*\)"/\1/')
-
-  # Add new parameters if not already present
-  local updated_cmdline="$current_cmdline"
-  for param in $params; do
-    if [[ ! "$current_cmdline" =~ $param ]]; then
-      updated_cmdline="$updated_cmdline $param"
-    fi
-  done
-
-  # Clean up extra spaces
-  updated_cmdline=$(echo "$updated_cmdline" | sed 's/[ ]\+/ /g' | sed 's/^ *//' | sed 's/ *$//')
-
-  # Update GRUB configuration
-  if sudo sed -i "s|^GRUB_CMDLINE_LINUX_DEFAULT=.*|GRUB_CMDLINE_LINUX_DEFAULT=\"$updated_cmdline\"|" "$grub_file"; then
-    if sudo grub-mkconfig -o /boot/grub/grub.cfg >/dev/null 2>&1; then
-      printc green "OK"
-    else
-      fail "FAILED to generate GRUB config"
-    fi
-  else
-    fail "FAILED to update GRUB defaults"
-  fi
-}
-
-update_kernel_cmdline() {
-  local params="$1"
-  local bootloader
-  bootloader=$(detect_bootloader)
-
-  case "$bootloader" in
-  "limine")
-    local cmdline_file="/etc/kernel/cmdline"
-    printc -n cyan "Updating kernel cmdline... "
-
-    if grep -q "resume=" "$cmdline_file"; then
-      printc yellow "exists"
-      return 0
-    fi
-
-    local existing_params
-    existing_params=$(cat "$cmdline_file" 2>/dev/null || echo "")
-    existing_params=$(echo "$existing_params" |
-      sed -E 's/\<(resume|resume_offset|hibernate\.compressor)=[^ ]+\>//g')
-
-    local combined_params="$existing_params $hibernation_params"
-
-    if echo "$combined_params" | sudo tee "$cmdline_file" >/dev/null; then
-      printc green "OK"
-    else
-      fail "FAILED"
-    fi
-    ;;
-  "grub")
-    update_grub_cmdline "$params"
-    ;;
-  *)
-    printc yellow "Only supported for Limine or GRUB bootloaders. Skipping kernel cmdline update."
-    ;;
-  esac
 }
 
 btrfs_subvolume_exists() {
@@ -336,7 +259,6 @@ setup_btrfs_swap() {
 # =============================================================================
 
 configure_hibernation_cmdline() {
-
   local resume_uuid hibernation_params
 
   if has_existing_swap_partition; then
@@ -352,39 +274,8 @@ configure_hibernation_cmdline() {
     hibernation_params="resume=UUID=$resume_uuid resume_offset=$resume_offset hibernate.compressor=lz4"
   fi
 
-  local bootloader
-  bootloader=$(detect_bootloader)
-
-  case "$bootloader" in
-  "limine")
-    local cmdline_file="/etc/kernel/cmdline"
-    printc -n cyan "Updating kernel cmdline... "
-
-    if grep -q "resume=" "$cmdline_file"; then
-      printc yellow "exists"
-      return 0
-    fi
-
-    local existing_params
-    existing_params=$(cat "$cmdline_file" 2>/dev/null || echo "")
-    existing_params=$(echo "$existing_params" |
-      sed -E 's/\<(resume|resume_offset|hibernate\.compressor)=[^ ]+\>//g')
-
-    local combined_params="$existing_params $hibernation_params"
-
-    if echo "$combined_params" | sudo tee "$cmdline_file" >/dev/null; then
-      printc green "OK"
-    else
-      fail "FAILED"
-    fi
-    ;;
-  "grub")
-    update_grub_cmdline "$hibernation_params"
-    ;;
-  *)
-    printc yellow "Only supported for Limine or GRUB bootloaders. Skipping kernel cmdline update."
-    ;;
-  esac
+  # Use the function from bootloader.sh
+  update_kernel_cmdline "$hibernation_params"
 }
 
 configure_initramfs() {
