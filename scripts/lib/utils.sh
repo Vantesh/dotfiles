@@ -109,10 +109,6 @@ is_laptop() {
   return 1
 }
 
-detect_limine_bootloader() {
-  has_cmd limine || [[ -x /usr/bin/limine ]]
-}
-
 # =============================================================================
 # PACKAGE MANAGEMENT FUNCTIONS
 # =============================================================================
