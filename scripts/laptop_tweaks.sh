@@ -358,7 +358,7 @@ configure_hibernation_cmdline() {
   case "$bootloader" in
   "limine")
     local cmdline_file="/etc/kernel/cmdline"
-    printc -n cyan "  Updating kernel cmdline... "
+    printc -n cyan "Updating kernel cmdline... "
 
     if grep -q "resume=" "$cmdline_file"; then
       printc yellow "exists"
@@ -382,7 +382,7 @@ configure_hibernation_cmdline() {
     update_grub_cmdline "$hibernation_params"
     ;;
   *)
-    printc yellow "  Unknown bootloader detected"
+    printc yellow "Only supported for Limine or GRUB bootloaders. Skipping kernel cmdline update."
     ;;
   esac
 }
@@ -394,7 +394,7 @@ configure_initramfs() {
     if ! grep -q "^MODULES=.*nvidia" "$MKINIT_CONF"; then
       local nvidia_modules="nvidia nvidia_modeset nvidia_uvm nvidia_drm"
       sudo sed -i -E "s/^MODULES=\(([^)]*)\)/MODULES=(\1 $nvidia_modules)/" "$MKINIT_CONF"
-      # Clean up extra spaces
+
       sudo sed -i -E 's/MODULES=\([ ]+/MODULES=(/' "$MKINIT_CONF"
       sudo sed -i -E 's/[ ]+\)/\)/' "$MKINIT_CONF"
       sudo sed -i -E 's/[ ]+/ /g' "$MKINIT_CONF"
@@ -463,14 +463,12 @@ w    /sys/power/image_size  -    -    -    -   0
 EOF
   fi
 
-  # Wake devices rule
   write_system_config "$WAKE_DEVICES_RULE_FILE" "wake devices rule" <<'EOF'
 ACTION=="change", SUBSYSTEM=="power_supply", KERNEL=="AC", ENV{POWER_SUPPLY_ONLINE}=="0", RUN+="/usr/local/bin/toggle_wake_devices.sh disable"
 ACTION=="change", SUBSYSTEM=="power_supply", KERNEL=="AC", ENV{POWER_SUPPLY_ONLINE}=="1", RUN+="/usr/local/bin/toggle_wake_devices.sh enable"
 EOF
   reload_udev_rules >/dev/null 2>&1
 
-  # Set resume offset only if using swap file (not swap partition)
   if ! has_existing_swap_partition; then
     printc -n cyan "Setting resume offset... "
     local resume_offset
