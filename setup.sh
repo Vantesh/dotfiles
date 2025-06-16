@@ -37,7 +37,7 @@ initialize_environment() {
       fail "FAILED to install required applications"
     fi
   else
-    printc green "Already installed"
+    printc green "Exists"
   fi
 
   # Check if running on TTY and configure console font
@@ -87,16 +87,14 @@ setup_zsh() {
     printc yellow "Skipping ZSH setup."
   fi
 }
-
-setup_limine_bootloader() {
-  if detect_limine_bootloader; then
-    printc_box "LIMINE BOOTLOADER" "Configuring Limine bootloader"
-    source "$SCRIPTS_DIR/limine.sh"
+setup_snapper() {
+  if confirm "Setup Snapper for BTRFS snapshots?"; then
+    printc_box "SNAPPER SETUP" "Configuring Snapper"
+    source "$SCRIPTS_DIR/snapper_config.sh"
   else
-    printc yellow "Limine bootloader not detected. Skipping setup."
+    printc yellow "Skipping Snapper setup."
   fi
 }
-
 setup_laptop_tweaks() {
   if is_laptop; then
     printc_box "LAPTOP TWEAKS" "Applying laptop-specific tweaks"
@@ -132,7 +130,7 @@ main() {
   initialize_environment
   run_core_setup
   setup_zsh
-  setup_limine_bootloader
+  setup_snapper
   setup_laptop_tweaks
   configure_services
   reboot_system
