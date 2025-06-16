@@ -13,6 +13,7 @@ core_packages=(
   hyprpicker        # Color picker
   grimblast         # Screenshot tool
   swww              # Wallpaper daemon
+  swayimg           # Image viewer
   hyprshot          # Screenshot tool
   matugen-bin       # Color generator
   ags-hyprpanel-git # panel
@@ -62,6 +63,8 @@ core_packages=(
   man-db
   tealdeer
   xorg-xhost
+  layer-shell-qt
+  layer-shell-qt5
 
 )
 
