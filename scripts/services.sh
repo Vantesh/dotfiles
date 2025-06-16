@@ -57,16 +57,24 @@ done
 
 configure_sddm() {
   printc -n cyan "Configuring SDDM... "
-  write_system_config "/etc/sddm.conf.d/10-wayland.conf" "SDDM Wayland configuration" <<'EOF'
+
+  if ! write_system_config "/etc/sddm.conf.d/10-wayland.conf" "SDDM Wayland configuration" <<'EOF' >/dev/null 2>&1; then
 [General]
 DisplayServer=wayland
 GreeterEnvironment=QT_WAYLAND_SHELL_INTEGRATION=layer-shell
 EOF
+    fail "FAILED to write Wayland configuration"
+    return 1
+  fi
 
-  write_system_config "/etc/sddm.conf.d/hidpi.conf" "SDDM HIDPI configuration" <<'EOF'
+  if ! write_system_config "/etc/sddm.conf.d/hidpi.conf" "SDDM HIDPI configuration" <<'EOF' >/dev/null 2>&1; then
 [Wayland]
 EnableHiDPI=true
 EOF
+    fail "FAILED to write HiDPI configuration"
+    return 1
+  fi
+
   printc green "OK"
 }
 
