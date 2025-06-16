@@ -30,8 +30,8 @@ core_packages=(
   xdg-desktop-portal-hyprland  # Desktop portal for Hyprland
   archlinux-xdg-menu           # Arch Linux menu integration
   xdg-user-dirs                # User directories
-  xdg-utils                    # XDG utilities
-  xdg-desktop-portal           # Desktop portal
+  xdg-autostart                # XDG autostart support
+  xdg-utils-mimeo              # XDG utilities
   selectdefaultapplication-git # Tool to change default apps
   yad                          # Yet Another Dialog - GUI for scripts
   bemoji                       # Emoji picker
@@ -65,6 +65,7 @@ core_packages=(
   xorg-xhost
   layer-shell-qt
   layer-shell-qt5
+  libfido2
 
 )
 
@@ -75,7 +76,6 @@ fonts=(
   powerline-fonts
   ttf-nerd-fonts-symbols
   ttf-nerd-fonts-symbols-mono
-  ttf-nerd-fonts-symbols-common
   ttf-apple-emoji
   apple-fonts
   ttf-jetbrains-mono-nerd
@@ -83,6 +83,7 @@ fonts=(
   noto-fonts-cjk
   noto-fonts-extra
   ttf-liberation
+  ttf-ms-fonts
 )
 
 # =======================
@@ -93,8 +94,6 @@ appearance=(
   nwg-look
   kvantum
   kvantum-qt5
-  qt5-wayland
-  qt6-wayland
   qt6ct
   qt5ct
 )
@@ -105,9 +104,7 @@ appearance=(
 input_tools=(
   clipse-gui
   clipse
-  wtype
   wmctrl
-  xdotool
   gpu-screen-recorder
 )
 
