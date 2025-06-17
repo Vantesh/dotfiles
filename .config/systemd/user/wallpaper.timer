@@ -1,0 +1,10 @@
+[Unit]
+Description=Trigger wallpaper change every 12 hours
+
+[Timer]
+OnBootSec=10min
+OnUnitActiveSec=12h
+Persistent=true
+
+[Install]
+WantedBy=timers.target
