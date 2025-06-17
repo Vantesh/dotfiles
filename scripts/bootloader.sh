@@ -199,14 +199,3 @@ edit_grub_config() {
   fi
 
 }
-
-if [[ "$(detect_bootloader)" == "limine" ]]; then
-
-  configure_limine_interface
-elif [[ "$(detect_bootloader)" == "grub" ]]; then
-  ensure_sudo
-  install_grub_theme
-  edit_grub_config
-else
-  printc yellow "No supported bootloader detected, skipping theming setup"
-fi
