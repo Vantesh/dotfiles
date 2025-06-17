@@ -17,6 +17,7 @@ source "$LIB_DIR/utils.sh"
 # CORE SETUP FUNCTIONS
 # =============================================================================
 initialize_environment() {
+  clear
   printc -n cyan "Installing required applications..."
   apps=(
     "git"
@@ -80,7 +81,7 @@ configure_services() {
 # =============================================================================
 
 setup_zsh() {
-  if confirm "Setup ZSH and related tools?"; then
+  if echo && confirm "Setup ZSH and related tools?"; then
     printc_box "ZSH SETUP" "Configuring ZSH shell and tools"
     source "$SCRIPTS_DIR/zsh_setup.sh"
   else
@@ -88,7 +89,7 @@ setup_zsh() {
   fi
 }
 setup_snapper() {
-  if confirm "Setup Snapper for BTRFS snapshots?"; then
+  if echo && confirm "Setup Snapper for BTRFS snapshots?"; then
     printc_box "SNAPPER SETUP" "Configuring Snapper"
     source "$SCRIPTS_DIR/snapper_config.sh"
   else
@@ -99,9 +100,9 @@ setup_laptop_tweaks() {
   if is_laptop; then
     printc_box "LAPTOP TWEAKS" "Applying laptop-specific tweaks"
     source "$SCRIPTS_DIR/laptop_tweaks.sh"
-    if confirm "Apply udev rules? (ONLY FOR PRECISION 5530)"; then
+    if echo && confirm "Apply udev rules? (ONLY FOR PRECISION 5530)"; then
       printc -n cyan "Applying udev rules...."
-      if sudo cp "$BASE_DIR/udev/rules.d/"*.rules /etc/udev/rules.d/ && reload_udev_rules &>/dev/null; then
+      if sudo cp "$BASE_DIR/udev/"*.rules /etc/udev/rules.d/ && reload_udev_rules &>/dev/null; then
         printc green "OK"
       else
         fail "FAILED to apply udev rules."
@@ -113,7 +114,7 @@ setup_laptop_tweaks() {
 }
 
 reboot_system() {
-  if confirm "Reboot the system to apply changes?"; then
+  if echo && confirm "Reboot the system to apply changes?"; then
     sudo reboot
   else
     printc yellow "You can reboot later to apply changes."
