@@ -55,17 +55,17 @@ update_limine_cmdline() {
   local cmdline_file="/etc/kernel/cmdline"
 
   printc -n cyan "Updating Limine kernel cmdline... "
+  local base_params
+  base_params=$(cat "$cmdline_file" 2>/dev/null || echo "")
 
-  local existing_params
-  existing_params=$(cat "$cmdline_file" 2>/dev/null || echo "")
-
-  # Remove existing versions of the parameters we're adding
   for param in $params; do
     local param_name="${param%%=*}"
-    existing_params=$(echo "$existing_params" | sed -E "s/\<${param_name}(=[^ ]+)?\>//g")
+    base_params=$(echo "$base_params" |
+      sed -E "s/(^| )${param_name}=[^ ]*//g; s/(^| )${param_name}( |$)//g")
   done
 
-  local combined_params="$existing_params $params"
+  # Compose the new cmdline: base params + hibernation params
+  local combined_params="$base_params $params"
   # Remove duplicate parameters and clean up whitespace
   combined_params=$(echo "$combined_params" | tr ' ' '\n' | awk '!seen[$0]++' | tr '\n' ' ' | sed 's/[ ]\+/ /g' | sed 's/^ *//' | sed 's/ *$//')
 
