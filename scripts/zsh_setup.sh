@@ -83,6 +83,8 @@ else
   export ZDOTDIR="$HOME/.config/zsh"
 fi
 
+# export PATH
+ export PATH="$HOME/.local/bin:$HOME/bin:$PATH"
 
 EOF
 
