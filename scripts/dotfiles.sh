@@ -7,7 +7,7 @@
 readonly CONFIG_SOURCE_DIR=".config"
 readonly VSCODE_SOURCE_DIR=".vscode"
 readonly LOCAL_BIN_SOURCE="local/bin"
-readonly LOCAL_BIN_TARGET="/usr/local/bin"
+readonly LOCAL_BIN_TARGET="$HOME/.local/bin"
 
 readonly EXECUTABLE_CONFIG_FOLDERS=(
   hypr
@@ -92,6 +92,14 @@ make_config_scripts_executable() {
 # =============================================================================
 
 copy_local_scripts() {
+  if [[ ! -d "$LOCAL_BIN_TARGET" ]]; then
+    printc -n cyan "Creating local bin directory... "
+    if sudo mkdir -p "$LOCAL_BIN_TARGET"; then
+      printc green "OK"
+    else
+      fail "FAILED"
+    fi
+  fi
   if [[ -d "$LOCAL_BIN_SOURCE" ]]; then
     printc -n cyan "Copying local scripts... "
     if sudo cp -r "$LOCAL_BIN_SOURCE"/* "$LOCAL_BIN_TARGET"/ && sudo chmod +x "$LOCAL_BIN_TARGET"/*; then
@@ -118,6 +126,11 @@ setup_user_directories() {
     fail "FAILED"
   fi
 }
+
+# =============================================================================
+# WALLPAPER
+# =============================================================================
+enable_service "wallpaper.timer" "user"
 
 # =============================================================================
 # MAIN EXECUTION
