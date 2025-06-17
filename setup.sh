@@ -44,7 +44,7 @@ initialize_environment() {
   if [[ $(tty) =~ ^/dev/tty[0-9]+$ ]]; then
     printc -n cyan "Installing and setting TTY console font..."
     if sudo pacman -S --noconfirm terminus-font &>/dev/null; then
-      if sudo setfont ter-124b &>/dev/null; then
+      if sudo setfont ter-122b &>/dev/null; then
         printc green "OK"
       else
         printc yellow "Font installed but failed to set ter-124b"
