@@ -1,0 +1,13 @@
+[SddmGreeterTheme]
+Name=Stray
+Type=sddm-theme
+Description=Stray theme
+Theme-Id=Stray
+Version=1.0
+Website=https://github.com/Bqrry4/sddm-stray.git
+Screenshot=preview.png
+MainScript=Main.qml
+ConfigFile=theme.conf
+Theme-API=1.0
+License=MIT
+QtVersion=6
