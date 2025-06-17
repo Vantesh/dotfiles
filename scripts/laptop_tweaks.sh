@@ -11,7 +11,6 @@ readonly SWAP_MOUNT_POINT="/swap"
 readonly SWAP_FILE_PATH="/swap/swapfile"
 readonly MKINIT_CONF="/etc/mkinitcpio.conf"
 readonly TOUCHPAD_RULE_FILE="/etc/udev/rules.d/90-touchpad-access.rules"
-readonly WAKE_DEVICES_RULE_FILE="/etc/udev/rules.d/90-wake-devices.rules"
 
 # ========================
 # Dependencies
@@ -22,7 +21,6 @@ deps=(
 )
 
 install_all_dependencies() {
-  printc cyan "Installing critical dependencies..."
   for dep in "${deps[@]}"; do
     if [[ "$dep" == "auto-cpufreq" ]]; then
       install_auto_cpufreq
@@ -295,17 +293,17 @@ configure_hibernation_cmdline() {
     fail "No active non-zram swap found to configure hibernation parameters"
   fi
 
+  local hibernation_params
   if is_swap_path_partition "$swap_path"; then
     printc -n cyan "Detected swap partition '$swap_path'. Getting hibernation parameters... "
   elif [[ -f "$swap_path" ]]; then
     printc -n cyan "Detected swapfile '$swap_path'. Getting hibernation parameters... "
-  else
-    local hibernation_params
-    if ! hibernation_params=$(get_hibernation_kernel_params); then
-
-      fail "FAILED to get hibernation parameters"
-    fi
   fi
+
+  if ! hibernation_params=$(get_hibernation_kernel_params); then
+    fail "FAILED to get hibernation parameters"
+  fi
+
   printc green "OK"
   update_kernel_cmdline "$hibernation_params"
 }
@@ -341,9 +339,11 @@ HandleHibernateKey=ignore
 HandleLidSwitch=suspend-then-hibernate
 EOF
 
-  write_system_config "$WAKE_DEVICES_RULE_FILE" "wake devices udev rule" <<'EOF'
-ACTION=="change", SUBSYSTEM=="power_supply", KERNEL=="AC", ENV{POWER_SUPPLY_ONLINE}=="0", RUN+="/usr/local/bin/toggle_wake_devices.sh disable"
-ACTION=="change", SUBSYSTEM=="power_supply", KERNEL=="AC", ENV{POWER_SUPPLY_ONLINE}=="1", RUN+="/usr/local/bin/toggle_wake_devices.sh enable"
+  write_system_config "/etc/tmpfiles.d/disable-usb-wake.conf" "disable USB wakeup config" <<'EOF'
+# Disable USB wakeup devices
+#    Path                  Mode UID  GID  Age Argument
+w    /proc/acpi/wakeup     -    -    -    -   XHC
+
 EOF
 
   write_system_config "/etc/systemd/system/user-suspend@.service" "user suspend service" <<'EOF'
@@ -424,6 +424,7 @@ setup_touchpad() {
 KERNEL=="event*", SUBSYSTEM=="input", ENV{ID_INPUT_TOUCHPAD}=="1", TAG+="uaccess"
 EOF
   reload_udev_rules
+  enable_service "libinput-gestures.service" "user"
 }
 
 # ========================
@@ -463,26 +464,23 @@ main() {
     update_btrfs_fstab_options
   fi
 
-  if is_any_non_zram_swap_active; then
+  if echo && confirm "Would you like to set up hibernation support?"; then
     printc_box "Hibernation Setup" "Configuring system hibernation"
-    setup_system_hibernation || printc red "Hibernation setup encountered an issue."
-  elif is_btrfs; then
-    if confirm "Set up Btrfs swapfile and configure hibernation?"; then
-      printc_box "Hibernation Setup" "Configuring system hibernation"
+    if is_any_non_zram_swap_active; then
+      setup_system_hibernation || fail "Hibernation setup failed."
+    elif is_btrfs; then
       if setup_btrfs_swap; then
-        setup_system_hibernation || printc red "Hibernation setup encountered an issue."
-      else
-        printc red "Btrfs swapfile setup failed, skipping hibernation configuration."
+        setup_system_hibernation || fail "Btrfs swapfile setup failed"
       fi
+    else
+      printc yellow "No active non-zram swap found and not using Btrfs. Skipping hibernation setup."
     fi
   else
-    printc yellow "No active non-zram swap found and not using Btrfs. Skipping hibernation setup."
+    printc yellow "Skipping hibernation setup"
   fi
 
   setup_touchpad
-  enable_service "libinput-gestures.service" "user"
 
-  printc green "\nSystem configuration complete."
 }
 
 main
