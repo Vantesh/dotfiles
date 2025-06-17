@@ -343,21 +343,27 @@ backup_with_timestamp() {
 regenerate_initramfs() {
   printc -n cyan "Regenerating initramfs... "
 
-  if has_cmd limine-update; then
-    if sudo limine-update &>/dev/null; then
+  if has_cmd limine-mkinitcpio; then
+    if sudo limine-mkinitcpio >/dev/null 2>&1; then
       printc green "OK"
       return 0
     else
-      fail "limine-update failed"
+      local exit_code=$?
+      printc red "FAILED"
+      echo "limine-mkinitcpio failed with exit code $exit_code" >&2
+      return $exit_code
     fi
   elif has_cmd mkinitcpio; then
-    if sudo mkinitcpio -P &>/dev/null; then
+    if sudo mkinitcpio -P >/dev/null 2>&1; then
       printc green "OK"
       return 0
     else
-      fail "mkinitcpio failed"
+      local exit_code=$?
+      printc red "FAILED"
+      echo "mkinitcpio failed with exit code $exit_code" >&2
+      return $exit_code
     fi
   else
-    fail "No initramfs tool found."
+    fail "Neither limine-mkinitcpio nor mkinitcpio found."
   fi
 }
