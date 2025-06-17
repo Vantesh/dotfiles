@@ -30,14 +30,25 @@ update_grub_cmdline() {
   local current_cmdline
   current_cmdline=$(grep '^GRUB_CMDLINE_LINUX_DEFAULT=' "$grub_file" | sed 's/GRUB_CMDLINE_LINUX_DEFAULT="\(.*\)"/\1/')
 
+  read -ra param_array <<<"$params"
   local updated_cmdline="$current_cmdline"
-  for param in $params; do
-    if [[ ! "$current_cmdline" =~ $param ]]; then
-      updated_cmdline="$updated_cmdline $param"
+
+  for param in "${param_array[@]}"; do
+    # Extract parameter name (before = or the whole param if no =)
+    local param_name
+    if [[ "$param" == *"="* ]]; then
+      param_name="${param%%=*}"
+    else
+      param_name="$param"
     fi
+    # Remove existing instances of this parameter
+    updated_cmdline=$(echo "$updated_cmdline" | sed -E "s/(^|[[:space:]])${param_name}(=[^[:space:]]*)?([[:space:]]|$)/ /g")
   done
 
-  updated_cmdline=$(echo "$updated_cmdline" | sed 's/[ ]\+/ /g' | sed 's/^ *//' | sed 's/ *$//')
+  updated_cmdline="$updated_cmdline $params"
+
+  # Clean up spacing and remove any remaining duplicates
+  updated_cmdline=$(echo "$updated_cmdline" | tr ' ' '\n' | awk 'NF && !seen[$0]++' | tr '\n' ' ' | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
 
   if sudo sed -i "s|^GRUB_CMDLINE_LINUX_DEFAULT=.*|GRUB_CMDLINE_LINUX_DEFAULT=\"$updated_cmdline\"|" "$grub_file"; then
     if sudo grub-mkconfig -o /boot/grub/grub.cfg >/dev/null 2>&1; then
@@ -58,16 +69,21 @@ update_limine_cmdline() {
   local base_params
   base_params=$(cat "$cmdline_file" 2>/dev/null || echo "")
 
-  for param in $params; do
-    local param_name="${param%%=*}"
-    base_params=$(echo "$base_params" |
-      sed -E "s/(^| )${param_name}=[^ ]*//g; s/(^| )${param_name}( |$)//g")
+  read -ra param_array <<<"$params"
+  for param in "${param_array[@]}"; do
+    local param_name
+    if [[ "$param" == *"="* ]]; then
+      param_name="${param%%=*}"
+    else
+      param_name="$param"
+    fi
+    base_params=$(echo "$base_params" | sed -E "s/(^|[[:space:]])${param_name}(=[^[:space:]]*)?([[:space:]]|$)/ /g")
   done
 
-  # Compose the new cmdline: base params + hibernation params
   local combined_params="$base_params $params"
-  # Remove duplicate parameters and clean up whitespace
-  combined_params=$(echo "$combined_params" | tr ' ' '\n' | awk '!seen[$0]++' | tr '\n' ' ' | sed 's/[ ]\+/ /g' | sed 's/^ *//' | sed 's/ *$//')
+
+  # Remove duplicates and clean up spacing
+  combined_params=$(echo "$combined_params" | tr ' ' '\n' | awk 'NF && !seen[$0]++' | tr '\n' ' ' | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
 
   if echo "$combined_params" | sudo tee "$cmdline_file" >/dev/null; then
     printc green "OK"
