@@ -176,8 +176,6 @@ main() {
   install_dependencies
   install_fonts
   install_cursor_theme
-  echo
-  printc green "Theming setup completed"
 }
 
 main

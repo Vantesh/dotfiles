@@ -155,14 +155,14 @@ configure_pacman() {
     enable_pacman_option "$option"
   done
   configure_paccache
-  echo
-  if confirm "Do you want to update mirrorlist?"; then
+
+  if echo && confirm "Do you want to update mirrorlist?"; then
     update_mirrorlist
   else
     printc yellow "Skipping mirrorlist update."
   fi
-  echo
-  if confirm "Do you want to setup Chaotic AUR repository?"; then
+
+  if echo && confirm "Do you want to setup Chaotic AUR repository?"; then
     setup_chaotic_aur
   else
     printc yellow "Skipping Chaotic AUR setup."
