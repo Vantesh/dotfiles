@@ -76,7 +76,6 @@ DisplayServer=wayland
 GreeterEnvironment=QT_WAYLAND_SHELL_INTEGRATION=layer-shell
 EOF
     fail "FAILED to write Wayland configuration"
-    return 1
   fi
 
   if ! write_system_config "/etc/sddm.conf.d/hidpi.conf" "SDDM HIDPI configuration" <<'EOF' >/dev/null 2>&1; then
@@ -84,10 +83,20 @@ EOF
 EnableHiDPI=true
 EOF
     fail "FAILED to write HiDPI configuration"
-    return 1
   fi
 
+  if ! sudo cp -r "$BASE_DIR/sddm/stray" /usr/share/sddm/themes/ && sudo chmod -R 755 /usr/share/sddm/themes/stray; then
+    fail "FAILED to copy SDDM stray theme files"
+  fi
+
+  if ! write_system_config "/etc/sddm.conf.d/theme.conf" "SDDM theme" <<'EOF' >/dev/null 2>&1; then
+[Theme]
+Current=stray
+EOF
+    fail "FAILED to write SDDM theme configuration"
+  fi
   printc green "OK"
+
 }
 
 # =============================================================================
