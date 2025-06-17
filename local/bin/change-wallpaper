@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+
+WALLPAPER_DIR="$HOME/.config/hypr/theme/walls"
+PERIOD=$(date +%p) # AM or PM
+DATE=$(date +%F)   # YYYY-MM-DD
+CACHE_FILE="$HOME/.cache/wallpaper_${DATE}_${PERIOD}.txt"
+
+# Pick and cache wallpaper if needed
+if [[ ! -f "$CACHE_FILE" ]]; then
+  SELECTED=$(fd . "$WALLPAPER_DIR" -t f | shuf -n 1)
+  if [[ -z "$SELECTED" ]]; then
+    notify-send "Wallpaper" "No wallpapers found!" --urgency=critical
+    exit 1
+  fi
+  echo "$SELECTED" >"$CACHE_FILE"
+fi
+
+WALLPAPER=$(<"$CACHE_FILE")
+
+# Ensure swww daemon is running
+if ! swww query &>/dev/null; then
+  notify-send "swww" "swww daemon is not running!" --urgency=critical
+  exit 1
+fi
+
+# Apply the wallpaper with transition
+swww img "$WALLPAPER" \
+  --transition-type fade \
+  --transition-duration 2 \
+  --transition-fps 60
+
+# 🧹 Cleanup: Remove cache files older than 2 days
+find "$HOME/.cache" -name 'wallpaper_*.txt' -mtime +2 -delete
