@@ -2,11 +2,9 @@
 apps=(
   "swww-daemon"
   "clipse -listen"
-  "udiskie"
+  "udiskie -q"
   "pypr"
   "hyprpanel"
-
-
 
 )
 
