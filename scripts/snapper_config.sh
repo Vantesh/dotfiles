@@ -233,7 +233,6 @@ setup_limine() {
   printc cyan "Setting up Limine bootloader..."
   setup_limine_config_file
   configure_limine_settings
-  configure_limine_interface
 }
 
 setup_grub() {
