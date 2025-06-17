@@ -4,7 +4,7 @@
 # CORE COMPONENTS
 # =======================
 core_packages=(
-  xdg-utils-mimeo  # xdg-utils
+  xdg-utils-mimeo   # xdg-utils
   hyprland          # Wayland compositor
   uwsm              # Universal Wayland Session Manager
   rofi-wayland      # Wayland launcher
@@ -39,7 +39,6 @@ core_packages=(
   #required by vscode and other apps to store keyrings
   gnome-keyring
   libgnome-keyring
-  libsecret
 
   # Sytem tools
   topgrade
@@ -47,7 +46,6 @@ core_packages=(
   ntfs-3g
   gparted
   gpart
-  unzip
   bluez
   bluez-utils
   overskride
