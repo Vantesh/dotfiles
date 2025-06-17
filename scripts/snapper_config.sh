@@ -238,7 +238,6 @@ setup_limine() {
 
 setup_grub() {
   printc cyan "Setting up GRUB bootloader..."
-  configure_grub_btrfs
   update_grub_config
 }
 
