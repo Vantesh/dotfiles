@@ -1,0 +1,5 @@
+[Unit]
+Description=Change wallpaper using swww every 12 hours
+
+[Service]
+ExecStart=%h/.local/bin/change-wallpaper
