@@ -210,8 +210,8 @@ main() {
   # =============================================================================
   # Bootloader theming
   # =============================================================================
+  printc_box "Bootloader Theming Setup" "Theming Bootloader"
   if [[ "$(detect_bootloader)" == "limine" ]]; then
-
     configure_limine_interface
   elif [[ "$(detect_bootloader)" == "grub" ]]; then
     ensure_sudo
