@@ -41,7 +41,6 @@ build_and_install_aur_helper() {
 
 install_aur_helper() {
   if has_cmd "$AUR_HELPER"; then
-    printc yellow "$AUR_HELPER is already installed."
     return
   fi
 
