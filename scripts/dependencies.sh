@@ -63,6 +63,7 @@ core_packages=(
   xorg-xhost
   layer-shell-qt
   layer-shell-qt5
+  qt6-multimedia-ffmpeg
   libfido2
 
 )
