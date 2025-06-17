@@ -127,6 +127,9 @@ reboot_system() {
 # =============================================================================
 
 main() {
+  if [[ $EUID -eq 0 ]]; then
+    fail "This script should not be run as root. Please run it as a regular user."
+  fi
   ensure_sudo
   initialize_environment
   run_core_setup
