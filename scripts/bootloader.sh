@@ -62,11 +62,12 @@ update_limine_cmdline() {
   # Remove existing versions of the parameters we're adding
   for param in $params; do
     local param_name="${param%%=*}"
-    existing_params=$(echo "$existing_params" | sed -E "s/\<${param_name}=[^ ]+\>//g")
+    existing_params=$(echo "$existing_params" | sed -E "s/\<${param_name}(=[^ ]+)?\>//g")
   done
 
   local combined_params="$existing_params $params"
-  combined_params=$(echo "$combined_params" | sed 's/[ ]\+/ /g' | sed 's/^ *//' | sed 's/ *$//')
+  # Remove duplicate parameters and clean up whitespace
+  combined_params=$(echo "$combined_params" | tr ' ' '\n' | awk '!seen[$0]++' | tr '\n' ' ' | sed 's/[ ]\+/ /g' | sed 's/^ *//' | sed 's/ *$//')
 
   if echo "$combined_params" | sudo tee "$cmdline_file" >/dev/null; then
     printc green "OK"
