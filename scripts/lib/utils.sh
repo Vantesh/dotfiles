@@ -352,14 +352,14 @@ regenerate_initramfs() {
 
     fi
   elif has_cmd mkinitcpio; then
-    sleep 2 # Give time for any previous processes to finish
-    if sudo mkinitcpio -P >/dev/null 2>&1; then
-      printc green "OK"
-      return 0
-    else
-      fail "mkinitcpio -P failed "
-    fi
+   sync
+   sleep 1
+  if sudo mkinitcpio -P >/tmp/mkinit.log 2>&1; then
+    printc green "OK"
+    return 0
   else
-    fail "Neither limine-mkinitcpio nor mkinitcpio found."
+    printc red "FAILED"
+    echo "mkinitcpio failed. Log:"
+    cat /tmp/mkinit.log >&2
+    return 1
   fi
-}
