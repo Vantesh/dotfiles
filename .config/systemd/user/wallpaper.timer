@@ -1,9 +1,8 @@
 [Unit]
-Description=Trigger wallpaper change every 12 hours
+Description=Trigger wallpaper change every 6 hours
 
 [Timer]
-OnBootSec=10min
-OnUnitActiveSec=12h
+OnCalendar=0/6:00
 Persistent=true
 
 [Install]
