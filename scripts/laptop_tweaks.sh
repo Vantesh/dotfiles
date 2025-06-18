@@ -120,7 +120,7 @@ install_auto_cpufreq() {
   if git clone https://github.com/AdnanHodzic/auto-cpufreq.git "$tmp_dir" 2>/dev/null &&
     cd "$tmp_dir" && echo "I" | sudo ./auto-cpufreq-installer >/dev/null 2>&1; then
     sleep 2
-    if sudo auto_cpufreq --install >/dev/null 2>&1; then
+    if sudo auto-cpufreq --install >/dev/null 2>&1; then
       printc green "OK"
     else
       printc yellow "Failed, Manually setup auto-cpufreq"
