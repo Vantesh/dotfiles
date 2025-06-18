@@ -348,20 +348,16 @@ regenerate_initramfs() {
       printc green "OK"
       return 0
     else
-      local exit_code=$?
-      printc red "FAILED"
-      echo "limine-mkinitcpio failed with exit code $exit_code" >&2
-      return $exit_code
+      fail "limine-mkinitcpio"
+
     fi
   elif has_cmd mkinitcpio; then
+    sleep 2 # Give time for any previous processes to finish
     if sudo mkinitcpio -P >/dev/null 2>&1; then
       printc green "OK"
       return 0
     else
-      local exit_code=$?
-      printc red "FAILED"
-      echo "mkinitcpio failed with exit code $exit_code" >&2
-      return $exit_code
+      fail "mkinitcpio -P failed "
     fi
   else
     fail "Neither limine-mkinitcpio nor mkinitcpio found."
