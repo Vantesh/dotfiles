@@ -314,6 +314,8 @@ configure_initramfs() {
   local hooks="base systemd autodetect microcode modconf kms keyboard sd-vconsole block filesystems"
 
   if sudo sed -i -E "s/^HOOKS=\([^)]*\)/HOOKS=($hooks)/" "$MKINIT_CONF"; then
+    # Ensure the file is written to disk
+    sudo sync
     printc green "OK"
   else
     fail "FAILED to configure initramfs"
