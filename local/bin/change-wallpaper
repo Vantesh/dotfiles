@@ -1,9 +1,12 @@
 #!/bin/bash
 
 WALLPAPER_DIR="$HOME/.config/hypr/theme/walls"
+CACHE_DIR="$HOME/.cache/wallpaper"
 PERIOD=$(date +%p) # AM or PM
 DATE=$(date +%F)
-CACHE_FILE="$HOME/.cache/wallpaper_${DATE}_${PERIOD}.txt"
+CACHE_FILE="$CACHE_DIR/wallpaper_${DATE}_${PERIOD}.txt"
+
+mkdir -p "$CACHE_DIR"
 
 for _ in {1..10}; do
   swww query &>/dev/null && break
@@ -15,26 +18,30 @@ if ! swww query &>/dev/null; then
   exit 1
 fi
 
-# Get current display type from swww
 CURRENT_DISPLAY=$(swww query | grep 'currently displaying:' | awk -F': ' '{print $2}')
 
-# If displaying a color or cache is missing, pick a new wallpaper
-if [[ "$CURRENT_DISPLAY" == color:* || ! -f "$CACHE_FILE" ]]; then
-  SELECTED=$(fd . "$WALLPAPER_DIR" -t f | shuf -n 1)
-  if [[ -z "$SELECTED" ]]; then
-    notify-send "Wallpaper" "No wallpapers found!" --urgency=critical
-    exit 1
-  fi
-  echo "$SELECTED" >"$CACHE_FILE"
+# If showing color (fallback) and we have a cache, re-apply it
+if [[ "$CURRENT_DISPLAY" == color:* && -f "$CACHE_FILE" ]]; then
+  WALLPAPER=$(<"$CACHE_FILE")
+  swww img "$WALLPAPER" \
+    --transition-type fade \
+    --transition-duration 2 \
+    --transition-fps 60
+  exit 0
 fi
 
-# Use the cached wallpaper
-WALLPAPER=$(<"$CACHE_FILE")
+# Pick new wallpaper
+SELECTED=$(fd . "$WALLPAPER_DIR" -t f | shuf -n 1)
+if [[ -z "$SELECTED" ]]; then
+  notify-send "Wallpaper" "No wallpapers found!" --urgency=critical
+  exit 1
+fi
 
-swww img "$WALLPAPER" \
+rm -f "$CACHE_DIR"/wallpaper_*.txt
+
+echo "$SELECTED" >"$CACHE_FILE"
+
+swww img "$SELECTED" \
   --transition-type fade \
   --transition-duration 2 \
   --transition-fps 60
-
-# 🧹 Clean up old wallpaper cache files (>12h old)
-find "$HOME/.cache" -name 'wallpaper_*.txt' -mmin +720 -delete
