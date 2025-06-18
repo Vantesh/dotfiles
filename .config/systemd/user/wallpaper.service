@@ -1,5 +1,9 @@
 [Unit]
-Description=Change wallpaper using swww every 12 hours
+Description=Set a new wallpaper every 6 hours
+After=graphical-session.target
+Requires=graphical-session.target
 
 [Service]
+Type=oneshot
+Environment="XDG_RUNTIME_DIR=/run/user/%U"
 ExecStart=%h/.local/bin/change-wallpaper
