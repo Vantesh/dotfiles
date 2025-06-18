@@ -51,6 +51,8 @@ update_grub_cmdline() {
   updated_cmdline=$(echo "$updated_cmdline" | tr ' ' '\n' | awk 'NF && !seen[$0]++' | tr '\n' ' ' | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
 
   if sudo sed -i "s|^GRUB_CMDLINE_LINUX_DEFAULT=.*|GRUB_CMDLINE_LINUX_DEFAULT=\"$updated_cmdline\"|" "$grub_file"; then
+    # Small delay to ensure file is written to disk
+    sleep 1
     if sudo grub-mkconfig -o /boot/grub/grub.cfg >/dev/null 2>&1; then
       printc green "OK"
     else
@@ -163,8 +165,7 @@ configure_limine_interface() {
     ' "$limine_conf" | sudo tee "${limine_conf}.tmp" >/dev/null && sudo mv "${limine_conf}.tmp" "$limine_conf"; then
       printc green "OK"
     else
-      printc red "FAILED"
-      return 1
+      fail "FAILED to update Limine config"
     fi
   else
     printc yellow "Arch Linux entry not found in $limine_conf"
