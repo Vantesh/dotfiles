@@ -34,7 +34,7 @@ core_packages=(
   xdg-autostart                # XDG autostart
   selectdefaultapplication-git # Tool to change default apps
   yad                          # Yet Another Dialog - GUI for scripts
-  bemoji                       # Emoji picker
+  rofimoji                     # Emoji picker for Rofi
 
   #required by vscode and other apps to store keyrings
   gnome-keyring
