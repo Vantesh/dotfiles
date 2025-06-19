@@ -1,6 +1,6 @@
 #!/bin/bash
 apps=(
-  "swww-daemon"
+  "wpaperd -d"
   "clipse -listen"
   "udiskie -q"
   "pypr"
