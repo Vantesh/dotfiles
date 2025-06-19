@@ -341,7 +341,7 @@ backup_with_timestamp() {
 
 # Regenerate initramfs using the appropriate tool
 regenerate_initramfs() {
-  printc -n cyan "Regenerating initramfs... "
+  printc -n cyan "Regenerating initramfs..."
 
   if has_cmd limine-mkinitcpio; then
     if sudo limine-mkinitcpio >/dev/null 2>&1; then
@@ -349,18 +349,22 @@ regenerate_initramfs() {
       return 0
     else
       fail "limine-mkinitcpio"
-
     fi
+
   elif has_cmd mkinitcpio; then
-   sync
-   sleep 1
-  if sudo mkinitcpio -P >/tmp/mkinit.log 2>&1; then
-    printc green "OK"
-    return 0
+    sync
+    sleep 1
+    if sudo mkinitcpio -P >/tmp/mkinit.log 2>&1; then
+      printc green "OK"
+      return 0
+    else
+      printc red "FAILED"
+      echo "mkinitcpio failed. Log:"
+      cat /tmp/mkinit.log >&2
+      return 1
+    fi
+
   else
-    printc red "FAILED"
-    echo "mkinitcpio failed. Log:"
-    cat /tmp/mkinit.log >&2
-    return 1
+    fail "Neither limine-mkinitcpio nor mkinitcpio found."
   fi
-  }
+}
