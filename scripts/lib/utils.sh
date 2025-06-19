@@ -363,3 +363,4 @@ regenerate_initramfs() {
     cat /tmp/mkinit.log >&2
     return 1
   fi
+  }
