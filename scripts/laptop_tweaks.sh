@@ -176,7 +176,6 @@ create_btrfs_swap_subvolume() {
   fi
   sudo umount "$temp_mount"
 
-  mount_btrfs_swap_subvolume
 }
 
 create_btrfs_swapfile() {
@@ -241,7 +240,7 @@ setup_btrfs_swap() {
   local uuid
   uuid=$(sudo blkid -s UUID -o value "$btrfs_device") || fail "Failed to get UUID for Btrfs device"
 
-  create_btrfs_swap_subvolume
+  create_btrfs_swap_subvolume && mount_btrfs_swap_subvolume
   add_entry_to_fstab "UUID=$uuid $SWAP_MOUNT_POINT btrfs defaults,noatime,nodatacow,subvol=$SWAP_SUBVOL 0 0" "swap subvolume mount"
   create_btrfs_swapfile
   activate_swapfile
@@ -314,8 +313,6 @@ configure_initramfs() {
   local hooks="base systemd autodetect microcode modconf kms keyboard sd-vconsole block filesystems"
 
   if sudo sed -i -E "s/^HOOKS=\([^)]*\)/HOOKS=($hooks)/" "$MKINIT_CONF"; then
-    # Ensure the file is written to disk
-    sudo sync
     printc green "OK"
   else
     fail "FAILED to configure initramfs"
@@ -409,10 +406,9 @@ setup_system_hibernation() {
     fail "No active non-zram swap found. Hibernation cannot be configured."
   fi
   configure_hibernation_cmdline
-  configure_initramfs
+  configure_initramfs && sleep 2 && regenerate_initramfs
   detect_nvidia_gpu && enable_nvidia_hibernation_services
   write_hibernation_configs
-  regenerate_initramfs
 }
 
 # ========================
@@ -462,23 +458,23 @@ main() {
   install_all_dependencies
   enable_service "upower.service" "system"
 
-  if is_btrfs; then
-    update_btrfs_fstab_options
-  fi
-
   if echo && confirm "Would you like to set up hibernation support?"; then
     printc_box "Hibernation Setup" "Configuring system hibernation"
     if is_any_non_zram_swap_active; then
-      setup_system_hibernation || fail "Hibernation setup failed."
+      setup_system_hibernation
     elif is_btrfs; then
       if setup_btrfs_swap; then
-        setup_system_hibernation || fail "Btrfs swapfile setup failed"
+        setup_system_hibernation
       fi
     else
       printc yellow "No active non-zram swap found and not using Btrfs. Skipping hibernation setup."
     fi
   else
     printc yellow "Skipping hibernation setup"
+  fi
+
+  if is_btrfs; then
+    update_btrfs_fstab_options
   fi
 
   setup_touchpad
