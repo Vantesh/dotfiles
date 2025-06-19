@@ -13,7 +13,7 @@ core_packages=(
   hyprlock          # Lock screen
   hyprpicker        # Color picker
   grimblast         # Screenshot tool
-  swww              # Wallpaper daemon
+  wpaperd-git       # Wallpaper daemon
   swayimg           # Image viewer
   hyprshot          # Screenshot tool
   matugen-bin       # Color generator
@@ -24,7 +24,7 @@ core_packages=(
   brightnessctl     # Screen brightness
   playerctl         # Media controller
   thunar            # File manager
-  sddm              # Display manager
+  sddm-git          # Display manager
   kitty             # Terminal emulator
 
   xdg-desktop-portal-gtk       # Desktop portal for GTK
