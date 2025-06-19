@@ -28,6 +28,7 @@ DEPS=(
   snap-pac
   btrfs-assistant
   btrfs-progs
+  inotify-tools
   sbctl
 )
 
