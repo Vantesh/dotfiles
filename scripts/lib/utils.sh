@@ -359,6 +359,7 @@ regenerate_initramfs() {
       return 0
     else
       printc yellow "Run 'sudo mkinitcpio -P' manually to regenerate initramfs."
+      echo "$PWD"
       return 0
     fi
 
