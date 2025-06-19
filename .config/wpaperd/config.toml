@@ -1,0 +1,7 @@
+[default]
+  path     = "~/.config/hypr/theme/walls"
+  duration = "60min"
+  sorting  = "ascending"
+
+[default.transition.circle-open]
+  smoothness = 1.0
