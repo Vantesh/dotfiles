@@ -354,14 +354,12 @@ regenerate_initramfs() {
   elif has_cmd mkinitcpio; then
     sync
     sleep 1
-    if sudo mkinitcpio -P >/tmp/mkinit.log 2>&1; then
+    if sudo mkinitcpio -P >/dev/null 2>&1; then
       printc green "OK"
       return 0
     else
-      printc red "FAILED"
-      echo "mkinitcpio failed. Log:"
-      cat /tmp/mkinit.log >&2
-      return 1
+      printc yellow "Run 'sudo mkinitcpio -P' manually to regenerate initramfs."
+      return 0
     fi
 
   else
