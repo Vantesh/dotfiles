@@ -133,9 +133,9 @@ main() {
   ensure_sudo
   initialize_environment
   run_core_setup
-  setup_zsh
   setup_snapper
   setup_laptop_tweaks
+  setup_zsh
   configure_services
   reboot_system
 }
