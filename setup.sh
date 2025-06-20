@@ -12,10 +12,8 @@ LIB_DIR="$SCRIPTS_DIR/lib"
 # Load utilities
 source "$LIB_DIR/colors.sh"
 source "$LIB_DIR/utils.sh"
+source "$SCRIPTS_DIR/bootloader.sh"
 
-# =============================================================================
-# CORE SETUP FUNCTIONS
-# =============================================================================
 initialize_environment() {
   clear
   printc -n cyan "Installing required applications..."
@@ -24,22 +22,16 @@ initialize_environment() {
     "gum"
   )
 
-  missing_apps=()
   for app in "${apps[@]}"; do
     if ! has_cmd "$app"; then
-      missing_apps+=("$app")
+      sudo pacman -S --noconfirm "$app" &>/dev/null
+      if has_cmd "$app"; then
+        printc green "OK"
+      else
+        printc yellow "Failed to install $app."
+      fi
     fi
   done
-
-  if [ ${#missing_apps[@]} -gt 0 ]; then
-    if sudo pacman -S --noconfirm "${missing_apps[@]}" &>/dev/null; then
-      printc green "OK"
-    else
-      fail "FAILED to install required applications"
-    fi
-  else
-    printc green "Exists"
-  fi
 
   # Check if running on TTY and configure console font
   if [[ $(tty) =~ ^/dev/tty[0-9]+$ ]]; then
@@ -55,6 +47,11 @@ initialize_environment() {
     fi
   fi
 }
+
+# =============================================================================
+# CORE SETUP FUNCTIONS
+# =============================================================================
+
 run_core_setup() {
   printc_box "SUDO" "Configuring QOL sudo settings"
   source "$SCRIPTS_DIR/sudo_config.sh"
