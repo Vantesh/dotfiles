@@ -174,6 +174,156 @@ install_cursor_theme() {
 }
 
 # =============================================================================
+# SDDM CONFIGURATION
+# =============================================================================
+
+configure_sddm() {
+  printc -n cyan "Configuring SDDM... "
+
+  if ! write_system_config "/etc/sddm.conf.d/10-wayland.conf" "SDDM Wayland configuration" <<'EOF' >/dev/null 2>&1; then
+[General]
+DisplayServer=wayland
+GreeterEnvironment=QT_WAYLAND_SHELL_INTEGRATION=layer-shell
+EOF
+    fail "FAILED to write Wayland configuration"
+  fi
+
+  if ! write_system_config "/etc/sddm.conf.d/hidpi.conf" "SDDM HIDPI configuration" <<'EOF' >/dev/null 2>&1; then
+[Wayland]
+EnableHiDPI=true
+EOF
+    fail "FAILED to write HiDPI configuration"
+  fi
+
+  if ! sudo cp -r "$BASE_DIR/sddm/stray" /usr/share/sddm/themes/ && sudo chmod -R 755 /usr/share/sddm/themes/stray; then
+    fail "FAILED to copy SDDM stray theme files"
+  fi
+
+  if ! write_system_config "/etc/sddm.conf.d/theme.conf" "SDDM theme" <<'EOF' >/dev/null 2>&1; then
+[Theme]
+Current=stray
+EOF
+    fail "FAILED to write SDDM theme configuration"
+  fi
+  printc green "OK"
+
+}
+
+# =============================================================================
+# LIMINE THEMING
+# =============================================================================
+
+configure_limine_interface() {
+  printc cyan "Configuring Limine interface..."
+
+  local limine_conf="/boot/limine.conf"
+
+  if [[ ! -f "$limine_conf" ]]; then
+    printc red "Limine config file not found at $limine_conf"
+    return 1
+  fi
+
+  printc -n cyan "Setting interface options... "
+
+  # Interface configuration parameters
+  local PARAMS=(
+    "term_palette: 1e1e2e;f38ba8;a6e3a1;f9e2af;89b4fa;f5c2e7;94e2d5;cdd6f4"
+    "term_palette_bright: 585b70;f38ba8;a6e3a1;f9e2af;89b4fa;f5c2e7;94e2d5;cdd6f4"
+    "term_background: 1e1e2e"
+    "term_foreground: cdd6f4"
+    "term_background_bright: 1e1e2e"
+    "term_foreground_bright: cdd6f4"
+    "timeout: 1"
+    "default_entry: 2"
+    "interface_branding: Arch Linux"
+
+  )
+
+  # Build interface configuration block
+  local interface_config=$'\n# Interface Configuration\n'
+  for param in "${PARAMS[@]}"; do
+    interface_config+="$param"$'\n'
+  done
+
+  # Find the line with "/+Arch Linux" and insert interface config above it
+  if grep -q "/+Arch Linux" "$limine_conf"; then
+    # Create a temporary file with the interface config inserted
+    if awk -v config="$interface_config" '
+      /\/\+Arch Linux/ {
+        print config
+        print $0
+        next
+      }
+      # Skip existing interface config lines if they exist
+      /^term_palette:|^term_palette_bright:|^term_background:|^term_foreground:|^term_background_bright:|^term_foreground_bright:|^timeout:|^wallpaper:|^interface_branding:|^default_entry:/ {
+        next
+      }
+      { print }
+    ' "$limine_conf" | sudo tee "${limine_conf}.tmp" >/dev/null && sudo mv "${limine_conf}.tmp" "$limine_conf"; then
+      printc green "OK"
+    else
+      fail "FAILED to update Limine config"
+    fi
+  else
+    printc yellow "Arch Linux entry not found in $limine_conf"
+    return 1
+  fi
+}
+
+# =============================================================================
+# GRUB THEMING
+# =============================================================================
+
+install_grub_theme() {
+  local git_url="https://github.com/semimqmo/sekiro_grub_theme"
+  temp_folder=$(mktemp -d)
+  printc -n cyan "Cloning GRUB theme... "
+  if git clone "$git_url" "$temp_folder" >/dev/null 2>&1; then
+    printc green "OK"
+  else
+    rm -rf "$temp_folder"
+    fail "FAILED to clone GRUB theme repository"
+  fi
+  printc -n cyan "Installing GRUB theme... "
+  pushd "$temp_folder" &>/dev/null || return
+  if sudo ./install.sh >/dev/null 2>&1; then
+    printc green "OK"
+  else
+    popd &>/dev/null || return
+    rm -rf "$temp_folder"
+    fail "FAILED to install GRUB theme"
+  fi
+  popd &>/dev/null || return
+  rm -rf "$temp_folder"
+}
+
+# =============================================================================
+# PLYMOUTH CONFIGURATION FUNCTIONS
+# =============================================================================
+
+setup_plymouth() {
+  printc cyan "Setting up Plymouth..."
+
+  install_package "plymouth"
+
+  printc -n cyan "Configuring Plymouth hooks... "
+  local mkinitcpio_conf="/etc/mkinitcpio.conf"
+  if ! grep -q "plymouth" "$mkinitcpio_conf"; then
+    if sudo sed -i '/^HOOKS=/ s/\(.*\) filesystems\(.*\)/\1 plymouth filesystems\2/' "$mkinitcpio_conf"; then
+      printc green "OK"
+    else
+      printc red "FAILED"
+      return 1
+    fi
+  else
+    printc yellow "already configured"
+  fi
+
+  local quiet_flags="quiet loglevel=3 splash vt.global_cursor_default=0 nowatchdog rd.udev.log_level=3"
+  update_kernel_cmdline "$quiet_flags"
+  regenerate_initramfs
+}
+# =============================================================================
 # MAIN EXECUTION
 # =============================================================================
 
@@ -181,6 +331,23 @@ main() {
   install_dependencies
   install_fonts
   install_cursor_theme
+  configure_sddm
+
+  if [[ "$(detect_bootloader)" == "limine" ]]; then
+    configure_limine_interface
+  elif [[ "$(detect_bootloader)" == "grub" ]]; then
+    ensure_sudo
+    install_grub_theme
+    edit_grub_config
+  else
+    printc yellow "No supported bootloader detected, skipping theming setup"
+  fi
+
+  if echo && confirm "Install and configure Plymouth for boot splash?"; then
+    setup_plymouth
+  else
+    printc yellow "Skipping Plymouth setup."
+  fi
 }
 
 main
