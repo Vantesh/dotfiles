@@ -94,10 +94,15 @@ install_fonts() {
   local temp_dir
   temp_dir=$(mktemp -d) || fail "Failed to create temp directory"
 
-  clone_fonts_repository "$temp_dir"
-  copy_font_files "$temp_dir"
-
-  rm -rf "$temp_dir"
+  if clone_fonts_repository "$temp_dir"; then
+    pushd "$temp_dir" &>/dev/null || return
+    copy_font_files "$temp_dir"
+    popd &>/dev/null || return
+    rm -rf "$temp_dir"
+  else
+    rm -rf "$temp_dir"
+    fail "FAILED to clone fonts repository"
+  fi
 }
 
 # =============================================================================

@@ -184,16 +184,20 @@ install_grub_theme() {
   if git clone "$git_url" "$temp_folder" >/dev/null 2>&1; then
     printc green "OK"
   else
+    rm -rf "$temp_folder"
     fail "FAILED to clone GRUB theme repository"
-
   fi
   printc -n cyan "Installing GRUB theme... "
-  if cd "$temp_folder" && sudo ./install.sh >/dev/null 2>&1; then
+  pushd "$temp_folder" &>/dev/null || return
+  if sudo ./install.sh >/dev/null 2>&1; then
     printc green "OK"
   else
+    popd &>/dev/null || return
+    rm -rf "$temp_folder"
     fail "FAILED to install GRUB theme"
   fi
-
+  popd &>/dev/null || return
+  rm -rf "$temp_folder"
 }
 
 edit_grub_config() {
