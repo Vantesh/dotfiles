@@ -22,11 +22,7 @@ deps=(
 
 install_all_dependencies() {
   for dep in "${deps[@]}"; do
-    if [[ "$dep" == "auto-cpufreq" ]]; then
-      install_auto_cpufreq
-    else
-      install_package "$dep"
-    fi
+    install_package "$dep"
   done
 }
 
@@ -109,29 +105,13 @@ reload_systemd_daemon() {
 
 install_auto_cpufreq() {
   printc -n cyan "Installing auto-cpufreq... "
-  if has_cmd auto-cpufreq; then
-    printc green "Exists"
-    return 0
-  fi
-
-  local tmp_dir
-  tmp_dir=$(mktemp -d) || fail "Failed to create temp directory"
-
-  if git clone https://github.com/AdnanHodzic/auto-cpufreq.git "$tmp_dir" 2>/dev/null &&
-    cd "$tmp_dir" && echo "I" | sudo ./auto-cpufreq-installer >/dev/null 2>&1; then
-    sleep 2
-    if sudo auto-cpufreq --install >/dev/null 2>&1; then
-      printc green "OK"
-    else
-      printc yellow "Failed, Manually setup auto-cpufreq"
-    fi
-    rm -rf "$tmp_dir"
+  if sudo auto-cpufreq --install >/dev/null 2>&1; then
+    printc green "OK"
   else
-    rm -rf "$tmp_dir"
-    fail "FAILED"
+    printc yellow "Failed, Manually setup auto-cpufreq"
   fi
-}
 
+}
 # ========================
 # Btrfs Swap Configuration
 # ========================
@@ -456,6 +436,7 @@ update_btrfs_fstab_options() {
 main() {
   ensure_sudo
   install_all_dependencies
+  install_auto_cpufreq
   enable_service "upower.service" "system"
 
   if echo && confirm "Would you like to set up hibernation support?"; then
