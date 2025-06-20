@@ -13,7 +13,7 @@ core_packages=(
   hyprlock          # Lock screen
   hyprpicker        # Color picker
   grimblast         # Screenshot tool
-  wpaperd-git       # Wallpaper daemon
+  wpaperd           # Wallpaper daemon
   swayimg           # Image viewer
   hyprshot          # Screenshot tool
   matugen-bin       # Color generator
@@ -112,9 +112,7 @@ input_tools=(
 # =======================
 # Base graphics drivers
 base_drivers=(
-  mesa
   mesa-utils
-  libva
   libva-utils
   linux-firmware
   vulkan-tools
@@ -127,7 +125,6 @@ intel_drivers=(
   libva-intel-driver
   intel-media-driver
   vulkan-intel
-  xf86-video-intel
 )
 
 # AMD-specific drivers
@@ -147,6 +144,7 @@ nvidia_drivers=(
 
 install_gpu_drivers() {
   for package in "${base_drivers[@]}"; do
+    printc cyan "Installing base graphics driver"
     install_package "$package"
   done
 
