@@ -346,21 +346,15 @@ regenerate_initramfs() {
   if has_cmd limine-mkinitcpio; then
     if sudo limine-mkinitcpio >/dev/null 2>&1; then
       printc green "OK"
-      return 0
     else
       fail "limine-mkinitcpio"
     fi
 
   elif has_cmd mkinitcpio; then
-    sync
-    sleep 1
     if sudo mkinitcpio -P >/dev/null 2>&1; then
       printc green "OK"
-      return 0
     else
       printc yellow "Run 'sudo mkinitcpio -P' manually to regenerate initramfs."
-      echo "$PWD"
-      return 0
     fi
 
   else
