@@ -10,6 +10,7 @@ alias ip="ip -color"
 
 # less destructive aliases
 alias rm="rm -ri"
+[[ -f /usr/bin/trash ]] && alias rm="trash "
 alias mv="mv -i"
 alias cp="cp -i"
 alias ln="ln -i"
@@ -24,6 +25,7 @@ alias df='duf --output mountpoint,size,avail,type,filesystem'
 alias du='dust -r'
 alias free='free -m'
 alias find='fd'
+alias ping='ping -c 10'
 alias h='history'
 alias wget='wget --hsts-file="$XDG_DATA_HOME/wget-hsts" -c'
 alias jtcl='journalctl -p 3 -xb'
@@ -32,8 +34,12 @@ alias jtcl='journalctl -p 3 -xb'
 alias mirror='sudo reflector -f 30 -l 30 --number 10 --verbose --save /etc/pacman.d/mirrorlist'
 alias cleanup='sudo pacman -Rns $(pacman -Qtdq)'
 alias fixpacman='sudo rm/var/lib/pacman/db.lck'
+alias yayf="yay -Slq | fzf --multi --preview 'yay -Sii {1}' --preview-window=down:75% | xargs -ro yay -S"
+[ ! -x /usr/bin/yay ] && [ -x /usr/bin/paru ] && alias yay='paru' && alias yayf='paru -Slq | fzf --multi --preview "paru -Sii {1}" --preview-window=down:75% | xargs -ro paru -S'
 
-[ ! -x /usr/bin/yay ] && [ -x /usr/bin/paru ] && alias yay='paru'
+#######################################################
+# SPECIAL FUNCTIONS
+#######################################################
 
 up() {
     if command -v topgrade &>/dev/null; then
