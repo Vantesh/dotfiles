@@ -19,6 +19,7 @@ DEPS=(
   ugrep
   bat
   fzf
+  trash-cli
 )
 
 readonly ZSHENV_FILE="/etc/zsh/zshenv"
@@ -49,13 +50,13 @@ create_zsh_config_directory() {
 }
 
 setup_zshenv() {
-  printc cyan "Setting up $ZSHENV_FILE..."
 
   create_zsh_config_directory
 
-  # This configuration already uses $HOME which works for all users
-  sudo tee "$ZSHENV_FILE" >/dev/null <<'EOF' || fail "Failed to create ZSH environment file."
+  write_system_config "$ZSHENV_FILE" "ZSH environment configuration" <<'EOF'
+
 # ZSH environment file
+
 # This file is sourced by ZSH at startup to set environment variables.
 # XDG BASE DIRS
 
