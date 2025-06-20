@@ -1,17 +1,5 @@
 #!/bin/bash
 
-# Source bootloader detection functions
-# shellcheck disable=SC1091
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-BOOTLOADER_SCRIPT="$SCRIPT_DIR/bootloader.sh"
-
-if [[ -f "$BOOTLOADER_SCRIPT" ]]; then
-  # shellcheck source=./bootloader.sh
-  source "$BOOTLOADER_SCRIPT"
-else
-  fail "Bootloader script not found: $BOOTLOADER_SCRIPT"
-fi
-
 # =============================================================================
 # CONFIGURATION ARRAYS
 # =============================================================================
@@ -62,42 +50,6 @@ services_to_disable=(
 for service in "${services_to_disable[@]}"; do
   disable_service "$service" "system"
 done
-
-# =============================================================================
-# SDDM CONFIGURATION
-# =============================================================================
-
-configure_sddm() {
-  printc -n cyan "Configuring SDDM... "
-
-  if ! write_system_config "/etc/sddm.conf.d/10-wayland.conf" "SDDM Wayland configuration" <<'EOF' >/dev/null 2>&1; then
-[General]
-DisplayServer=wayland
-GreeterEnvironment=QT_WAYLAND_SHELL_INTEGRATION=layer-shell
-EOF
-    fail "FAILED to write Wayland configuration"
-  fi
-
-  if ! write_system_config "/etc/sddm.conf.d/hidpi.conf" "SDDM HIDPI configuration" <<'EOF' >/dev/null 2>&1; then
-[Wayland]
-EnableHiDPI=true
-EOF
-    fail "FAILED to write HiDPI configuration"
-  fi
-
-  if ! sudo cp -r "$BASE_DIR/sddm/stray" /usr/share/sddm/themes/ && sudo chmod -R 755 /usr/share/sddm/themes/stray; then
-    fail "FAILED to copy SDDM stray theme files"
-  fi
-
-  if ! write_system_config "/etc/sddm.conf.d/theme.conf" "SDDM theme" <<'EOF' >/dev/null 2>&1; then
-[Theme]
-Current=stray
-EOF
-    fail "FAILED to write SDDM theme configuration"
-  fi
-  printc green "OK"
-
-}
 
 # =============================================================================
 # DNS CONFIGURATION FUNCTIONS
@@ -175,63 +127,15 @@ setup_dns_over_https() {
 }
 
 # =============================================================================
-# PLYMOUTH CONFIGURATION FUNCTIONS
-# =============================================================================
-
-setup_plymouth() {
-  printc cyan "Setting up Plymouth..."
-
-  install_package "plymouth"
-
-  printc -n cyan "Configuring Plymouth hooks... "
-  local mkinitcpio_conf="/etc/mkinitcpio.conf"
-  if ! grep -q "plymouth" "$mkinitcpio_conf"; then
-    if sudo sed -i '/^HOOKS=/ s/\(.*\) filesystems\(.*\)/\1 plymouth filesystems\2/' "$mkinitcpio_conf"; then
-      printc green "OK"
-    else
-      printc red "FAILED"
-      return 1
-    fi
-  else
-    printc yellow "already configured"
-  fi
-
-  local quiet_flags="quiet loglevel=3 splash vt.global_cursor_default=0 nowatchdog rd.udev.log_level=3"
-  update_kernel_cmdline "$quiet_flags"
-  regenerate_initramfs
-}
-
-# =============================================================================
 # MAIN EXECUTION FUNCTIONS
 # =============================================================================
 
 main() {
-  if confirm "Install and configure Plymouth for boot splash?"; then
-    setup_plymouth
-  else
-    printc yellow "Skipping Plymouth setup."
-  fi
   enable_user_services
   enable_system_services
   enable_ufw_firewall
-  configure_sddm
 
-  # =============================================================================
-  # Bootloader theming
-  # =============================================================================
-  printc_box "Bootloader Theming Setup" "Theming Bootloader"
-  if [[ "$(detect_bootloader)" == "limine" ]]; then
-    configure_limine_interface
-  elif [[ "$(detect_bootloader)" == "grub" ]]; then
-    ensure_sudo
-    install_grub_theme
-    edit_grub_config
-  else
-    printc yellow "No supported bootloader detected, skipping theming setup"
-  fi
-
-  echo
-  if confirm "Setup DNS over HTTPS using dnscrypt-proxy?"; then
+  if echo && confirm "Setup DNS over HTTPS using dnscrypt-proxy?"; then
     setup_dns_over_https
   else
     printc yellow "Skipping DNS over HTTPS setup."
