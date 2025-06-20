@@ -128,11 +128,6 @@ setup_user_directories() {
 }
 
 # =============================================================================
-# WALLPAPER
-# =============================================================================
-# enable_service "wallpaper.timer" "user"
-
-# =============================================================================
 # MAIN EXECUTION
 # =============================================================================
 
@@ -143,7 +138,6 @@ main() {
   make_config_scripts_executable
   copy_local_scripts
   setup_user_directories
-  enable_service "wallpaper.timer" "user"
 }
 
 main
