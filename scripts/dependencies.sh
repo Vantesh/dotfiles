@@ -113,6 +113,7 @@ input_tools=(
 # Base graphics drivers
 base_drivers=(
   mesa-utils
+  wireless-regdb
   libva-utils
   linux-firmware
   vulkan-tools
@@ -186,6 +187,10 @@ install_gpu_drivers() {
           install_package "linux-zen-headers"
         elif [[ "$kernel_version" == *"-lts"* ]]; then
           install_package "linux-lts-headers"
+        elif [[ "$kernel_version" == *"-cachyos-lts"* ]]; then
+          install_package "linux-cachyos-lts-headers"
+        elif [[ "$kernel_version" == *"-cachyos"* ]]; then
+          install_package "linux-cachyos-headers"
         else
           install_package "linux-headers"
         fi
