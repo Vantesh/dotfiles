@@ -30,15 +30,18 @@ clone_aur_helper_repository() {
 
 build_and_install_aur_helper() {
   local temp_dir="$1"
-  (
-    cd "$temp_dir" || exit
-    makepkg -si --noconfirm &>/dev/null
-  ) || {
+  pushd "$temp_dir" &>/dev/null || {
+    rm -rf "$temp_dir"
+    fail "Failed to enter $temp_dir"
+  }
+  if makepkg -si --noconfirm &>/dev/null; then
+    popd &>/dev/null || exit
+  else
+    popd &>/dev/null || exit
     rm -rf "$temp_dir"
     fail "Failed to build and install $AUR_HELPER."
-  }
+  fi
 }
-
 install_aur_helper() {
   if has_cmd "$AUR_HELPER"; then
     return
@@ -61,7 +64,9 @@ install_aur_helper() {
   temp_dir=$(mktemp -d) || fail "Failed to create temporary directory."
 
   clone_aur_helper_repository "$temp_dir"
+  pushd "$temp_dir" &>/dev/null || exit
   build_and_install_aur_helper "$temp_dir"
+  popd &>/dev/null || exit
 
   printc green "$AUR_HELPER installed successfully."
   rm -rf "$temp_dir"
