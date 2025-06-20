@@ -148,7 +148,7 @@ configure_limine_settings() {
     ["TERMINAL"]="kitty"
     ["TERMINAL_ARG"]="-e"
     ["SNAPSHOT_FORMAT_CHOICE"]=0
-    ["Quiet_Mode"]="yes"
+    ["QUIET_MODE"]="yes"
     ["ENABLE_UKI"]="yes"
   )
 
