@@ -1,7 +1,7 @@
 [default]
-  path     = "~/.config/hypr/theme/walls"
+  path     = "~/.config/hypr/backgrounds"
   duration = "60min"
-  sorting  = "ascending"
+  sorting  = "random"
 
 [default.transition.circle-open]
   smoothness = 1.0
