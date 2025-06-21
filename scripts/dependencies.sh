@@ -14,7 +14,7 @@ core_packages=(
   hyprpicker        # Color picker
   grimblast         # Screenshot tool
   wpaperd           # Wallpaper daemon
-  swayimg           # Image viewer
+  imv               # Image viewer
   hyprshot          # Screenshot tool
   matugen-bin       # Color generator
   ags-hyprpanel-git # panel
@@ -212,8 +212,8 @@ optional=(
   brave-bin
   zen-browser-bin
   visual-studio-code-bin
-  qbittorrent
-  vlc
+  qbittorrent-enhanced-git
+  vlc-git
   mpv
   btop
   nvtop
