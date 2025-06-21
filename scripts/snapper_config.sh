@@ -1,17 +1,4 @@
 #!/bin/bash
-
-# Source bootloader detection functions
-# shellcheck disable=SC1091
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-BOOTLOADER_SCRIPT="$SCRIPT_DIR/bootloader.sh"
-
-if [[ -f "$BOOTLOADER_SCRIPT" ]]; then
-  # shellcheck source=./bootloader.sh
-  source "$BOOTLOADER_SCRIPT"
-else
-  fail "Bootloader script not found: $BOOTLOADER_SCRIPT"
-fi
-
 # =============================================================================
 # CONSTANTS
 # =============================================================================
@@ -41,38 +28,33 @@ readonly LIMINE_CONFIG_FILE="/etc/default/limine"
 readonly LIMINE_ENTRY_TEMPLATE="/etc/limine-entry-tool.conf"
 readonly LIMINE_SNAPPER_TEMPLATE="/etc/limine-snapper-sync.conf"
 
-# Bootloader selection variable
-BOOTLOADER=""
-
 # =============================================================================
-# BOOTLOADER DETECTION
+# BOOTLOADER VALIDATION
 # =============================================================================
 
-detect_and_set_bootloader() {
-  printc -n cyan "Detecting bootloader... "
+validate_bootloader() {
+  local bootloader
+  bootloader=$(detect_bootloader)
 
-  # Check if detect_bootloader function exists
-  if ! declare -f detect_bootloader >/dev/null 2>&1; then
-    printc red "FAILED - detect_bootloader function not available"
-    exit 1
-  fi
-
-  BOOTLOADER=$(detect_bootloader)
-
-  case "$BOOTLOADER" in
+  case "$bootloader" in
   "limine")
     printc green "Limine detected"
+    return 0
     ;;
   "grub")
     printc green "GRUB detected"
+    return 0
     ;;
   "unknown")
-    printc red "No supported bootloader detected"
-    printc yellow "Please install either Limine or GRUB first"
-    exit 1
+    return 1
     ;;
   esac
 }
+
+if ! validate_bootloader; then
+  printc yellow "Snapper setup skipped: unsupported bootloader"
+  return 0 2>/dev/null || exit 0
+fi
 
 # =============================================================================
 # DEPENDENCY MANAGEMENT
@@ -85,11 +67,11 @@ install_dependencies() {
   done
 
   # Install bootloader-specific dependencies
-  if [[ "$BOOTLOADER" == "limine" ]]; then
+  if [[ "$(detect_bootloader)" == "limine" ]]; then
     for dep in "${limine_deps[@]}"; do
       install_package "$dep"
     done
-  elif [[ "$BOOTLOADER" == "grub" ]]; then
+  elif [[ "$(detect_bootloader)" == "grub" ]]; then
     for dep in "${grub_deps[@]}"; do
       install_package "$dep"
     done
@@ -101,11 +83,11 @@ install_dependencies() {
 # =============================================================================
 
 enable_snapper_services() {
-  if [[ "$BOOTLOADER" == "limine" ]]; then
+  if [[ "$(detect_bootloader)" == "limine" ]]; then
     for service in "${SERVICES[@]}"; do
       enable_service "$service" "system"
     done
-  elif [[ "$BOOTLOADER" == "grub" ]]; then
+  elif [[ "$(detect_bootloader)" == "grub" ]]; then
     # Only enable snapper cleanup for GRUB, not limine-snapper-sync
     enable_service "snapper-cleanup.timer" "system"
     enable_service "grub-btrfsd.service" "system"
@@ -247,20 +229,19 @@ setup_grub() {
 
 main() {
   ensure_sudo
-  detect_and_set_bootloader
   install_dependencies
   enable_snapper_services
   configure_snapper_cleanup
   create_updatedb
 
   # Bootloader-specific setup
-  if [[ "$BOOTLOADER" == "limine" ]]; then
+  if [[ "$(detect_bootloader)" == "limine" ]]; then
     setup_limine
-  elif [[ "$BOOTLOADER" == "grub" ]]; then
+  elif [[ "$(detect_bootloader)" == "grub" ]]; then
     setup_grub
   fi
 
-  printc green "Setup completed for $BOOTLOADER bootloader!"
+  printc green "Setup completed for $(detect_bootloader) bootloader!"
 }
 
 main
