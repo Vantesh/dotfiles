@@ -322,30 +322,10 @@ w    /proc/acpi/wakeup     -    -    -    -   XHC
 
 EOF
 
-  write_system_config "/etc/systemd/system/user-suspend@.service" "user suspend service" <<'EOF'
-[Unit]
-Description=User Suspend Actions
-Before=sleep.target
-
-[Service]
-User=%i
-Type=simple
-Environment=XDG_RUNTIME_DIR="/run/user/$(id -u %i)"
-ExecStart=/usr/bin/hyprlock
-ExecStartPost=/usr/bin/sleep 1
-
-[Install]
-WantedBy=sleep.target
-EOF
-
-  local current_user
-  current_user=$(logname 2>/dev/null || whoami)
-  enable_service "user-suspend@${current_user}.service" "system"
-
-  # Configure hibernation image size for systems with more than 16GB RAM
+  # Configure hibernation image size for systems with more than 30GB RAM
   local ram_gb
   ram_gb=$(get_ram_size_gb)
-  if [[ $ram_gb -gt 16 ]]; then
+  if [[ $ram_gb -gt 30 ]]; then
     write_system_config "/etc/tmpfiles.d/hibernation_image_size.conf" "hibernation image size config" <<'EOF'
 #    Path                   Mode UID  GID  Age Argument
 w    /sys/power/image_size  -    -    -    -   0
