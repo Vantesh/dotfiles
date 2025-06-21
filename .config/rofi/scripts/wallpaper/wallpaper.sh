@@ -1,6 +1,6 @@
 #!/bin/bash
 
-wallpapers_dir="$HOME/.config/hypr/theme/walls/"
+wallpapers_dir="$HOME/.config/hypr/backgrounds/"
 
 build_theme() {
   rows=$1
