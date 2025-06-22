@@ -4,37 +4,38 @@
 # CORE COMPONENTS
 # =======================
 core_packages=(
-  xdg-utils-mimeo   # xdg-utils
-  hyprland          # Wayland compositor
-  uwsm              # Universal Wayland Session Manager
-  rofi-wayland      # Wayland launcher
-  app2unit-git      # Run applications as units
-  hypridle          # Idle management
-  hyprlock          # Lock screen
-  hyprpicker        # Color picker
-  grimblast         # Screenshot tool
-  wpaperd           # Wallpaper daemon
-  imv               # Image viewer
-  hyprshot          # Screenshot tool
-  matugen-bin       # Color generator
-  ags-hyprpanel-git # panel
-  hyprpolkitagent   # Polkit agent for Hyprland
-  pyprland          # for scratchpads
-  devify            # device notification system
-  brightnessctl     # Screen brightness
-  playerctl         # Media controller
-  thunar            # File manager
-  sddm-git          # Display manager
-  kitty             # Terminal emulator
-
-  xdg-desktop-portal-gtk       # Desktop portal for GTK
-  xdg-desktop-portal-hyprland  # Desktop portal for Hyprland
-  archlinux-xdg-menu           # Arch Linux menu integration
-  xdg-user-dirs                # User directories
-  xdg-autostart                # XDG autostart
+  xdg-utils-mimeo              # xdg-utils
+  hyprland                     # Wayland compositor
+  uwsm                         # Universal Wayland Session Manager
+  rofi-wayland                 # Wayland launcher
+  app2unit-git                 # Run applications as units
+  hypridle                     # Idle management
+  hyprlock                     # Lock screen
+  hyprpicker                   # Color picker
+  grimblast                    # Screenshot tool
+  wpaperd                      # Wallpaper daemon
+  imv                          # Image viewer
+  hyprshot                     # Screenshot tool
+  matugen-bin                  # Color generator
+  ags-hyprpanel-git            # panel
+  hyprpolkitagent              # Polkit agent for Hyprland
+  pyprland                     # for scratchpads
+  devify                       # device notification system
+  brightnessctl                # Screen brightness
+  playerctl                    # Media controller
+  thunar                       # File manager
+  sddm-git                     # Display manager
+  kitty                        # Terminal emulator
+  rofimoji                     # Emoji picker for Rofi
   selectdefaultapplication-git # Tool to change default apps
   yad                          # Yet Another Dialog - GUI for scripts
-  rofimoji                     # Emoji picker for Rofi
+
+  xdg-desktop-portal-gtk      # Desktop portal for GTK
+  xdg-desktop-portal-hyprland # Desktop portal for Hyprland
+  archlinux-xdg-menu          # Arch Linux menu integration
+  xdg-user-dirs               # User directories
+  xdg-autostart               # XDG autostart
+  xdg-terminal-exec           # launching desktop apps with Terminal=true
 
   #required by vscode and other apps to store keyrings
   gnome-keyring
