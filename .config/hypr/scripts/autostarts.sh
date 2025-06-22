@@ -2,7 +2,7 @@
 apps=(
   "wpaperd -d"
   "clipse -listen"
-  "udiskie -q"
+  "udiskie"
   "pypr"
   "hyprpanel"
 
