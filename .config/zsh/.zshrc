@@ -1,55 +1,129 @@
+
 # If not running interactively, don't do anything
 [[ $- != *i* ]] && return
 
 vivid_theme="catppuccin-mocha"
 
-#history
+#---------------------------------------------------
+# PLUGIN MANAGER
+#---------------------------------------------------
+
+# basic plugin manager to automatically import zsh plugins
+# script by mattmc3 from https://github.com/mattmc3/zsh_unplugged
+# clone a plugin, identify its init file, source it, and add it to your fpath
+function plugin-load {
+	local repo plugdir initfile initfiles=()
+	: ${ZPLUGINDIR:=${ZDOTDIR:-~/.config/zsh}/plugins}
+	for repo in $@; do
+		plugdir=$ZPLUGINDIR/${repo:t}
+		initfile=$plugdir/${repo:t}.plugin.zsh
+		if [[ ! -d $plugdir ]]; then
+			echo "Cloning $repo..."
+			git clone -q --depth 1 --recursive --shallow-submodules \
+				https://github.com/$repo $plugdir
+		fi
+		if [[ ! -e $initfile ]]; then
+			initfiles=($plugdir/*.{plugin.zsh,zsh-theme,zsh,sh}(N))
+			(( $#initfiles )) || { echo >&2 "No init file '$repo'." && continue }
+			ln -sf $initfiles[1] $initfile
+		fi
+		fpath+=$plugdir
+		(( $+functions[zsh-defer] )) && zsh-defer . $initfile || . $initfile
+	done
+}
+
+plugin-update() {
+  for dir in ${(f)"$(command find ${ZPLUGINDIR:-~/.config/zsh/plugins} -mindepth 1 -maxdepth 1 -type d)"}; do
+    echo "Updating ${dir:t}..."
+    git -C $dir pull --ff-only --quiet || echo "❌ Failed to update ${dir:t}"
+  done
+}
+
+# list of github repos of plugins
+repos=(
+  ryanccn/vivid-zsh
+	zsh-users/zsh-autosuggestions
+	zsh-users/zsh-history-substring-search
+	zdharma-continuum/fast-syntax-highlighting
+)
+plugin-load $repos
+
+
+# ---------------------------------------------------
+# HISTORY SETTINGS
+# ---------------------------------------------------
 HISTFILE="${ZDOTDIR}/.zsh_history"
 HISTSIZE=10000
 SAVEHIST=10000
-HISTDUP=erase
 
-# clone antidote if it doesn't exist
-if [ ! -d "${ZDOTDIR:-$HOME}/.antidote" ]; then
-  echo "Cloning antidote..."
-  git clone --depth=1 https://github.com/mattmc3/antidote.git "${ZDOTDIR:-$HOME}/.antidote"
-fi
-zstyle ':plugin:ez-compinit' 'compstyle' 'ohmy'
-#keybindings
-bindkey -e
-bindkey '^[[A' history-substring-search-up
-bindkey '^[[B' history-substring-search-down
-
+# ---------------------------------------------------
+# LOAD ALIASES, EXPORTS AND OPTIONS
+# ---------------------------------------------------
 
 ZDOTDIR="${ZDOTDIR:-$HOME}"
 for file in optionrc aliasrc exportsrc; do
   [ -r "$ZDOTDIR/$file" ] && source "$ZDOTDIR/$file"
 done
 
-# Lazy-load antidote and generate the static load file only when needed
-zsh_plugins=${ZDOTDIR:-$HOME}/.zsh_plugins
-if [[ ! ${zsh_plugins}.zsh -nt ${zsh_plugins}.txt ]]; then
-  source "${ZDOTDIR:-$HOME}/.antidote/antidote.zsh"
-  antidote bundle <${zsh_plugins}.txt >${zsh_plugins}.zsh
+
+# ---------------------------------------------------
+# COMPINIT
+# ---------------------------------------------------
+
+# Autoload compinit
+autoload -Uz compinit
+
+ZCDUMP=~/.config/zsh/zcompdump
+if [[ -n ${~ZCDUMP}(N.mh+24) ]]; then
+  compinit -d $ZCDUMP
+else
+  compinit -C -d $ZCDUMP
 fi
 
-source ${zsh_plugins}.zsh
-# Lazy-load antidote from its functions directory.
-fpath=(${ZDOTDIR:-$HOME}/.antidote/functions $fpath)
-autoload -Uz antidote
+# Extras
+autoload -Uz colors && colors
+autoload -Uz add-zsh-hook
+_comp_options+=(globdots)
 
-# other zstyles after loading antidote
+# ---------------------------------------------------
+# COMPLETION STYLES
+# ---------------------------------------------------
 
+zstyle ':completion:*:*:*:*:*' menu select
+zstyle ':completion:*' rehash true
+zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}' 
 zstyle ':completion:*' list-colors "${(s.:.)LS_COLORS}"
-zstyle ':completion:*' completer _expand _complete _ignored _approximate
-zstyle ':completion:*' rehash true  # automatically find new commands
+zstyle ':completion:*' completer _complete _match _approximate
 
-# Speed up completions
-zstyle ':completion:*' accept-exact '*(N)'
+# Use completion result caching
+zstyle ':completion:*:paths' accept-exact '*(N)'
 zstyle ':completion:*' use-cache on
-zstyle ':completion:*' cache-path "${XDG_CACHE_HOME:-$HOME/.cache}/zsh/completion"
+zstyle ':completion:*' cache-path "${XDG_CACHE_HOME:-$HOME/.cache}/zsh/zcache"
 
 
+# ---------------------------------------------------
+# KEY BINDINGS
+# ---------------------------------------------------
+zmodload zsh/terminfo
+bindkey "$terminfo[kcuu1]" history-substring-search-up
+bindkey "$terminfo[kcud1]" history-substring-search-down
+bindkey '^[[A' history-substring-search-up
+bindkey '^[OA' history-substring-search-up
+bindkey '^[[B' history-substring-search-down
+bindkey '^[OB' history-substring-search-down
+bindkey -M vicmd '^[[A' history-substring-search-up 
+bindkey -M vicmd '^[OA' history-substring-search-up 
+bindkey -M vicmd '^[[B' history-substring-search-down
+bindkey -M vicmd '^[OB' history-substring-search-down
+bindkey -M viins '^[[A' history-substring-search-up 
+bindkey -M viins '^[OA' history-substring-search-up 
+bindkey -M viins '^[[B' history-substring-search-down 
+bindkey -M viins '^[OB' history-substring-search-down
+
+
+# ----------------------------------------------------
+# SHELL INTERGRATIONS
+# ----------------------------------------------------
 
 if command -v fzf &>/dev/null; then
   eval "$(fzf --zsh)"
@@ -70,5 +144,4 @@ fi
 if command -v oh-my-posh &>/dev/null; then
   eval "$(oh-my-posh init zsh --config "${ZDOTDIR}/ohmyposh/ohmyposh.toml")"
 fi
-
 
