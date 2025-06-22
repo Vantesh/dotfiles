@@ -1,3 +1,6 @@
+# If not running interactively, don't do anything
+[[ $- != *i* ]] && return
+
 vivid_theme="catppuccin-mocha"
 
 #history
@@ -17,20 +20,12 @@ bindkey -e
 bindkey '^[[A' history-substring-search-up
 bindkey '^[[B' history-substring-search-down
 
-#load optionrc if it exists
-if [ -f "${ZDOTDIR}/optionrc" ]; then
-  source "${ZDOTDIR}/optionrc"
-fi
 
-#load aliasrc if it exists
-if [ -f "${ZDOTDIR}/aliasrc" ]; then
-  source "${ZDOTDIR}/aliasrc"
-fi
+ZDOTDIR="${ZDOTDIR:-$HOME}"
+for file in optionrc aliasrc exportsrc; do
+  [ -r "$ZDOTDIR/$file" ] && source "$ZDOTDIR/$file"
+done
 
-# load exportrc if it exists
-if [ -f "${ZDOTDIR}/exportsrc" ]; then
-  source "${ZDOTDIR}/exportsrc"
-fi
 # Lazy-load antidote and generate the static load file only when needed
 zsh_plugins=${ZDOTDIR:-$HOME}/.zsh_plugins
 if [[ ! ${zsh_plugins}.zsh -nt ${zsh_plugins}.txt ]]; then

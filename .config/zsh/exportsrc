@@ -20,6 +20,7 @@ export GNUPGHOME="${XDG_DATA_HOME}/gnupg"
 export EDITOR="nvim"
 export VISUAL="nvim"
 export PAGER="less -R"
+export TERMINAL='/usr/bin/kitty'
 
 # setup git path
 export GIT_CONFIG_GLOBAL="${XDG_CONFIG_HOME:-$HOME/.config}/git/config"
@@ -37,8 +38,6 @@ export PATH=$PATH:"$CARGO_HOME"/bin
 export PATH=$PATH:"$RUSTUP_HOME"/bin
 # go
 export PATH=$PATH:"$GOPATH"/bin
-
-export TERMINAL='/usr/bin/kitty'
 
 #colors
 export MANPAGER="sh -c 'sed -u -e \"s/\\x1B\[[0-9;]*m//g; s/.\\x08//g\" | bat -p -lman'"
