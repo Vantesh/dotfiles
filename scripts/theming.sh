@@ -4,7 +4,11 @@
 # CONSTANTS
 # =============================================================================
 
-DEPS=("jq" "curl")
+DEPS=(
+  catppuccin-gtk-theme-mocha
+  catppuccin-qt5ct-git
+  morewaita-icon-theme
+)
 readonly FONTS_REPO_URL="https://github.com/Vantesh/Fonts.git"
 readonly FONTS_TARGET_DIR="$HOME/.local/share/fonts"
 readonly CURSOR_REPO_OWNER="driedpampas"
@@ -214,7 +218,7 @@ EOF
 # =============================================================================
 
 configure_limine_interface() {
-  printc cyan "Configuring Limine interface..."
+  printc -n cyan "Configuring Limine interface..."
 
   local limine_conf="/boot/limine.conf"
 
@@ -222,8 +226,6 @@ configure_limine_interface() {
     printc red "Limine config file not found at $limine_conf"
     return 1
   fi
-
-  printc -n cyan "Setting interface options... "
 
   # Interface configuration parameters
   local PARAMS=(
