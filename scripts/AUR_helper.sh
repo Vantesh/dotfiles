@@ -49,9 +49,9 @@ install_aur_helper() {
 
   # Try installing from Chaotic AUR first if available
   if has_chaotic_aur; then
-    printc cyan "Installing $AUR_HELPER from Chaotic AUR repository..."
+    printc -n cyan "Installing $AUR_HELPER from Chaotic AUR repository..."
     if sudo pacman -S --noconfirm "$AUR_HELPER" &>/dev/null; then
-      printc green "$AUR_HELPER installed successfully from repository."
+      printc green "OK"
       return
     else
       printc yellow "Failed to install from repository, falling back to manual build."
