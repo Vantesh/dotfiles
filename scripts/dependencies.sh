@@ -116,7 +116,6 @@ base_drivers=(
   mesa-utils
   wireless-regdb
   libva-utils
-  linux-firmware
   vulkan-tools
   vulkan-headers
 
@@ -145,8 +144,8 @@ nvidia_drivers=(
 )
 
 install_gpu_drivers() {
+  printc cyan "Installing base graphics driver"
   for package in "${base_drivers[@]}"; do
-    printc cyan "Installing base graphics driver"
     install_package "$package"
   done
 
