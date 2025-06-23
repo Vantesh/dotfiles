@@ -7,7 +7,6 @@ DEPS=(
   oh-my-posh-bin
   zsh
   zoxide
-  unzip
   duf
   fastfetch
   dust
@@ -15,7 +14,6 @@ DEPS=(
   topgrade
   eza
   fd
-  less
   ugrep
   bat
   fzf
@@ -24,17 +22,16 @@ DEPS=(
 
 readonly ZSHENV_FILE="/etc/zsh/zshenv"
 readonly ZSH_CONFIG_DIR="/etc/zsh"
-
+readonly ZDOTDIR=~/.config/zsh
 # =============================================================================
 # DEPENDENCY MANAGEMENT
 # =============================================================================
 
 install_dependencies() {
-  printc cyan "Installing ZSH dependencies..."
   for dep in "${DEPS[@]}"; do
     install_package "$dep"
   done
-  printc green "Dependencies installed successfully."
+
 }
 
 # =============================================================================
@@ -99,10 +96,18 @@ EOF
 set_default_shell() {
   printc cyan "Setting ZSH as default shell..."
   local zsh_path
-  zsh_path=$(which zsh) || fail "Failed to find ZSH executable."
-  echo
+  zsh_path=$(command -v zsh) || fail "ZSH not found."
   chsh -s "$zsh_path" "$USER" || fail "Failed to set ZSH as default shell."
-  printc green "ZSH set as default shell for user $USER."
+
+  if echo && confirm "Set ZSH as default shell for root?"; then
+    printc cyan "Setting ZSH as default shell for all users..."
+    sudo chsh -s "$zsh_path" || fail "Failed to set ZSH for all users."
+    sudo rm -rf /root/.config/zsh
+    sudo cp -r "$ZDOTDIR" /root/.config/zsh || fail "Failed to copy ZDOTDIR to root."
+    printc green "ZSH set as default shell for all users."
+  else
+    printc yellow "Skipping setting ZSH as default shell for all users."
+  fi
 }
 
 # =============================================================================
@@ -131,7 +136,6 @@ main() {
   set_default_shell
   update_pkgfile_database
   rebuild_bat_cache
-
   printc green "ZSH setup completed successfully."
 }
 
