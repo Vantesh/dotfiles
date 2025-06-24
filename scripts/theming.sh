@@ -8,6 +8,7 @@ DEPS=(
   catppuccin-gtk-theme-mocha
   catppuccin-qt5ct-git
   morewaita-icon-theme
+  kvantum-theme-catppuccin-git
 )
 readonly FONTS_REPO_URL="https://github.com/Vantesh/Fonts.git"
 readonly FONTS_TARGET_DIR="$HOME/.local/share/fonts"
