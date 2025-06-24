@@ -22,7 +22,7 @@ DEPS=(
 
 readonly ZSHENV_FILE="/etc/zsh/zshenv"
 readonly ZSH_CONFIG_DIR="/etc/zsh"
-readonly ZDOTDIR=~/.config/zsh
+readonly ZDOTDIR="$HOME/.config/zsh"
 # =============================================================================
 # DEPENDENCY MANAGEMENT
 # =============================================================================
@@ -102,8 +102,13 @@ set_default_shell() {
   if echo && confirm "Set ZSH as default shell for root?"; then
     printc cyan "Setting ZSH as default shell for all users..."
     sudo chsh -s "$zsh_path" || fail "Failed to set ZSH for all users."
-    sudo rm -rf /root/.config/zsh
-    sudo cp -r "$ZDOTDIR" /root/.config/zsh || fail "Failed to copy ZDOTDIR to root."
+    
+    if [[ ! -d "/root/.config" ]]; then
+      sudo mkdir -p "/root/.config" || fail "Failed to create .config directory for root."
+      sudo chown root:root "/root/.config"
+    fi 
+    sudo cp -r "$ZDOTDIR" "/root/.config/" || fail "Failed to copy ZSH config files for root."
+
     printc green "ZSH set as default shell for all users."
   else
     printc yellow "Skipping setting ZSH as default shell for all users."
