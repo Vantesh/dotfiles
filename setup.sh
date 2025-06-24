@@ -69,17 +69,18 @@ configure_services() {
 }
 
 apply_dotfiles() {
+  printc_box "THEMING" "Setting up Fonts, cursors and themes"
+  source "$SCRIPTS_DIR/theming.sh"
 
   printc_box "DOTFILES SETUP" "Applying dotfiles and configurations"
   source "$SCRIPTS_DIR/dotfiles.sh"
+  
   if echo && confirm "Setup ZSH and related tools?"; then
     printc_box "ZSH SETUP" "Configuring ZSH shell and tools"
     source "$SCRIPTS_DIR/zsh_setup.sh"
   else
     printc yellow "Skipping ZSH setup."
   fi
-  printc_box "THEMING" "Setting up Fonts, cursors and themes"
-  source "$SCRIPTS_DIR/theming.sh"
 }
 # =============================================================================
 # OPTIONAL SETUP FUNCTIONS
