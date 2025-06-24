@@ -140,6 +140,7 @@ nvidia_drivers=(
   nvidia-utils
   nvidia-dkms
   nvidia-settings
+  opencl-nvidia
 
 )
 
