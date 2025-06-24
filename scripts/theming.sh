@@ -337,6 +337,11 @@ main() {
   configure_sddm
 
   if [[ "$(detect_bootloader)" == "limine" ]]; then
+    # skip limine theming if using cachyos
+    if [[ -f /etc/cachyos-release ]]; then
+      printc yellow "Skipping Limine theming on CachyOS"
+      return 0
+    fi
     configure_limine_interface
   elif [[ "$(detect_bootloader)" == "grub" ]]; then
     ensure_sudo
