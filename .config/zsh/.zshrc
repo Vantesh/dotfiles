@@ -91,7 +91,8 @@ _comp_options+=(globdots)
 
 zstyle ':completion:*:*:*:*:*' menu select
 zstyle ':completion:*' rehash true
-zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}' 
+zstyle ':completion::complete:*' gain-privileges 1
+zstyle ':completion:*' matcher-list '' 'm:{a-zA-Z}={A-Za-z}' 'r:|=*' 'l:|=* r:|=*'
 zstyle ':completion:*' list-colors "${(s.:.)LS_COLORS}"
 zstyle ':completion:*' completer _complete _match _approximate
 
@@ -100,6 +101,7 @@ zstyle ':completion:*:paths' accept-exact '*(N)'
 zstyle ':completion:*' use-cache on
 zstyle ':completion:*' cache-path "${XDG_CACHE_HOME:-$HOME/.cache}/zsh/zcache"
 
+ZSH_AUTOSUGGEST_STRATEGY=(history completion)
 
 # ---------------------------------------------------
 # KEY BINDINGS
@@ -111,13 +113,13 @@ bindkey '^[[A' history-substring-search-up
 bindkey '^[OA' history-substring-search-up
 bindkey '^[[B' history-substring-search-down
 bindkey '^[OB' history-substring-search-down
-bindkey -M vicmd '^[[A' history-substring-search-up 
-bindkey -M vicmd '^[OA' history-substring-search-up 
+bindkey -M vicmd '^[[A' history-substring-search-up
+bindkey -M vicmd '^[OA' history-substring-search-up
 bindkey -M vicmd '^[[B' history-substring-search-down
 bindkey -M vicmd '^[OB' history-substring-search-down
-bindkey -M viins '^[[A' history-substring-search-up 
-bindkey -M viins '^[OA' history-substring-search-up 
-bindkey -M viins '^[[B' history-substring-search-down 
+bindkey -M viins '^[[A' history-substring-search-up
+bindkey -M viins '^[OA' history-substring-search-up
+bindkey -M viins '^[[B' history-substring-search-down
 bindkey -M viins '^[OB' history-substring-search-down
 
 
