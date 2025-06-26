@@ -43,6 +43,7 @@ core_packages=(
 
   # Sytem tools
   topgrade
+  mission-center
   udiskie
   ntfs-3g
   gparted
@@ -145,6 +146,10 @@ nvidia_drivers=(
 )
 
 install_gpu_drivers() {
+  if grep -q "CachyOS" /etc/os-release; then
+    printc yellow "Skipping GPU driver installation on CachyOS"
+    return 0
+  fi
   printc cyan "Installing base graphics driver"
   for package in "${base_drivers[@]}"; do
     install_package "$package"
