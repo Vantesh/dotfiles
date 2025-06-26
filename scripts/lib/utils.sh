@@ -139,7 +139,8 @@ install_package() {
     if ((status == 0)); then
       printc "<cyan>$pkg</cyan> <green>installed</green>"
     else
-      fail "Failed to install $pkg."
+      printc "<red>$pkg</red> <yellow>failed to install</yellow>"
+      return 1
     fi
   fi
 }
