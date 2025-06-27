@@ -87,14 +87,6 @@ reload_udev_rules() {
   fi
 }
 
-reload_systemd_daemon() {
-  printc -n cyan "Reloading systemd daemon... "
-  if sudo systemctl daemon-reload; then
-    printc green "OK"
-  else
-    printc yellow "FAILED"
-  fi
-}
 
 # ========================
 # auto-cpufreq Installation
@@ -363,7 +355,7 @@ setup_system_hibernation() {
     fail "No active non-zram swap found. Hibernation cannot be configured."
   fi
   configure_hibernation_cmdline
-  configure_initramfs && sleep 2 && regenerate_initramfs
+  configure_initramfs && regenerate_initramfs
   detect_nvidia_gpu && enable_nvidia_hibernation_services
   write_hibernation_configs
 }
