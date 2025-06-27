@@ -326,6 +326,22 @@ setup_plymouth() {
   update_kernel_cmdline "$quiet_flags"
   regenerate_initramfs
 }
+
+# =============================================================================
+# GTK THEMING
+# =============================================================================
+configure_gtk_theme() {
+  printc -n cyan "Configuring GTK theme... "
+  if gsettings set org.gnome.desktop.interface gtk-theme "catppuccin-mocha-blue-standard+default" &&
+    gsettings set org.gnome.desktop.interface font-name "SF Pro Text 12" &&
+    gsettings set org.gnome.desktop.interface icon-theme "MoreWaita" &&
+    gsettings set org.gnome.desktop.interface color-scheme "prefer-dark"; then
+    printc green "OK"
+  else
+    printc red "FAILED"
+    return 1
+  fi
+}
 # =============================================================================
 # MAIN EXECUTION
 # =============================================================================
@@ -335,6 +351,7 @@ main() {
   install_fonts
   install_cursor_theme
   configure_sddm
+  configure_gtk_theme
 
   if [[ "$(detect_bootloader)" == "limine" ]]; then
     if grep -q "CachyOS" /etc/os-release; then
