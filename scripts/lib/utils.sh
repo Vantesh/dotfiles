@@ -362,3 +362,12 @@ regenerate_initramfs() {
     fail "Neither limine-mkinitcpio nor mkinitcpio found."
   fi
 }
+
+reload_systemd_daemon() {
+  printc -n cyan "Reloading systemd daemon... "
+  if sudo systemctl daemon-reload; then
+    printc green "OK"
+  else
+    printc yellow "FAILED"
+  fi
+}
