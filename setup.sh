@@ -74,14 +74,26 @@ apply_dotfiles() {
 
   printc_box "DOTFILES SETUP" "Applying dotfiles and configurations"
   source "$SCRIPTS_DIR/dotfiles.sh"
-  
+
   if echo && confirm "Setup ZSH and related tools?"; then
     printc_box "ZSH SETUP" "Configuring ZSH shell and tools"
     source "$SCRIPTS_DIR/zsh_setup.sh"
   else
     printc yellow "Skipping ZSH setup."
   fi
+
+  harden_boot_fstab
 }
+
+harden_boot_fstab() {
+  printc -n cyan "Hardening /boot mount options in fstab... "
+  if sudo sed -i '/[[:space:]]\/boot[[:space:]]/s|vfat[[:space:]].*|vfat defaults,umask=0077 0 2|' /etc/fstab; then
+    printc green "OK"
+  else
+    printc yellow "Failed to harden /boot mount options."
+  fi
+}
+
 # =============================================================================
 # OPTIONAL SETUP FUNCTIONS
 # =============================================================================
