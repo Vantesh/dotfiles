@@ -2,6 +2,11 @@
 export XDG_MENU_PREFIX=arch-
 export UWSM_USE_SESSION_SLICE=true
 
+# ###### app2unit Integration ######
+export APP2UNIT_SLICES='a=app-graphical.slice b=background-graphical.slice s=session-graphical.slice'
+
+
+
 # sdl
 export SDL_VIDEODRIVER=wayland
 
@@ -13,7 +18,7 @@ export HYPRCURSOR_THEME=macOS
 
 export GDK_BACKEND=wayland,x11
 export GDK_SCALE=1
-export ELECTRON_OZONE_PLATFORM_HINT=auto
+export ELECTRON_OZONE_PLATFORM_HINT=wayland
 export CLUTTER_BACKEND=wayland
 
 #QT VARIABLES
