@@ -231,6 +231,7 @@ optional=(
   yazi
   neovim
   spotify-launcher
+  git-delta
   antidot-bin # clean up home directory
 
 )
