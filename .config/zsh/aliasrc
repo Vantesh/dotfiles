@@ -1,5 +1,8 @@
-#!/bin/bash
-# Add color support to various commands
+#!/bin/env bash
+# --------------------------------------------------------------------
+# COLOR SOME COMMANDS
+# --------------------------------------------------------------------
+
 alias grep="ugrep --color=auto"
 alias fgrep="ugrep -F --color=auto"
 alias egrep="ugrep -E --color=auto"
@@ -8,14 +11,28 @@ alias dir="dir --color=auto"
 alias vdir="vdir --color=auto"
 alias ip="ip -color"
 
-# less destructive aliases
+# --------------------------------------------------------------------
+# GIT ALIASES
+# --------------------------------------------------------------------
+
+alias gs="git status --short --branch"
+alias gl="git log --all --graph --pretty=format:'%C(magenta)%h %C(cyan)%an <%ae> %C(white)%ar%C(auto) %D%n%s%n'"
+alias gcl="git clone"
+alias gd="git diff"
+
+# -------------------------------------------------------------------
+# LESS DESTRUCTIVE ALIASES
+# -------------------------------------------------------------------
 alias rm="rm -ri"
 [[ -f /usr/bin/trash ]] && alias rm="trash "
 alias mv="mv -i"
 alias cp="cp -i"
 alias ln="ln -i"
 
-# common aliases
+# -------------------------------------------------------------------
+# COMMON ALIASES
+# -------------------------------------------------------------------
+
 alias mkdir="mkdir -p"
 alias cat="bat --style=header --style=snip --style=changes"
 alias vim="nvim"
@@ -30,7 +47,10 @@ alias h='history'
 alias wget='wget --hsts-file="$XDG_DATA_HOME/wget-hsts" -c'
 alias jtcl='journalctl -p 3 -xb'
 
-# pacman aliases
+# -------------------------------------------------------------------
+# PACKAGE MANAGEMENT ALIASES
+# -------------------------------------------------------------------
+
 alias mirror='sudo reflector -f 30 -l 30 --number 10 --verbose --save /etc/pacman.d/mirrorlist'
 alias cleanup='sudo pacman -Rns $(pacman -Qtdq)'
 alias fixpacman='sudo rm/var/lib/pacman/db.lck'
