@@ -87,7 +87,6 @@ reload_udev_rules() {
   fi
 }
 
-
 # ========================
 # auto-cpufreq Installation
 # ========================
@@ -348,6 +347,12 @@ enable_nvidia_hibernation_services() {
   else
     printc yellow "partial ($enabled_count/${#nvidia_services[@]})"
   fi
+
+  write_hibernation_configs "/etc/tmpfiles.d/nvidia_pm.conf" "nvidia power management config" <<'EOF'
+# /etc/tmpfiles.d/nvidia_pm.conf
+w /sys/bus/pci/devices/0000:01:00.0/power/control - - - - auto
+EOF
+
 }
 
 setup_system_hibernation() {
