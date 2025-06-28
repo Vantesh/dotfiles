@@ -41,10 +41,10 @@ plugin-update() {
 
 # list of github repos of plugins
 repos=(
-  ryanccn/vivid-zsh
+  	ryanccn/vivid-zsh
 	zsh-users/zsh-autosuggestions
-	zsh-users/zsh-history-substring-search
 	zdharma-continuum/fast-syntax-highlighting
+	zsh-users/zsh-history-substring-search
 )
 plugin-load $repos
 
@@ -102,25 +102,23 @@ zstyle ':completion:*' use-cache on
 zstyle ':completion:*' cache-path "${XDG_CACHE_HOME:-$HOME/.cache}/zsh/zcache"
 
 ZSH_AUTOSUGGEST_STRATEGY=(history completion)
+HISTORY_SUBSTRING_SEARCH_HIGHLIGHT_FOUND='bold,standout'
+HISTORY_SUBSTRING_SEARCH_HIGHLIGHT_NOT_FOUND='none'
+HISTORY_SUBSTRING_SEARCH_FUZZY="yes"
+
 
 # ---------------------------------------------------
 # KEY BINDINGS
 # ---------------------------------------------------
 zmodload zsh/terminfo
-bindkey "$terminfo[kcuu1]" history-substring-search-up
-bindkey "$terminfo[kcud1]" history-substring-search-down
+
+# Bind the Up arrow key (history substring search up)
 bindkey '^[[A' history-substring-search-up
 bindkey '^[OA' history-substring-search-up
+
+# Bind the Down arrow key (history substring search down)
 bindkey '^[[B' history-substring-search-down
 bindkey '^[OB' history-substring-search-down
-bindkey -M vicmd '^[[A' history-substring-search-up
-bindkey -M vicmd '^[OA' history-substring-search-up
-bindkey -M vicmd '^[[B' history-substring-search-down
-bindkey -M vicmd '^[OB' history-substring-search-down
-bindkey -M viins '^[[A' history-substring-search-up
-bindkey -M viins '^[OA' history-substring-search-up
-bindkey -M viins '^[[B' history-substring-search-down
-bindkey -M viins '^[OB' history-substring-search-down
 
 
 # ----------------------------------------------------
