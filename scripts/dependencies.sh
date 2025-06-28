@@ -12,6 +12,7 @@ core_packages=(
   hypridle                     # Idle management
   hyprlock                     # Lock screen
   hyprpicker                   # Color picker
+  hyprsunset                   # Blue light filter
   grimblast                    # Screenshot tool
   wpaperd                      # Wallpaper daemon
   imv                          # Image viewer
@@ -46,6 +47,9 @@ core_packages=(
   mission-center
   udiskie
   ntfs-3g
+  exfatprogs
+  dosfstools
+  f2fs-tools
   gparted
   gpart
   bluez
@@ -141,6 +145,7 @@ nvidia_drivers=(
   nvidia-utils
   nvidia-dkms
   nvidia-settings
+  nvidia-prime
   opencl-nvidia
 
 )
