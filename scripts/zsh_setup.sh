@@ -81,9 +81,6 @@ else
   export ZDOTDIR="$HOME/.config/zsh"
 fi
 
-# export PATH
- export PATH="$HOME/.local/bin:$HOME/bin:$PATH"
-
 EOF
 
   if [[ -f "$ZSHENV_FILE" ]]; then
@@ -102,11 +99,11 @@ set_default_shell() {
   if echo && confirm "Set ZSH as default shell for root?"; then
     printc cyan "Setting ZSH as default shell for all users..."
     sudo chsh -s "$zsh_path" || fail "Failed to set ZSH for all users."
-    
+
     if [[ ! -d "/root/.config" ]]; then
       sudo mkdir -p "/root/.config" || fail "Failed to create .config directory for root."
       sudo chown root:root "/root/.config"
-    fi 
+    fi
     sudo cp -r "$ZDOTDIR" "/root/.config/" || fail "Failed to copy ZSH config files for root."
 
     printc green "ZSH set as default shell for all users."
