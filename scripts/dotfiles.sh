@@ -4,9 +4,9 @@
 # CONSTANTS
 # =============================================================================
 
-readonly CONFIG_SOURCE_DIR=".config"
-readonly VSCODE_SOURCE_DIR=".vscode"
-readonly LOCAL_BIN_SOURCE="local/bin"
+readonly CONFIG_SOURCE_DIR="home/.config"
+readonly VSCODE_SOURCE_DIR="home/.vscode"
+readonly LOCAL_BIN_SOURCE="home/.local/bin"
 readonly LOCAL_BIN_TARGET="$HOME/.local/bin"
 
 readonly EXECUTABLE_CONFIG_FOLDERS=(
