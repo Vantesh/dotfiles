@@ -45,3 +45,4 @@ export PATH=$PATH:"$HOME/.local/bin"
 export MANPAGER="sh -c 'sed -u -e \"s/\\x1B\[[0-9;]*m//g; s/.\\x08//g\" | bat -p -lman'"
 export MANROFFOPT="-P -c"
 export LESS='-R --use-color -Dd+r$Du+b$'
+export SUDO_PROMPT=$'[\e[31;5msudo\e[m] password for \e[33;1m%p\e[m: '
