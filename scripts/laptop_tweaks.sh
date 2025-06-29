@@ -295,7 +295,7 @@ AllowHibernation=yes
 AllowSuspendThenHibernate=yes
 AllowHybridSleep=yes
 HibernateMode=shutdown
-MemorySleepMode=deep
+#MemorySleepMode=deep
 HibernateDelaySec=30min
 EOF
 
