@@ -33,19 +33,26 @@ alias ln="ln -i"
 # COMMON ALIASES
 # -------------------------------------------------------------------
 
-alias mkdir="mkdir -p"
-alias cat="bat --style=header --style=snip --style=changes"
-alias vim="nvim"
-alias ls="eza -a --icons=always --color=always --group-directories-first"
-alias ll="eza -al --icons=always --color=always --group-directories-first"
-alias df='duf --output mountpoint,size,avail,type,filesystem'
-alias du='dust -r'
-alias free='free -m'
-alias find='fd'
+[ -x "$(command -v bat)" ] && alias cat="bat --style=header --style=snip --style=changes"
+[ -x "$(command -v nvim)" ] && alias vim="nvim"
+[ -x "$(command -v eza)" ] && alias ls="eza -a --icons=always --color=always --group-directories-first"
+[ -x "$(command -v eza)" ] && alias ll="eza -al --icons=always --color=always --group-directories-first"
+[ -x "$(command -v eza)" ] && alias la="eza -A --icons=always --color=always --group-directories-first"
+[ -x "$(command -v eza)" ] && alias lt="eza -lT"
+
+[ -x "$(command -v bat)" ] && alias less='bat --paging=always'
+[ -x "$(command -v bat)" ] && alias more='bat --paging=always'
+[ -x "$(command -v duf)" ] && alias df='duf --output mountpoint,size,avail,type,filesystem'
+[ -x "$(command -v dust)" ] && alias du='dust -r'
+[ -x "$(command -v fd)" ] && alias find='fd'
+[ -x "$(command -v delta)" ] && alias diff="delta"
+
 alias ping='ping -c 10'
-alias h='history'
 alias wget='wget --hsts-file="$XDG_DATA_HOME/wget-hsts" -c'
 alias jtcl='journalctl -p 3 -xb'
+alias free='free -m'
+alias h='history'
+alias mkdir="mkdir -p"
 
 # -------------------------------------------------------------------
 # PACKAGE MANAGEMENT ALIASES
