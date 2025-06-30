@@ -17,7 +17,8 @@ DEPS=(
   ugrep
   bat
   fzf
-  trash-cli
+  rmtrash
+  frei-bin
 )
 
 readonly ZSHENV_FILE="/etc/zsh/zshenv"
@@ -112,6 +113,23 @@ set_default_shell() {
   fi
 }
 
+zsh_pacman_hook() {
+  write_system_config "/etc/pacman.d/hooks/zsh.hook" "Zsh hook" <<EOF
+[Trigger]
+Operation = Install
+Operation = Upgrade
+Operation = Remove
+Type = Path
+Target = usr/bin/*
+
+[Action]
+Depends = zsh
+Depends = procps-ng
+Description = Reloading zsh shell...
+When = PostTransaction
+Exec = /usr/bin/pkill zsh --signal=USR1
+EOF
+}
 # =============================================================================
 # DATABASE AND CACHE UPDATES
 # =============================================================================
@@ -136,6 +154,7 @@ main() {
   install_dependencies
   setup_zshenv
   set_default_shell
+  zsh_pacman_hook
   update_pkgfile_database
   rebuild_bat_cache
   printc green "ZSH setup completed successfully."
