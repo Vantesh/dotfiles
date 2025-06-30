@@ -90,8 +90,6 @@ _comp_options+=(globdots)
 # ---------------------------------------------------
 
 zstyle ':completion:*:*:*:*:*' menu select
-zstyle ':completion:*' rehash true
-zstyle ':completion::complete:*' gain-privileges 1
 zstyle ':completion:*' matcher-list '' 'm:{a-zA-Z}={A-Za-z}' 'r:|=*' 'l:|=* r:|=*'
 zstyle ':completion:*' list-colors "${(s.:.)LS_COLORS}"
 zstyle ':completion:*' completer _complete _match _approximate
@@ -145,3 +143,19 @@ if command -v oh-my-posh &>/dev/null; then
   eval "$(oh-my-posh init zsh --config "${ZDOTDIR}/ohmyposh/ohmyposh.toml")"
 fi
 
+# instantly rehash all zsh instances
+TRAPUSR1() { rehash }
+
+
+if command -v pkgfile &>/dev/null; then
+    # shellcheck disable=SC1091
+    source /usr/share/doc/pkgfile/command-not-found.zsh
+fi
+
+# ----------------------------------------------------
+# ZSH SPECIFIC ALIASES
+# ----------------------------------------------------
+
+ref() {
+    exec zsh
+}
