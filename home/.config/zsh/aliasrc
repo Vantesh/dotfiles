@@ -54,7 +54,6 @@ alias ln="ln -i"
 [ -x "$(command -v duf)" ] && alias df="duf --output mountpoint,size,avail,type,filesystem"
 [ -x "$(command -v dust)" ] && alias du="dust -r"
 [ -x "$(command -v frei)" ] && alias free="frei -format=table -h"
-[ -x "$(command -v fd)" ] && alias find="fd"
 [ -x "$(command -v delta)" ] && alias diff="delta"
 
 [ -x "$(command -v nvim)" ] && {
@@ -73,6 +72,7 @@ alias wget='wget --hsts-file="$XDG_DATA_HOME/wget-hsts" -c'
 alias jtcl="journalctl -p 3 -xb"
 alias h="history"
 alias mkdir="mkdir -p"
+alias path='echo $PATH | tr -s ":" "\n"'
 
 # --------------------------------------------------------------------
 # PACKAGE MANAGEMENT (Arch Linux)
