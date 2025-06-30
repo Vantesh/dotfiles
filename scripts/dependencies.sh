@@ -88,7 +88,6 @@ fonts=(
   noto-fonts-cjk
   noto-fonts-extra
   ttf-liberation
-  ttf-ms-fonts
 )
 
 # =======================
