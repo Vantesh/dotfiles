@@ -20,7 +20,7 @@ alias gcl="git clone"
 alias gd="git diff"
 
 # --------------------------------------------------------------------
-# SAFETY ALIASES
+# LESS DESTRUCTIVE ALIASES
 # --------------------------------------------------------------------
 alias rm="rm -i"
 alias mv="mv -i"
