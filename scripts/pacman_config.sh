@@ -115,6 +115,39 @@ configure_paccache() {
 }
 
 # =============================================================================
+# HOOKS CONFIGURATION
+# =============================================================================
+
+pacman_hooks() {
+  write_system_config "/etc/pacman.d/hooks/00-paccache.hook" "Paccache hook" <<EOF
+[Trigger]
+Type = Package
+Operation = Remove
+Operation = Install
+Operation = Upgrade
+Target = *
+
+[Action]
+Description = Cleaning pacman cache...
+When = PostTransaction
+Exec = /usr/bin/paccache -rk1
+Depends = pacman-contrib
+EOF
+  write_system_config "/etc/pacman.d/hooks/01-paccache-uninstalled.hook" "Paccache uninstalled hook" <<EOF
+[Trigger]
+Operation = Remove
+Type = Package
+Target = *
+
+[Action]
+Description = Cleaning pacman cache for uninstalled packages...
+When = PostTransaction
+Exec = /usr/bin/paccache -ruk0
+Depends = pacman-contrib
+EOF
+}
+
+# =============================================================================
 # MIRRORLIST CONFIGURATION
 # =============================================================================
 
@@ -155,6 +188,7 @@ configure_pacman() {
     enable_pacman_option "$option"
   done
   configure_paccache
+  pacman_hooks
 
   if echo && confirm "Do you want to update mirrorlist?"; then
     update_mirrorlist
