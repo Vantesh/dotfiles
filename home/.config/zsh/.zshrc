@@ -152,6 +152,10 @@ if command -v pkgfile &>/dev/null; then
     source /usr/share/doc/pkgfile/command-not-found.zsh
 fi
 
+# set fast-theme if not already set
+[ ! -z "$(fast-theme --show | grep catppuccin-mocha)" ] || fast-theme XDG:catppuccin-mocha -q
+
+
 # ----------------------------------------------------
 # ZSH SPECIFIC ALIASES
 # ----------------------------------------------------
