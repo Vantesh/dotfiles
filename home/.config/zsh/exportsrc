@@ -6,19 +6,54 @@
 export GTK_RC_FILES="${XDG_CONFIG_HOME}/gtk-1.0/gtkrc"
 export GTK2_RC_FILES="${XDG_CONFIG_HOME}/gtk-2.0/gtkrc"
 export ANDROID_SDK_HOME="${XDG_CONFIG_HOME}/android"
+export FFMPEG_DATADIR="${XDG_CONFIG_HOME}/ffmpeg"
+export GIT_CONFIG_GLOBAL="${XDG_CONFIG_HOME:-$HOME/.config}/git/config"
 export CARGO_HOME="${XDG_DATA_HOME}/cargo"
 export RUSTUP_HOME="${XDG_DATA_HOME}/rustup"
-export LESSHISTFILE="-"
-export FFMPEG_DATADIR="${XDG_CONFIG_HOME}/ffmpeg"
 export GOPATH="${XDG_DATA_HOME}/go"
-export GOMODCACHE="${XDG_CACHE_HOME}/go/mod"
 export LEIN_HOME="${XDG_DATA_HOME}/lein"
 export DOTNET_CLI_HOME="${XDG_DATA_HOME}/dotnet"
+export GNUPGHOME="${XDG_DATA_HOME}/gnupg"
+export GOMODCACHE="${XDG_CACHE_HOME}/go/mod"
 export CUDA_CACHE_PATH="${XDG_CACHE_HOME}/nv"
 export __GL_SHADER_DISK_CACHE_PATH="${XDG_CACHE_HOME}/nv"
-export GNUPGHOME="${XDG_DATA_HOME}/gnupg"
 export npm_config_cache="${XDG_CACHE_HOME}/npm"
-export GIT_CONFIG_GLOBAL="${XDG_CONFIG_HOME:-$HOME/.config}/git/config"
+export LESSHISTFILE="-"
+
+# Create required directories and files if they don't exist
+_create_xdg_dirs() {
+  local dirs=(
+    "${XDG_CONFIG_HOME}/gtk-1.0"
+    "${XDG_CONFIG_HOME}/gtk-2.0"
+    "${XDG_CONFIG_HOME}/android"
+    "${XDG_CONFIG_HOME}/ffmpeg"
+    "${XDG_DATA_HOME}/cargo"
+    "${XDG_DATA_HOME}/rustup"
+    "${XDG_DATA_HOME}/go"
+    "${XDG_DATA_HOME}/lein"
+    "${XDG_DATA_HOME}/dotnet"
+    "${XDG_CACHE_HOME}/go/mod"
+    "${XDG_CACHE_HOME}/nv"
+    "${XDG_CACHE_HOME}/npm"
+    "$(dirname "${GIT_CONFIG_GLOBAL}")"
+  )
+  for dir in "${dirs[@]}"; do
+    [ ! -d "$dir" ] && mkdir -p "$dir"
+  done
+
+  # Special handling for GNUPG (needs specific permissions)
+  if [ ! -d "${XDG_DATA_HOME}/gnupg" ]; then
+    mkdir -p "${XDG_DATA_HOME}/gnupg"
+    chmod 700 "${XDG_DATA_HOME}/gnupg"
+  fi
+
+  [ ! -f "${GTK_RC_FILES}" ] && touch "${GTK_RC_FILES}"
+  [ ! -f "${GTK2_RC_FILES}" ] && touch "${GTK2_RC_FILES}"
+  [ ! -f "${GIT_CONFIG_GLOBAL}" ] && touch "${GIT_CONFIG_GLOBAL}"
+}
+
+# Execute directory creation
+_create_xdg_dirs
 
 # ----------------------------------------------------------------------------
 # DEFAULT ENVIRONMENT VARIABLES
