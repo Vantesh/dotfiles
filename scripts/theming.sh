@@ -7,7 +7,7 @@
 DEPS=(
   catppuccin-gtk-theme-mocha
   catppuccin-qt5ct-git
-  morewaita-icon-theme
+  kora-icon-theme
   kvantum-theme-catppuccin-git
 )
 readonly FONTS_REPO_URL="https://github.com/Vantesh/Fonts.git"
@@ -334,7 +334,7 @@ configure_gtk_theme() {
   printc -n cyan "Configuring GTK theme... "
   if gsettings set org.gnome.desktop.interface gtk-theme "catppuccin-mocha-blue-standard+default" &&
     gsettings set org.gnome.desktop.interface font-name "SF Pro Text 12" &&
-    gsettings set org.gnome.desktop.interface icon-theme "MoreWaita" &&
+    gsettings set org.gnome.desktop.interface icon-theme "kora" &&
     gsettings set org.gnome.desktop.interface color-scheme "prefer-dark"; then
     printc green "OK"
   else
