@@ -51,8 +51,7 @@ zinit --wait=2 lucid for \
 # ---------------------------------------------------
 # HISTORY SETTINGS
 # ---------------------------------------------------
-[ -d "${XDG_CACHE_HOME:-$HOME/.cache}/zsh" ] || mkdir -p "${XDG_CACHE_HOME:-$HOME/.cache}/zsh"
-export HISTFILE="${XDG_CACHE_HOME:-$HOME/.cache}/zsh/.history"
+export HISTFILE="$ZDOTDIR/.history"
 HISTSIZE=50000
 SAVEHIST=$HISTSIZE
 setopt APPEND_HISTORY
