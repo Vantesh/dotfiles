@@ -2,88 +2,85 @@
 # If not running interactively, don't do anything
 [[ $- != *i* ]] && return
 
-vivid_theme="catppuccin-mocha"
-
 #---------------------------------------------------
 # PLUGIN MANAGER
 #---------------------------------------------------
 
-# basic plugin manager to automatically import zsh plugins
-# script by mattmc3 from https://github.com/mattmc3/zsh_unplugged
-# clone a plugin, identify its init file, source it, and add it to your fpath
-function plugin-load {
-	local repo plugdir initfile initfiles=()
-	: ${ZPLUGINDIR:=${ZDOTDIR:-~/.config/zsh}/plugins}
-	for repo in $@; do
-		plugdir=$ZPLUGINDIR/${repo:t}
-		initfile=$plugdir/${repo:t}.plugin.zsh
-		if [[ ! -d $plugdir ]]; then
-			echo "Cloning $repo..."
-			git clone -q --depth 1 --recursive --shallow-submodules \
-				https://github.com/$repo $plugdir
-		fi
-		if [[ ! -e $initfile ]]; then
-			initfiles=($plugdir/*.{plugin.zsh,zsh-theme,zsh,sh}(N))
-			(( $#initfiles )) || { echo >&2 "No init file '$repo'." && continue }
-			ln -sf $initfiles[1] $initfile
-		fi
-		fpath+=$plugdir
-		(( $+functions[zsh-defer] )) && zsh-defer . $initfile || . $initfile
-	done
-}
+ZINIT_HOME="${XDG_DATA_HOME:-${HOME}/.local/share}/zinit/zinit.git"
+[ ! -d $ZINIT_HOME ] && mkdir -p "$(dirname $ZINIT_HOME)"
+[ ! -d $ZINIT_HOME/.git ] && git clone https://github.com/zdharma-continuum/zinit.git "$ZINIT_HOME"
+source "${ZINIT_HOME}/zinit.zsh"
 
-plugin-update() {
-  for dir in ${(f)"$(command find ${ZPLUGINDIR:-~/.config/zsh/plugins} -mindepth 1 -maxdepth 1 -type d)"}; do
-    echo "Updating ${dir:t}..."
-    git -C $dir pull --ff-only --quiet || echo "❌ Failed to update ${dir:t}"
-  done
-}
+zinit --wait --lucid for \
+		@zsh-users/zsh-history-substring-search \
+    --atinit="ZINIT[COMPINIT_OPTS]=-C; zicompinit; autoload -U bashcompinit && bashcompinit; zicdreplay" \
+    --nocd --atload="fast-theme XDG:catppuccin-mocha -q" \
+    @zdharma-continuum/fast-syntax-highlighting \
+    \
+    --blockf --atpull="zinit creinstall -q ." \
+    @zsh-users/zsh-completions \
+    \
+    --nocd --atload="!_zsh_autosuggest_start" \
+    @zsh-users/zsh-autosuggestions \
+    --atinit'vivid_theme="catppuccin-mocha"' \
+    --atload'zstyle ":completion:*"  list-colors "${(s.:.)LS_COLORS}"' \
+   @ryanccn/vivid-zsh\
 
-# list of github repos of plugins
-repos=(
-  	ryanccn/vivid-zsh
-	zsh-users/zsh-autosuggestions
-	zdharma-continuum/fast-syntax-highlighting
-	zsh-users/zsh-history-substring-search
-)
-plugin-load $repos
 
+zinit --wait=2 --lucid --is-snippet --id-as='auto' --nocd for \
+    --if="[[ -e /usr/share/doc/pkgfile/command-not-found.zsh ]]" \
+    --atload="[[ -e /usr/share/doc/find-the-command/ftc.zsh ]] && source /usr/share/doc/find-the-command/ftc.zsh" \
+    /usr/share/doc/pkgfile/command-not-found.zsh
 
 # ---------------------------------------------------
 # HISTORY SETTINGS
 # ---------------------------------------------------
 HISTFILE="${ZDOTDIR}/.zsh_history"
-HISTSIZE=10000
-SAVEHIST=10000
+HISTSIZE=5000
+SAVEHIST=$HISTSIZE
+setopt APPEND_HISTORY
+setopt HIST_IGNORE_ALL_DUPS
+setopt SHARE_HISTORY
+setopt HIST_SAVE_NO_DUPS
+setopt HIST_IGNORE_SPACE
+setopt INC_APPEND_HISTORY
+setopt HIST_REDUCE_BLANKS
+setopt HIST_EXPIRE_DUPS_FIRST
+# ---------------------------------------------------
+# options
+# ---------------------------------------------------
+setopt AUTO_CD
+setopt EXTENDED_GLOB
+setopt NO_CASE_GLOB
+setopt RC_EXPAND_PARAM
+setopt CHECK_JOBS
+setopt NUMERIC_GLOB_SORT
+setopt NO_BEEP
+setopt AUTO_PUSHD
+setopt PUSHD_IGNORE_DUPS
+setopt PUSHD_MINUS
+setopt NOTIFY
+setopt INTERACTIVE_COMMENTS
+setopt CORRECT
+setopt GLOB_DOTS
+setopt LONG_LIST_JOBS
+setopt PROMPT_SUBST
 
 # ---------------------------------------------------
-# LOAD ALIASES, EXPORTS AND OPTIONS
+# LOAD ALIASES AND EXPORTS
 # ---------------------------------------------------
 
 ZDOTDIR="${ZDOTDIR:-$HOME}"
-for file in optionrc aliasrc exportsrc; do
+for file in aliasrc exportsrc; do
   [ -r "$ZDOTDIR/$file" ] && source "$ZDOTDIR/$file"
 done
 
 
 # ---------------------------------------------------
-# COMPINIT
+# ZSH AUTOLOADS AND CONFIGURATION
 # ---------------------------------------------------
 
-# Autoload compinit
-autoload -Uz compinit
-
-ZCDUMP=~/.config/zsh/zcompdump
-if [[ -n ${~ZCDUMP}(N.mh+24) ]]; then
-  compinit -d $ZCDUMP
-else
-  compinit -C -d $ZCDUMP
-fi
-
-# Extras
 autoload -Uz colors && colors
-autoload -Uz add-zsh-hook
-_comp_options+=(globdots)
 
 # ---------------------------------------------------
 # COMPLETION STYLES
@@ -91,24 +88,20 @@ _comp_options+=(globdots)
 
 zstyle ':completion:*:*:*:*:*' menu select
 zstyle ':completion:*' matcher-list '' 'm:{a-zA-Z}={A-Za-z}' 'r:|=*' 'l:|=* r:|=*'
-zstyle ':completion:*' list-colors "${(s.:.)LS_COLORS}"
 zstyle ':completion:*' completer _complete _match _approximate
-
-# Use completion result caching
 zstyle ':completion:*:paths' accept-exact '*(N)'
+
 zstyle ':completion:*' use-cache on
-zstyle ':completion:*' cache-path "${XDG_CACHE_HOME:-$HOME/.cache}/zsh/zcache"
+zstyle ':completion:*' cache-path "${XDG_CACHE_HOME:-$HOME/.cache}/zsh/.zcompcache"
 
 ZSH_AUTOSUGGEST_STRATEGY=(history completion)
 HISTORY_SUBSTRING_SEARCH_HIGHLIGHT_FOUND='bold,standout'
 HISTORY_SUBSTRING_SEARCH_HIGHLIGHT_NOT_FOUND='none'
 HISTORY_SUBSTRING_SEARCH_FUZZY="yes"
 
-
 # ---------------------------------------------------
 # KEY BINDINGS
 # ---------------------------------------------------
-zmodload zsh/terminfo
 
 # Bind the Up arrow key (history substring search up)
 bindkey '^[[A' history-substring-search-up
@@ -143,18 +136,9 @@ if command -v oh-my-posh &>/dev/null; then
   eval "$(oh-my-posh init zsh --config "${ZDOTDIR}/ohmyposh/ohmyposh.toml")"
 fi
 
+
 # instantly rehash all zsh instances
 TRAPUSR1() { rehash }
-
-
-if command -v pkgfile &>/dev/null; then
-    # shellcheck disable=SC1091
-    source /usr/share/doc/pkgfile/command-not-found.zsh
-fi
-
-# set fast-theme if not already set
-[ ! -z "$(fast-theme --show | grep catppuccin-mocha)" ] || fast-theme XDG:catppuccin-mocha -q
-
 
 # ----------------------------------------------------
 # ZSH SPECIFIC ALIASES
@@ -163,3 +147,4 @@ fi
 ref() {
     exec zsh
 }
+
