@@ -27,11 +27,9 @@ alias mv="mv -i"
 alias cp="cp -i"
 alias ln="ln -i"
 
-[ -x "$(command -v rmtrash)" ] && {
-    alias rm="rmtrash -i"
-    alias rmdir="rmdirtrash -i"
-    alias unrm="trash-restore"
-}
+[ -x "$(command -v rmtrash)" ] && alias rm="rmtrash -i"
+[ -x "$(command -v rmdirtrash)" ] && alias rmdir="rmdirtrash"
+[ -x "$(command -v trash-restore)" ] && alias unrm="trash-restore"
 
 # --------------------------------------------------------------------
 # MODERN COMMAND REPLACEMENTS
@@ -72,7 +70,6 @@ alias wget='wget --hsts-file="$XDG_DATA_HOME/wget-hsts" -c'
 alias jtcl="journalctl -p 3 -xb"
 alias h="history"
 alias mkdir="mkdir -p"
-alias path='echo $PATH | tr -s ":" "\n"'
 
 # --------------------------------------------------------------------
 # PACKAGE MANAGEMENT (Arch Linux)
@@ -113,6 +110,7 @@ clean() {
     sudo paccache -rk1
     sudo paccache -ruk0
     cargo cache -a
+    trash-empty
 }
 
 safetouch() {
