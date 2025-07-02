@@ -17,8 +17,11 @@ DEPS=(
   ugrep
   bat
   fzf
-  rmtrash
   frei-bin
+  curlie
+  tealdeer
+  imagemagick # Image manipulation
+  chafa       # Image to ASCII converter
 )
 
 readonly ZSHENV_FILE="/etc/zsh/zshenv"
