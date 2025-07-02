@@ -65,7 +65,6 @@ core_packages=(
   networkmanager
   usbutils
   man-db
-  tealdeer
   xorg-xhost
   layer-shell-qt
   layer-shell-qt5
