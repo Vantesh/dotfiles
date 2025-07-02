@@ -27,10 +27,6 @@ alias mv="mv -i"
 alias cp="cp -i"
 alias ln="ln -i"
 
-[ -x "$(command -v rmtrash)" ] && alias rm="rmtrash -i"
-[ -x "$(command -v rmdirtrash)" ] && alias rmdir="rmdirtrash"
-[ -x "$(command -v trash-restore)" ] && alias unrm="trash-restore"
-
 # --------------------------------------------------------------------
 # MODERN COMMAND REPLACEMENTS
 # --------------------------------------------------------------------
@@ -42,7 +38,6 @@ alias ln="ln -i"
     alias lt="eza -lT"
 }
 
-# Text viewing and paging
 [ -x "$(command -v bat)" ] && {
     alias cat="bat"
     alias less="bat --paging=always"
@@ -53,6 +48,9 @@ alias ln="ln -i"
 [ -x "$(command -v dust)" ] && alias du="dust -r"
 [ -x "$(command -v frei)" ] && alias free="frei -format=table -h"
 [ -x "$(command -v delta)" ] && alias diff="delta"
+
+[ -x "$(command -v curlie)" ] && alias curl="curlie"
+[ -x "$(command -v tldr)" ] && alias help="tldr"
 
 [ -x "$(command -v nvim)" ] && {
     alias vim="nvim"
