@@ -2,13 +2,6 @@
 # If not running interactively, don't do anything
 [[ $- != *i* ]] && return
 
-# ---------------------------------------------------
-# PROMPT
-# ---------------------------------------------------
-if command -v oh-my-posh &>/dev/null; then
-  eval "$(oh-my-posh init zsh --config "${ZDOTDIR}/ohmyposh/ohmyposh.toml")"
-fi
-
 #---------------------------------------------------
 # PLUGIN MANAGER
 #---------------------------------------------------
@@ -28,6 +21,11 @@ zinit --wait --lucid  depth=1 for \
 		bindkey '^[OB' history-substring-search-down" \
 		@zsh-users/zsh-history-substring-search \
 		\
+    --atload"zstyle ':completion:*' menu no; \
+    zstyle ':fzf-tab:complete:cd:*' fzf-preview 'eza -1 --color=always $realpath'; \
+    zstyle ':fzf-tab:*' use-fzf-default-opts yes" \
+    @Aloxaf/fzf-tab \
+    \
     --atinit"ZINIT[COMPINIT_OPTS]=-C; zicompinit; zicdreplay" \
     --nocd --atload="fast-theme XDG:catppuccin-mocha -q" \
     @zdharma-continuum/fast-syntax-highlighting \
@@ -42,6 +40,8 @@ zinit --wait --lucid  depth=1 for \
     --atinit'vivid_theme="catppuccin-mocha"' \
     --atload'zstyle ":completion:*"  list-colors "${(s.:.)LS_COLORS}"' \
    @ryanccn/vivid-zsh\
+   \
+
 
 
 zinit --wait=2 lucid for \
@@ -102,7 +102,6 @@ ref() {
 # COMPLETION STYLES
 # ---------------------------------------------------
 
-zstyle ':completion:*:*:*:*:*' menu select
 zstyle ':completion:*' matcher-list '' 'm:{a-zA-Z}={A-Za-z}' 'r:|=*' 'l:|=* r:|=*'
 zstyle ':completion:*' completer _complete _match _approximate
 zstyle ':completion:*:paths' accept-exact '*(N)'
@@ -128,18 +127,16 @@ if command -v fzf &>/dev/null; then
 --color=selected-bg:#45475a \
 --color=border:#313244,label:#cdd6f4"
 
-show_file_or_dir_preview="if [ -d {} ]; then eza --color=always --icons -T {} | head -200; else bat -n --color=always --line-range :500 {}; fi"
-
 	export FZF_CTRL_R_OPTS="
 	--height 40% --layout=reverse --border=rounded --info=right --no-preview --no-sort"
 
 	export FZF_ALT_C_OPTS="
   --walker-skip .git,node_modules,target
-  --preview '${show_file_or_dir_preview}'"
+  --preview 'fzf-preview.sh {}'"
 
 	export FZF_CTRL_T_OPTS="
   --walker-skip .git,node_modules,target
-  --preview '${show_file_or_dir_preview}'
+  --preview 'fzf-preview.sh {}'
 	--height 50%
   --bind 'ctrl-/:change-preview-window(down|hidden|)'"
 
@@ -151,3 +148,11 @@ fi
 
 # instantly rehash all zsh instances
 TRAPUSR1() { rehash }
+
+# ---------------------------------------------------
+# PROMPT
+# ---------------------------------------------------
+if command -v oh-my-posh &>/dev/null; then
+  eval "$(oh-my-posh init zsh --config "$XDG_CONFIG_HOME/ohmyposh/theme.toml")"
+
+fi
