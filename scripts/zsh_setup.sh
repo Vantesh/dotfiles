@@ -134,6 +134,30 @@ When = PostTransaction
 Exec = /usr/bin/pkill zsh --signal=USR1
 EOF
 }
+
+# =============================================================================
+# GIT CONFIGURATION
+# =============================================================================
+setup_git_config() {
+  local config_dir="$HOME/.config/git"
+  local config_file="$config_dir/.localconfig"
+  printc cyan "Setting up Git configuration..."
+
+  if [[ ! -f "$config_file" ]]; then
+    mkdir -p "$config_dir" || fail "Failed to create Git config directory."
+  fi
+
+  read -rp "Enter your Git user name: " git_user_name
+  read -rp "Enter your Git user email: " git_user_email
+
+  cat > "$config_file" <<EOF
+[user]
+  name = $git_user_name
+  email = $git_user_email
+EOF
+
+}
+
 # =============================================================================
 # DATABASE AND CACHE UPDATES
 # =============================================================================
@@ -161,7 +185,9 @@ main() {
   zsh_pacman_hook
   update_pkgfile_database
   rebuild_bat_cache
-  printc green "ZSH setup completed successfully."
+  if confirm "Set up Git configuration?"; then
+    setup_git_config
+  fi
 }
 
 main
