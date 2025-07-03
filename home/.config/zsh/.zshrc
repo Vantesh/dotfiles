@@ -45,7 +45,8 @@ zinit --wait --lucid  depth=1 for \
 
 
 zinit --wait=2 lucid for \
-      OMZP::command-not-found\
+      @dim-an/cod \
+      OMZP::command-not-found \
 			OMZP::sudo
 
 # ---------------------------------------------------
