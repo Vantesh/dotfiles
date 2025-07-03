@@ -56,3 +56,6 @@
 	remote = yellow
 	upstream = green
 	plain = blue
+
+[include]
+  path = ~/.config/git/.git.local
