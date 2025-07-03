@@ -4,16 +4,21 @@
 # CONSTANTS
 # =============================================================================
 
-readonly CONFIG_SOURCE_DIR="home/.config"
-readonly VSCODE_SOURCE_DIR="home/.vscode"
-readonly LOCAL_BIN_SOURCE="home/.local/bin"
-readonly LOCAL_BIN_TARGET="$HOME/.local/bin"
-
 readonly EXECUTABLE_CONFIG_FOLDERS=(
   hypr
   waybar
   rofi
 )
+
+# =============================================================================
+# DEPENDENCY FUNCTIONS
+# =============================================================================
+
+check_stow() {
+  if ! command -v stow &> /dev/null; then
+    install_package stow
+  fi
+}
 
 # =============================================================================
 # BACKUP FUNCTIONS
@@ -34,33 +39,57 @@ backup_existing_config() {
 # DOTFILES INSTALLATION FUNCTIONS
 # =============================================================================
 
-copy_config_files() {
-  printc -n cyan "Copying config files... "
-  if [[ -d "$CONFIG_SOURCE_DIR" ]]; then
-    if cp -r "$CONFIG_SOURCE_DIR" ~/; then
+stow_dotfiles() {
+  local script_dir current_dir
+  script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  local dotfiles_root
+  dotfiles_root="$(dirname "$script_dir")"
+  local home_dir="$dotfiles_root/home"
+  
+  if [[ ! -d "$home_dir" ]]; then
+    fail "Home directory not found: $home_dir"
+  fi
+  
+  printc -n cyan "Stowing dotfiles... "
+  current_dir="$(pwd)"
+  
+  # Change to the home directory and run stow
+  if cd "$home_dir" && stow . --target="$HOME" --adopt; then
+    printc green "OK"
+    cd "$current_dir" || return 1
+  else
+    cd "$current_dir" || return 1
+    fail "FAILED"
+  fi
+}
+
+copy_local_scripts() {
+  local script_dir
+  script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  local dotfiles_root
+  dotfiles_root="$(dirname "$script_dir")"
+  local local_bin_source="$dotfiles_root/home/.local/bin"
+  local local_bin_target="$HOME/.local/bin"
+  
+  if [[ ! -d "$local_bin_target" ]]; then
+    printc -n cyan "Creating local bin directory... "
+    if mkdir -p "$local_bin_target"; then
       printc green "OK"
     else
       fail "FAILED"
     fi
-  else
-    fail "Source .config directory not found"
   fi
-}
-
-copy_vscode_config() {
-  if pacman -Qe | grep -q "visual-studio-code-bin"; then
-    printc -n cyan "Copying VSCode config... "
-    if [[ -d "$VSCODE_SOURCE_DIR" ]]; then
-      if cp -r "$VSCODE_SOURCE_DIR" ~/; then
-        printc green "OK"
-      else
-        printc red "FAILED"
-      fi
+  
+  if [[ -d "$local_bin_source" ]]; then
+    printc -n cyan "Copying local scripts... "
+    if cp -r "$local_bin_source"/* "$local_bin_target"/; then
+      printc green "OK"
     else
-      printc yellow "not found"
+      fail "FAILED"
     fi
   fi
 }
+
 
 # =============================================================================
 # PERMISSION MANAGEMENT FUNCTIONS
@@ -68,11 +97,12 @@ copy_vscode_config() {
 
 make_scripts_executable_in_folder() {
   local folder="$1"
-  local config_dir="$HOME/.config/$folder"
-
-  if [[ -d "$config_dir" ]]; then
-    printc -n cyan "Making $folder scripts executable... "
-    if find "$config_dir" -type f \( -name "*.sh" -o -name "*.py" \) -exec chmod +x {} \; 2>/dev/null; then
+  local base_path="$2"
+  local description="$3"
+  
+  if [[ -d "$base_path/$folder" ]]; then
+    printc -n cyan "Making $description scripts executable... "
+    if find "$base_path/$folder" -type f \( -name "*.sh" -o -name "*.py" \) -exec chmod +x {} \; 2>/dev/null; then
       printc green "OK"
     else
       printc red "FAILED"
@@ -81,34 +111,25 @@ make_scripts_executable_in_folder() {
   fi
 }
 
-make_config_scripts_executable() {
+make_all_scripts_executable() {
+  # Make config scripts executable
   for folder in "${EXECUTABLE_CONFIG_FOLDERS[@]}"; do
-    make_scripts_executable_in_folder "$folder"
+    make_scripts_executable_in_folder "$folder" "$HOME/.config" "$folder"
   done
-}
-
-# =============================================================================
-# SYSTEM SCRIPT INSTALLATION FUNCTIONS
-# =============================================================================
-
-copy_local_scripts() {
-  if [[ ! -d "$LOCAL_BIN_TARGET" ]]; then
-    printc -n cyan "Creating local bin directory... "
-    if sudo mkdir -p "$LOCAL_BIN_TARGET"; then
+  
+  # Make local bin scripts executable
+  if [[ -d "$HOME/.local/bin" ]]; then
+    printc -n cyan "Making local bin scripts executable... "
+    if find "$HOME/.local/bin" -type f -exec chmod +x {} \; 2>/dev/null; then
       printc green "OK"
     else
-      fail "FAILED"
-    fi
-  fi
-  if [[ -d "$LOCAL_BIN_SOURCE" ]]; then
-    printc -n cyan "Copying local scripts... "
-    if sudo cp -r "$LOCAL_BIN_SOURCE"/* "$LOCAL_BIN_TARGET"/ && sudo chmod +x "$LOCAL_BIN_TARGET"/*; then
-      printc green "OK"
-    else
-      fail "FAILED"
+      printc red "FAILED"
+      return 1
     fi
   fi
 }
+
+
 
 # =============================================================================
 # USER DIRECTORY SETUP FUNCTIONS
@@ -132,11 +153,11 @@ setup_user_directories() {
 # =============================================================================
 
 main() {
+  check_stow
   backup_existing_config
-  copy_config_files
-  copy_vscode_config
-  make_config_scripts_executable
+  stow_dotfiles
   copy_local_scripts
+  make_all_scripts_executable
   setup_user_directories
 }
 
