@@ -20,6 +20,7 @@ DEPS=(
   frei-bin
   curlie
   tealdeer
+  ouch
   imagemagick # Image manipulation
   chafa       # Image to ASCII converter
 )
