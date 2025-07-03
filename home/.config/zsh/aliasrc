@@ -60,6 +60,13 @@ alias ln="ln -i"
     alias v="nvim"
 }
 
+[ -x "$(command -v ouch)" ] && {
+
+    alias zip="ouch -q compress"
+    alias unzip="ouch -q decompress"
+}
+
+
 # --------------------------------------------------------------------
 # UTILITY ALIASES
 # --------------------------------------------------------------------
