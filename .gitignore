@@ -6,3 +6,4 @@ clipse-gui.log
 extensions.json
 home/.vscode/*
 !home/.vscode/agrv.json
+.zcompcache
