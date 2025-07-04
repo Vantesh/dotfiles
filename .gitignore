@@ -3,3 +3,6 @@
 .localconfig
 lazy-lock.json
 clipse-gui.log
+extensions.json
+home/.vscode/*
+!home/.vscode/agrv.json
