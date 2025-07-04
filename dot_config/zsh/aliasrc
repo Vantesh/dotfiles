@@ -1,0 +1,123 @@
+#!/usr/bin/env bash
+
+# --------------------------------------------------------------------
+# COLOR-ENHANCED COMMANDS
+# --------------------------------------------------------------------
+alias grep="ugrep --color=auto"
+alias fgrep="ugrep -F --color=auto"
+alias egrep="ugrep -E --color=auto"
+alias diff="diff --color=auto"
+alias dir="dir --color=auto"
+alias vdir="vdir --color=auto"
+alias ip="ip -color"
+
+# --------------------------------------------------------------------
+# GIT ALIASES
+# --------------------------------------------------------------------
+alias gs="git status --short --branch"
+alias gl="git log --all --graph --pretty=format:'%C(magenta)%h %C(cyan)%an <%ae> %C(white)%ar%C(auto) %D%n%s%n'"
+alias gcl="git clone"
+alias gd="git diff"
+
+# --------------------------------------------------------------------
+# LESS DESTRUCTIVE ALIASES
+# --------------------------------------------------------------------
+alias rm="rm -i"
+alias mv="mv -i"
+alias cp="cp -i"
+alias ln="ln -i"
+
+# --------------------------------------------------------------------
+# MODERN COMMAND REPLACEMENTS
+# --------------------------------------------------------------------
+
+[ -x "$(command -v eza)" ] && {
+    alias ls="eza -a --icons=always --color=always --group-directories-first"
+    alias ll="eza -al --icons=always --color=always --group-directories-first"
+    alias la="eza -A --icons=always --color=always --group-directories-first"
+    alias lt="eza -lT"
+}
+
+[ -x "$(command -v bat)" ] && {
+    alias cat="bat"
+    alias less="bat --paging=always"
+    alias more="bat --paging=always"
+}
+
+[ -x "$(command -v duf)" ] && alias df="duf --output mountpoint,size,avail,type,filesystem"
+[ -x "$(command -v dust)" ] && alias du="dust -r"
+[ -x "$(command -v frei)" ] && alias free="frei -format=table -h"
+[ -x "$(command -v delta)" ] && alias diff="delta"
+
+[ -x "$(command -v curlie)" ] && alias curl="curlie"
+[ -x "$(command -v tldr)" ] && alias help="tldr"
+
+[ -x "$(command -v nvim)" ] && {
+    alias vim="nvim"
+    alias vi="nvim"
+    alias vimdiff="nvim -d"
+    alias view="nvim -R"
+    alias v="nvim"
+}
+
+[ -x "$(command -v ouch)" ] && {
+
+    alias zip="ouch -q compress"
+    alias unzip="ouch -q decompress"
+}
+
+
+# --------------------------------------------------------------------
+# UTILITY ALIASES
+# --------------------------------------------------------------------
+alias ping="ping -c 10"
+alias wget='wget --hsts-file="$XDG_DATA_HOME/wget-hsts" -c'
+alias jtcl="journalctl -p 3 -xb"
+alias h="history"
+alias mkdir="mkdir -p"
+
+# --------------------------------------------------------------------
+# PACKAGE MANAGEMENT (Arch Linux)
+# --------------------------------------------------------------------
+alias mirror='sudo reflector -f 30 -l 30 --number 10 --verbose --save /etc/pacman.d/mirrorlist'
+alias cleanup='sudo pacman -Rns $(pacman -Qtdq)'
+alias fixpacman='sudo rm /var/lib/pacman/db.lck'
+alias yayf="yay -Slq | fzf --multi --preview 'yay -Sii {1}' --preview-window=down:75% | xargs -ro yay -S"
+
+# Use paru as yay alternative if yay is not available
+if [ ! -x "$(command -v yay)" ] && [ -x "$(command -v paru)" ]; then
+    alias yay="paru"
+    alias yayf='paru -Slq | fzf --multi --preview "paru -Sii {1}" --preview-window=down:75% | xargs -ro paru -S'
+fi
+
+# --------------------------------------------------------------------
+# SPECIAL FUNCTIONS
+# --------------------------------------------------------------------
+up() {
+    if command -v topgrade &>/dev/null; then
+        topgrade -k --only system
+    elif command -v yay &>/dev/null; then
+        yay -Syu "$@"
+    else
+        sudo pacman -Syu "$@"
+    fi
+}
+
+upall() {
+    if command -v topgrade &>/dev/null; then
+        topgrade -k --no-self-update "$@"
+    else
+        echo "topgrade is not installed."
+    fi
+}
+
+clean() {
+    sudo paccache -rk1
+    sudo paccache -ruk0
+    cargo cache -a
+    trash-empty
+}
+
+safetouch() {
+    mkdir -p "$(dirname "$1")" && touch "$1"
+}
