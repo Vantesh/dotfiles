@@ -1,6 +1,6 @@
 {
   "extras": [
-
+    "lazyvim.plugins.extras.coding.yanky"
   ],
   "install_version": 8,
   "news": {
