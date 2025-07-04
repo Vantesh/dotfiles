@@ -8,12 +8,14 @@ readonly USER_SERVICES=(
   hyprpolkitagent.service
   gnome-keyring-daemon.service
   hypridle.service
+  gcr-ssh-agent.socket
 )
 
 readonly SYSTEM_SERVICES=(
   bluetooth.service
   sddm.service
   ufw.service
+
 )
 
 readonly DNSCRYPT_CONFIG_FILE="/etc/dnscrypt-proxy/dnscrypt-proxy.toml"
@@ -42,6 +44,23 @@ enable_ufw_firewall() {
   else
     fail "FAILED"
   fi
+}
+
+enable_gnome_keyring() {
+  printc -n cyan "Configuring Gnome Keyring for login... "
+
+  write_system_config "/etc/pam.d/login" "PAM configuration with Gnome Keyring support" <<'EOF'
+#%PAM-1.0
+
+auth       requisite     pam_nologin.so
+auth       include       system-local-login
+auth       optional      pam_gnome_keyring.so
+account    include       system-local-login
+session    include       system-local-login
+password   include       system-local-login
+session    optional      pam_gnome_keyring.so auto_start
+EOF
+  printc green "OK"
 }
 
 services_to_disable=(
@@ -134,6 +153,7 @@ main() {
   enable_user_services
   enable_system_services
   enable_ufw_firewall
+  enable_gnome_keyring
 
   if echo && confirm "Setup DNS over HTTPS using dnscrypt-proxy?"; then
     setup_dns_over_https
