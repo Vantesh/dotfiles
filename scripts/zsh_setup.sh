@@ -21,13 +21,14 @@ DEPS=(
   curlie
   tealdeer
   ouch
+  ripgrep
   imagemagick # Image manipulation
   chafa       # Image to ASCII converter
 )
 
 readonly ZSHENV_FILE="/etc/zsh/zshenv"
 readonly ZSH_CONFIG_DIR="/etc/zsh"
-readonly ZDOTDIR="$HOME/.config/zsh"
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # =============================================================================
 # DEPENDENCY MANAGEMENT
 # =============================================================================
@@ -109,8 +110,9 @@ set_default_shell() {
       sudo mkdir -p "/root/.config" || fail "Failed to create .config directory for root."
       sudo chown root:root "/root/.config"
     fi
-    sudo cp -r "$ZDOTDIR" "/root/.config/" || fail "Failed to copy ZSH config files for root."
-
+    sudo cp -r "$script_dir/../home/.config/zsh" "/root/.config/zsh" || fail "Failed to copy ZSH config for root."
+    sudo cp -r "$script_dir/../home/.config/fsh" "/root/.config/fsh" || fail "Failed to copy syntax highlighting config for root."
+    sudo cp -r "$script_dir/../home/.config/ohmyposh" "/root/.config/ohmyposh" || fail "Failed to copy Oh My Posh config for root."
     printc green "ZSH set as default shell for all users."
   else
     printc yellow "Skipping setting ZSH as default shell for all users."
@@ -150,7 +152,7 @@ setup_git_config() {
   read -rp "Enter your Git user name: " git_user_name
   read -rp "Enter your Git user email: " git_user_email
 
-  cat > "$config_file" <<EOF
+  cat >"$config_file" <<EOF
 [user]
   name = $git_user_name
   email = $git_user_email
