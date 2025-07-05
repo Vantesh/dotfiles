@@ -1,0 +1,51 @@
+#!/bin/bash
+# ------------------------------------------------------------------------------
+# CLEANUP HOME DIRECTORY
+# ------------------------------------------------------------------------------
+
+export GTK2_RC_FILES="${XDG_CONFIG_HOME}/gtk-2.0/gtkrc-2.0"
+export ANDROID_SDK_HOME="${XDG_CONFIG_HOME}/android"
+export FFMPEG_DATADIR="${XDG_CONFIG_HOME}/ffmpeg"
+export GIT_CONFIG_GLOBAL="${XDG_CONFIG_HOME:-$HOME/.config}/git/config"
+export CARGO_HOME="${XDG_DATA_HOME}/cargo"
+export RUSTUP_HOME="${XDG_DATA_HOME}/rustup"
+export GOPATH="${XDG_DATA_HOME}/go"
+export LEIN_HOME="${XDG_DATA_HOME}/lein"
+export DOTNET_CLI_HOME="${XDG_DATA_HOME}/dotnet"
+export GNUPGHOME="${XDG_DATA_HOME}/gnupg"
+export GOMODCACHE="${XDG_CACHE_HOME}/go/mod"
+export CUDA_CACHE_PATH="${XDG_CACHE_HOME}/nv"
+export __GL_SHADER_DISK_CACHE_PATH="${XDG_CACHE_HOME}/nv"
+export npm_config_cache="${XDG_CACHE_HOME}/npm"
+export WGETRC="${XDG_CONFIG_HOME}/wget/wgetrc"
+export LESSHISTFILE="-"
+
+# Create GNUPG directory (needs special permissions) - optimized
+[ -d "$GNUPGHOME" ] || { mkdir -p "$GNUPGHOME" && chmod 700 "$GNUPGHOME"; }
+
+# ----------------------------------------------------------------------------
+# DEFAULT ENVIRONMENT VARIABLES
+# ----------------------------------------------------------------------------
+
+export EDITOR="nvim"
+export VISUAL="nvim"
+export PAGER="less -R"
+export TERMINAL='/usr/bin/kitty'
+
+# ----------------------------------------------------------------------------
+# PATH
+# ----------------------------------------------------------------------------
+
+export PATH=$PATH:"$CARGO_HOME"/bin
+export PATH=$PATH:"$RUSTUP_HOME"/bin
+export PATH=$PATH:"$GOPATH"/bin
+export PATH=$PATH:"$HOME/.spicetify"
+export PATH=$PATH:"$HOME/.local/bin"
+
+# ----------------------------------------------------------------------------
+# COLORS
+# ----------------------------------------------------------------------------
+export MANPAGER="sh -c 'sed -u -e \"s/\\x1B\[[0-9;]*m//g; s/.\\x08//g\" | bat -p -lman'"
+export MANROFFOPT="-P -c"
+export LESS='-R --use-color -Dd+r$Du+b$'
+export SUDO_PROMPT=$'[\e[31;5msudo\e[m] password for \e[33;1m%p\e[m: '
