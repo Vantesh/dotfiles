@@ -1,0 +1,13 @@
+[user]
+  name = Vantesh
+  email = 121645908+Vantesh@users.noreply.github.com
+  signingkey = {{ onepasswordRead "op://Personal/Git commits/public key" }}
+
+[gpg]
+  format = ssh
+
+[gpg "ssh"]
+  program = "/opt/1Password/op-ssh-sign"
+
+[commit]
+  gpgsign = true
