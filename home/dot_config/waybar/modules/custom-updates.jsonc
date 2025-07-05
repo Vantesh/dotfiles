@@ -1,0 +1,15 @@
+{
+	"custom/updates": {
+		"format": "{}{icon}",
+		"return-type": "json",
+		"tooltip": true,
+		"format-icons": {
+			"pending-updates": "  ",
+			"updated": ""
+		},
+		"exec-if": "which waybar-updates",
+		"exec": "waybar-updates",
+		"on-click": "pypr toggle topgrade-system",
+		"on-click-right": "pypr toggle topgrade-all"
+	}
+}
