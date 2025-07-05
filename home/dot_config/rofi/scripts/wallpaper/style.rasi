@@ -1,0 +1,128 @@
+
+@import "mocha.rasi"
+
+// Window
+window {
+  width:                       65%;
+  height:                      60%;
+}
+
+
+
+/*****----- Main Window -----*****/
+window {
+    /* properties for window widget */
+    transparency:                "real";
+    location:                    center;
+    anchor:                      center;
+    fullscreen:                  false;
+    x-offset:                    0px;
+    y-offset:                    0px;
+    enabled:                     true;
+    margin:                      0px;
+    padding:                     0px;
+    border:                      2px solid;
+    border-radius:               25px;
+    border-color:                @selected;
+    cursor:                      "default";
+    background-color:            @background;
+
+
+}
+
+/*****----- Main Box -----*****/
+mainbox {
+    enabled:                     true;
+    spacing:                     20px;
+    margin:                      0px;
+    padding:                     20px;
+    border:                      0px solid;
+    border-radius:               0px ;
+    border-color:                @border-colour;
+    background-color:          transparent;
+    children:                    [ "inputbar", "message", "listview" ];
+}
+
+/*****----- Inputbar -----*****/
+inputbar {
+    enabled:                     true;
+    spacing:                     5px;
+    margin:                      0px;
+    padding:                     0px;
+    border:                      0px;
+    background-color:            transparent;
+    children:                    [ "textbox-prompt-colon", "entry", "mode-switcher" ];
+}
+
+
+prompt {
+    enabled:                     true;
+    background-color:            inherit;
+    text-color:                  inherit;
+}
+textbox-prompt-colon {
+    enabled:                     true;
+    padding:                     10px 5px 10px 0px;
+    expand:                      false;
+    str:                         "";
+    background-color:            inherit;
+    text-color:                  @lavender;
+}
+
+entry {
+    enabled:                     true;
+    padding:                     10px 5px;
+    border:                      1px solid;
+    border-radius:               10px;
+    border-color:                @surface0;
+    background-color:            @background-alt;
+    text-color:                  @lavender;
+    placeholder:                 "";
+}
+
+
+/*****----- Listview -----*****/
+listview {
+    enabled:                     true;
+    cycle:                       true;
+    dynamic:                     true;
+    scrollbar:                   false;
+    layout:                      vertical;
+    reverse:                     false;
+    fixed-height:                true;
+    fixed-columns:               true;
+    border:                      0px solid;
+    background-color:            transparent;
+    text-color:                  @foreground-colour;
+    cursor:                      "default";
+}
+
+element {
+    enabled: true;
+    background-color: transparent;
+    cursor: pointer;
+}
+
+element selected.normal {
+    border: 1px solid;
+    border-radius: 12px;
+    background-color:          @overlay0;
+}
+
+
+element-icon {
+    background-color:            transparent;
+    margin:                      0px;
+    padding:                     0px;
+
+    text-color:                  inherit;
+    cursor:                      inherit;
+}
+element-text {
+    background-color:            inherit;
+    text-color: @lavender;
+}
+
+element-text.selected {
+    text-color: @background;
+}
