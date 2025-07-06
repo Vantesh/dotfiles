@@ -2,3 +2,19 @@ key.txt.age
 .zcompcache
 .history
 .zcompdump
+README.md
+LICENSE
+
+# Ignore temporary files
+*.swp
+*~
+.DS_Store
+
+# Ignore directories
+.git/
+node_modules/
+tmp/
+
+# Ignore by pattern
+**/*.log
+**/.terraform/*
