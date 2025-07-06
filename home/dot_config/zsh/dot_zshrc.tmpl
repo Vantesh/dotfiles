@@ -47,7 +47,7 @@ zinit --wait --lucid  depth=1 for \
 zinit --wait=2 lucid for \
       OMZP::command-not-found \
 			OMZP::sudo \
-  {{- if .install_1password }}
+  {{- if  eq .passwordManager "1Password" }}
       OMZP::1password \
   {{- end }}
 
