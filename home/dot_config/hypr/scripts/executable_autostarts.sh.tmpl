@@ -5,7 +5,9 @@ apps=(
   "udiskie"
   "pypr"
   "hyprpanel"
-
+  {{- if .install_1password }}
+  "1password --silent"
+  {{- end }}
 )
 
 for app in "${apps[@]}"; do
