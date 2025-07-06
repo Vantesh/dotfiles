@@ -1,6 +1,7 @@
 [user]
-  name = Vantesh
-  email = 121645908+Vantesh@users.noreply.github.com
+  name = {{ .name }}
+  email = {{ .email }}
+{{- if .signkey }}
   signingkey = {{ onepasswordRead "op://Personal/Git commits/public key" }}
 
 [gpg]
@@ -11,3 +12,4 @@
 
 [commit]
   gpgsign = true
+{{- end }}
