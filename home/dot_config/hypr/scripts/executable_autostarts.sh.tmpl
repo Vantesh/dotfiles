@@ -5,7 +5,7 @@ apps=(
   "udiskie"
   "pypr"
   "hyprpanel"
-  {{- if .install_1password }}
+  {{- if eq .passwordManager "1Password" }}
   "1password --silent"
   {{- end }}
 )
