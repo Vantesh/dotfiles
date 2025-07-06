@@ -1,14 +1,15 @@
 {{- $name := promptString "Please enter your git Username" -}}
 {{- $email := promptString "Please enter your Git Email" -}}
 {{- $signkey := eq $name "Vantesh" -}}
-{{- $install_1password:= promptBool "Do you want to install 1Password? y/n" true -}}
+{{- $passwordmanagerchoices := list "1Password" "Bitwarden" "None" -}}
+{{- $passwordManager := promptChoice "Which password manager do you use?" $passwordmanagerchoices -}}
 
 
 [data]
   name = {{ $name | quote }}
   email = {{ $email | quote }}
   signkey = {{ $signkey }}
-  install_1password = {{ $install_1password }}
+  passwordManager = {{ $passwordManager | quote }}
 
 [edit]
   command = "code"
