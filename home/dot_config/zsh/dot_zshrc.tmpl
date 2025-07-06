@@ -32,6 +32,8 @@ zinit --wait --lucid  depth=1 for \
     \
     --blockf --atpull="zinit creinstall -q ." \
     @zsh-users/zsh-completions \
+    --completions \
+    @dim-an/cod \
     \
     --nocd --atload="_zsh_autosuggest_start" \
 		--atinit"ZSH_AUTOSUGGEST_STRATEGY=(history completion)" \
@@ -40,14 +42,15 @@ zinit --wait --lucid  depth=1 for \
     --atinit'vivid_theme="catppuccin-mocha"' \
     --atload'zstyle ":completion:*"  list-colors "${(s.:.)LS_COLORS}"' \
    @ryanccn/vivid-zsh\
-   \
-   @dim-an/cod\
-
 
 
 zinit --wait=2 lucid for \
       OMZP::command-not-found \
-			OMZP::sudo
+			OMZP::sudo \
+  {{- if .install_1password }}
+      OMZP::1password \
+  {{- end }}
+
 
 # ---------------------------------------------------
 # HISTORY SETTINGS
