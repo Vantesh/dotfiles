@@ -67,4 +67,4 @@ EOF
 
 # enable pacman services
 enable_service "paccache.timer" "system"
-enable_sevice "reflector.timer" "system"
+enable_service "reflector.timer" "system"
