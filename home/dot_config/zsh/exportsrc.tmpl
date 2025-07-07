@@ -19,9 +19,16 @@ export __GL_SHADER_DISK_CACHE_PATH="${XDG_CACHE_HOME}/nv"
 export npm_config_cache="${XDG_CACHE_HOME}/npm"
 export WGETRC="${XDG_CONFIG_HOME}/wget/wgetrc"
 export LESSHISTFILE="-"
+
 {{- if eq .passwordManager "Bitwarden" }}
 export BITWARDEN_SSH_AUTH_SOCK="$XDG_RUNTIME_DIR"
 export SSH_AUTH_SOCK="$HOME/.bitwarden-ssh-agent.sock"
+export GPG_TTY=$(tty)
+{{- end }}
+
+{{- if eq .passwordManager "1Password" }}
+export SSH_AUTH_SOCK=~/.1password/agent.sock
+export GPG_TTY=$(tty)
 {{- end }}
 # Create GNUPG directory (needs special permissions) - optimized
 [ -d "$GNUPGHOME" ] || { mkdir -p "$GNUPGHOME" && chmod 700 "$GNUPGHOME"; }
