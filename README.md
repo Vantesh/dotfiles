@@ -1,10 +1,6 @@
 # Hyprland Desktop Environment Setup
 
-Automated Hyprland desktop environment installation and configuration for Arch Linux and CachyOS.
-
-## Overview
-
-This repository provides a complete automated setup for a modern Hyprland-based desktop environment with all necessary components, theming, and configurations.
+Hyprland dotfiles managed using [chezmoi](https://github.com/twpayne/chezmoi).
 
 ## Previews
 
@@ -51,20 +47,22 @@ This repository provides a complete automated setup for a modern Hyprland-based 
 ## Requirements
 
 - **Minimal Arch Linux installation** OR **CachyOS** (not thoroughly tested)
+- **chezmoi** - Dotfiles manager
+- **Network access** - For downloading packages and dependencies
 
 ## Installation
 
-1. Clone this repository:
+1. Install chezmoi (if not already installed):
 
 ```bash
-git clone https://github.com/vantesh/dotfiles.git
-cd dotfiles
+
+sudo pacman -S chezmoi
 ```
 
-2. Run as a regular user (not root):
+2. Initialize and apply the dotfiles:
 
 ```bash
-./setup.sh
+chezmoi init --apply vantesh
 ```
 
 ## Keybindings
