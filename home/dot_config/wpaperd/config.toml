@@ -1,6 +1,6 @@
 [default]
   path     = "~/.config/hypr/backgrounds"
-  duration = "60min"
+  duration = "180min"
   sorting  = "random"
 
 [default.transition.circle-open]
