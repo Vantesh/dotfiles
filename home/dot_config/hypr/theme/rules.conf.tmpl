@@ -16,7 +16,7 @@ windowrule = pin, title:^([Pp]icture[-\s]?[Ii]n[-\s]?[Pp]icture)(.*)$
 
 
 # Base Rules
-$center-float-large = class:^(center-float-large)$|^(.*qimgv.*)$|^(.*mpv.*)$|^(nvidia-settings)$|^(io.missioncenter.MissionCenter)$|^(1Password)$|^(Bitwarden)$
+$center-float-large = class:^(center-float-large)$|^(.*qimgv.*)$|^(.*mpv.*)$|^(nvidia-settings)$|^(io.missioncenter.MissionCenter)$
 windowrule = float, $center-float-large
 windowrule = size 70% 70%, $center-float-large
 windowrule = center 1, $center-float-large
@@ -90,6 +90,12 @@ $scrcpy = class:^(.*scrcpy.*)$
 windowrule = center 1, $scrcpy
 windowrule = float, $scrcpy
 
+$videobridge = class:^(.*xwaylandvideobridge.*)$
+windowrule = opacity 0.0 override 0.0 override, $videobridge
+windowrule = noanim, $videobridge
+windowrule = noblur, $videobridge
+windowrule = noinitialfocus, $videobridge
+windowrule = maxsize 1 1, $videobridge
 
 $vlc = class:^(vlc)$
 $vlc_dialogs = title:^(?:Select one or more files to open|Simple Preferences|Adjustments and Effects|Current Media Information|Open URL|Open Media|Save playlist as...|Open Directory) — VLC media player$
@@ -97,6 +103,36 @@ windowrule = float, $vlc
 windowrule = center 1, $vlc
 windowrule = size 50% 50%, $vlc_dialogs
 windowrule = size 70% 70%, $vlc, title:^(.*VLC media player)$
+
+{{- if eq .passwordManager "Bitwarden" }}
+
+# Bitwarden Rules
+windowrule = float, class:^(Bitwarden)$
+windowrule = size 60% 60%, class:^(Bitwarden)$
+windowrule = center 1, class:^(Bitwarden)$
+
+# brave bitwarden extension
+$bitwarden-brave = class:^(brave-nngceckbapebfimnlniiiahkandclblb-Default)$
+windowrule = float, $bitwarden-brave
+windowrule = size 30% 60%, $bitwarden-brave
+
+{{- else if eq .passwordManager "1Password" }}
+# 1Password Rules
+windowrule = float, class:^(1password)$
+windowrule = size 60% 60%, class:^(1password)$
+windowrule = center 1, class:^(1password)$
+
+{{- end }}
+
+$brave_popups = class:^(brave-browser)$, initialTitle:^(Untitled - Brave)$
+windowrule = float, $brave_popups
+windowrule = size 30% 60%, $brave_popups
+windowrule = center 1, $brave_popups
+
+$zen_popups = float, class:^(zen)$, initialTitle:^(Zen Browser)$
+windowrule = float, $zen_popups
+windowrule = size 30% 60%, $zen_popups
+windowrule = center 1, $zen_popups
 
 
 $qbittorrent = class:^(org.qbittorrent.qBittorrent)$
@@ -131,10 +167,8 @@ windowrule = float, $imv
 windowrule = size 70% 70%, $imv
 windowrule = center 1, $imv
 
-$theming= class:^(kvantummanager)$|^(qt5ct)$|^(qt6ct)$|^(nwg-look)$|^(org.kde.ark)$
+$theming = class:^(kvantummanager)$|^(qt5ct)$|^(qt6ct)$|^(nwg-look)$|^(org.kde.ark)$
 windowrule = float, $theming
-
-
 
 windowrule = float,title:^(About Mozilla Firefox)$
 windowrule = float,class:^(firefox)$,title:^(Picture-in-Picture)$
