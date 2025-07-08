@@ -1,0 +1,24 @@
+[user]
+  name = {{ .name }}
+  email = {{ .email }}
+{{- if .signkey }}
+{{- if eq .passwordManager "Bitwarden" }}
+  signingkey = "{{ (bitwarden "item" "git commits").sshKey.publicKey }}"
+{{- else if eq .passwordManager "1Password" }}
+  signingkey = {{ onepasswordRead "op://Personal/Git commits/public key" }}
+{{- end }}
+{{- end }}
+
+{{- if .signkey }}
+
+[gpg]
+  format = ssh
+
+{{- if eq .passwordManager "1Password" }}
+[gpg "ssh"]
+  program = "/opt/1Password/op-ssh-sign"
+{{- end }}
+
+[commit]
+  gpgsign = true
+{{- end }}
