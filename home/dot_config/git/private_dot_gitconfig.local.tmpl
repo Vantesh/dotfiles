@@ -3,7 +3,7 @@
   email = {{ .email }}
 {{- if .signkey }}
 {{- if eq .passwordManager "Bitwarden" }}
-  signingkey = "{{ (bitwarden "item" "git commits").sshKey.publicKey }}"
+  signingkey = {{ (bitwarden "item" "git commits").sshKey.publicKey }}
 {{- else if eq .passwordManager "1Password" }}
   signingkey = {{ onepasswordRead "op://Personal/Git commits/public key" }}
 {{- end }}
