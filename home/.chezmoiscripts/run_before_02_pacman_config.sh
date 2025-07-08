@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Source helpers
+source "${CHEZMOI_WORKING_TREE:?env variable missing. Please only run this script via chezmoi}/home/.chezmoiscripts/.00_helpers.sh"
+
 # =============================================================================
 # CONSTANTS
 # =============================================================================
@@ -11,12 +14,12 @@ readonly PACMAN_OPTIONS=("Color" "VerbosePkgLists" "ILoveCandy")
 deps=(
   "pacman-contrib"
   "reflector"
-
 )
 
 for dep in "${deps[@]}"; do
   install_package "$dep"
 done
+
 # =============================================================================
 # VALIDATION FUNCTIONS
 # =============================================================================
@@ -203,7 +206,6 @@ configure_pacman() {
   fi
 }
 
-# =============================================================================
-# MAIN EXECUTION
-# =============================================================================
+# Main execution
+printc_box "PACMAN" "Configuring Pacman"
 configure_pacman

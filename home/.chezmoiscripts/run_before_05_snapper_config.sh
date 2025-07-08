@@ -1,4 +1,8 @@
 #!/bin/bash
+
+# Source helpers
+source "${CHEZMOI_WORKING_TREE:?env variable missing. Please only run this script via chezmoi}/home/.chezmoiscripts/.00_helpers.sh"
+
 # =============================================================================
 # CONSTANTS
 # =============================================================================
@@ -37,12 +41,7 @@ validate_bootloader() {
   bootloader=$(detect_bootloader)
 
   case "$bootloader" in
-  "limine")
-    printc green "Limine detected"
-    return 0
-    ;;
-  "grub")
-    printc green "GRUB detected"
+  "limine" | "grub")
     return 0
     ;;
   "unknown")
@@ -53,7 +52,7 @@ validate_bootloader() {
 
 if ! validate_bootloader; then
   printc yellow "Snapper setup skipped: unsupported bootloader"
-  return 0 2>/dev/null || exit 0
+  exit 0
 fi
 
 # =============================================================================
@@ -227,21 +226,26 @@ setup_grub() {
 # MAIN EXECUTION
 # =============================================================================
 
-main() {
-  ensure_sudo
+# Check if user wants to setup snapper
+if echo && confirm "Setup Snapper for BTRFS snapshots?"; then
+  printc_box "SNAPPER SETUP" "Configuring Snapper"
+
+  bootloader=$(detect_bootloader)
+  printc cyan "Bootloader detected: $bootloader"
+
   install_dependencies
   enable_snapper_services
   configure_snapper_cleanup
   create_updatedb
 
   # Bootloader-specific setup
-  if [[ "$(detect_bootloader)" == "limine" ]]; then
+  if [[ "$bootloader" == "limine" ]]; then
     setup_limine
-  elif [[ "$(detect_bootloader)" == "grub" ]]; then
+  elif [[ "$bootloader" == "grub" ]]; then
     setup_grub
   fi
 
-  printc green "Setup completed for $(detect_bootloader) bootloader!"
-}
-
-main
+  printc green "Setup completed for $bootloader bootloader!"
+else
+  printc yellow "Skipping Snapper setup."
+fi

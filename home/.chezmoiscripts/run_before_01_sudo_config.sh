@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Source helpers
+source "${CHEZMOI_WORKING_TREE:?env variable missing. Please only run this script via chezmoi}/home/.chezmoiscripts/.00_helpers.sh"
+
 configure_sudo_timeout() {
   printc -n cyan "Disabling sudo password prompt timeout... "
 
@@ -57,12 +60,11 @@ configure_faillock() {
   fi
 }
 
-main() {
-  ensure_sudo
-  configure_sudo_timeout
-  configure_sudo_insults
-  configure_sudo_pwfeedback
-  configure_faillock
-}
-
-main
+# Main execution
+ask_for_sudo
+initialize_environment
+printc_box "SUDO" "Configuring QOL sudo settings"
+configure_sudo_timeout
+configure_sudo_insults
+configure_sudo_pwfeedback
+configure_faillock

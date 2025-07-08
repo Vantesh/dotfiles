@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Source helpers
+source "${CHEZMOI_WORKING_TREE:?env variable missing. Please only run this script via chezmoi}/home/.chezmoiscripts/.00_helpers.sh"
+
 # =============================================================================
 # CONSTANTS
 # =============================================================================
@@ -200,7 +203,7 @@ EOF
     fail "FAILED to write HiDPI configuration"
   fi
 
-  if ! sudo cp -r "$BASE_DIR/sddm/stray" /usr/share/sddm/themes/ && sudo chmod -R 755 /usr/share/sddm/themes/stray; then
+  if ! sudo cp -r "${CHEZMOI_WORKING_TREE}/sddm/stray" /usr/share/sddm/themes/ && sudo chmod -R 755 /usr/share/sddm/themes/stray; then
     fail "FAILED to copy SDDM stray theme files"
   fi
 
@@ -211,7 +214,6 @@ EOF
     fail "FAILED to write SDDM theme configuration"
   fi
   printc green "OK"
-
 }
 
 # =============================================================================
@@ -239,7 +241,6 @@ configure_limine_interface() {
     "timeout: 1"
     "default_entry: 2"
     "interface_branding: Arch Linux"
-
   )
 
   # Build interface configuration block
@@ -278,6 +279,12 @@ configure_limine_interface() {
 # =============================================================================
 
 install_grub_theme() {
+  # Check if GRUB theme already exists
+  if [[ -d "/usr/share/grub/themes/Sekiro" ]]; then
+    printc green "GRUB theme already installed"
+    return
+  fi
+
   local git_url="https://github.com/semimqmo/sekiro_grub_theme"
   temp_folder=$(mktemp -d)
   printc -n cyan "Cloning GRUB theme... "
@@ -342,37 +349,34 @@ configure_gtk_theme() {
     return 1
   fi
 }
+
 # =============================================================================
 # MAIN EXECUTION
 # =============================================================================
 
-main() {
-  install_dependencies
-  install_fonts
-  install_cursor_theme
-  configure_sddm
-  configure_gtk_theme
+printc_box "THEMING" "Setting up Fonts, cursors and themes"
 
-  if [[ "$(detect_bootloader)" == "limine" ]]; then
-    if grep -q "CachyOS" /etc/os-release; then
-      printc yellow "Skipping Limine theming on CachyOS"
-      return 0
-    fi
+install_dependencies
+install_fonts
+install_cursor_theme
+configure_sddm
+configure_gtk_theme
 
+if [[ "$(detect_bootloader)" == "limine" ]]; then
+  if grep -q "CachyOS" /etc/os-release; then
+    printc yellow "Skipping Limine theming on CachyOS"
+  else
     configure_limine_interface
-  elif [[ "$(detect_bootloader)" == "grub" ]]; then
-    ensure_sudo
-    install_grub_theme
-    edit_grub_config
-  else
-    printc yellow "No supported bootloader detected, skipping theming setup"
   fi
+elif [[ "$(detect_bootloader)" == "grub" ]]; then
+  install_grub_theme
+  edit_grub_config
+else
+  printc yellow "No supported bootloader detected, skipping theming setup"
+fi
 
-  if echo && confirm "Install and configure Plymouth for boot splash?"; then
-    setup_plymouth
-  else
-    printc yellow "Skipping Plymouth setup."
-  fi
-}
-
-main
+if echo && confirm "Install and configure Plymouth for boot splash?"; then
+  setup_plymouth
+else
+  printc yellow "Skipping Plymouth setup."
+fi

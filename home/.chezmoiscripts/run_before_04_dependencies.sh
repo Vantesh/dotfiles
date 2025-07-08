@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Source helpers
+source "${CHEZMOI_WORKING_TREE:?env variable missing. Please only run this script via chezmoi}/home/.chezmoiscripts/.00_helpers.sh"
+
 # =======================
 # CORE COMPONENTS
 # =======================
@@ -70,7 +73,6 @@ core_packages=(
   layer-shell-qt5
   qt6-multimedia-ffmpeg
   libfido2
-
 )
 
 # =======================
@@ -121,7 +123,6 @@ base_drivers=(
   libva-utils
   vulkan-tools
   vulkan-headers
-
 )
 
 # Intel-specific drivers
@@ -135,8 +136,8 @@ intel_drivers=(
 amd_drivers=(
   libva-mesa-driver
   vulkan-radeon
-
 )
+
 # NVIDIA-specific drivers
 nvidia_drivers=(
   libva-nvidia-driver
@@ -145,7 +146,6 @@ nvidia_drivers=(
   nvidia-settings
   nvidia-prime
   opencl-nvidia
-
 )
 
 install_gpu_drivers() {
@@ -231,8 +231,10 @@ optional=(
   spotify-launcher
   git-delta
   antidot-bin # clean up home directory
-
 )
+
+# Main execution
+printc_box "DEPENDENCIES" "Installing core dependencies and tools"
 
 packages=(
   "${core_packages[@]}"
