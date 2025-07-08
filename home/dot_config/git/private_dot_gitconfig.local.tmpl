@@ -15,6 +15,7 @@
   format = ssh
 
 {{- if eq .passwordManager "1Password" }}
+
 [gpg "ssh"]
   program = "/opt/1Password/op-ssh-sign"
 {{- end }}
