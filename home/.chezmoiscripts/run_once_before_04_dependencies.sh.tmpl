@@ -232,8 +232,10 @@ optional=(
   git-delta
   antidot-bin # clean up home directory
 )
-
+#-------------------------------------------------------------------------------------------------
 # Main execution
+#-------------------------------------------------------------------------------------------------
+
 printc_box "DEPENDENCIES" "Installing core dependencies and tools"
 
 packages=(
@@ -247,6 +249,27 @@ packages=(
 for package in "${packages[@]}"; do
   install_package "$package"
 done
+
+# =============================================================================
+# Install password manager
+# =============================================================================
+
+{{- if eq .passwordManager "Bitwarden" }}
+install_package "bitwarden-bin"
+if ! has_cmd "bw"; then
+  printc -n cyan "Installing Bitwarden CLI..."
+  if sudo npm install -g @bitwarden/cli &>/dev/null; then
+    printc green "OK"
+  else
+    printc yellow "Failed to install Bitwarden CLI."
+  fi
+else
+  printc green "Bitwarden CLI is already installed."
+fi
+{{- else if eq .passwordManager "1Password" }}
+install_package "1password-cli"
+install_package "1password"
+{{- end }}
 
 # Install GPU-specific drivers
 echo
