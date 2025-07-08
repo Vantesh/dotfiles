@@ -1,15 +1,18 @@
 #!/bin/bash
 
+# Source helpers
+source "${CHEZMOI_WORKING_TREE:?env variable missing. Please only run this script via chezmoi}/home/.chezmoiscripts/.00_helpers.sh"
+
 # =============================================================================
 # CONSTANTS
 # =============================================================================
 
 readonly AVAILABLE_AUR_HELPERS=("yay" "paru")
+
 get_user_choice() {
   AUR_HELPER=$(choice "Choose your preferred AUR helper:" "${AVAILABLE_AUR_HELPERS[@]}") || {
     fail "No AUR helper selected. Exiting."
   }
-
 }
 
 # =============================================================================
@@ -42,8 +45,10 @@ build_and_install_aur_helper() {
     fail "Failed to build and install $AUR_HELPER."
   fi
 }
+
 install_aur_helper() {
   if has_cmd "$AUR_HELPER"; then
+    printc green "$AUR_HELPER is already installed"
     return
   fi
 
@@ -87,7 +92,6 @@ configure_paru() {
 # =============================================================================
 
 sync_aur_database() {
-  ensure_sudo
   printc -n cyan "Synchronizing database..."
 
   "$AUR_HELPER" -Sy --noconfirm &>/dev/null || {
@@ -96,16 +100,9 @@ sync_aur_database() {
   printc green "OK"
 }
 
-# =============================================================================
-# MAIN EXECUTION
-# =============================================================================
-
-main() {
-  echo
-  get_user_choice
-  install_aur_helper
-  configure_paru
-  sync_aur_database
-}
-
-main
+# Main execution
+echo
+get_user_choice
+install_aur_helper
+configure_paru
+sync_aur_database
