@@ -521,10 +521,8 @@ harden_boot_fstab() {
   fi
 }
 
-# Initialize environment (from setup.sh)
 initialize_environment() {
   clear
-  printc -n cyan "Installing required applications..."
   apps=(
     "git"
     "gum"
@@ -532,6 +530,7 @@ initialize_environment() {
 
   for app in "${apps[@]}"; do
     if ! has_cmd "$app"; then
+      printc -n cyan "Installing $app... "
       sudo pacman -S --noconfirm "$app" &>/dev/null
       if has_cmd "$app"; then
         printc green "OK"
