@@ -1,0 +1,34 @@
+{{- $name := promptString "Please enter your git Username" -}}
+{{- $email := promptString "Please enter your Git Email" -}}
+{{- $signkey := eq $name "Vantesh" -}}
+{{- $passwordManager := "" -}}
+{{- if $signkey -}}
+{{- $passwordmanagerchoices := list "1Password" "Bitwarden" -}}
+{{- $passwordManager = promptChoice "Which password manager do you use? " $passwordmanagerchoices -}}
+{{- end -}}
+
+[data]
+  name = {{ $name | quote }}
+  email = {{ $email | quote }}
+  signkey = {{ $signkey }}
+{{- if $signkey }}
+  passwordManager = {{ $passwordManager | quote }}
+{{- end }}
+
+[edit]
+  command = "code"
+  args    = ["--wait"]
+
+[merge]
+    command = "code"
+    args = ["--wait", "--diff", "{{ "{{" }} .Destination {{ "}}" }}", "{{ "{{" }} .Source {{ "}}" }}", "{{ "{{" }} .Target {{ "}}" }}"]
+
+[merge-all]
+    command = "code"
+    args = ["--wait", "--diff", "{{ "{{" }} .Destination {{ "}}" }}", "{{ "{{" }} .Source {{ "}}" }}", "{{ "{{" }} .Target {{ "}}" }}"]
+
+[diff]
+    command = "delta"
+    args = ["--paging=never", "{{ "{{ .Destination }}" }}", "{{ "{{ .Target }}" }}"]
+    pager = "delta"
+
