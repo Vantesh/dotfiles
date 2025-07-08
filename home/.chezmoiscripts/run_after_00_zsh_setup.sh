@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Source helpers
+source "${CHEZMOI_WORKING_TREE:?env variable missing. Please only run this script via chezmoi}/home/.chezmoiscripts/.00_helpers.sh"
+
 # =============================================================================
 # CONSTANTS
 # =============================================================================
@@ -28,7 +31,7 @@ DEPS=(
 
 readonly ZSHENV_FILE="/etc/zsh/zshenv"
 readonly ZSH_CONFIG_DIR="/etc/zsh"
-script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 # =============================================================================
 # DEPENDENCY MANAGEMENT
 # =============================================================================
@@ -37,7 +40,6 @@ install_dependencies() {
   for dep in "${DEPS[@]}"; do
     install_package "$dep"
   done
-
 }
 
 # =============================================================================
@@ -97,25 +99,46 @@ EOF
 }
 
 set_default_shell() {
-  printc cyan "Setting ZSH as default shell..."
   local zsh_path
   zsh_path=$(command -v zsh) || fail "ZSH not found."
-  chsh -s "$zsh_path" "$USER" || fail "Failed to set ZSH as default shell."
+
+  # Check if ZSH is already the default shell for current user
+  if [[ "$SHELL" == "$zsh_path" ]]; then
+    printc green "ZSH is already the default shell for $USER"
+  else
+    printc cyan "Setting ZSH as default shell for $USER..."
+    chsh -s "$zsh_path" "$USER" || fail "Failed to set ZSH as default shell."
+    printc green "ZSH set as default shell for $USER"
+  fi
 
   if echo && confirm "Set ZSH as default shell for root?"; then
-    printc cyan "Setting ZSH as default shell for all users..."
-    sudo chsh -s "$zsh_path" || fail "Failed to set ZSH for all users."
+    # Check if ZSH is already the default shell for root
+    local root_shell
+    root_shell=$(sudo getent passwd root | cut -d: -f7)
+    if [[ "$root_shell" == "$zsh_path" ]]; then
+      printc green "ZSH is already the default shell for root"
+    else
+      printc cyan "Setting ZSH as default shell for root..."
+      sudo chsh -s "$zsh_path" || fail "Failed to set ZSH for root."
+      printc green "ZSH set as default shell for root"
+    fi
 
     if [[ ! -d "/root/.config" ]]; then
       sudo mkdir -p "/root/.config" || fail "Failed to create .config directory for root."
       sudo chown root:root "/root/.config"
     fi
-    sudo cp -r "$script_dir/../home/.config/zsh" "/root/.config/zsh" || fail "Failed to copy ZSH config for root."
-    sudo cp -r "$script_dir/../home/.config/fsh" "/root/.config/fsh" || fail "Failed to copy syntax highlighting config for root."
-    sudo cp -r "$script_dir/../home/.config/ohmyposh" "/root/.config/ohmyposh" || fail "Failed to copy Oh My Posh config for root."
-    printc green "ZSH set as default shell for all users."
+
+    # Copy config folders for root
+    local config_folders=("zsh" "fsh" "ohmyposh")
+    for folder in "${config_folders[@]}"; do
+      if [[ -d "$HOME/.config/$folder" ]]; then
+        sudo cp -r "$HOME/.config/$folder" "/root/.config/$folder" || fail "Failed to copy $folder config for root."
+      fi
+    done
+
+    printc green "ZSH configuration copied for root."
   else
-    printc yellow "Skipping setting ZSH as default shell for all users."
+    printc yellow "Skipping setting ZSH as default shell for root."
   fi
 }
 
@@ -138,29 +161,6 @@ EOF
 }
 
 # =============================================================================
-# GIT CONFIGURATION
-# =============================================================================
-setup_git_config() {
-  local config_dir="$HOME/.config/git"
-  local config_file="$config_dir/.localconfig"
-  printc cyan "Setting up Git configuration..."
-
-  if [[ ! -f "$config_file" ]]; then
-    mkdir -p "$config_dir" || fail "Failed to create Git config directory."
-  fi
-
-  read -rp "Enter your Git user name: " git_user_name
-  read -rp "Enter your Git user email: " git_user_email
-
-  cat >"$config_file" <<EOF
-[user]
-  name = $git_user_name
-  email = $git_user_email
-EOF
-
-}
-
-# =============================================================================
 # DATABASE AND CACHE UPDATES
 # =============================================================================
 
@@ -168,6 +168,7 @@ update_pkgfile_database() {
   printc -n cyan "Updating pkgfile database..."
   sudo pkgfile --update >/dev/null || fail "Failed to update pkgfile database."
   printc green "OK"
+  enable_service "pkgfile-update.timer" "system"
 }
 
 rebuild_bat_cache() {
@@ -180,16 +181,11 @@ rebuild_bat_cache() {
 # MAIN EXECUTION
 # =============================================================================
 
-main() {
-  install_dependencies
-  setup_zshenv
-  set_default_shell
-  zsh_pacman_hook
-  update_pkgfile_database
-  rebuild_bat_cache
-  if confirm "Set up Git configuration?"; then
-    setup_git_config
-  fi
-}
+printc_box "ZSH SETUP" "Configuring ZSH shell and tools"
 
-main
+install_dependencies
+setup_zshenv
+set_default_shell
+zsh_pacman_hook
+update_pkgfile_database
+rebuild_bat_cache

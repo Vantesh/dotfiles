@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Source helpers
+source "${CHEZMOI_WORKING_TREE:?env variable missing. Please only run this script via chezmoi}/home/.chezmoiscripts/.00_helpers.sh"
+
 # ========================
 # Constants
 # ========================
@@ -78,15 +81,6 @@ is_swap_path_partition() {
   [[ -b "$1" ]]
 }
 
-reload_udev_rules() {
-  printc -n cyan "Reloading udev rules... "
-  if sudo udevadm control --reload-rules && sudo udevadm trigger; then
-    printc green "OK"
-  else
-    fail "FAILED"
-  fi
-}
-
 # ========================
 # auto-cpufreq Installation
 # ========================
@@ -98,8 +92,8 @@ install_auto_cpufreq() {
   else
     printc yellow "Failed, Manually setup auto-cpufreq"
   fi
-
 }
+
 # ========================
 # Btrfs Swap Configuration
 # ========================
@@ -143,7 +137,6 @@ create_btrfs_swap_subvolume() {
     fi
   fi
   sudo umount "$temp_mount"
-
 }
 
 create_btrfs_swapfile() {
@@ -262,9 +255,11 @@ configure_hibernation_cmdline() {
 
   local hibernation_params
   if is_swap_path_partition "$swap_path"; then
-    printc -n cyan "Detected swap partition '$swap_path'. Getting hibernation parameters... "
+    printc cyan "Detected swap partition '$swap_path'."
+    printc -n cyan "Getting hibernation parameters... "
   elif [[ -f "$swap_path" ]]; then
-    printc -n cyan "Detected swapfile '$swap_path'. Getting hibernation parameters... "
+    printc cyan "Detected swapfile '$swap_path'."
+    printc -n cyan "Getting hibernation parameters... "
   fi
 
   if ! hibernation_params=$(get_hibernation_kernel_params); then
@@ -322,7 +317,6 @@ EOF
 w    /sys/power/image_size  -    -    -    -   0
 EOF
   fi
-
 }
 
 enable_nvidia_hibernation_services() {
@@ -348,11 +342,10 @@ enable_nvidia_hibernation_services() {
     printc yellow "partial ($enabled_count/${#nvidia_services[@]})"
   fi
 
-  write_hibernation_configs "/etc/tmpfiles.d/nvidia_pm.conf" "nvidia power management config" <<'EOF'
+  write_system_config "/etc/tmpfiles.d/nvidia_pm.conf" "nvidia power management config" <<'EOF'
 # /etc/tmpfiles.d/nvidia_pm.conf
 w /sys/bus/pci/devices/0000:01:00.0/power/control - - - - auto
 EOF
-
 }
 
 setup_system_hibernation() {
@@ -407,8 +400,9 @@ update_btrfs_fstab_options() {
 # Main Execution
 # ========================
 
-main() {
-  ensure_sudo
+if is_laptop; then
+  printc_box "LAPTOP TWEAKS" "Applying laptop-specific tweaks"
+
   install_all_dependencies
   install_auto_cpufreq
   enable_service "upower.service" "system"
@@ -434,6 +428,14 @@ main() {
 
   setup_touchpad
 
-}
-
-main
+  if echo && confirm "Apply udev rules? (ONLY FOR PRECISION 5530)"; then
+    printc -n cyan "Applying udev rules...."
+    if sudo cp "${CHEZMOI_WORKING_TREE}/udev/"*.rules /etc/udev/rules.d/ && reload_udev_rules &>/dev/null; then
+      printc green "OK"
+    else
+      fail "FAILED to apply udev rules."
+    fi
+  fi
+else
+  printc yellow "Skipping laptop tweaks."
+fi
