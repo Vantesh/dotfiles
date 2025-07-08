@@ -7,6 +7,8 @@ apps=(
   "hyprpanel"
   {{- if eq .passwordManager "1Password" }}
   "1password --silent"
+  {{- else if eq .passwordManager "Bitwarden" }}
+  "bitwarden"
   {{- end }}
 )
 
