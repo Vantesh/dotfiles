@@ -47,22 +47,12 @@ Hyprland dotfiles managed using [chezmoi](https://github.com/twpayne/chezmoi).
 ## Requirements
 
 - **Minimal Arch Linux installation** OR **CachyOS** (not thoroughly tested)
-- **chezmoi** - Dotfiles manager
 - **Network access** - For downloading packages and dependencies
 
-## Installation
-
-1. Install chezmoi (if not already installed):
+1. Initialize and apply the dotfiles:
 
 ```bash
-
-sudo pacman -S chezmoi
-```
-
-2. Initialize and apply the dotfiles:
-
-```bash
-chezmoi init --apply vantesh
+sh -c "$(curl -fsLS get.chezmoi.io)" -- -b "$HOME/.local/bin" init --apply vantesh
 ```
 
 ## Keybindings
