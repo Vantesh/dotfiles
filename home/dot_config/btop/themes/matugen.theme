@@ -1,0 +1,82 @@
+theme[main_bg]=""
+
+# Main text color
+theme[main_fg]="#e2e2e9"
+
+# Title color for boxes
+theme[title]="#e2e2e9"
+
+# Highlight color for keyboard shortcuts
+theme[hi_fg]="#aec6ff"
+
+# Background color of selected item in processes box
+theme[selected_bg]="#37393e"
+
+# Foreground color of selected item in processes box
+theme[selected_fg]="#debcdf"
+
+# Color of inactive/disabled text
+theme[inactive_fg]="#282a2f"
+
+# Color of text appearing on top of graphs, i.e uptime and current network graph scaling
+theme[graph_text]="#e2e2e9"
+
+# Background color of the percentage meters
+theme[meter_bg]="#37393e"
+
+# Misc colors for processes box including mini cpu graphs, details memory graph and details status text
+theme[proc_misc]="#e2e2e9"
+
+# CPU, Memory, Network, Proc box outline colors
+theme[cpu_box]="#aec6ff"
+theme[mem_box]="#bfc6dc"
+theme[net_box]="#debcdf"
+theme[proc_box]="#ffb4ab"
+
+# Box divider line and small boxes line color
+theme[div_line]="#37393e"
+
+# Temperature graph color
+theme[temp_start]="#a6e3a1"
+theme[temp_mid]="#f9e2af"
+theme[temp_end]="#f38ba8"
+
+# CPU graph colors
+theme[cpu_start]="#91d5ad"
+theme[cpu_mid]="#abc7ff"
+theme[cpu_end]="#89b4fa"
+
+# Mem/Disk free meter
+theme[free_start]="#cba6f7"
+theme[free_mid]="#89b4fa"
+theme[free_end]="#abc7ff"
+
+# Mem/Disk cached meter
+theme[cached_start]="#294677"
+theme[cached_mid]="#abc7ff"
+theme[cached_end]="#89b4fa"
+
+# Mem/Disk available meter
+theme[available_start]="#ffb59d"
+theme[available_mid]="#fab387"
+theme[available_end]="#fbb0d8"
+
+# Mem/Disk used meter
+theme[used_start]="#91d5ad"
+theme[used_mid]="#a6e3a1"
+theme[used_end]="#a6e3a1"
+
+# Download graph colors
+theme[download_start]="#ffb59d"
+theme[download_mid]="#fab387"
+theme[download_end]="#fbb0d8"
+
+# Upload graph colors
+theme[upload_start]="#91d5ad"
+theme[upload_mid]="#a6e3a1"
+theme[upload_end]="#a6e3a1"
+
+# Process box color gradient for threads, mem and cpu usage
+theme[process_start]="#aec6ff"
+theme[process_mid]="#aec6ff"
+theme[process_end]="#d8e2ff"
