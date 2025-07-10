@@ -4,10 +4,6 @@ configuration {
   show-icons: true;
 }
 
-textbox {
-  vertical-align:   0.5;
-  horizontal-align: 0.5;
-}
 
 textbox-prompt-colon {
     enabled:                     true;
@@ -15,20 +11,19 @@ textbox-prompt-colon {
     expand:                      false;
     str:                         "";
     background-color:            inherit;
-    text-color:                  @lavender;
+    text-color:                  @foreground;
 }
 
 entry {
     enabled:                     true;
-    padding:                     10px 5px;
-    border:                      1px solid;
     border-radius:               10px;
-    border-color:                @surface0;
-    background-color:            @background-alt;
-    text-color:                  @lavender;
+    spacing:                     1em;
+    padding:                     8px 5px;
+    background-color:            @background;
+    text-color:                  @foreground;
     cursor:                      text;
-    placeholder:                 "";
-
+    placeholder:                 "Search";
+    placeholder-color:           inherit;
 }
 
 
