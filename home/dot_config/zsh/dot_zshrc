@@ -7,6 +7,8 @@
 #---------------------------------------------------
 
 ZINIT_HOME="${XDG_DATA_HOME:-${HOME}/.local/share}/zinit/zinit.git"
+ZSH_CACHE_HOME="${XDG_CACHE_HOME:-${HOME}/.cache}/zsh"
+[ ! -d $ZSH_CACHE_HOME ] && mkdir -p "$ZSH_CACHE_HOME"
 [ ! -d $ZINIT_HOME ] && mkdir -p "$(dirname $ZINIT_HOME)"
 [ ! -d $ZINIT_HOME/.git ] && git clone https://github.com/zdharma-continuum/zinit.git "$ZINIT_HOME"
 source "${ZINIT_HOME}/zinit.zsh"
@@ -26,14 +28,13 @@ zinit --wait --lucid  depth=1 for \
     zstyle ':fzf-tab:*' use-fzf-default-opts yes" \
     @Aloxaf/fzf-tab \
     \
-    --atinit"ZINIT[COMPINIT_OPTS]=-C; zicompinit; zicdreplay" \
+    --atinit"ZINIT[ZCOMPDUMP_PATH]="$ZSH_CACHE_HOME/.zcompdump";ZINIT[COMPINIT_OPTS]=-C; zicompinit; zicdreplay" \
     --nocd --atload="fast-theme XDG:catppuccin-mocha -q" \
     @zdharma-continuum/fast-syntax-highlighting \
     \
     --blockf --atpull="zinit creinstall -q ." \
     @zsh-users/zsh-completions \
     --completions \
-    @dim-an/cod \
     \
     --nocd --atload="_zsh_autosuggest_start" \
 		--atinit"ZSH_AUTOSUGGEST_STRATEGY=(history completion)" \
@@ -47,10 +48,12 @@ zinit --wait --lucid  depth=1 for \
 zinit --wait=2 lucid for \
       OMZP::command-not-found \
 			OMZP::sudo \
-  {{- if  eq .passwordManager "1Password" }}
-      OMZP::1password \
-  {{- end }}
+      @dim-an/cod \
 
+# ---------------------------------------------------
+# KEYBINDINGS
+# ---------------------------------------------------
+bindkey -e  # Use emacs keybindings
 
 # ---------------------------------------------------
 # HISTORY SETTINGS
@@ -113,7 +116,8 @@ zstyle ':completion:*:functions' ignored-patterns '_*'
 zstyle ':completion:*:*:kill:*:processes' list-colors '=(#b) #([0-9]#)*=0=01;31'
 
 zstyle ':completion:*' use-cache on
-zstyle ':completion:*' cache-path "${ZDOTDIR:-$HOME/.config/zsh}/.zcompcache"
+zstyle ':completion:*' cache-path "$ZSH_CACHE_HOME/zcompletions"
+
 
 # ----------------------------------------------------
 # SHELL INTERGRATIONS
@@ -121,15 +125,7 @@ zstyle ':completion:*' cache-path "${ZDOTDIR:-$HOME/.config/zsh}/.zcompcache"
 
 if command -v fzf &>/dev/null; then
   source <(fzf --zsh)
-
-  export FZF_DEFAULT_OPTS="\
---height 40% --layout=reverse --border=rounded --info=right \
---prompt='❯ ' \
---color=bg+:#313244,bg:#1e1e2e,spinner:#f5e0dc,hl:#f38ba8 \
---color=fg:#cdd6f4,header:#f38ba8,info:#cba6f7,pointer:#f5e0dc \
---color=marker:#b4befe,fg+:#cdd6f4,prompt:#cba6f7,hl+:#f38ba8 \
---color=selected-bg:#45475a \
---color=border:#313244,label:#cdd6f4"
+  source "${ZDOTDIR:-$HOME/.config/zsh}/fzf"
 
 	export FZF_CTRL_R_OPTS="
 	--height 40% --layout=reverse --border=rounded --info=right --no-preview --no-sort"
@@ -141,7 +137,7 @@ if command -v fzf &>/dev/null; then
 	export FZF_CTRL_T_OPTS="
   --walker-skip .git,node_modules,target
   --preview 'fzf-preview.sh {}'
-	--height 50%
+	--height 40%
   --bind 'ctrl-/:change-preview-window(down|hidden|)'"
 
 fi
@@ -150,9 +146,6 @@ if command -v zoxide &>/dev/null; then
   eval "$(zoxide init --cmd cd zsh)"
 fi
 
-# instantly rehash all zsh instances
-TRAPUSR1() { rehash }
-
 # ---------------------------------------------------
 # PROMPT
 # ---------------------------------------------------
@@ -160,3 +153,5 @@ if command -v oh-my-posh &>/dev/null; then
   eval "$(oh-my-posh init zsh --config "$XDG_CONFIG_HOME/ohmyposh/theme.toml")"
 
 fi
+# instantly rehash all zsh instances
+TRAPUSR1() { rehash }
