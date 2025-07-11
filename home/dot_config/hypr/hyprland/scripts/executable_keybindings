@@ -1,0 +1,216 @@
+#!/bin/bash
+
+# Configuration
+readonly KEYBINDINGS_CONFIG="$HOME/.config/hypr/hyprland/keybindings.conf"
+readonly WINDOWS_ICON="" # Unicode character for Windows icon
+
+# Check dependencies
+check_dependencies() {
+  if ! command -v yad &>/dev/null; then
+    echo "Error: yad is required but not installed. Please install it first."
+    exit 1
+  fi
+
+  if [[ ! -f "$KEYBINDINGS_CONFIG" ]]; then
+    echo "Error: Keybindings configuration file not found at $KEYBINDINGS_CONFIG"
+    exit 1
+  fi
+}
+
+# Check if GUI is already running and toggle it
+check_and_toggle() {
+  # Check for existing yad process with our specific title
+  local existing_pid
+  existing_pid=$(pgrep -f "yad.*keybindings" 2>/dev/null)
+
+  if [[ -n "$existing_pid" ]]; then
+    # Kill existing process and exit
+    kill "$existing_pid" 2>/dev/null
+    exit 0
+  fi
+}
+
+# Format special keys with friendly names
+format_special_key() {
+  local key="$1"
+  case "$key" in
+  "51") echo "\\" ;;
+  "XF86AudioRaiseVolume") echo "Volume Up" ;;
+  "XF86AudioLowerVolume") echo "Volume Down" ;;
+  "XF86AudioMute") echo "Mute" ;;
+  "XF86AudioMicMute") echo "Mic Mute" ;;
+  "XF86MonBrightnessUp") echo "Brightness Up" ;;
+  "XF86MonBrightnessDown") echo "Brightness Down" ;;
+  "XF86PowerOff") echo "Power Button" ;;
+  "XF86AudioNext") echo "Next Track" ;;
+  "XF86AudioPause") echo "Pause" ;;
+  "XF86AudioPlay") echo "Play" ;;
+  "XF86AudioPrev") echo "Previous Track" ;;
+  "mouse:272") echo "Left Mouse" ;;
+  "mouse:273") echo "Right Mouse" ;;
+  "mouse_down") echo "Mouse Scroll Down" ;;
+  "mouse_up") echo "Mouse Scroll Up" ;;
+  *) echo "$key" ;;
+  esac
+}
+
+# Format modifier keys
+format_modifier() {
+  local modifier="$1"
+
+  # Replace variables
+  modifier="${modifier//\$mainMod/$WINDOWS_ICON}"
+  modifier="${modifier//\$shiftMod/Shift}"
+  modifier="${modifier//WIN/$WINDOWS_ICON}"
+  modifier="${modifier//SUPER/$WINDOWS_ICON}"
+
+  # Handle space-separated modifiers with proper spacing
+  modifier="${modifier// /   +  }"
+  modifier="${modifier//CTRL/Ctrl}"
+  modifier="${modifier//ALT/Alt}"
+  modifier="${modifier//SHIFT/Shift}"
+
+  echo "$modifier"
+}
+
+# Create key combination string with fixed width for alignment
+create_key_combo() {
+  local modifier="$1"
+  local key="$2"
+  local submap="$3"
+
+  local formatted_key
+  formatted_key=$(format_special_key "$key")
+
+  local key_combo
+  if [[ -n "$modifier" && "$modifier" != "" ]]; then
+    local formatted_modifier
+    formatted_modifier=$(format_modifier "$modifier")
+    key_combo="$formatted_modifier   +  $formatted_key"
+  else
+    key_combo="$formatted_key"
+  fi
+
+  # Add submap prefix if in submap
+  if [[ -n "$submap" ]]; then
+    key_combo="($submap) $key_combo"
+  fi
+
+  # Pad to fixed width for alignment (40 characters)
+  printf "%-40s" "$key_combo"
+}
+
+# Parse keybindings from config file
+parse_keybindings() {
+  local bindings=()
+  local current_submap=""
+
+  while IFS= read -r line; do
+    # Skip comments and empty lines
+    [[ "$line" =~ ^[[:space:]]*#.*$ ]] && continue
+    [[ -z "${line// /}" ]] && continue
+
+    # Handle submap entry and exit
+    if [[ "$line" =~ ^submap[[:space:]]*=[[:space:]]*([^[:space:]]+) ]]; then
+      local submap_name="${BASH_REMATCH[1]}"
+      if [[ "$submap_name" == "reset" ]]; then
+        current_submap=""
+      else
+        current_submap="$submap_name"
+      fi
+    fi
+
+    # Parse binding lines
+    if [[ "$line" =~ ^(bind[a-z]*)[[:space:]]*=[[:space:]]*(.*) ]]; then
+      local bind_type="${BASH_REMATCH[1]}"
+      local binding="${BASH_REMATCH[2]}"
+
+      # Handle bindd format (with description)
+      if [[ "$bind_type" =~ ^bindd ]]; then
+        if [[ "$binding" =~ ^([^,]*),([^,]*),([^,]*),([^,]*)(,(.*))?$ ]]; then
+          local modifier="${BASH_REMATCH[1]}"
+          local key="${BASH_REMATCH[2]// /}"
+          local description="${BASH_REMATCH[3]}"
+
+          local key_combo
+          key_combo=$(create_key_combo "$modifier" "$key" "$current_submap")
+
+          bindings+=("$key_combo" "$description")
+        fi
+      # Handle bindm format (mouse bindings) - skip for now as they're handled differently
+      elif [[ "$bind_type" == "bindm" ]]; then
+        continue
+      # Handle other bind formats - generate description from action
+      else
+        if [[ "$binding" =~ ^([^,]*),([^,]*),([^,]*)(,(.*))?$ ]]; then
+          local modifier="${BASH_REMATCH[1]}"
+          local key="${BASH_REMATCH[2]// /}"
+          local action="${BASH_REMATCH[3]// /}"
+          local command="${BASH_REMATCH[5]}"
+
+          local key_combo
+          key_combo=$(create_key_combo "$modifier" "$key" "$current_submap")
+
+          local description
+          description=$(get_action_description "$action" "$command")
+
+          bindings+=("$key_combo" "$description")
+        fi
+      fi
+    fi
+  done <"$KEYBINDINGS_CONFIG"
+
+  printf '%s\n' "${bindings[@]}"
+}
+
+# Get readable description for actions
+get_action_description() {
+  local action="$1"
+  local command="$2"
+
+  case "$action" in
+  "killactive") echo "Close active window" ;;
+  "movewindow") echo "Move window" ;;
+  "movefocus") echo "Move focus" ;;
+  "workspace") echo "Switch to workspace" ;;
+  "movetoworkspace") echo "Move window to workspace" ;;
+  "togglesplit") echo "Toggle split layout" ;;
+  "pseudo") echo "Toggle pseudo mode" ;;
+  "pin") echo "Pin floating window" ;;
+  "fullscreen") echo "Toggle fullscreen" ;;
+  "centerwindow") echo "Center window" ;;
+  "resizeactive") echo "Resize window" ;;
+  "submap") echo "Enter $command mode" ;;
+  "exec") echo "Execute command" ;;
+  *) echo "$action" ;;
+  esac
+}
+
+# Display GUI
+show_keybindings_gui() {
+  local bindings_data
+  bindings_data=$(parse_keybindings)
+
+  echo "$bindings_data" | yad \
+    --list \
+    --title="keybindings" \
+    --width=550 \
+    --height=700 \
+    --no-selection \
+    --no-buttons \
+    --search-column=2 \
+    --expand-column=0 \
+    --column="Key Combination" \
+    --no-click \
+    --column="Description" \
+    --center
+}
+
+# Main execution
+main() {
+  check_and_toggle
+  check_dependencies
+  show_keybindings_gui
+}
+
+main "$@"
