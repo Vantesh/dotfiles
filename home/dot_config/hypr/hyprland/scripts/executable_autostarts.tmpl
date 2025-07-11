@@ -1,0 +1,17 @@
+#!/bin/bash
+apps=(
+  "swww-daemon"
+  "clipse -listen"
+  "udiskie"
+  "pypr"
+  "hyprpanel"
+  {{- if eq .passwordManager "Bitwarden" }}
+  "bitwarden-desktop"
+  {{- else if eq .passwordManager "1Password" }}
+  "1password --silent"
+  {{- end }}
+)
+
+for app in "${apps[@]}"; do
+  app2unit -- $app &
+done
