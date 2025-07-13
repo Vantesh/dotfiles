@@ -60,30 +60,11 @@ sh -c "$(curl -fsLS get.chezmoi.io)" -- -b "$HOME/.local/bin" init --apply vante
 Use **SUPER + F2** to view all available keybindings and shortcuts.
 Super is the **Windows** key or **Command** key on macOS keyboards.
 
-## What This Setup Includes
-
-### Core Components
-
-- **Hyprland** - Modern Wayland compositor
-- **Hyprpanel** - Status bar
-- **Rofi** - Application launcher and menu system
-- **SDDM** - Display manager
-- **Kitty** - GPU-accelerated terminal emulator
-- **Thunar** - File manager with GTK integration
-- **Hyprlock** - Lock screen utility
-- **Wpaperd** - Wallpaper management daemon
-
 ### Theming & Appearance
 
-- Catppuccin mocha theme
-- Apple cursor theme
+- Dynamic theming with **Matugen**
+- Apple cursors
 - Nerd fonts and emoji support
-
-### Optional Applications
-
-- **Browsers** - Brave, Zen
-- **Development tools** - VSCode, Neovim
-- **Media players** - VLC, MPV, Spotify
 
 ## What The Script Does
 
