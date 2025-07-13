@@ -8,18 +8,10 @@ source "${CHEZMOI_WORKING_TREE:?env variable missing. Please only run this scrip
 # =============================================================================
 
 DEPS=(
-  catppuccin-gtk-theme-mocha
-  catppuccin-qt5ct-git
-  kora-icon-theme
-  kvantum-theme-catppuccin-git
+  adw-gtk-theme
 )
 readonly FONTS_REPO_URL="https://github.com/Vantesh/Fonts.git"
 readonly FONTS_TARGET_DIR="$HOME/.local/share/fonts"
-readonly CURSOR_REPO_OWNER="driedpampas"
-readonly CURSOR_REPO_NAME="macOS-hyprcursor"
-readonly CURSOR_ASSET_NAME="macOS.Hyprcursor.White.tar.gz"
-readonly ICONS_DIR="$HOME/.local/share/icons"
-readonly CURSOR_THEME_NAME="macOS"
 
 # =============================================================================
 # DEPENDENCY MANAGEMENT
@@ -29,6 +21,19 @@ install_dependencies() {
   for dep in "${DEPS[@]}"; do
     install_package "$dep"
   done
+}
+
+install_papirus_folders() {
+  if [[ ! -d "$HOME/.local/share/icons/Papirus-Dark" ]]; then
+    if wget -qO- https://git.io/papirus-icon-theme-install | env DESTDIR="$HOME/.local/share/icons" sh; then
+      printc green "Papirus icon theme installed successfully."
+    else
+      fail "Failed to install Papirus icon theme."
+    fi
+  else
+    printc green "Papirus icon theme already installed."
+  fi
+
 }
 
 # =============================================================================
@@ -111,74 +116,6 @@ install_fonts() {
     rm -rf "$temp_dir"
     fail "FAILED to clone fonts repository"
   fi
-}
-
-# =============================================================================
-# CURSOR THEME INSTALLATION FUNCTIONS
-# =============================================================================
-
-check_existing_cursor_theme() {
-  local cursor_theme_dir="$ICONS_DIR/$CURSOR_THEME_NAME"
-  if [[ -d "$cursor_theme_dir" ]]; then
-    printc green "Cursor theme already installed"
-    return 0
-  fi
-  return 1
-}
-
-get_cursor_download_url() {
-  local download_url
-  download_url=$(curl -s "https://api.github.com/repos/$CURSOR_REPO_OWNER/$CURSOR_REPO_NAME/releases/latest" |
-    jq -r ".assets[] | select(.name == \"$CURSOR_ASSET_NAME\") | .browser_download_url")
-
-  if [[ -z "$download_url" || "$download_url" == "null" ]]; then
-    fail "Could not find $CURSOR_ASSET_NAME"
-  fi
-
-  echo "$download_url"
-}
-
-download_cursor_theme() {
-  local download_url="$1"
-  local tmp_dir="$2"
-
-  printc -n cyan "Downloading cursor theme... "
-  if curl -L --silent "$download_url" -o "$tmp_dir/cursor.tar.gz"; then
-    printc green "OK"
-  else
-    rm -rf "$tmp_dir"
-    fail "FAILED"
-  fi
-}
-
-extract_cursor_theme() {
-  local tmp_dir="$1"
-
-  printc -n cyan "Extracting cursor theme... "
-  mkdir -p "$ICONS_DIR"
-  if tar -xzf "$tmp_dir/cursor.tar.gz" -C "$ICONS_DIR"; then
-    printc green "OK"
-  else
-    rm -rf "$tmp_dir"
-    fail "FAILED"
-  fi
-}
-
-install_cursor_theme() {
-  if check_existing_cursor_theme; then
-    return 0
-  fi
-
-  local tmp_dir
-  local download_url
-
-  tmp_dir=$(mktemp -d) || fail "Failed to create temp directory"
-
-  download_url=$(get_cursor_download_url)
-  download_cursor_theme "$download_url" "$tmp_dir"
-  extract_cursor_theme "$tmp_dir"
-
-  rm -rf "$tmp_dir"
 }
 
 # =============================================================================
@@ -339,9 +276,9 @@ setup_plymouth() {
 # =============================================================================
 configure_gtk_theme() {
   printc -n cyan "Configuring GTK theme... "
-  if gsettings set org.gnome.desktop.interface gtk-theme "catppuccin-mocha-blue-standard+default" &&
+  if gsettings set org.gnome.desktop.interface gtk-theme "adw-gtk3-dark" &&
     gsettings set org.gnome.desktop.interface font-name "SF Pro Text 12" &&
-    gsettings set org.gnome.desktop.interface icon-theme "kora" &&
+    gsettings set org.gnome.desktop.interface icon-theme "Papirus-Dark" &&
     gsettings set org.gnome.desktop.interface color-scheme "prefer-dark"; then
     printc green "OK"
   else
@@ -357,8 +294,8 @@ configure_gtk_theme() {
 printc_box "THEMING" "Setting up Fonts, cursors and themes"
 
 install_dependencies
+install_papirus_folders
 install_fonts
-install_cursor_theme
 configure_sddm
 configure_gtk_theme
 
