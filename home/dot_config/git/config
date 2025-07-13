@@ -7,11 +7,15 @@
 
 [interactive]
     diffFilter = delta --color-only
+
 [delta]
+	  true-color = always
     navigate = true  # use n and N to move between diff sections
 		side-by-side = true
 		line-numbers = true
-		syntax-theme = "Catppuccin Mocha"
+		syntax-theme = "Matugen"
+
+
 [diff]
 	context = 3
 	algorithm = histogram
@@ -38,6 +42,8 @@
 	abbrevCommit = true
 	graphColor = blue,yellow,cyan,magenta,green,red
 
+[merge]
+  conflictStyle = zdiff3
 [branch]
   sort = -committerdate
 
