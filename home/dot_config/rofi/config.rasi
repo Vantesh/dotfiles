@@ -2,7 +2,7 @@
 
 /* ---- Map colors ---- */
 * {
-    foreground: @on-surface-variant;
+    foreground: @on-secondary-container;
 }
 
 /*****----- Configuration -----*****/
