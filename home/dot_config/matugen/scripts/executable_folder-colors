@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+
+# export local bin path
+export PATH="$HOME/.local/bin:$PATH"
+# Catppuccin Mocha renk paleti (renk ismi → hex kodu)
+declare -A colors=(
+  [blue]="#89B4FA"
+  [gray]="#878688"
+  [green]="#A6E3A1"
+  [adwaita]="#B4BEFE"
+  [carmine]="#EBA0AC"
+  [magenta]="#CBA6F7"
+  [orange]="#FAB387"
+  [pink]="#F5C2E7"
+  [red]="#F38BA8"
+  [breeze]="#89DCEB"
+  [teal]="#94E2D5"
+  [yellow]="#F9E2AF"
+  [violet]="#7653B4"
+  [cyan]="#04ADC4"
+  [nordic]="#7895B3"
+  [palebrown]="#C0B0A2"
+  [deeporange]="#DB633A"
+
+)
+
+hex=$(<~/.config/matugen/papirus-folders/folder-color.txt)
+
+hex_to_rgb() {
+  local hex=$1
+  local r=$((16#${hex:1:2}))
+  local g=$((16#${hex:3:2}))
+  local b=$((16#${hex:5:2}))
+  echo "$r $g $b"
+}
+
+read -r r1 g1 b1 <<<"$(hex_to_rgb "$hex")"
+
+min_distance=1000000
+closest_color=""
+
+for name in "${!colors[@]}"; do
+  read -r r2 g2 b2 <<<"$(hex_to_rgb "${colors[$name]}")"
+  distance=$(((r1 - r2) * (r1 - r2) + (g1 - g2) * (g1 - g2) + (b1 - b2) * (b1 - b2)))
+  if ((distance < min_distance)); then
+    min_distance=$distance
+    closest_color=$name
+  fi
+done
+
+papirus-folders -C "$closest_color" -t Papirus-Dark
