@@ -1,9 +1,9 @@
 #!/bin/bash
 
-# Source helpers
+# shellcheck disable=SC1091
 
 # shellcheck disable=SC1091
-source "${CHEZMOI_WORKING_TREE:?env variable missing. Please only run this script via chezmoi}/home/.chezmoiscripts/.00_helpers.sh"
+source "${CHEZMOI_WORKING_TREE:?env variable missing. Please only run this script via chezmoi}/dotfiles/.chezmoiscripts/.00_helpers.sh"
 
 # =============================================================================
 # CONSTANTS
