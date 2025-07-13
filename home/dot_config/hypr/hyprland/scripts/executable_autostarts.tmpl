@@ -1,12 +1,12 @@
 #!/bin/bash
 apps=(
-  "swww-daemon"
+  "waypaper --restore"
   "clipse -listen"
   "udiskie"
   "pypr"
   "hyprpanel"
   {{- if eq .passwordManager "Bitwarden" }}
-  "bitwarden-desktop"
+  "bitwarden"
   {{- else if eq .passwordManager "1Password" }}
   "1password --silent"
   {{- end }}
