@@ -11,24 +11,22 @@
   name = {{ $name | quote }}
   email = {{ $email | quote }}
   signkey = {{ $signkey }}
-{{- if $signkey }}
   passwordManager = {{ $passwordManager | quote }}
-{{- end }}
 
 [edit]
   command = "code"
   args    = ["--wait"]
 
 [merge]
-    command = "code"
-    args = ["--wait", "--diff", "{{ "{{" }} .Destination {{ "}}" }}", "{{ "{{" }} .Source {{ "}}" }}", "{{ "{{" }} .Target {{ "}}" }}"]
-
-[merge-all]
-    command = "code"
-    args = ["--wait", "--diff", "{{ "{{" }} .Destination {{ "}}" }}", "{{ "{{" }} .Source {{ "}}" }}", "{{ "{{" }} .Target {{ "}}" }}"]
+  command = "bash"
+  args = [
+    "-c",
+    "cp {{ "{{" }} .Target {{ "}}" }} {{ "{{" }} .Target {{ "}}" }}.base && code --new-window --wait --merge {{ "{{" }} .Destination {{ "}}" }} {{ "{{" }} .Target {{ "}}" }} {{ "{{" }} .Target {{ "}}" }}.base {{ "{{" }} .Source {{ "}}" }}",
+  ]
 
 [diff]
     command = "delta"
     args = ["--paging=never", "{{ "{{ .Destination }}" }}", "{{ "{{ .Target }}" }}"]
     pager = "delta"
 
+    exclude = ["scripts"]
