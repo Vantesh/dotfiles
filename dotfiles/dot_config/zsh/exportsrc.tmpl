@@ -18,6 +18,7 @@ export CUDA_CACHE_PATH="${XDG_CACHE_HOME}/nv"
 export __GL_SHADER_DISK_CACHE_PATH="${XDG_CACHE_HOME}/nv"
 export npm_config_cache="${XDG_CACHE_HOME}/npm"
 export WGETRC="${XDG_CONFIG_HOME}/wget/wgetrc"
+alias wget="wget --hsts-file="${XDG_CACHE_HOME}/wget-hsts""
 export LESSHISTFILE="-"
 
 {{- if eq .passwordManager "Bitwarden" }}
