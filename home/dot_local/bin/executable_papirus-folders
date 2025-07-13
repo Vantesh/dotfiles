@@ -10,7 +10,7 @@ if test -z "$BASH_VERSION"; then
 	exit 1
 fi
 
-if (( BASH_VERSINFO[0] * 10 + BASH_VERSINFO[1] < 40 )); then
+if ((BASH_VERSINFO[0] * 10 + BASH_VERSINFO[1] < 40)); then
 	printf "Error: this script requires bash version >= 4.0\n" >&2
 	exit 1
 fi
@@ -20,7 +20,9 @@ set -o errexit \
 	-o noclobber \
 	-o pipefail
 
+# shellcheck disable=SC2155
 readonly THIS_SCRIPT="$(readlink -f "${BASH_SOURCE[0]}")"
+# shellcheck disable=SC2155
 readonly PROGNAME="$(basename "${BASH_SOURCE[0]}")"
 readonly VERSION="1.14.0"
 readonly -a ARGS=("$@")
@@ -49,25 +51,25 @@ fatal() {
 }
 
 usage() {
-	cat <<- EOF
-	USAGE
-	  $ $PROGNAME [options] -t <theme> {-C --color} <color>
-	  $ $PROGNAME [options] -t <theme> {-D --default}
-	  $ $PROGNAME [options] -t <theme> {-R --restore}
+	cat <<-EOF
+		USAGE
+		  $ $PROGNAME [options] -t <theme> {-C --color} <color>
+		  $ $PROGNAME [options] -t <theme> {-D --default}
+		  $ $PROGNAME [options] -t <theme> {-R --restore}
 
-	OPERATIONS
-	  -C --color <color>  change color of folders
-	  -D --default        back to the default color
-	  -R --restore        restore the last used color from the config file
+		OPERATIONS
+		  -C --color <color>  change color of folders
+		  -D --default        back to the default color
+		  -R --restore        restore the last used color from the config file
 
-	OPTIONS
-	  -l --list           show available colors
-	  -o --once           do not save the changes to the config file
-	  -t --theme <theme>  make changes to the specified theme (Default: Papirus)
-	  -u --update-caches  update icon caches for Papirus and siblings
-	  -V --version        print $PROGNAME version and exit
-	  -v --verbose        be verbose
-	  -h --help           show this help
+		OPTIONS
+		  -l --list           show available colors
+		  -o --once           do not save the changes to the config file
+		  -t --theme <theme>  make changes to the specified theme (Default: Papirus)
+		  -u --update-caches  update icon caches for Papirus and siblings
+		  -V --version        print $PROGNAME version and exit
+		  -v --verbose        be verbose
+		  -h --help           show this help
 	EOF
 
 	exit "${1:-0}"
@@ -121,7 +123,7 @@ declare_colors() {
 
 		# Extract color from the path
 		if [[ $f =~ .*/folder-(.+)-documents.svg ]]; then
-			colors=( "${colors[@]}" "${BASH_REMATCH[1]}" )
+			colors=("${colors[@]}" "${BASH_REMATCH[1]}")
 		fi
 	done
 
@@ -149,11 +151,11 @@ get_theme_dir() {
 
 	# Get data directories from XDG_DATA_DIRS variable and
 	# convert colon-separated list into bash array
-	IFS=: read -ra data_dirs <<< "${XDG_DATA_DIRS:-/usr/local/share:/usr/share}"
+	IFS=: read -ra data_dirs <<<"${XDG_DATA_DIRS:-/usr/local/share:/usr/share}"
 
 	for data_dir in "${data_dirs[@]}"; do
 		[ -d "$data_dir/icons" ] || continue
-		icons_dirs=( "${icons_dirs[@]}" "${data_dir%/}/icons" )
+		icons_dirs=("${icons_dirs[@]}" "${data_dir%/}/icons")
 	done
 
 	for icons_dir in "${icons_dirs[@]}"; do
@@ -200,49 +202,54 @@ config() {
 
 	config_file="$config_dir/keep"
 
-	while (( "$#" )); do
+	while (("$#")); do
 		case "$1" in
-			-g|--get) shift;
-				[ -f "$config_file" ] || return 1
+		-g | --get)
+			shift
+			[ -f "$config_file" ] || return 1
 
-				for key; do
-					[ -n "$key" ] || continue
-					awk -F= -v key="$key" '
+			for key; do
+				[ -n "$key" ] || continue
+				awk -F= -v key="$key" '
 					$1 == key {
 						print $2
 						exit
 					}
 					' "$config_file"
-				done
+			done
 
-				break
-				;;
-			-n|--new) shift;
-				rm -f "$config_file"
-				;;
-			-e|--exists) shift;
-				# return 1 if test config_file not exist or empty
-				if [ -f "$config_file" ] && [ -s "$config_file" ]; then
-					return 0
-				else
-					return 1
-				fi
-				;;
-			-s|--set) shift;
-				[ "$ONCE" -eq "1" ] && break
-				[ -d "$config_dir"  ] || mkdir -p "$config_dir"
-				[ -f "$config_file" ] || touch "$config_file"
-
-				verbose "Saving params to '$config_file' ..."
-				cat >> "$config_file" <<- EOF
-				$(for key_value; do echo "$key_value"; done)
-				EOF
-
-				break
-				;;
-			*)
-				err "illegal option -- '$1'"
+			break
+			;;
+		-n | --new)
+			shift
+			rm -f "$config_file"
+			;;
+		-e | --exists)
+			shift
+			# return 1 if test config_file not exist or empty
+			if [ -f "$config_file" ] && [ -s "$config_file" ]; then
+				return 0
+			else
 				return 1
+			fi
+			;;
+		-s | --set)
+			shift
+			[ "$ONCE" -eq "1" ] && break
+			[ -d "$config_dir" ] || mkdir -p "$config_dir"
+			[ -f "$config_file" ] || touch "$config_file"
+
+			verbose "Saving params to '$config_file' ..."
+			cat >>"$config_file" <<-EOF
+				$(for key_value; do echo "$key_value"; done)
+			EOF
+
+			break
+			;;
+		*)
+			err "illegal option -- '$1'"
+			return 1
+			;;
 		esac
 	done
 
@@ -258,11 +265,11 @@ change_color() {
 	for size in "${sizes[@]}"; do
 		for prefix in "${prefixes[@]}"; do
 			for file_path in "$THEME_DIR/$size/places/$prefix"{-*,}.svg; do
-				[ -f "$file_path" ] || continue  # is a file
-				[ -L "$file_path" ] && continue  # is not a symlink
+				[ -f "$file_path" ] || continue # is a file
+				[ -L "$file_path" ] && continue # is not a symlink
 
 				file_name="${file_path##*/}"
-				symlink_path="${file_path/-$color/}"  # remove color suffix
+				symlink_path="${file_path/-$color/}" # remove color suffix
 
 				ln -sf "$file_name" "$symlink_path" || {
 					fatal "Fail to create '$symlink_path' symlink"
@@ -301,12 +308,12 @@ do_change_color() {
 	config --new --set "theme=$THEME_NAME" "color=$SELECTED_COLOR"
 
 	case "$THEME_NAME" in
-		Papirus-Dark|Papirus-Light)
-			update_icon_caches
-			;;
-		*)
-			update_icon_cache
-			;;
+	Papirus-Dark | Papirus-Light)
+		update_icon_caches
+		;;
+	*)
+		update_icon_cache
+		;;
 	esac
 }
 
@@ -318,12 +325,12 @@ do_revert_default() {
 	config --new
 
 	case "$THEME_NAME" in
-		Papirus-Dark|Papirus-Light)
-			update_icon_caches
-			;;
-		*)
-			update_icon_cache
-			;;
+	Papirus-Dark | Papirus-Light)
+		update_icon_caches
+		;;
+	*)
+		update_icon_cache
+		;;
 	esac
 }
 
@@ -393,12 +400,12 @@ update_icon_caches() {
 
 verify_privileges() {
 	_is_root_user && return 0
-	_is_user_dir  && return 0
-	_is_writable  && return 0
+	_is_user_dir && return 0
+	_is_writable && return 0
 
 	verbose "This operation requires root privileges."
 
-	if command -v sudo > /dev/null; then
+	if command -v sudo >/dev/null; then
 		exec sudo USER_HOME="$USER_HOME" XDG_DATA_DIRS="$XDG_DATA_DIRS" \
 			"$THIS_SCRIPT" "${ARGS[@]}"
 	else
@@ -418,21 +425,21 @@ parse_args() {
 	# Translate --gnu-long-options to -g (short options)
 	for arg; do
 		case "$arg" in
-			--help)           args+=( -h ) ;;
-			--list)           args+=( -l ) ;;
-			--once)           args+=( -o ) ;;
-			--theme)          args+=( -t ) ;;
-			--update-caches)  args+=( -u ) ;;
-			--verbose)        args+=( -v ) ;;
-			--color|--colour) args+=( -C ) ;;
-			--default)        args+=( -D ) ;;
-			--restore)        args+=( -R ) ;;
-			--version)        args+=( -V ) ;;
-			--[0-9a-zA-Z]*)
-				err "illegal option -- '$arg'"
-				usage 2
-				;;
-			*) args+=("$arg")
+		--help) args+=(-h) ;;
+		--list) args+=(-l) ;;
+		--once) args+=(-o) ;;
+		--theme) args+=(-t) ;;
+		--update-caches) args+=(-u) ;;
+		--verbose) args+=(-v) ;;
+		--color | --colour) args+=(-C) ;;
+		--default) args+=(-D) ;;
+		--restore) args+=(-R) ;;
+		--version) args+=(-V) ;;
+		--[0-9a-zA-Z]*)
+			err "illegal option -- '$arg'"
+			usage 2
+			;;
+		*) args+=("$arg") ;;
 		esac
 	done
 
@@ -441,30 +448,34 @@ parse_args() {
 
 	while getopts ":C:DRlot:uvVh" opt; do
 		case "$opt" in
-			C ) OPERATIONS+=("change-color")
-				SELECTED_COLOR="$OPTARG"
-				;;
-			D ) OPERATIONS+=("revert-default") ;;
-			R ) OPERATIONS+=("restore-color") ;;
-			l ) OPERATIONS+=("list-colors") ;;
-			o ) ONCE=1 ;;
-			t ) THEME_NAME="$OPTARG" ;;
-			u ) OPERATIONS+=("update-icon-caches") ;;
-			v ) VERBOSE=1 ;;
-			V ) printf "%s %s\n" "$PROGNAME" "$VERSION"
-				exit 0
-				;;
-			h ) usage 0 ;;
-			: ) err "option requires an argument -- '-$OPTARG'"
-				usage 2
-				;;
-			\?) err "illegal option -- '-$OPTARG'"
-				usage 2
-				;;
+		C)
+			OPERATIONS+=("change-color")
+			SELECTED_COLOR="$OPTARG"
+			;;
+		D) OPERATIONS+=("revert-default") ;;
+		R) OPERATIONS+=("restore-color") ;;
+		l) OPERATIONS+=("list-colors") ;;
+		o) ONCE=1 ;;
+		t) THEME_NAME="$OPTARG" ;;
+		u) OPERATIONS+=("update-icon-caches") ;;
+		v) VERBOSE=1 ;;
+		V)
+			printf "%s %s\n" "$PROGNAME" "$VERSION"
+			exit 0
+			;;
+		h) usage 0 ;;
+		:)
+			err "option requires an argument -- '-$OPTARG'"
+			usage 2
+			;;
+		\?)
+			err "illegal option -- '-$OPTARG'"
+			usage 2
+			;;
 		esac
 	done
 
-	shift $((OPTIND-1))
+	shift $((OPTIND - 1))
 
 	# Return an error if any positional parameters are found
 	if [ -n "$1" ]; then
@@ -513,31 +524,31 @@ main() {
 
 	for operation in "${OPERATIONS[@]}"; do
 		case "$operation" in
-			change-color)
-				do_change_color
-				;;
-			revert-default)
-				do_revert_default
-				;;
-			restore-color)
-				do_restore_color
-				;;
-			list-colors)
-				if [ -t 1 ]; then
-					cat <<- EOF
+		change-color)
+			do_change_color
+			;;
+		revert-default)
+			do_revert_default
+			;;
+		restore-color)
+			do_restore_color
+			;;
+		list-colors)
+			if [ -t 1 ]; then
+				cat <<-EOF
 					List of available colors:
 
 					$(list_colors)
 
-					EOF
-				else
-					list_colors
-				fi
-				;;
-			update-icon-caches)
-				verify_privileges
-				update_icon_caches
-				;;
+				EOF
+			else
+				list_colors
+			fi
+			;;
+		update-icon-caches)
+			verify_privileges
+			update_icon_caches
+			;;
 		esac
 	done
 
@@ -548,4 +559,5 @@ main() {
 
 main
 
+# shellcheck disable=SC2317
 exit 1
