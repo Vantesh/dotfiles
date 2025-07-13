@@ -133,7 +133,7 @@ entry {
     padding:                     8px 5px;
     border:                      1px solid;
     border-radius:               10px;
-    border-color:                @on-secondary-fixed-variant;
+    border-color:                inherit;
     cursor:                      text;
     placeholder:                 "";
     placeholder-color:           inherit;
