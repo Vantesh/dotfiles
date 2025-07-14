@@ -2,7 +2,7 @@
 
 /* ---- Map colors ---- */
 * {
-    foreground: @on-secondary-container;
+    foreground: @on-surface;
 }
 
 /*****----- Configuration -----*****/
@@ -168,15 +168,15 @@ element {
     spacing:                     0.5em;
     margin:                      0px;
     padding:                     10px;
-    border-radius:               5px;
+    border-radius:               10px;
     background-color:            transparent;
 
 }
 
 element selected.normal {
 	border-radius: 12px ;
-    background-color:            @on-secondary-fixed-variant;
-    text-color:                  @foreground;
+    background-color:            @secondary;
+    text-color:                  @on-primary;
 }
 element normal.normal {
     background-color:            inherit;
@@ -252,8 +252,8 @@ button {
     cursor:                      pointer;
 }
 button selected {
-    background-color:            @on-secondary-fixed-variant;
-    text-color:                  @foreground;
+    background-color:            @secondary;
+    text-color:                  @on-primary;
 }
 
 /*****----- Message -----*****/
