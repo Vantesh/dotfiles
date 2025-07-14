@@ -19,6 +19,7 @@ entry {
     border-radius:               10px;
     spacing:                     1em;
     padding:                     8px 5px;
+    border:                      1px solid;
     background-color:            @background;
     text-color:                  @foreground;
     cursor:                      text;
