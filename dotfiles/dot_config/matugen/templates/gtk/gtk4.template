@@ -217,12 +217,6 @@
  * DESIGN STYLE OVERRIDES
  * ================================================================ */
 
-/* Remove default window shadows for cleaner Material Design look */
-window.csd,
-window.csd decoration {
-    box-shadow: none;
-}
-
 /* Default Button Styling */
 button {
     color: @on_surface_color;
@@ -231,21 +225,16 @@ button {
 
 button:hover {
 
-    color: @primary_color;
+    color: @on_primary_color;
+    background-color: @secondary_color;
     transform: translateY(-1px);
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
-button.destructive-action {
+button.destructive-action:hover {
     background-color: @error_color;
     color: @on_error_color;
 }
-
-button.suggested-action {
-    background-color: @primary_color;
-    color: @on_primary_color;
-}
-
 
 /* Navigation Sidebar */
 .navigation-sidebar {
