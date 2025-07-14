@@ -3,6 +3,11 @@
   mode        = "dark"
   reload_apps = true
 
+[templates.kitty]
+  input_path  = '~/.config/matugen/templates/kitty.template'
+  output_path = '~/.config/kitty/themes/Matugen.conf'
+  post_hook   = 'kitty +kitten themes --reload-in=all Matugen'
+
 [templates.hyprland]
   input_path  = '~/.config/matugen/templates/hyprland.template'
   output_path = '~/.config/hypr/hyprland/theme/colors.conf'
@@ -11,15 +16,11 @@
   input_path  = '~/.config/matugen/templates/btop.template'
   output_path = '~/.config/btop/themes/matugen.theme'
 
-[templates.bat]
-  input_path  = '~/.config/matugen/templates/bat.template'
-  output_path = '~/.config/bat/themes/Matugen.tmTheme'
-  post_hook   = 'bat cache --build &> /dev/null'
+  # [templates.bat]
+  #   input_path  = '~/.config/matugen/templates/bat.template'
+  #   output_path = '~/.config/bat/themes/Matugen.tmTheme'
+  #   post_hook   = 'bat cache --build &> /dev/null'
 
-[templates.kitty]
-  input_path  = '~/.config/matugen/templates/kitty.template'
-  output_path = '~/.config/kitty/themes/Matugen.conf'
-  post_hook   = 'kitty +kitten themes --reload-in=all Matugen'
 
 [templates.yazi]
   input_path  = '~/.config/matugen/templates/yazi.template'
@@ -61,22 +62,19 @@
 [templates.gtk3]
   input_path  = '~/.config/matugen/templates/gtk/gtk3.template'
   output_path = '~/.config/gtk-3.0/colors.css'
-  post_hook   = '~/.config/matugen/scripts/gtk-fix'
 
-[templates.folder]
+[templates.papirus-folders]
   input_path  = '~/.config/matugen/templates/folder-color.template'
-  output_path = '~/.config/matugen/papirus-folders/folder-color.txt'
-  post_hook   = '~/.config/matugen/scripts/folder-colors'
+  output_path = '~/.local/share/papirus-folders/folder-color.txt'
+
 
 [templates.spicetify]
   input_path  = '~/.config/matugen/templates/spotify.template'
   output_path = '~/.config/spicetify/Themes/marketplace/color.ini'
-  post_hook   = '~/.config/matugen/scripts/spotify-reload'
 
 [templates.vscode]
   input_path  = "~/.config/matugen/templates/vscode.template"
   output_path = "~/.vscode/extensions/hyprluna.hyprluna-theme-1.0.2/themes/hyprluna.json"
-
 
 [config.custom_colors]
   red    = "#f38ba8"
