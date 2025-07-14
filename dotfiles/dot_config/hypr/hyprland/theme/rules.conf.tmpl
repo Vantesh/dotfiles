@@ -91,6 +91,9 @@ windowrule = center 1, $media-large
 # Simple floating media players
 windowrule = float, class:^(com.github.rafostar.Clapper)$
 
+# make yt videos opaque
+# windowrulev2 = opaque, title:(.*)YouTube(.*)
+windowrule = opacity 1.0 override, title:(.*)(YouTube)(.*)
 
 # ================================
 # AUTHENTICATION & SYSTEM DIALOGS
@@ -164,6 +167,12 @@ windowrule = size 40% 40%, $sideScratchpad
 # ================================
 # APPLICATION-SPECIFIC RULES
 # ================================
+
+$nautilus= class:^(org.gnome.Nautilus)$
+windowrule = float, $nautilus
+windowrule = size 60% 60%, $nautilus
+windowrule = center 1, $nautilus
+windowrule = size 20% 40%, $nautilus, initialTitle: ^(Properties)
 
 # Video bridge (screen sharing)
 $videobridge = class:^(.*xwaylandvideobridge.*)$
