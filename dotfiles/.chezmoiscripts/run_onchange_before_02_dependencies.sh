@@ -7,9 +7,9 @@ source "${CHEZMOI_WORKING_TREE:?env variable missing. Please only run this scrip
 # CORE COMPONENTS
 # =======================
 core_packages=(
-  xdg-utils-mimeo              # xdg-utils
   hyprland                     # Wayland compositor
   uwsm                         # Universal Wayland Session Manager
+  polkit-gnome                 # Polkit authentication agent
   rofi-wayland                 # Wayland launcher
   app2unit-git                 # Run applications as units
   hypridle                     # Idle management
@@ -17,12 +17,12 @@ core_packages=(
   hyprpicker                   # Color picker
   hyprsunset                   # Blue light filter
   grimblast                    # Screenshot tool
-  wpaperd                      # Wallpaper daemon
+  waypaper                     # Wallpaper manager
+  swww                         # Wallpaper daemon
   imv                          # Image viewer
   hyprshot                     # Screenshot tool
   matugen-bin                  # Color generator
   ags-hyprpanel-git            # panel
-  hyprpolkitagent              # Polkit agent for Hyprland
   pyprland                     # for scratchpads
   devify                       # device notification system
   brightnessctl                # Screen brightness
