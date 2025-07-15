@@ -6,13 +6,16 @@
 windowrule = idleinhibit fullscreen, class:^(.*celluloid.*)$|^(.*mpv.*)$|^(.*vlc.*)$|^(.*[Ss]potify.*)$
 windowrule = idleinhibit fullscreen, class:^(.*LibreWolf.*)$|^(.*floorp.*)$|^(.*Brave.*)$|^(.*firefox.*)$|^(.*chromium.*)$|^(.*zen.*)$|^(.*vivaldi.*)$
 
-# # Fullscreen visual enhancement
-# windowrule = bordercolor $tertiary_container,fullscreen:1
-
 # Tearing optimization
 windowrule = immediate, title:.*\.exe
 windowrule = immediate, title:.*minecraft.*
 windowrule = immediate, class:^(steam_app)
+
+# # Fullscreen visual enhancement
+# windowrule = bordercolor $tertiary_container,fullscreen:1
+
+# No shadow for tiled windows
+windowrule = noshadow, floating:0
 
 # ================================
 # MEDIA & PICTURE-IN-PICTURE
@@ -31,7 +34,7 @@ windowrule = pin, title:^([Pp]icture[-\s]?[Ii]n[-\s]?[Pp]icture)(.*)$
 
 
 # Large dialogs (50% screen)
-$dialog-titles = title:^(Open File)(.*)$|^(Select a File)(.*)$|^(Choose wallpaper)(.*)$|^(Open Folder)(.*)$|^(Save As)(.*)$|^(Library)(.*)$|^(File Upload)(.*)$|^(.*Save File.*)$|^(.*Save Folder.*)$|^(.*Save Image.*)$|^(.*Open As.*)$|^(.*Open Network Stream.*)$|^(.*Choose Files.*)$|^(.*Downloads -.*)$|^(File Operation Progress)$|^(Downloads.*)$
+$dialog-titles = title:^(Open File)(.*)$|^(Select a File)(.*)$|^(Choose wallpaper)(.*)$|^(Open Folder)(.*)$|^(Save As)(.*)$|^(Library)(.*)$|^(File Upload)(.*)$|^(.*Save File.*)$|^(.*Save Folder.*)$|^(.*Save Image.*)$|^(.*Open As.*)$|^(.*Open Network Stream.*)$|^(.*Choose Files.*)$|^(.*Downloads -.*)$|^(File Operation Progress)$|^(Downloads.*)$|^(Choose Directory)$
 
 # Small dialogs (30% screen)
 $dialog-small = title:^(.*File Already Exists.*)$|^(.*Confirm to replace files.*)$|^(.*Confirm to delete files.*)$|^(Rename.*)$|^(Delete.*)$|^(Move to Trash.*)$|^(.*Confirmation.*)$|^(.*Warning.*)$|^(.*Error.*)$
@@ -234,6 +237,11 @@ windowrule = float, $waypaper
 windowrule = size 55% 70%, $waypaper
 windowrule = center 1, $waypaper
 
+$localsend = class:^(localsend)$
+windowrule = float, $localsend
+windowrule = size 70% 70%, $localsend
+windowrule = center 1, $localsend
+
 # Theming applications
 $theming = class:^(kvantummanager)$|^(qt5ct)$|^(qt6ct)$|^(nwg-look)$|^(org.kde.ark)$
 windowrule = float, $theming
@@ -266,7 +274,7 @@ windowrule = animation popin, class:^(.*wleave.*)$
 # ================================
 # LAYER RULES
 # ================================
-
+layerrule = xray 1, .*
 layerrule = blur, notifications
 layerrule = ignorezero, notifications
 layerrule = blur, swaync-notification-window
