@@ -1,12 +1,3 @@
-[Default Applications]
-inode/directory=thunar.desktop
-image/png=imv.desktop
-application/x-zerosize=nvim.desktop
-application/json=nvim.desktop
-image/svg+xml=imv.desktop
-application/xml=nvim.desktop
-text/x-log=nvim.desktop
-
 [Added Associations]
 image/jpeg=imv-dir.desktop;imv.desktop;
 image/png=imv.desktop;
@@ -15,3 +6,36 @@ application/json=nvim.desktop;
 image/svg+xml=imv.desktop;
 application/xml=nvim.desktop;
 text/x-log=nvim.desktop;
+
+[Default Applications]
+application/x-zerosize=nvim.desktop
+application/json=nvim.desktop
+image/svg+xml=imv.desktop
+application/xml=nvim.desktop
+text/x-log=nvim.desktop
+inode/directory=org.gnome.Nautilus.desktop
+video/3gpp=mpv.desktop
+video/x-flic=mpv.desktop
+video/x-ogm+ogg=mpv.desktop
+video/vnd.mpegurl=mpv.desktop
+video/x-flv=mpv.desktop
+video/mp2t=mpv.desktop
+video/webm=mpv.desktop
+video/x-matroska=mpv.desktop
+video/quicktime=mpv.desktop
+video/vnd.rn-realvideo=mpv.desktop
+video/dv=mpv.desktop
+video/3gpp2=mpv.desktop
+application/x-code-workspace=code.desktop
+application/x-bittorrent=org.qbittorrent.qBittorrent.desktop
+image/tiff=imv.desktop
+image/png=imv.desktop
+image/gif=imv.desktop
+image/heif=imv.desktop
+image/x-tga=imv.desktop
+image/vnd.zbrush.pcx=imv.desktop
+image/bmp=imv.desktop
+image/x-xbitmap=imv.desktop
+image/x-portable-anymap=imv.desktop
+image/jpeg=imv.desktop
+image/avif=imv.desktop
