@@ -220,7 +220,6 @@ install_gpu_drivers() {
 # =======================
 optional=(
   brave-bin
-  zen-browser-bin
   visual-studio-code-bin
   qbittorrent-enhanced-git
   vlc-git
@@ -229,7 +228,7 @@ optional=(
   nvtop
   yazi
   neovim
-  spotify-launcher
+  spotify
   git-delta
   localsend
   antidot-bin # clean up home directory
