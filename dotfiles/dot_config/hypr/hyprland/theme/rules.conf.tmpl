@@ -3,7 +3,7 @@
 # ================================
 
 # Prevent idle when media is playing
-windowrule = idleinhibit fullscreen, class:^(.*celluloid.*)$|^(.*mpv.*)$|^(.*vlc.*)$|^(.*[Ss]potify.*)$
+windowrule = idleinhibit focus, class:^(.*celluloid.*)$|^(.*mpv.*)$|^(.*vlc.*)$|^(.*[Ss]potify.*)$
 windowrule = idleinhibit fullscreen, class:^(.*LibreWolf.*)$|^(.*floorp.*)$|^(.*Brave.*)$|^(.*firefox.*)$|^(.*chromium.*)$|^(.*zen.*)$|^(.*vivaldi.*)$
 
 # Tearing optimization
@@ -173,9 +173,8 @@ windowrule = size 40% 40%, $sideScratchpad
 
 $nautilus= class:^(org.gnome.Nautilus)$
 windowrule = float, $nautilus
-windowrule = size 60% 60%, $nautilus
+windowrule = size 80% 80%, $nautilus
 windowrule = center 1, $nautilus
-windowrule = size 20% 40%, $nautilus, initialTitle: ^(Properties)
 
 # Video bridge (screen sharing)
 $videobridge = class:^(.*xwaylandvideobridge.*)$
@@ -229,7 +228,7 @@ windowrule = stayfocused, $clipse
 $imv = class:^(imv)$
 windowrule = float, $imv
 windowrule = opaque, $imv
-windowrule = size 70% 70%, $imv
+windowrule = size 60% 60%, $imv
 windowrule = center 1, $imv
 
 $waypaper = class:^(waypaper)$
@@ -274,7 +273,6 @@ windowrule = animation popin, class:^(.*wleave.*)$
 # ================================
 # LAYER RULES
 # ================================
-layerrule = xray 1, .*
 layerrule = blur, notifications
 layerrule = ignorezero, notifications
 layerrule = blur, swaync-notification-window
