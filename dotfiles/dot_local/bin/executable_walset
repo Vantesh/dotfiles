@@ -95,7 +95,7 @@ fi
 
 # Generate the color scheme.
 matugen -t scheme-fidelity image "$1" >/dev/null 2>&1
-
+wallust -I background run "$1"
 update_system_agents
 update_gtk_css
 
