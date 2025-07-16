@@ -228,7 +228,6 @@ button:hover {
     color: @on_primary_color;
     background-color: @secondary_color;
     transform: translateY(-1px);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 button.destructive-action:hover {
@@ -240,4 +239,21 @@ button.destructive-action:hover {
 .navigation-sidebar {
 	background-color: @sidebar_bg_color;
 	color: @window_fg_color;
+}
+
+
+.sidebar row:selected,
+.navigation-sidebar row:selected,
+.sidebar .sidebar-row:selected,
+.sidebar row:selected:focus,
+.navigation-sidebar row:selected:focus,
+.sidebar .sidebar-row:selected:focus {
+    background-color: @secondary_container_color;
+    color: @on_secondary_container_color;
+}
+
+
+window.csd, window.csd decoration {
+    /* Remove default shadows */
+    box-shadow: none;
 }
