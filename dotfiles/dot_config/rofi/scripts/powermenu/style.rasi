@@ -20,7 +20,7 @@ window {
   location:                    center;
   anchor:                      center;
   fullscreen:                  false;
-  width:                       28%;
+  width:                       35%;
 
   x-offset:                    0px;
   y-offset:                    0px;
