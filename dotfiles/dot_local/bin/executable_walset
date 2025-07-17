@@ -55,11 +55,12 @@ update_spotify() {
 update_folder_colors() {
   export PATH="$HOME/.local/bin:$PATH"
   declare -A colors=(
-    [blue]="#89B4FA" [grey]="#878688" [green]="#A6E3A1" [adwaita]="#B4BEFE"
-    [carmine]="#EBA0AC" [magenta]="#CBA6F7" [orange]="#FAB387" [pink]="#F5C2E7"
+    [blue]="#89B4FA" [grey]="#878688" [green]="#84A756" [adwaita]="#B4BEFE"
+    [carmine]="#AC0406" [magenta]="#CBA6F7" [orange]="#E58E3B" [pink]="#F5C2E7"
     [red]="#F38BA8" [breeze]="#89DCEB" [teal]="#94E2D5" [yellow]="#F9E2AF"
-    [violet]="#7653B4" [cyan]="#04ADC4" [nordic]="#7895B3" [palebrown]="#C0B0A2"
-    [deeporange]="#DB633A"
+    [violet]="#7653B4" [cyan]="#04ADC4" [nordic]="#7895B3" [palebrown]="#D1BFAE"
+    [deeporange]="#DB633A"[brown]="#AD8B6C" [paleorange]="#E8C289" [darkcyan]="#45ABB7"
+    [black]="#4F4F4F" [bluegrey]="#607D8B"
   )
 
   hex_to_rgb() {
@@ -95,7 +96,7 @@ fi
 
 # Generate the color scheme.
 matugen -t scheme-fidelity image "$1" >/dev/null 2>&1
-wallust -I background run "$1"
+wallust -I background -I cursor -I foreground run "$1"
 update_system_agents
 update_gtk_css
 
