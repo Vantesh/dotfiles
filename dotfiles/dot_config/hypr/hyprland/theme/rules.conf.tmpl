@@ -287,8 +287,11 @@ layerrule = animation slide, swaync-control-center
 layerrule = animation popin, rofi
 layerrule = blur, rofi
 layerrule = ignorezero, rofi
+layerrule = ignorealpha 0.5, rofi
+
 layerrule = blur, waybar
 layerrule = ignorezero, waybar
+layerrule = ignorealpha 0.5, waybar
 
 layerrule = animation fade, swayosd
 layerrule = animation fade, selection
@@ -301,7 +304,7 @@ layerrule = noanim, hyprpicker
 
 # smart gaps
 workspace = w[tv1], gapsout:0, gapsin:0
-windowrule = bordersize 1, floating:0, onworkspace:w[tv1]
+windowrule = bordersize 2, floating:0, onworkspace:w[tv1]
 
 windowrule = nofocus, class:^$, title:^$, xwayland:1, floating:1, fullscreen:0, pinned:0
 windowrule = suppressevent maximize, class:^(.*)$
