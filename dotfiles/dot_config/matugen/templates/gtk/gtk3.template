@@ -130,40 +130,37 @@
 @define-color theme_selected_fg_color @accent_fg_color;
 @define-color borders @outline_color;
 
-button:hover {
-    background-color: @primary_container_color;
-    color: @on_primary_container_color;
-}
-
-button.destructive-action {
-    background-color: @error_color;
-    color: @on_error_color;
-}
 
 /* ===================================================================
  * DESIGN STYLE OVERRIDES
  * ================================================================ */
 
-
-/* Default Button Styling */
-button {
-    color: @on_surface_color;
-
-}
-
 button:hover {
 
-    color: @on_primary_color;
-    background-color: @secondary_color;
+    background-color: @secondary_container_color;
+    color: @on_secondary_container_color;
 }
 
-button.destructive-action:hover {
-    background-color: @error_color;
-    color: @on_error_color;
-}
 
 /* Navigation Sidebar */
 .navigation-sidebar {
 	background-color: @sidebar_bg_color;
 	color: @window_fg_color;
+}
+
+
+.sidebar row:selected,
+.navigation-sidebar row:selected,
+.sidebar .sidebar-row:selected,
+.sidebar row:selected:focus,
+.navigation-sidebar row:selected:focus,
+.sidebar .sidebar-row:selected:focus {
+    background-color: @secondary_container_color;
+    color: @on_secondary_container_color;
+}
+
+
+window.csd, window.csd decoration {
+    /* Remove default shadows */
+    box-shadow: none;
 }

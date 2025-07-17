@@ -218,21 +218,15 @@
  * ================================================================ */
 
 /* Default Button Styling */
-button {
-    color: @on_surface_color;
 
-}
+
+
 
 button:hover {
+    transform: translateY(-2px);
 
-    color: @on_primary_color;
-    background-color: @secondary_color;
-    transform: translateY(-1px);
-}
-
-button.destructive-action:hover {
-    background-color: @error_color;
-    color: @on_error_color;
+    background-color: @secondary_container_color;
+    color: @on_secondary_container_color;
 }
 
 /* Navigation Sidebar */
@@ -248,8 +242,8 @@ button.destructive-action:hover {
 .sidebar row:selected:focus,
 .navigation-sidebar row:selected:focus,
 .sidebar .sidebar-row:selected:focus {
-    background-color: @secondary_container_color;
-    color: @on_secondary_container_color;
+
+    color: @primary_color;
 }
 
 
