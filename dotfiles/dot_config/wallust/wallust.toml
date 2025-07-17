@@ -1,5 +1,6 @@
-backend   = "resized"
-palette   = "dark"
+backend   = "wal"
+palette   = "dark16"
+color_space = "lchmixed"
 check_contrast = true
 
 [templates]
