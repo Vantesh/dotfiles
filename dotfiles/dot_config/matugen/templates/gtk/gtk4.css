@@ -223,7 +223,7 @@
 
 
 button:hover {
-    transform: translateY(-2px);
+    transform: translateY(-1px);
 
     background-color: @secondary_container_color;
     color: @on_secondary_container_color;
