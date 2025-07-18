@@ -97,6 +97,11 @@ fi
 # Generate the color scheme.
 matugen -t scheme-fidelity image "$1" >/dev/null 2>&1
 wallust -I background -I cursor -I foreground run "$1"
+# wallust pywal -i "$1" -e -n -s -t
+if pgrep nvim >/dev/null; then
+    killall -SIGUSR1 nvim
+fi
+
 update_system_agents
 update_gtk_css
 
