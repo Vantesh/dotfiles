@@ -1,0 +1,8 @@
+backend   = "wal"
+palette   = "dark16"
+color_space = "lchmixed"
+check_contrast = true
+
+[templates]
+  kitty.template = 'kitty-colors.conf'
+  kitty.target   = '~/.config/kitty/colors-wallust.conf'
