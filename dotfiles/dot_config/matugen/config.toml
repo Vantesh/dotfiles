@@ -4,12 +4,12 @@
   reload_apps = true
 
 [templates.kitty]
-  input_path  = '~/.config/matugen/templates/kitty.template'
+  input_path  = '~/.config/matugen/templates/kitty.conf'
   output_path = '~/.config/kitty/themes/Matugen.conf'
   post_hook   = 'kitty +kitten themes --reload-in=all Matugen'
 
 [templates.hyprland]
-  input_path  = '~/.config/matugen/templates/hyprland.template'
+  input_path  = '~/.config/matugen/templates/hyprland.conf'
   output_path = '~/.config/hypr/hyprland/theme/colors.conf'
 
 [templates.btop]
@@ -23,63 +23,94 @@
 
 
 [templates.yazi]
-  input_path  = '~/.config/matugen/templates/yazi.template'
+  input_path  = '~/.config/matugen/templates/yazi.toml'
   output_path = '~/.config/yazi/theme.toml'
 
 
-[templates.neovim]
-  input_path  = '~/.config/matugen/templates/neovim.template'
-  output_path = '~/.config/nvim/lua/plugins/colorscheme.lua'
-
 [templates.rofi]
-  input_path  = '~/.config/matugen/templates/rofi.template'
+  input_path  = '~/.config/matugen/templates/rofi.rasi'
   output_path = '~/.config/rofi/colors.rasi'
 
-[templates.qt5ct]
-  input_path  = '~/.config/matugen/templates/qtct.template'
-  output_path = '~/.config/qt5ct/colors/Matugen.conf'
-
-[templates.qt6ct]
-  input_path  = '~/.config/matugen/templates/qtct.template'
-  output_path = '~/.config/qt6ct/colors/Matugen.conf'
+[templates.qtct]
+  input_path  = '~/.config/matugen/templates/qtct.conf'
+  output_path = '~/.local/share/color-schemes/Matugen.colors'
 
 [templates.fzf]
-  input_path  = '~/.config/matugen/templates/fzf.template'
+  input_path  = '~/.config/matugen/templates/fzf.sh'
   output_path = '~/.config/zsh/fzf'
 
 [templates.kvantum]
-  input_path  = '~/.config/matugen/templates/kvantum/kvantum.template'
+  input_path  = '~/.config/matugen/templates/kvantum/kvantum.kvconfig'
   output_path = '~/.config/Kvantum/Matugen/Matugen.kvconfig'
 
 [templates.kvantum-svg]
   input_path  = "~/.config/matugen/templates/kvantum/kvantum.svg"
   output_path = "~/.config/Kvantum/Matugen/Matugen.svg"
 
+
 [templates.gtk4]
-  input_path  = '~/.config/matugen/templates/gtk/gtk4.template'
+  input_path  = '~/.config/matugen/templates/gtk/gtk4.css'
   output_path = '~/.config/gtk-4.0/colors.css'
 
 [templates.gtk3]
-  input_path  = '~/.config/matugen/templates/gtk/gtk3.template'
+  input_path  = '~/.config/matugen/templates/gtk/gtk3.css'
   output_path = '~/.config/gtk-3.0/colors.css'
 
 [templates.papirus-folders]
-  input_path  = '~/.config/matugen/templates/folder-color.template'
+  input_path  = '~/.config/matugen/templates/folder-color.txt'
   output_path = '~/.local/share/papirus-folders/folder-color.txt'
 
 
 [templates.spicetify]
-  input_path  = '~/.config/matugen/templates/spotify.template'
+  input_path  = '~/.config/matugen/templates/spotify.ini'
   output_path = '~/.config/spicetify/Themes/marketplace/color.ini'
 
 [templates.vscode]
-  input_path  = "~/.config/matugen/templates/vscode.template"
+  input_path  = "~/.config/matugen/templates/vscode.json"
   output_path = "~/.vscode/extensions/hyprluna.hyprluna-theme-1.0.2/themes/hyprluna.json"
 
-[config.custom_colors]
-  red    = "#f38ba8"
-  green  = "#a6e3a1"
-  yellow = "#f9e2af"
-  blue   = "#89b4fa"
-  orange = "#fab387"
-  purple = "#cba6f7"
+
+[templates.neovim-nvchad]
+  input_path  = '~/.config/matugen/templates/nvchad/nvchad.lua'
+  output_path = '~/.local/share/nvim/lazy/base46/lua/base46/themes/matugen.lua'
+
+
+[templates.neovim-nvchad-colors]
+  input_path  = '~/.config/matugen/templates/nvchad/colors-nvchad.txt'
+  output_path = '~/.cache/wal/colors'
+
+
+[config.custom_colors.red]
+  color = "#f38ba8"
+  blend = true
+
+[config.custom_colors.green]
+  color = "#a6e3a1"
+  blend = true
+
+[config.custom_colors.yellow]
+  color = "#f9e2af"
+  blend = true
+
+[config.custom_colors.blue]
+  color = "#89b4fa"
+  blend = true
+
+[config.custom_colors.magenta]
+  color = "#f5c2e7"
+  blend = true
+
+[config.custom_colors.cyan]
+  color = "#94e2d5"
+  blend = true
+
+[config.custom_colors.white]
+  color = "#cdd6f4"
+  blend = true
+
+[config.custom_colors.orange]
+  color = "#fab387"
+  blend = true
+[config.custom_colors.purple]
+  color = "#cba6f7"
+  blend = true

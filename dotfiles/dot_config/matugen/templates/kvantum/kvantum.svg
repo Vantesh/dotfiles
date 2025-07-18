@@ -6003,7 +6003,7 @@
      y="0" />
   <path
      id="menu-normal"
-     d="m 129,480 h 52 v 52 h -52 z"
+     d="m 131,482 h 48 v 48 h -48 z"
      style="fill:{{colors.surface_dim.default.hex | set_lightness: 3.0}};fill-opacity:1" />
   <g
      id="menu-normal-left"
@@ -6067,14 +6067,14 @@
     <path
        d="m 138.25,698.74 c -3.3229,10e-4 -5.9977,2.6768 -5.9977,6 h 6 z"
        id="path2264"
-       style="opacity:1;fill:{{colors.surface_dim.default.hex | set_lightness: 2.5}};fill-opacity:1" />
+       style="opacity:1;fill:{{colors.surface_dim.default.hex | set_lightness: 3.0}};fill-opacity:1" />
   </g>
   <g
      id="menu-shadow-topleft"
-     transform="matrix(4,0,0,4,-68,-1426)">
+     transform="matrix(4,0,0,4,-53,-1411)">
     <path
        id="path2274"
-       style="opacity:0.1;fill:url(#radialGradient4839-3)"
+       style="opacity:0.2;fill:url(#radialGradient4839-3)"
        d="m -1,448 v 24 h 16 c 0,-4.432 3.568,-8 8,-8 v -16 z"
        transform="matrix(0.25,0,0,0.25,18.25,355)" />
     <path
@@ -6083,13 +6083,13 @@
        style="opacity:1;fill:{{colors.surface_dim.default.hex | set_lightness: 3.0}};fill-opacity:1" />
     <path
        id="path19231"
-       style="opacity:0.05;fill:{{colors.on_surface.default.hex}}"
+       style="opacity:0.1;fill:{{colors.on_surface.default.hex}}"
        d="m 23,464 c -4.432,0 -8,3.568 -8,8 h 1 c 0,-3.878 3.122,-7 7,-7 z"
        transform="matrix(0.25,0,0,0.25,18.25,355)" />
   </g>
   <g
      id="menu-shadow-top"
-     transform="matrix(0.85714,0,0,4,23.4286,-1522)">
+     transform="matrix(0.85714,0,0,4,23.4286,-1407)">
     <path
        d="m 24,470 h 56 v 2 H 24 Z"
        id="path2279"
@@ -6101,11 +6101,11 @@
        width="56"
        height="4"
        id="rect2281"
-       style="opacity:0.1;fill:url(#linearGradient4863-5)" />
+       style="opacity:0.2;fill:url(#linearGradient4863-5)" />
     <path
        d="m 24,470 h 56 v 0.25 H 24 Z"
        id="path19272"
-       style="opacity:0.05;fill:{{colors.on_surface.default.hex}}" />
+       style="opacity:0.1;fill:{{colors.on_surface.default.hex}}" />
   </g>
   <use
      id="menu-shadow-topright"
@@ -6240,7 +6240,7 @@
      id="menu-checkbox-checked-normal"
      transform="translate(13.999999,-16.000013)">
     <rect
-       style="fill:{{colors.primary_fixed_dim.default.hex | set_lightness: 1.0}};fill-opacity:1;stroke-linecap:round;stroke-linejoin:round;stroke-dashoffset:3.3;paint-order:fill markers stroke"
+       style="fill:{{colors.primary_fixed_dim.default.hex}};fill-opacity:1;stroke-linecap:round;stroke-linejoin:round;stroke-dashoffset:3.3;paint-order:fill markers stroke"
        id="rect1988"
        width="16"
        height="16"
@@ -6248,7 +6248,7 @@
        y="95"
        ry="4" />
     <path
-       style="color:{{colors.surface_dim.default.hex | set_lightness: 1.5}};fill:{{colors.surface_dim.default.hex | set_lightness: 1.5}};stroke-linecap:round;-inkscape-stroke:none"
+       style="color:{{colors.on_surface.default.hex}};fill:{{colors.inverse_on_surface.default.hex}};stroke-linecap:round;-inkscape-stroke:none"
        d="m 338.65039,99.240234 a 1,1 0 0 0 -1.41016,0.109375 l -5.29687,6.179691 -3.23633,-3.23633 a 1,1 0 0 0 -1.41406,0 1,1 0 0 0 0,1.41406 l 4.76367,4.76367 6.70313,-7.82031 a 1,1 0 0 0 -0.10938,-1.410156 z"
        id="path2530" />
   </g>
@@ -6264,7 +6264,7 @@
        y="95"
        ry="4" />
     <path
-       style="color:{{colors.surface_dim.default.hex | set_lightness: 1.5}};fill:{{colors.surface_dim.default.hex | set_lightness: 1.5}};stroke-linecap:round;-inkscape-stroke:none"
+       style="color:{{colors.on_surface.default.hex}};fill:{{colors.inverse_on_surface.default.hex}};stroke-linecap:round;-inkscape-stroke:none"
        d="m 338.65039,99.240234 a 1,1 0 0 0 -1.41016,0.109375 l -5.29687,6.179691 -3.23633,-3.23633 a 1,1 0 0 0 -1.41406,0 1,1 0 0 0 0,1.41406 l 4.76367,4.76367 6.70313,-7.82031 a 1,1 0 0 0 -0.10938,-1.410156 z"
        id="path2530-5" />
   </g>
@@ -6280,7 +6280,7 @@
        y="95"
        ry="4" />
     <path
-       style="color:{{colors.surface_dim.default.hex | set_lightness: 1.5}};fill:{{colors.surface_dim.default.hex | set_lightness: 1.5}};stroke-linecap:round;-inkscape-stroke:none"
+       style="color:{{colors.on_surface.default.hex}};fill:{{colors.inverse_on_surface.default.hex}};stroke-linecap:round;-inkscape-stroke:none"
        d="m 328,102 a 1,1 0 0 0 -1,1 1,1 0 0 0 1,1 h 4 6 a 1,1 0 0 0 1,-1 1,1 0 0 0 -1,-1 h -6 z"
        id="path2530-5-9" />
   </g>
@@ -6288,7 +6288,7 @@
      id="menu-checkbox-tristate-focused"
      transform="translate(74,-16.000013)">
     <rect
-       style="fill:{{colors.primary_fixed.default.hex | set_lightness: 1.0}};fill-opacity:1;stroke-linecap:round;stroke-linejoin:round;stroke-dashoffset:3.3;paint-order:fill markers stroke"
+       style="fill:{{colors.primary_fixed.default.hex}};fill-opacity:1;stroke-linecap:round;stroke-linejoin:round;stroke-dashoffset:3.3;paint-order:fill markers stroke"
        id="rect1988-3-2-2"
        width="16"
        height="16"
@@ -6296,7 +6296,7 @@
        y="95"
        ry="4" />
     <path
-       style="color:{{colors.surface_dim.default.hex | set_lightness: 1.5}};fill:{{colors.surface_dim.default.hex | set_lightness: 1.5}};stroke-linecap:round;-inkscape-stroke:none"
+       style="color:{{colors.on_surface.default.hex}};fill:{{colors.inverse_on_surface.default.hex}};stroke-linecap:round;-inkscape-stroke:none"
        d="m 328,102 a 1,1 0 0 0 -1,1 1,1 0 0 0 1,1 h 4 6 a 1,1 0 0 0 1,-1 1,1 0 0 0 -1,-1 h -6 z"
        id="path2530-5-9-7" />
   </g>
@@ -6350,7 +6350,7 @@
        cy="113"
        r="8" />
     <circle
-       style="fill:{{colors.on_surface.default.hex}};fill-opacity:1;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;stroke-dashoffset:3.3;paint-order:fill markers stroke"
+       style="fill:{{colors.inverse_on_surface.default.hex}};fill-opacity:1;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;stroke-dashoffset:3.3;paint-order:fill markers stroke"
        id="path7917"
        cx="308"
        cy="113"
@@ -6366,7 +6366,7 @@
        cy="113"
        r="8" />
     <circle
-       style="fill:{{colors.on_surface.default.hex}};fill-opacity:1;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;stroke-dashoffset:3.3;paint-order:fill markers stroke"
+       style="fill:{{colors.inverse_on_surface.default.hex}};fill-opacity:1;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;stroke-dashoffset:3.3;paint-order:fill markers stroke"
        id="path7917-5"
        cx="308"
        cy="113"
@@ -6382,7 +6382,7 @@
        cy="113"
        r="8" />
     <circle
-       style="fill:{{colors.surface_dim.default.hex | set_lightness: 1.5}};fill-opacity:1;stroke-width:0.999997;stroke-linecap:round;stroke-linejoin:round;stroke-dashoffset:3.3;paint-order:fill markers stroke"
+       style="fill:{{colors.inverse_on_surface.default.hex}};fill-opacity:1;stroke-width:0.999997;stroke-linecap:round;stroke-linejoin:round;stroke-dashoffset:3.3;paint-order:fill markers stroke"
        id="path7917-5-9"
        cx="308"
        cy="113"
@@ -6398,7 +6398,7 @@
        cy="113"
        r="8" />
     <circle
-       style="fill:{{colors.surface_dim.default.hex | set_lightness: 1.5}};fill-opacity:1;stroke-width:0.999997;stroke-linecap:round;stroke-linejoin:round;stroke-dashoffset:3.3;paint-order:fill markers stroke"
+       style="fill:{{colors.inverse_on_surface.default.hex}};fill-opacity:1;stroke-width:0.999997;stroke-linecap:round;stroke-linejoin:round;stroke-dashoffset:3.3;paint-order:fill markers stroke"
        id="path7917-5-9-7"
        cx="308"
        cy="113"
@@ -6480,7 +6480,7 @@
        y="126"
        ry="4" />
     <path
-       style="color:{{colors.surface_dim.default.hex | set_lightness: 1.5}};fill:{{colors.surface_dim.default.hex | set_lightness: 1.5}};stroke-linecap:round;-inkscape-stroke:none"
+       style="color:{{colors.on_surface.default.hex}};fill:{{colors.inverse_on_surface.default.hex}};stroke-linecap:round;-inkscape-stroke:none"
        d="m 292.65039,130.24023 a 1,1 0 0 0 -1.41016,0.10938 l -5.29687,6.17969 -3.23633,-3.23633 a 1,1 0 0 0 -1.41406,0 1,1 0 0 0 0,1.41406 l 4.76367,4.76367 6.70313,-7.82031 a 1,1 0 0 0 -0.10938,-1.41016 z"
        id="path2530-3" />
   </g>
@@ -6504,7 +6504,7 @@
        y="126"
        ry="4" />
     <path
-       style="color:{{colors.surface_dim.default.hex | set_lightness: 1.5}};fill:{{colors.surface_dim.default.hex | set_lightness: 1.5}};stroke-linecap:round;-inkscape-stroke:none"
+       style="color:{{colors.on_surface.default.hex}};fill:{{colors.inverse_on_surface.default.hex}};stroke-linecap:round;-inkscape-stroke:none"
        d="m 292.65039,130.24023 a 1,1 0 0 0 -1.41016,0.10938 l -5.29687,6.17969 -3.23633,-3.23633 a 1,1 0 0 0 -1.41406,0 1,1 0 0 0 0,1.41406 l 4.76367,4.76367 6.70313,-7.82031 a 1,1 0 0 0 -0.10938,-1.41016 z"
        id="path2530-5-6" />
   </g>
@@ -6528,7 +6528,7 @@
        y="126"
        ry="4" />
     <path
-       style="color:{{colors.surface_dim.default.hex | set_lightness: 1.5}};fill:{{colors.surface_dim.default.hex | set_lightness: 1.5}};stroke-linecap:round;-inkscape-stroke:none"
+       style="color:{{colors.on_surface.default.hex}};fill:{{colors.inverse_on_surface.default.hex}};stroke-linecap:round;-inkscape-stroke:none"
        d="m 282,133 a 1,1 0 0 0 -1,1 1,1 0 0 0 1,1 h 4 6 a 1,1 0 0 0 1,-1 1,1 0 0 0 -1,-1 h -6 z"
        id="path2530-5-9-1" />
   </g>
@@ -6552,7 +6552,7 @@
        y="126"
        ry="4" />
     <path
-       style="color:{{colors.surface_dim.default.hex | set_lightness: 1.5}};fill:{{colors.surface_dim.default.hex | set_lightness: 1.5}};stroke-linecap:round;-inkscape-stroke:none"
+       style="color:{{colors.on_surface.default.hex}};fill:{{colors.inverse_on_surface.default.hex}};stroke-linecap:round;-inkscape-stroke:none"
        d="m 282,133 a 1,1 0 0 0 -1,1 1,1 0 0 0 1,1 h 4 6 a 1,1 0 0 0 1,-1 1,1 0 0 0 -1,-1 h -6 z"
        id="path2530-5-9-7-9" />
   </g>
@@ -6622,7 +6622,7 @@
        cy="134"
        r="8" />
     <circle
-       style="fill:{{colors.surface_dim.default.hex | set_lightness: 1.5}};fill-opacity:1;stroke-width:0.999997;stroke-linecap:round;stroke-linejoin:round;stroke-dashoffset:3.3;paint-order:fill markers stroke"
+       style="fill:{{colors.inverse_on_surface.default.hex}};fill-opacity:1;stroke-width:0.999997;stroke-linecap:round;stroke-linejoin:round;stroke-dashoffset:3.3;paint-order:fill markers stroke"
        id="path7917-5-9-1"
        cx="287"
        cy="134"
@@ -6646,7 +6646,7 @@
        cy="134"
        r="8" />
     <circle
-       style="fill:{{colors.surface_dim.default.hex | set_lightness: 1.5}};fill-opacity:1;stroke-width:0.999997;stroke-linecap:round;stroke-linejoin:round;stroke-dashoffset:3.3;paint-order:fill markers stroke"
+       style="fill:{{colors.inverse_on_surface.default.hex}};fill-opacity:1;stroke-width:0.999997;stroke-linecap:round;stroke-linejoin:round;stroke-dashoffset:3.3;paint-order:fill markers stroke"
        id="path7917-5-9-7-3"
        cx="287"
        cy="134"
