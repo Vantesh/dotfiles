@@ -3,7 +3,7 @@
 # ================================
 
 # Prevent idle when media is playing
-windowrule = idleinhibit fullscreen, class:^(.*celluloid.*)$|^(.*mpv.*)$|^(.*vlc.*)$|^(.*[Ss]potify.*)$
+windowrule = idleinhibit focus, class:^(.*celluloid.*)$|^(.*mpv.*)$|^(.*vlc.*)$|^(.*[Ss]potify.*)$
 windowrule = idleinhibit fullscreen, class:^(.*LibreWolf.*)$|^(.*floorp.*)$|^(.*Brave.*)$|^(.*firefox.*)$|^(.*chromium.*)$|^(.*zen.*)$|^(.*vivaldi.*)$
 
 # Tearing optimization
@@ -52,7 +52,7 @@ windowrule = size 20% 15%, $dialog-small
 # ================================
 
 # Large floating windows (70% screen)
-$center-float-large = class:^(center-float-large)$|^(.*qimgv.*)$|^(nvidia-settings)$|^(io.missioncenter.MissionCenter)$
+$center-float-large = class:^(center-float-large)$|^(.*qimgv.*)$|^(nvidia-settings)$|^(localsend)$
 windowrule = float, $center-float-large
 windowrule = size 70% 70%, $center-float-large
 windowrule = center 1, $center-float-large
@@ -86,7 +86,7 @@ windowrule = size 50% 50%, $vlc_dialogs
 windowrule = size 70% 70%, $vlc, title:^(.*VLC media player)$
 
 # Large media players (70% screen)
-$media-large = class:^(.*mpv.*)$|^(.*celluloid.*)$
+$media-large = class:^(.*mpv.*)$|^(.*celluloid.*)$|^(com.github.rafostar.Clapper)$
 windowrule = float, $media-large
 windowrule = size 70% 70%, $media-large
 windowrule = center 1, $media-large
@@ -111,6 +111,14 @@ windowrule = stayfocused, $polkit
 # ================================
 # SECURITY & AUTHENTICATION
 # ================================
+
+# Disable screensharing for sensitive applications
+windowrule = noscreenshare, class:^(discord)
+windowrule = noscreenshare, class:^(org.telegram.desktop)
+windowrule = noscreenshare, class:^(.*Signal.*)$
+windowrule = noscreenshare, class:^(.*WhatsApp.*)$
+windowrule = noscreenshare, class:^(.*Bitwarden.*)$
+
 {{- if eq .passwordManager "Bitwarden" }}
 windowrule = float, class:^(Bitwarden)$
 windowrule = size 60% 60%, class:^(Bitwarden)$
@@ -120,6 +128,7 @@ windowrule = center 1, class:^(Bitwarden)$
 $bitwarden-brave = class:^(brave-nngceckbapebfimnlniiiahkandclblb-Default)$
 windowrule = float, $bitwarden-brave
 windowrule = size 30% 60%, $bitwarden-brave
+windowrule = noscreenshare, $bitwarden-brave
 
 {{- else if eq .passwordManager "1Password" }}
 windowrule = float, class:^(1Password)$
@@ -173,9 +182,8 @@ windowrule = size 40% 40%, $sideScratchpad
 
 $nautilus= class:^(org.gnome.Nautilus)$
 windowrule = float, $nautilus
-windowrule = size 60% 60%, $nautilus
+windowrule = size 80% 80%, $nautilus
 windowrule = center 1, $nautilus
-windowrule = size 20% 40%, $nautilus, initialTitle: ^(Properties)
 
 # Video bridge (screen sharing)
 $videobridge = class:^(.*xwaylandvideobridge.*)$
@@ -229,7 +237,7 @@ windowrule = stayfocused, $clipse
 $imv = class:^(imv)$
 windowrule = float, $imv
 windowrule = opaque, $imv
-windowrule = size 70% 70%, $imv
+windowrule = size 60% 60%, $imv
 windowrule = center 1, $imv
 
 $waypaper = class:^(waypaper)$
@@ -237,10 +245,11 @@ windowrule = float, $waypaper
 windowrule = size 55% 70%, $waypaper
 windowrule = center 1, $waypaper
 
-$localsend = class:^(localsend)$
-windowrule = float, $localsend
-windowrule = size 70% 70%, $localsend
-windowrule = center 1, $localsend
+$missioncenter = class:^(io.missioncenter.MissionCenter)$
+windowrule = float, $missioncenter
+windowrule = size 75% 75%, $missioncenter
+windowrule = center 1, $missioncenter
+
 
 # Theming applications
 $theming = class:^(kvantummanager)$|^(qt5ct)$|^(qt6ct)$|^(nwg-look)$|^(org.kde.ark)$
@@ -274,7 +283,6 @@ windowrule = animation popin, class:^(.*wleave.*)$
 # ================================
 # LAYER RULES
 # ================================
-layerrule = xray 1, .*
 layerrule = blur, notifications
 layerrule = ignorezero, notifications
 layerrule = blur, swaync-notification-window
@@ -289,8 +297,11 @@ layerrule = animation slide, swaync-control-center
 layerrule = animation popin, rofi
 layerrule = blur, rofi
 layerrule = ignorezero, rofi
+layerrule = ignorealpha 0.5, rofi
+
 layerrule = blur, waybar
 layerrule = ignorezero, waybar
+layerrule = ignorealpha 0.5, waybar
 
 layerrule = animation fade, swayosd
 layerrule = animation fade, selection
@@ -303,7 +314,7 @@ layerrule = noanim, hyprpicker
 
 # smart gaps
 workspace = w[tv1], gapsout:0, gapsin:0
-windowrule = bordersize 1, floating:0, onworkspace:w[tv1]
+windowrule = bordersize 2, floating:0, onworkspace:w[tv1]
 
 windowrule = nofocus, class:^$, title:^$, xwayland:1, floating:1, fullscreen:0, pinned:0
 windowrule = suppressevent maximize, class:^(.*)$

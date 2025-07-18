@@ -39,3 +39,4 @@ image/x-xbitmap=imv.desktop
 image/x-portable-anymap=imv.desktop
 image/jpeg=imv.desktop
 image/avif=imv.desktop
+x-scheme-handler/discord=vesktop.desktop
