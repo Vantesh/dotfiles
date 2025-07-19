@@ -1,0 +1,102 @@
+/**
+ * @name Matugen Discord
+ * @description A dark theme for Discord based on the Matugen color palette.
+ * @author Vantesh & Gemini
+*/
+
+@import url("https://refact0r.github.io/midnight-discord/build/midnight.css");
+
+
+/* color options */
+:root {
+    --colors: on; /* turn off to use discord default colors */
+
+    /* text colors */
+    --text-0: {{colors.background.default.hex}}; /* text on colored elements */
+    --text-1: {{colors.on_background.default.hex}}; /* default text on colored elements */
+    --text-2: {{colors.on_surface.default.hex}}; /* headings and important text */
+    --text-3: {{colors.on_surface_variant.default.hex | set_lightness: 1.0}}; /* normal text */
+    --text-4: {{colors.outline.default.hex}}; /* icon buttons and channels */
+    --text-5: {{colors.outline.default.hex}}; /* muted channels/chats and timestamps */
+
+    /* background and dark colors */
+    --bg-1: {{colors.surface_container_lowest.default.hex}}; /* dark buttons when clicked */
+    --bg-2: {{colors.surface_container_low.default.hex}}; /* dark buttons */
+    --bg-3: {{colors.surface_container.default.hex}}; /* spacing, secondary elements */
+    --bg-4: {{colors.surface.default.hex}}; /* main background color */
+    --hover: {{colors.surface_container_high.default.hex}}; /* channels and buttons when hovered */
+    --active: {{colors.surface_container_highest.default.hex}}; /* channels and buttons when clicked or selected */
+    --active-2: {{colors.surface.default.hex}}; /* extra state for transparent buttons */
+    --message-hover: {{colors.surface_container.default.hex}}; /* messages when hovered */
+
+    /* accent colors */
+    --accent-1: {{colors.primary.default.hex}}; /* links and other accent text */
+    --accent-2: {{colors.surface_tint.default.hex}}; /* small accent elements */
+    --accent-3: {{colors.secondary.default.hex}}; /* accent buttons */
+    --accent-4: {{colors.secondary_container.default.hex}}; /* accent buttons when hovered */
+    --accent-5: {{colors.tertiary.default.hex}}; /* accent buttons when clicked */
+    --accent-new: {{colors.error.default.hex}}; /* stuff that's normally red like mute/deafen buttons */
+    --mention: linear-gradient(
+        to right,
+        color-mix(in hsl, {{colors.primary_container.default.hex}}, transparent 70%) 60%,
+        transparent
+    ); /* background of messages that mention you */
+    --mention-hover: linear-gradient(
+        to right,
+        color-mix(in hsl, {{colors.primary_container.default.hex}}, transparent 75%) 60%,
+        transparent
+    ); /* background of messages that mention you when hovered */
+    --reply: linear-gradient(
+        to right,
+        color-mix(in hsl, {{colors.tertiary_container.default.hex}}, transparent 70%) 60%,
+        transparent
+    ); /* background of messages that reply to you */
+    --reply-hover: linear-gradient(
+        to right,
+        color-mix(in hsl, {{colors.tertiary_container.default.hex}}, transparent 75%) 60%,
+        transparent
+    ); /* background of messages that reply to you when hovered */
+
+    /* status indicator colors */
+    --online: {{colors.primary.default.hex}}; /* change to #43a25a for default */
+    --dnd: {{colors.error.default.hex}}; /* change to #d83a42 for default */
+    --idle: {{colors.tertiary.default.hex}}; /* change to #ca9654 for default */
+    --streaming: {{colors.secondary.default.hex}}; /* change to #593695 for default */
+    --offline: {{colors.outline.default.hex}}; /* change to #83838b for default offline color */
+
+    /* border colors */
+    --border-light: {{colors.surface_container_high.default.hex}}; /* light border color */
+    --border: {{colors.surface_container_highest.default.hex}}; /* normal border color */
+    --button-border: {{colors.surface_container_high.default.hex}}; /* neutral border color of buttons */
+
+    /* base colors */
+    --red-1: {{colors.red.default.hex}};
+    --red-2: {{colors.red_container.default.hex}};
+    --red-3: {{colors.on_red.default.hex}};
+    --red-4: {{colors.on_red_container.default.hex}};
+    --red-5: {{colors.red.default.hex}};
+
+    --green-1: {{colors.green.default.hex}};
+    --green-2: {{colors.green_container.default.hex}};
+    --green-3: {{colors.on_green.default.hex}};
+    --green-4: {{colors.on_green_container.default.hex}};
+    --green-5: {{colors.green.default.hex}};
+
+    --blue-1: {{colors.blue.default.hex}};
+    --blue-2: {{colors.blue_container.default.hex}};
+    --blue-3: {{colors.on_blue.default.hex}};
+    --blue-4: {{colors.on_primary_container.default.hex}};
+    --blue-5: {{colors.primary.default.hex}};
+
+    --yellow-1: {{colors.yellow.default.hex}};
+    --yellow-2: {{colors.yellow_container.default.hex}};
+    --yellow-3: {{colors.on_yellow.default.hex}};
+    --yellow-4: {{colors.on_yellow_container.default.hex}};
+    --yellow-5: {{colors.yellow.default.hex}};
+
+    --purple-1: {{colors.purple.default.hex}};
+    --purple-2: {{colors.purple_container.default.hex}};
+    --purple-3: {{colors.on_purple.default.hex}};
+    --purple-4: {{colors.on_purple_container.default.hex}};
+    --purple-5: {{colors.purple.default.hex}};
+}
