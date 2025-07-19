@@ -1,0 +1,6 @@
+action = [copy, type]
+files = [emojis, nerd_font, mathematical_operators]
+hidden-descriptions = True
+selector-args = "-theme ~/.config/rofi/grid.rasi"
+max-recent = 0
+use-icons = true
