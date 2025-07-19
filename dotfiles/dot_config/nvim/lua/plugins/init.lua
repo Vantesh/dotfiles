@@ -19,9 +19,13 @@ return {
   -- { import = "nvchad.blink.lazyspec" },
 
   { import = "plugins.ui.snacks" },
-  { import = "plugins.ui.neoscroll" },
-  { import = "plugins.ui.tiny-inline-diagnostic" },
+  { import = "plugins.ui.noice" },
   { import = "plugins.ui.which-key" },
+  { import = "plugins.ui.todo-comments" },
+
+
+
+  { import = "plugins.utils.persistence" },
 
 
 

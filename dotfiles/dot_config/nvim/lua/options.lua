@@ -2,7 +2,7 @@ require "nvchad.options"
 
 
 local o = vim.o
-local opt = vim.opt
+local set = vim.opt
 
 -- terminal general
 o.termguicolors = true
@@ -14,14 +14,6 @@ o.tabstop = 4
 o.shiftwidth = 4
 o.softtabstop = 4
 
-
--- new things
-opt.title = true
-opt.hlsearch = true
-opt.showcmd = true
-opt.scrolloff = 10
-opt.inccommand = "split"
-opt.backspace = { "start", "eol", "indent" }
-opt.path:append({ "**" })
-opt.wildignore:append({ "*/node_modules/*" })
-opt.formatoptions:append({ "r" })
+set.swapfile = false
+set.title = true
+set.foldexpr = "nvim_treesitter#foldexpr()"
