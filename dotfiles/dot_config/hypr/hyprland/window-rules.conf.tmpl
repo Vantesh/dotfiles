@@ -32,7 +32,6 @@ windowrule = pin, title:^([Pp]icture[-\s]?[Ii]n[-\s]?[Pp]icture)(.*)$
 # DIALOGS
 # ================================
 
-
 # Large dialogs (50% screen)
 $dialog-titles = title:^(Open File)(.*)$|^(Select a File)(.*)$|^(Choose wallpaper)(.*)$|^(Open Folder)(.*)$|^(Save As)(.*)$|^(Library)(.*)$|^(File Upload)(.*)$|^(.*Save File.*)$|^(.*Save Folder.*)$|^(.*Save Image.*)$|^(.*Open As.*)$|^(.*Open Network Stream.*)$|^(.*Choose Files.*)$|^(.*Downloads -.*)$|^(File Operation Progress)$|^(Downloads.*)$|^(Choose Directory)$
 
@@ -91,11 +90,7 @@ windowrule = float, $media-large
 windowrule = size 70% 70%, $media-large
 windowrule = center 1, $media-large
 
-# Simple floating media players
-windowrule = float, class:^(com.github.rafostar.Clapper)$
-
 # make yt videos opaque
-# windowrulev2 = opaque, title:(.*)YouTube(.*)
 windowrule = opacity 1.0 override, title:(.*)(YouTube)(.*)
 
 # ================================
@@ -112,17 +107,19 @@ windowrule = stayfocused, $polkit
 # SECURITY & AUTHENTICATION
 # ================================
 
-# Disable screensharing for sensitive applications
-windowrule = noscreenshare, class:^(discord)
+# Disable screensharing for sensitive application
+windowrule = noscreenshare, class:^(?:discord|vesktop)$
 windowrule = noscreenshare, class:^(org.telegram.desktop)
 windowrule = noscreenshare, class:^(.*Signal.*)$
 windowrule = noscreenshare, class:^(.*WhatsApp.*)$
-windowrule = noscreenshare, class:^(.*Bitwarden.*)$
+windowrule = noscreenshare, class:(polkit-)(.*), title:(Authenticate)
+windowrule = noscreenshare, class:(pinentry-)(.*)
 
 {{- if eq .passwordManager "Bitwarden" }}
 windowrule = float, class:^(Bitwarden)$
 windowrule = size 60% 60%, class:^(Bitwarden)$
 windowrule = center 1, class:^(Bitwarden)$
+windowrule = noscreenshare, class:^(.*Bitwarden.*)$
 
 # Browser extensions and popups
 $bitwarden-brave = class:^(brave-nngceckbapebfimnlniiiahkandclblb-Default)$
@@ -179,10 +176,9 @@ windowrule = size 40% 40%, $sideScratchpad
 # ================================
 # APPLICATION-SPECIFIC RULES
 # ================================
-
-$nautilus= class:^(org.gnome.Nautilus)$
+$nautilus= class:^(org.gnome.Nautilus)$, initialTitle:Loading…
 windowrule = float, $nautilus
-windowrule = size 80% 80%, $nautilus
+windowrule = size 75% 75%, $nautilus
 windowrule = center 1, $nautilus
 
 # Video bridge (screen sharing)
@@ -257,7 +253,6 @@ windowrule = float, $theming
 
 # Miscellaneous floating applications
 windowrule = float, title:^(About Mozilla Firefox)$
-windowrule = float, class:^(firefox)$, title:^(Picture-in-Picture)$
 windowrule = float, class:^(firefox)$, title:^(Library)$
 windowrule = float, class:^(blueman-manager)$
 windowrule = float, class:^(nm-applet)$
@@ -270,7 +265,6 @@ windowrule = float, class:^(io.github.alainm23.planify)$
 windowrule = float, class:^(io.gitlab.theevilskeleton.Upscaler)$
 windowrule = float, class:^(com.github.unrud.VideoDownloader)$
 windowrule = float, class:^(io.gitlab.adhami3310.Impression)$
-windowrule = float, class:^(io.missioncenter.MissionCenter)$
 
 # ================================
 # ANIMATIONS
@@ -306,7 +300,6 @@ layerrule = ignorealpha 0.5, waybar
 layerrule = animation fade, swayosd
 layerrule = animation fade, selection
 layerrule = noanim, hyprpicker
-
 
 # ================================
 # GOOD PRACTICES
