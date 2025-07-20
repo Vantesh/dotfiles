@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
 # shellcheck disable=SC1091
+export CHEZMOI_WORKING_TREE="${CHEZMOI_WORKING_TREE:-$HOME/.local/share/chezmoi}"
 source "${CHEZMOI_WORKING_TREE:?env variable missing. Please only run this script via chezmoi}/dotfiles/.chezmoiscripts/.00_helpers"
 
 source "${CHEZMOI_WORKING_TREE}/packages"
@@ -188,3 +189,70 @@ for key in "${!faillock_config[@]}"; do
 done
 
 # =============================================================================
+# ENABLE SERVICES
+# =============================================================================
+print_box "smslant" "Services"
+print_step "Enabling necessary services"
+
+readonly USER_SERVICES=(
+  gnome-keyring-daemon.service
+  hypridle.service
+  gcr-ssh-agent.socket
+)
+
+readonly SYSTEM_SERVICES=(
+  bluetooth.service
+  sddm.service
+  ufw.service
+)
+
+# Enable services by scope
+for scope in user system; do
+  services=()
+  if [[ "$scope" == "user" ]]; then
+    services=("${USER_SERVICES[@]}")
+  else
+    services=("${SYSTEM_SERVICES[@]}")
+  fi
+
+  for service in "${services[@]}"; do
+    enable_service "$service" "$scope"
+  done
+done
+
+#=============================================================================
+# LAPTOP POWER MANAGEMENT
+#=============================================================================
+
+if is_laptop; then
+  print_box "smslant" "Laptop"
+  print_step "Setting up laptop tweaks"
+
+  if ! sudo systemctl is-enabled auto-cpufreq.service &>/dev/null; then
+    if sudo auto-cpufreq --install >/dev/null 2>&1; then
+      print_info "Auto CPU frequency scaling enabled"
+    else
+      print_warning "Failed to enable auto CPU frequency scaling"
+    fi
+  else
+    print_info "Auto CPU frequency scaling is already enabled"
+  fi
+
+  readonly TOUCHPAD_RULE_FILE="/etc/udev/rules.d/90-touchpad-access.rules"
+  write_system_config "$TOUCHPAD_RULE_FILE" "touchpad udev rule" <<'EOF'
+KERNEL=="event*", SUBSYSTEM=="input", ENV{ID_INPUT_TOUCHPAD}=="1", TAG+="uaccess"
+EOF
+
+  reload_udev_rules || {
+    print_error "Failed to reload udev rules"
+  }
+
+  precision_5530=$(sudo dmidecode -s system-product-name | grep -i "Precision 5530")
+  if [[ -n "$precision_5530" ]]; then
+    if sudo cp "${CHEZMOI_WORKING_TREE}/extras/udev/"*.rules /etc/udev/rules.d/ && reload_udev_rules &>/dev/null; then
+      print_info "Precision 5530 udev rules applied"
+    else
+      print_error "Failed to apply Precision 5530 udev rules"
+    fi
+  fi
+fi
