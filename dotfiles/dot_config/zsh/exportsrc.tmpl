@@ -22,9 +22,8 @@ alias wget="wget --hsts-file="${XDG_CACHE_HOME}/wget-hsts""
 export LESSHISTFILE="-"
 
 {{- if eq .passwordManager "Bitwarden" }}
-export BITWARDEN_SSH_AUTH_SOCK="$XDG_RUNTIME_DIR"
 export SSH_AUTH_SOCK="$HOME/.bitwarden-ssh-agent.sock"
-export GPG_TTY=$(tty)
+export GPG_TTY=$(tty) # some fix idk
 {{- end }}
 
 {{- if eq .passwordManager "1Password" }}
