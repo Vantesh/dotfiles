@@ -38,7 +38,7 @@ spinner() {
   local pid=$1
   local pkg="$2"
 
-  gum spin --spinner line --title "${COLOR_CYAN}$pkg${COLOR_RESET} Installing..." -- sh -c "while kill -0 $pid 2>/dev/null; do sleep 0.1; done"
+  gum spin --spinner line --title "Installing $pkg" -- sh -c "while kill -0 $pid 2>/dev/null; do sleep 0.1; done"
 }
 
 ask_for_sudo() {
@@ -237,7 +237,7 @@ enable_service() {
       print_info "${COLOR_YELLOW}$service${COLOR_RESET} is already enabled."
     else
       if "${cmd[@]}" enable "$service" &>/dev/null; then
-        print_info " ${COLOR_MAGENTA}$service${COLOR_RESET} enabled successfully."
+        print_info "${COLOR_MAGENTA}$service${COLOR_RESET} enabled successfully."
       else
         print_error "${COLOR_RED}$service${COLOR_RESET} failed to enable."
       fi
@@ -245,5 +245,31 @@ enable_service() {
 
   else
     print_warning "Service not found: ${COLOR_YELLOW}$service${COLOR_RESET}"
+  fi
+}
+
+reload_udev_rules() {
+  if sudo udevadm control --reload-rules && sudo udevadm trigger; then
+    return 0
+  else
+    return 1
+  fi
+}
+
+reload_systemd_daemon() {
+  if sudo systemctl daemon-reload; then
+    return 0
+  else
+    return 1
+  fi
+}
+
+is_laptop() {
+  local chassis
+  chassis=$(hostnamectl chassis)
+  if [[ "$chassis" =~ (laptop|notebook) ]]; then
+    return 0
+  else
+    return 1
   fi
 }
