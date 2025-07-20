@@ -160,6 +160,16 @@ if [[ ! $gpu_info =~ (NVIDIA|AMD/ATI|Intel Corporation) ]]; then
   print_warning "No supported GPU found, skipping GPU-specific driver installation."
 fi
 
+# Check if the system is a laptop to add power management tools
+is_laptop=$(hostnamectl chassis | grep -i "laptop\|notebook")
+if [[ -n $is_laptop ]]; then
+  core+=(
+    auto-cpufreq
+    upower
+    libinput-gestures
+  )
+fi
+
 export optional
 export drivers
 export core
