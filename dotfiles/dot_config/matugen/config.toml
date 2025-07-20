@@ -13,19 +13,16 @@
   output_path = '~/.config/hypr/hyprland/theme/colors.conf'
 
 [templates.btop]
-  input_path  = '~/.config/matugen/templates/btop.template'
+  input_path  = '~/.config/matugen/templates/cli/btop.theme'
   output_path = '~/.config/btop/themes/matugen.theme'
 
-  # [templates.bat]
-  #   input_path  = '~/.config/matugen/templates/bat.template'
-  #   output_path = '~/.config/bat/themes/Matugen.tmTheme'
-  #   post_hook   = 'bat cache --build &> /dev/null'
-
+[templates.bat]
+  input_path  = '~/.config/matugen/templates/cli/bat.tmTheme'
+  output_path = '~/.config/bat/themes/Matugen.tmTheme'
 
 [templates.yazi]
-  input_path  = '~/.config/matugen/templates/yazi.toml'
+  input_path  = '~/.config/matugen/templates/cli/yazi.toml'
   output_path = '~/.config/yazi/theme.toml'
-
 
 [templates.rofi]
   input_path  = '~/.config/matugen/templates/rofi.rasi'
@@ -36,7 +33,7 @@
   output_path = '~/.local/share/color-schemes/Matugen.colors'
 
 [templates.fzf]
-  input_path  = '~/.config/matugen/templates/fzf.sh'
+  input_path  = '~/.config/matugen/templates/cli/fzf.sh'
   output_path = '~/.config/zsh/fzf'
 
 [templates.kvantum]
@@ -46,7 +43,6 @@
 [templates.kvantum-svg]
   input_path  = "~/.config/matugen/templates/kvantum/kvantum.svg"
   output_path = "~/.config/Kvantum/Matugen/Matugen.svg"
-
 
 [templates.gtk4]
   input_path  = '~/.config/matugen/templates/gtk/gtk4.css'
@@ -60,25 +56,21 @@
   input_path  = '~/.config/matugen/templates/folder-color.txt'
   output_path = '~/.local/share/papirus-folders/folder-color.txt'
 
-
 [templates.spicetify]
   input_path  = '~/.config/matugen/templates/spotify.ini'
   output_path = '~/.config/spicetify/Themes/marketplace/color.ini'
-
-[templates.vscode]
-  input_path  = "~/.config/matugen/templates/vscode.json"
-  output_path = "~/.vscode/extensions/hyprluna.hyprluna-theme-1.0.2/themes/hyprluna.json"
-
 
 [templates.neovim-nvchad]
   input_path  = '~/.config/matugen/templates/nvchad/nvchad.lua'
   output_path = '~/.local/share/nvim/lazy/base46/lua/base46/themes/matugen.lua'
 
-
 [templates.neovim-nvchad-colors]
   input_path  = '~/.config/matugen/templates/nvchad/colors-nvchad.txt'
   output_path = '~/.cache/wal/colors'
 
+[templates.vesktop]
+  input_path  = "~/.config/matugen/templates/discord.css"
+  output_path = "~/.config/vesktop/themes/Matugen.css"
 
 [config.custom_colors.red]
   color = "#f38ba8"
@@ -102,10 +94,6 @@
 
 [config.custom_colors.cyan]
   color = "#94e2d5"
-  blend = true
-
-[config.custom_colors.white]
-  color = "#cdd6f4"
   blend = true
 
 [config.custom_colors.orange]
