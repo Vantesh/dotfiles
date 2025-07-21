@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 
 # shellcheck disable=SC1091
-export CHEZMOI_WORKING_TREE="${CHEZMOI_WORKING_TREE:-$HOME/.local/share/chezmoi}"
 source "${CHEZMOI_WORKING_TREE:?env variable missing. Please only run this script via chezmoi}/dotfiles/.chezmoiscripts/.00_helpers"
 
 source "${CHEZMOI_WORKING_TREE}/packages"
@@ -219,6 +218,130 @@ for scope in user system; do
     enable_service "$service" "$scope"
   done
 done
+
+# =============================================================================
+# SNAPPER
+# =============================================================================
+print_box "smslant" "Snapper"
+print_step "Setting up Snapper configuration"
+if confirm "Do you want to set up Snapper?"; then
+  snapper_deps=(
+    snapper
+    snap-pac
+    btrfs-assistant
+    btrfs-progs
+    inotify-tools
+    sbctl
+  )
+  snapper_services=(
+    snapper-cleanup.timer
+  )
+
+  if [[ "$(detect_bootloader)" == "limine" ]]; then
+    snapper_deps+=(
+      limine-mkinitcpio-hook
+      limine-snapper-sync
+    )
+
+  elif [[ "$(detect_bootloader)" == "grub" ]]; then
+    snapper_deps+=(
+      grub-btrfs
+    )
+    snapper_services+=(
+      grub-btrfsd.service
+    )
+  fi
+
+  for package in "${snapper_deps[@]}"; do
+    install_package "$package"
+  done
+
+  for service in "${snapper_services[@]}"; do
+    enable_service "$service" "system"
+  done
+
+  # limine configuration
+  if [[ "$(detect_bootloader)" == "limine" ]]; then
+    readonly LIMINE_CONFIG_FILE="/etc/default/limine"
+    readonly LIMINE_ENTRY_TEMPLATE="/etc/limine-entry-tool.conf"
+    readonly LIMINE_SNAPPER_TEMPLATE="/etc/limine-snapper-sync.conf"
+
+    if [[ ! -f "$LIMINE_ENTRY_TEMPLATE" || ! -f "$LIMINE_SNAPPER_TEMPLATE" ]]; then
+      print_error "Limine templates not found."
+    fi
+
+    if {
+      cat "$LIMINE_ENTRY_TEMPLATE"
+      echo
+      echo # just to space out the entry
+      cat "$LIMINE_SNAPPER_TEMPLATE"
+    } | sudo tee "$LIMINE_CONFIG_FILE" >/dev/null; then
+      print_info "Limine template added."
+    else
+      print_error "Failed to update Limine configuration."
+    fi
+    declare -A limine_entries=(["MAX_SNAPSHOT_ENTRIES"]=15
+      ["TERMINAL"]="kitty"
+      ["TERMINAL_ARG"]="-e"
+      ["SNAPSHOT_FORMAT_CHOICE"]=0
+      ["QUIET_MODE"]="yes"
+      ["ENABLE_UKI"]="yes"
+    )
+
+    success=true
+    for key in "${!limine_entries[@]}"; do
+      if ! update_config "$LIMINE_CONFIG_FILE" "$key" "${limine_entries[$key]}"; then
+        print_error "Failed to update $key in $LIMINE_CONFIG_FILE"
+        success=false
+        break
+      fi
+    done
+
+    if $success; then
+      print_info "Limine configuration updated successfully."
+    else
+      print_error "Failed to update Limine configuration."
+    fi
+  fi
+
+  # Snapper configuration
+  declare -A snapper_settings=(
+    ["NUMBER_CLEANUP"]="yes"
+    ["NUMBER_LIMIT"]="20"
+    ["TIMELINE_CREATE"]="no"
+    ["TIMELINE_CLEANUP"]="yes"
+    ["TIMELINE_MIN_AGE"]="1800"
+    ["TIMELINE_LIMIT_HOURLY"]="5"
+    ["TIMELINE_LIMIT_DAILY"]="7"
+    ["TIMELINE_LIMIT_WEEKLY"]="0"
+    ["TIMELINE_LIMIT_MONTHLY"]="0"
+    ["TIMELINE_LIMIT_YEARLY"]="0"
+    ["EMPTY_PRE_POST_CLEANUP"]="yes"
+    ["EMPTY_PRE_POST_MIN_AGE"]="1800"
+  )
+
+  success=true
+  for key in "${!snapper_settings[@]}"; do
+    if ! set_snapper_config_value "root" "$key" "${snapper_settings[$key]}"; then
+      print_error "Failed to set Snapper config: $key"
+      success=false
+      break
+    fi
+  done
+
+  if $success; then
+    print_info "Snapper configuration updated successfully."
+  else
+    print_error "Failed to update Snapper configuration."
+  fi
+
+  # updatedb
+  write_system_config "/etc/updatedb.conf" "Updatedb configuration" <<EOF
+PRUNENAMES = ".git .hg .svn .snapshots"
+PRUNEPATHS = "/afs /media /mnt /net /sfs /tmp /udev /var/cache /var/lib/pacman/local /var/lock /var/run /var/spool /var/tmp"
+EOF
+
+fi
 
 #=============================================================================
 # LAPTOP POWER MANAGEMENT
