@@ -80,6 +80,8 @@ theming=(
   kvantum-qt5
   qt6ct-kde
   qt5ct-kde
+  adw-gtk-theme
+  plymouth
 
 )
 
