@@ -219,6 +219,13 @@ for scope in user system; do
   done
 done
 
+# Enable ufw
+if sudo ufw enable >/dev/null 2>&1; then
+  print_info "UFW enabled successfully"
+else
+  print_warning "Failed to enable UFW"
+fi
+
 # =============================================================================
 # SNAPPER
 # =============================================================================
