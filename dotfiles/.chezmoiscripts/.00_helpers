@@ -1,0 +1,435 @@
+#!/usr/bin/env bash
+# --- Color Variables ---
+
+readonly COLOR_RED='\e[31m'
+readonly COLOR_GREEN='\e[32m'
+readonly COLOR_YELLOW='\e[33m'
+readonly COLOR_MAGENTA='\e[35m'
+readonly COLOR_CYAN='\e[36m'
+readonly STYLE_BOLD='\e[1m'
+readonly COLOR_RESET='\e[0m'
+
+#==============================================================================
+# Logging Functions
+#==============================================================================
+
+print_step() {
+  echo -e "\n${COLOR_MAGENTA}${STYLE_BOLD}==>${COLOR_RESET} ${COLOR_CYAN}$1${COLOR_RESET}\n"
+}
+print_info() {
+  printf "${COLOR_GREEN}INFO:${COLOR_RESET} %b\n" "$1"
+}
+print_warning() {
+  printf "${COLOR_YELLOW}WARNING:${COLOR_RESET} %b\n" "$1"
+}
+print_error() {
+  printf "${COLOR_RED}ERROR:${COLOR_RESET} %b\n" "$1"
+  exit 1
+}
+print_box() {
+  figlet -t -f "$1" "$2"
+}
+
+confirm() {
+  gum confirm --no-show-help --default=true "$1"
+}
+
+spinner() {
+  local pid=$1
+  local pkg="$2"
+
+  gum spin --spinner line --title "Installing $pkg" -- sh -c "while kill -0 $pid 2>/dev/null; do sleep 0.1; done"
+}
+
+ask_for_sudo() {
+  sudo -n true 2>/dev/null || {
+    print_info "This script requires sudo privileges\n"
+    sudo -v
+  }
+  while true; do
+    sudo -n true
+    sleep 60
+    kill -0 "$$" || exit
+  done 2>/dev/null &
+}
+
+# =============================================================================
+# FILE MANIPULATION FUNCTIONS
+# =============================================================================
+
+write_system_config() {
+  local config_file="$1"
+  local description="$2"
+
+  if sudo mkdir -p "$(dirname "$config_file")" && sudo tee "$config_file" >/dev/null; then
+    sudo chmod 644 "$config_file" || print_error "Failed to set permissions for $config_file"
+    print_info "$description written successfully"
+  else
+    print_error "Failed to write to $config_file"
+  fi
+}
+
+create_backup() {
+  local file_path="$1"
+  local backup_path
+  backup_path="${file_path}.bak.$(date +%Y%m%d%H%M%S)"
+
+  if [ -f "$file_path" ]; then
+    local backup_dir
+    backup_dir=$(dirname "$backup_path")
+
+    local copy_cmd="cp"
+    if [ ! -w "$backup_dir" ]; then
+      copy_cmd="sudo cp"
+    fi
+
+    if $copy_cmd "$file_path" "$backup_path"; then
+      return 0
+    else
+      return 1
+    fi
+  else
+    print_warning "File $file_path does not exist, skipping backup."
+  fi
+}
+
+update_config() {
+  local config_file="$1"
+  local key="$2"
+  local value="$3"
+
+  if [[ ! -f "$config_file" ]]; then
+    sudo touch "$config_file" &&
+      if sudo chown root:root "$config_file"; then
+        sudo chmod 644 "$config_file" || {
+          print_error "Failed to create $config_file"
+        }
+      else
+        print_error "Failed to set ownership for $config_file"
+      fi
+  fi
+
+  local escaped_key
+  escaped_key=$(printf '%s' "$key" | sed 's/\[/\\[/g; s/\]/\\]/g')
+  # Regex to match lines like: [spaces][#][spaces]key[spaces]=
+  local key_regex="^\s*#*\s*${escaped_key}\s*="
+  if sudo grep -qE "$key_regex" "$config_file"; then
+    if sudo sed -i -E "s|$key_regex.*|$key=${value}|" "$config_file"; then
+      return 0
+    else
+      print_error "Failed to update $key in $config_file"
+    fi
+  else
+    if echo -e "\n${key}=${value}" | sudo tee -a "$config_file" >/dev/null; then
+      return 0
+    else
+      print_error "Failed to append $key to $config_file"
+    fi
+  fi
+}
+
+# =============================================================================
+# AUR HELPER INSTALLATION
+# =============================================================================
+
+has_package() {
+  if pacman -Q "$1" &>/dev/null; then
+    return 0
+  else
+    return 1
+  fi
+}
+
+install_paru() {
+  print_info "Installing paru AUR helper, this may take a while..."
+  temp_dir=$(mktemp -d)
+
+  git clone https://aur.archlinux.org/paru.git "$temp_dir" &>/dev/null || {
+    print_error "Failed to clone paru."
+  }
+  cd "$temp_dir" || return 1
+  makepkg -si --noconfirm &>/dev/null || {
+    print_error "Failed to build paru."
+  }
+  cd - >/dev/null || return 1
+  rm -rf "$temp_dir"
+}
+
+install_package() {
+  local package="$1"
+
+  if has_package "yay"; then
+    export AUR_HELPER="yay"
+  elif has_package "paru"; then
+    export AUR_HELPER="paru"
+  else
+    if install_paru; then
+      export AUR_HELPER="paru"
+      print_info "paru installed successfully."
+    else
+      print_error "Failed to install paru. Please install it manually."
+    fi
+
+  fi
+
+  if has_package "$package"; then
+    print_info "${STYLE_BOLD}${COLOR_CYAN}$package${COLOR_RESET} exists."
+    return 0
+  fi
+  "$AUR_HELPER" -S --noconfirm "$package" &>/dev/null &
+  local install_pid=$!
+
+  spinner "$install_pid" "$package"
+
+  if ! wait "$install_pid"; then
+    failed_packages+=("$package")
+    print_warning "${STYLE_BOLD}${COLOR_CYAN}$package${COLOR_RESET} Failed."
+  else
+    print_info "${STYLE_BOLD}${COLOR_CYAN}$package${COLOR_RESET} Installed."
+  fi
+}
+
+initialize_env() {
+  deps=(base-devel git gum figlet)
+  missing_deps=()
+  for dep in "${deps[@]}"; do
+    if ! has_package "$dep"; then
+      missing_deps+=("$dep")
+    fi
+  done
+
+  if [ ${#missing_deps[@]} -ne 0 ]; then
+    print_info "Syncing package database. This may take a while..."
+    sudo pacman -Syu --noconfirm &>/dev/null || {
+      print_error "Failed to sync package database."
+    }
+    print_info "Initializing environment, installing missing dependencies: ${missing_deps[*]}"
+    for dep in "${missing_deps[@]}"; do
+      sudo pacman -S --needed --noconfirm "$dep" &>/dev/null
+    done
+  fi
+
+  if [[ $(tty) =~ ^/dev/tty[0-9]+$ ]]; then
+    print_info "setting up tty fonts for visibility"
+    sudo pacman -S --needed --noconfirm terminus-font &>/dev/null
+    sudo setfont ter-122b &>/dev/null
+  fi
+
+}
+
+# =============================================================================
+# SERVICE MANAGEMENT
+# =============================================================================
+enable_service() {
+  local service="$1"
+  local scope="$2"
+  local cmd=("systemctl")
+
+  # Use sudo if scope is system, else add --user
+  if [[ "$scope" == "user" ]]; then
+    cmd+=("--user")
+  else
+    cmd=("sudo" "${cmd[@]}")
+  fi
+  if "${cmd[@]}" list-unit-files | grep -q "^${service}"; then
+
+    if "${cmd[@]}" is-enabled "$service" &>/dev/null; then
+      print_info "${COLOR_YELLOW}$service${COLOR_RESET} is already enabled."
+    else
+      if "${cmd[@]}" enable "$service" &>/dev/null; then
+        print_info "${COLOR_MAGENTA}$service${COLOR_RESET} enabled successfully."
+      else
+        print_error "${COLOR_RED}$service${COLOR_RESET} failed to enable."
+      fi
+    fi
+
+  else
+    print_warning "Service not found: ${COLOR_YELLOW}$service${COLOR_RESET}"
+  fi
+}
+
+reload_udev_rules() {
+  if sudo udevadm control --reload-rules && sudo udevadm trigger; then
+    return 0
+  else
+    return 1
+  fi
+}
+
+reload_systemd_daemon() {
+  if sudo systemctl daemon-reload; then
+    return 0
+  else
+    return 1
+  fi
+}
+
+is_laptop() {
+  local chassis
+  chassis=$(hostnamectl chassis)
+  if [[ "$chassis" =~ (laptop|notebook) ]]; then
+    return 0
+  else
+    return 1
+  fi
+}
+
+# =============================================================================
+# SNAPPER
+# =============================================================================
+set_snapper_config_value() {
+  local config_name="$1"
+  local key="$2"
+  local value="$3"
+
+  if ! sudo snapper list-configs | grep -q "^$config_name"; then
+    if [ "$config_name" = "root" ]; then
+      sudo snapper -c "$config_name" create-config /
+    elif [ "$config_name" = "home" ]; then
+      sudo snapper -c "$config_name" create-config /home
+    else
+      printc yellow "Snapper config '$config_name' does not exist. Create it first."
+      return 1
+    fi
+  fi
+
+  if sudo snapper -c "$config_name" set-config "${key}=${value}"; then
+    return 0
+  else
+    fail "Failed to set $key in snapper config '$config_name'"
+  fi
+}
+
+# =============================================================================
+# BOOTLOADER
+# =============================================================================
+_build_new_cmdline() {
+  local current_cmdline="$1"
+  local params_to_add="$2"
+
+  # Use a map to store parameters. The key is the param name (e.g., "quiet"),
+  # and the value is the full parameter (e.g., "amd_pstate=active").
+  # This automatically handles overrides, as setting a key a second time
+  # just updates its value.
+  declare -A params_map
+
+  for param in $current_cmdline $params_to_add; do
+    params_map["${param%%=*}"]="$param"
+  done
+
+  echo "${params_map[*]}"
+}
+
+detect_bootloader() {
+  if [[ -x /usr/bin/limine ]]; then
+    echo "limine"
+  elif [[ -f /etc/default/grub ]]; then
+    echo "grub"
+  else
+    echo "unsupported"
+  fi
+}
+
+update_grub_cmdline() {
+  local params="$*"
+  local grub_file="/etc/default/grub"
+
+  print_info "Updating GRUB kernel command line..."
+
+  local current_cmdline
+  current_cmdline=$(grep '^GRUB_CMDLINE_LINUX_DEFAULT=' "$grub_file" | sed 's/.*="\(.*\)"/\1/')
+
+  local new_cmdline
+  new_cmdline=$(_build_new_cmdline "$current_cmdline" "$params")
+
+  if sudo sed -i "s|^GRUB_CMDLINE_LINUX_DEFAULT=.*|GRUB_CMDLINE_LINUX_DEFAULT=\"$new_cmdline\"|" "$grub_file" &&
+    sudo grub-mkconfig -o /boot/grub/grub.cfg &>/dev/null; then
+    print_info "GRUB configuration updated successfully."
+  else
+    print_error "Failed to update GRUB."
+  fi
+}
+
+update_limine_cmdline() {
+  local params="$*"
+  local cmdline_file="/etc/kernel/cmdline"
+
+  print_info "Updating Limine kernel command line..."
+
+  local current_cmdline
+  current_cmdline=$(cat "$cmdline_file" 2>/dev/null)
+
+  local new_cmdline
+  new_cmdline=$(_build_new_cmdline "$current_cmdline" "$params")
+
+  if echo "$new_cmdline" | sudo tee "$cmdline_file" >/dev/null; then
+    print_info "Limine kernel command line updated."
+  else
+    print_error "Failed to update Limine cmdline file."
+  fi
+}
+
+update_kernel_cmdline() {
+  local params="$*"
+  local bootloader
+  bootloader=$(detect_bootloader)
+
+  case "$bootloader" in
+  "limine")
+    update_limine_cmdline "$params"
+    ;;
+  "grub")
+    update_grub_cmdline "$params"
+    ;;
+  *)
+    print_warning "Unsupported bootloader, skipping kernel parameter update."
+    ;;
+  esac
+}
+
+regenerate_initramfs() {
+  if [[ $(detect_bootloader) == "grub" ]]; then
+    print_info "Regenerating initramfs for GRUB..."
+    if sudo mkinitcpio -P &>/dev/null; then
+      print_info "Initramfs regenerated successfully."
+    else
+      print_error "Failed to regenerate initramfs."
+    fi
+  elif [[ $(detect_bootloader) == "limine" ]]; then
+    print_info "Regenerating initramfs for Limine..."
+    if sudo limine-mkinitcpio &>/dev/null; then
+      print_info "Initramfs regenerated successfully."
+    else
+      print_error "Failed to regenerate initramfs."
+    fi
+  else
+    print_warning "Unsupported bootloader, skipping initramfs regeneration."
+  fi
+}
+# =============================================================================
+# FILE SYSTEM
+# =============================================================================
+is_btrfs() {
+  findmnt -n -o FSTYPE / | grep -q btrfs
+}
+
+get_btrfs_root_device() {
+  device=$(findmnt -n -o SOURCE --target / 2>/dev/null)
+  [[ -n "$device" ]] && echo "${device%%\[*}"
+}
+
+add_entry_to_fstab() {
+  local entry="$1"
+  local description="$2"
+
+  if grep -qF "$entry" /etc/fstab; then
+    print_info "Entry already exists in /etc/fstab: $description"
+  else
+    if echo -e "\n$entry\n" | sudo tee -a /etc/fstab >/dev/null; then
+      print_info "Added entry $description to fstab"
+      reload_systemd_daemon || print_warning "Failed to reload systemd daemon"
+    else
+      print_error "Failed to add $description to fstab"
+    fi
+  fi
+}
