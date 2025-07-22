@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC1091
-export CHEZMOI_WORKING_TREE="${CHEZMOI_WORKING_TREE:-$HOME/.local/share/chezmoi}"
 source "${CHEZMOI_WORKING_TREE:?env variable missing. Please only run this script via chezmoi}/dotfiles/.chezmoiscripts/.00_helpers"
 
 readonly SWAP_SUBVOL="@swap"
