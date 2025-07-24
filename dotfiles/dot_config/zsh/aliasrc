@@ -46,7 +46,6 @@ alias ln="ln -i"
 
 [ -x "$(command -v duf)" ] && alias df="duf --output mountpoint,size,avail,type,filesystem"
 [ -x "$(command -v dust)" ] && alias du="dust -r"
-[ -x "$(command -v frei)" ] && alias free="frei -format=table -h"
 [ -x "$(command -v delta)" ] && alias diff="delta"
 
 [ -x "$(command -v curlie)" ] && alias curl="curlie"
@@ -115,7 +114,6 @@ clean() {
     sudo paccache -rk1
     sudo paccache -ruk0
     cargo cache -a
-    trash-empty
 }
 
 safetouch() {
