@@ -141,10 +141,10 @@ has_package() {
 }
 
 install_paru() {
-  print_info "Installing paru AUR helper, this may take a while..."
+  print_info "No AUR helper found, Installing paru."
   temp_dir=$(mktemp -d)
 
-  git clone https://aur.archlinux.org/paru.git "$temp_dir" &>/dev/null || {
+  git clone https://aur.archlinux.org/paru-bin.git "$temp_dir" &>/dev/null || {
     print_error "Failed to clone paru."
   }
   cd "$temp_dir" || return 1
