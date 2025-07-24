@@ -60,6 +60,26 @@ core=(
   btop
   reflector
   pacman-contrib
+
+  # ZSH and related tools
+  zsh
+  oh-my-posh-bin
+  zoxide
+  duf
+  fastfetch
+  pkgfile
+  eza
+  fzf
+  ugrep
+  bat
+  dust
+  curlie
+  tealdeer
+  ouch
+  ripgrep
+  imagemagick
+  chafa
+
 )
 
 fonts=(
