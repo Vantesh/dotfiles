@@ -196,6 +196,7 @@ print_step "Enabling necessary services"
 readonly USER_SERVICES=(
   gnome-keyring-daemon.service
   hypridle.service
+  hyprsunset.service
   gcr-ssh-agent.socket
 )
 
