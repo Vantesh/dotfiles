@@ -30,7 +30,7 @@ if sudo cp -r "${CHEZMOI_WORKING_TREE}/extras/sddm/stray" /usr/share/sddm/themes
 
   write_system_config "/etc/sddm.conf.d/theme.conf" "SDDM theme" <<EOF
 [Theme]
-Current=Stray
+Current=stray
 EOF
   print_info "SDDM theme set to Stray"
 
@@ -222,6 +222,25 @@ if fc-cache -f -v >/dev/null 2>&1; then
   print_info "Font cache regenerated successfully"
 else
   print_warning "Failed to regenerate font cache"
+fi
+
+if [[ ! -d "${HOME}/.local/share/gnupg" ]]; then
+  print_info "Creating GnuPG directory"
+  mkdir -p "${HOME}/.local/share/gnupg"
+  chmod 700 "${HOME}/.local/share/gnupg"
+  print_info "GnuPG directory created successfully"
+else
+  print_info "GnuPG directory already exists"
+fi
+
+if [[ ! -f "${HOME}/.config/wgetrc" ]]; then
+  print_info "Creating wgetrc configuration file"
+  mkdir -p "${HOME}/.config/wget"
+  touch "${HOME}/.config/wget/wgetrc"
+  print_info "wgetrc configuration file created successfully"
+else
+  print_info "wgetrc configuration file already exists"
+
 fi
 
 # ====================================================================================
