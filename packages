@@ -121,6 +121,7 @@ optional=(
 
 drivers=(
   mesa-utils
+  mesa
   wireless-regdb
   libva-utils
   vulkan-tools
@@ -166,6 +167,7 @@ if [[ $gpu_info == *"AMD/ATI"* ]]; then
     xf86-video-amdgpu
     vulkan-radeon
     libva-mesa-driver
+    mesa-vdpau
   )
 fi
 
@@ -175,6 +177,7 @@ if [[ $gpu_info == *"Intel Corporation"* ]]; then
     libva-intel-driver
     intel-media-driver
     vulkan-intel
+    intel-ucode
   )
 fi
 
