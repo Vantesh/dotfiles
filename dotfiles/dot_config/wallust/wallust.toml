@@ -1,8 +1,10 @@
-backend   = "wal"
-palette   = "dark16"
-color_space = "lchmixed"
-check_contrast = true
-
+backend            = "fastresize"
+palette            = "dark16"
+color_space        = "lchmixed"
+check_contrast     = true
+threshold          = 10
+saturation         = 20
+fallback_generator = "complementary"
 [templates]
   kitty.template = 'kitty-colors.conf'
   kitty.target   = '~/.config/kitty/colors-wallust.conf'
