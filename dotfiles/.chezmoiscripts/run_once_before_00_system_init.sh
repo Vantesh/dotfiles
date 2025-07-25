@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 
 # shellcheck disable=SC1091
-source "${CHEZMOI_WORKING_TREE:?env variable missing. Please only run this script via chezmoi}/dotfiles/.chezmoiscripts/.00_helpers"
+source "${CHEZMOI_WORKING_TREE:?env variable missing. Please only run this script via chezmoi}/dotfiles/.chezmoiscripts/helpers/.00_helpers"
+source "${CHEZMOI_WORKING_TREE:?env variable missing. Please only run this script via chezmoi}/dotfiles/.chezmoiscripts/helpers/.01_chaotic_aur"
 
 source "${CHEZMOI_WORKING_TREE}/packages"
 
@@ -59,6 +60,18 @@ fi
 # =============================================================================
 print_box "smslant" "Dependencies"
 print_step "Installing dependencies"
+
+if ! is_chaotic_aur; then
+  if confirm "Do you want to install Chaotic AUR?"; then
+    print_box "smslant" "Chaotic AUR"
+    print_step "Installing Chaotic AUR"
+    install_chaotic_aur
+  else
+    print_warning "Skipping Chaotic AUR installation."
+  fi
+else
+  print_info "Chaotic AUR is already installed."
+fi
 
 failed_packages=()
 
@@ -230,9 +243,9 @@ fi
 # =============================================================================
 # SNAPPER
 # =============================================================================
-print_box "smslant" "Snapper"
-print_step "Setting up Snapper configuration"
 if confirm "Do you want to set up Snapper?"; then
+  print_box "smslant" "Snapper"
+  print_step "Setting up Snapper configuration"
   snapper_deps=(
     snapper
     snap-pac
