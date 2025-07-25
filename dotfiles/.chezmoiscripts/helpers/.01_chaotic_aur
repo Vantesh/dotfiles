@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+
+is_chaotic_aur() {
+  grep -q "chaotic-aur" /etc/pacman.conf
+}
+
+install_chaotic_aur() {
+
+  print_info "Installing the key"
+  if sudo pacman-key --recv-key 3056513887B78AEB --keyserver keyserver.ubuntu.com && sudo pacman-key --lsign-key 3056513887B78AEB; then
+    print_info "Key installed successfully"
+  else
+    print_error "Failed to install the key"
+  fi
+
+  print_info "Downloading chaotic keyring"
+  if sudo pacman -U 'https://cdn-mirror.chaotic.cx/chaotic-aur/chaotic-keyring.pkg.tar.zst'; then
+    print_info "Chaotic keyring downloaded successfully"
+  else
+    print_error "Failed to download the chaotic keyring"
+  fi
+
+  print_info "Downloading the mirrorlist"
+  if sudo pacman -U 'https://cdn-mirror.chaotic.cx/chaotic-aur/chaotic-mirrorlist.pkg.tar.zst'; then
+    print_info"Chaotic mirrorlist downloaded successfully"
+  else
+    print_error "Failed to download the chaotic mirrorlist"
+  fi
+
+  print_info "Adding Chaotic AUR to pacman.conf"
+  if echo -e "\n[chaotic-aur]\nInclude = /etc/pacman.d/chaotic-mirrorlist" | sudo tee -a /etc/pacman.conf; then
+    print_info "Chaotic AUR added to pacman.conf"
+  else
+    print_error "Failed to add Chaotic AUR to pacman.conf"
+  fi
+
+}
