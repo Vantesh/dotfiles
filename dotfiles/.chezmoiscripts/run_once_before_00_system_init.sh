@@ -365,7 +365,7 @@ EOF
 fi
 
 #=============================================================================
-# LAPTOP POWER MANAGEMENT
+# LAPTOP
 #=============================================================================
 
 if is_laptop; then
@@ -390,6 +390,8 @@ EOF
   reload_udev_rules || {
     print_error "Failed to reload udev rules"
   }
+
+  enable_service "libinput-gestures.service" "user"
 
   precision_5530=$(sudo dmidecode -s system-product-name | grep -i "Precision 5530")
   if [[ -n "$precision_5530" ]]; then
