@@ -58,8 +58,6 @@ fi
 # =============================================================================
 # Install dependencies
 # =============================================================================
-print_box "smslant" "Dependencies"
-print_step "Installing dependencies"
 
 if ! is_chaotic_aur; then
   if confirm "Do you want to install Chaotic AUR?"; then
@@ -73,7 +71,16 @@ else
   print_info "Chaotic AUR is already installed."
 fi
 
+# update system first
+print_info "Updating system first"
+if sudo pacman -Syu --noconfirm &>/dev/null; then
+   print_info "System updated, installing deps"
+fi
+
 failed_packages=()
+
+print_box "smslant" "Dependencies"
+print_step "Installing dependencies"
 
 for pkg in "${dependencies[@]}"; do
   install_package "$pkg"
