@@ -1,0 +1,15 @@
+#!/bin/env bash
+
+# This script is meant to be run on first boot inorder to populate themes and set wallpaper if not set
+# Do not run it manually(it wont run though as long as the ".first_setup_done" exists)
+
+if [[ ! -f ~/.config/hypr/.first_setup_done ]]; then
+    sleep 1
+    if command -v waypaper &>/dev/null; then
+        waypaper --random
+    fi
+
+    # create the first setup done file
+    printf "#DO NOT DELETE THIS FILE\n#This file is used to check if the first setup has been done\n" >~/.config/hypr/.first_setup_done
+
+fi
