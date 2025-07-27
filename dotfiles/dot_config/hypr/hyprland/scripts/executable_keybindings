@@ -1,31 +1,24 @@
 #!/bin/bash
 
 # Configuration
-readonly KEYBINDINGS_CONFIG="$HOME/.config/hypr/hyprland/keybindings.conf"
-readonly WINDOWS_ICON="" # Unicode character for Windows icon
+readonly KEYBINDINGS_CONFIG="$HOME/.config/hypr/hyprland/keybinds.conf"
+readonly WINDOWS_ICON=""
 
-# Check dependencies
 check_dependencies() {
   if ! command -v yad &>/dev/null; then
-    echo "Error: yad is required but not installed. Please install it first."
+    notify-send "YAD NOT FOUND!" "Please install yad first!"
     exit 1
   fi
 
   if [[ ! -f "$KEYBINDINGS_CONFIG" ]]; then
-    echo "Error: Keybindings configuration file not found at $KEYBINDINGS_CONFIG"
+    notify-send "Missing config file" "Keybindings config file not found at $KEYBINDINGS_CONFIG"
     exit 1
   fi
 }
 
-# Check if GUI is already running and toggle it
-check_and_toggle() {
-  # Check for existing yad process with our specific title
-  local existing_pid
-  existing_pid=$(pgrep -f "yad.*keybindings" 2>/dev/null)
+ensure_single_instance() {
 
-  if [[ -n "$existing_pid" ]]; then
-    # Kill existing process and exit
-    kill "$existing_pid" 2>/dev/null
+  if pkill -f "yad.*--title=keybindings"; then
     exit 0
   fi
 }
@@ -110,22 +103,12 @@ parse_keybindings() {
     [[ "$line" =~ ^[[:space:]]*#.*$ ]] && continue
     [[ -z "${line// /}" ]] && continue
 
-    # Handle submap entry and exit
-    if [[ "$line" =~ ^submap[[:space:]]*=[[:space:]]*([^[:space:]]+) ]]; then
-      local submap_name="${BASH_REMATCH[1]}"
-      if [[ "$submap_name" == "reset" ]]; then
-        current_submap=""
-      else
-        current_submap="$submap_name"
-      fi
-    fi
-
     # Parse binding lines
     if [[ "$line" =~ ^(bind[a-z]*)[[:space:]]*=[[:space:]]*(.*) ]]; then
       local bind_type="${BASH_REMATCH[1]}"
       local binding="${BASH_REMATCH[2]}"
 
-      # Handle bindd format (with description)
+      # Handle bindd format
       if [[ "$bind_type" =~ ^bindd ]]; then
         if [[ "$binding" =~ ^([^,]*),([^,]*),([^,]*),([^,]*)(,(.*))?$ ]]; then
           local modifier="${BASH_REMATCH[1]}"
@@ -137,53 +120,11 @@ parse_keybindings() {
 
           bindings+=("$key_combo" "$description")
         fi
-      # Handle bindm format (mouse bindings) - skip for now as they're handled differently
-      elif [[ "$bind_type" == "bindm" ]]; then
-        continue
-      # Handle other bind formats - generate description from action
-      else
-        if [[ "$binding" =~ ^([^,]*),([^,]*),([^,]*)(,(.*))?$ ]]; then
-          local modifier="${BASH_REMATCH[1]}"
-          local key="${BASH_REMATCH[2]// /}"
-          local action="${BASH_REMATCH[3]// /}"
-          local command="${BASH_REMATCH[5]}"
-
-          local key_combo
-          key_combo=$(create_key_combo "$modifier" "$key" "$current_submap")
-
-          local description
-          description=$(get_action_description "$action" "$command")
-
-          bindings+=("$key_combo" "$description")
-        fi
       fi
     fi
   done <"$KEYBINDINGS_CONFIG"
 
   printf '%s\n' "${bindings[@]}"
-}
-
-# Get readable description for actions
-get_action_description() {
-  local action="$1"
-  local command="$2"
-
-  case "$action" in
-  "killactive") echo "Close active window" ;;
-  "movewindow") echo "Move window" ;;
-  "movefocus") echo "Move focus" ;;
-  "workspace") echo "Switch to workspace" ;;
-  "movetoworkspace") echo "Move window to workspace" ;;
-  "togglesplit") echo "Toggle split layout" ;;
-  "pseudo") echo "Toggle pseudo mode" ;;
-  "pin") echo "Pin floating window" ;;
-  "fullscreen") echo "Toggle fullscreen" ;;
-  "centerwindow") echo "Center window" ;;
-  "resizeactive") echo "Resize window" ;;
-  "submap") echo "Enter $command mode" ;;
-  "exec") echo "Execute command" ;;
-  *) echo "$action" ;;
-  esac
 }
 
 # Display GUI
@@ -194,8 +135,8 @@ show_keybindings_gui() {
   echo "$bindings_data" | yad \
     --list \
     --title="keybindings" \
-    --width=550 \
-    --height=700 \
+    --width=650 \
+    --height=750 \
     --no-selection \
     --no-buttons \
     --search-column=2 \
@@ -208,7 +149,7 @@ show_keybindings_gui() {
 
 # Main execution
 main() {
-  check_and_toggle
+  ensure_single_instance
   check_dependencies
   show_keybindings_gui
 }
