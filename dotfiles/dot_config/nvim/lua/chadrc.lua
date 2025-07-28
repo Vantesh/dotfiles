@@ -28,20 +28,31 @@ M.ui = {
 		order = { "treeOffset", "buffers", "tabs", "btns" },
 		modules = nil,
 	},
+
+	cmp = {
+		icons_left = false, -- only for non-atom styles!
+		style = "default", -- default/flat_light/flat_dark/atom/atom_colored
+		abbr_maxwidth = 60,
+		-- for tailwind, css lsp etc
+		format_colors = { lsp = true, icon = "󱓻" },
+	},
+
 	telescope = { style = "bordered" },
 
 	term = {
-		hl = "Normal:term,WinSeparator:WinSeparator",
-		sizes = { sp = 0.3, vsp = 0.2 },
+		base46_colors = true,
+		winopts = { number = false, relativenumber = false },
+		sizes = { sp = 0.3, vsp = 0.2, ["bo sp"] = 0.3, ["bo vsp"] = 0.2 },
 		float = {
 			relative = "editor",
-			row = 90.3,
-			col = 9.25,
-			width = 90.5,
+			row = 0.3,
+			col = 0.25,
+			width = 0.5,
 			height = 0.4,
 			border = "single",
 		},
 	},
+
 
 
 }
