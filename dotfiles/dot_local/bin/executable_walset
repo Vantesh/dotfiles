@@ -9,6 +9,9 @@ readonly SERVICES_TO_RESTART=(
   "xdg-desktop-portal-gtk"
 )
 
+readonly HYPRLOCK_PNG="$HOME/.config/hypr/hyprlock/icon.png"
+readonly HYPRLOCK_SVG="$HOME/.cache/wal/icon.svg"
+
 update_system_agents() {
   for service in "${SERVICES_TO_RESTART[@]}"; do
     if systemctl --user is-active --quiet "$service"; then
@@ -106,6 +109,7 @@ if pgrep nvim >/dev/null; then
   killall -SIGUSR1 nvim
 fi
 
+magick -background none "$HYPRLOCK_SVG" "$HYPRLOCK_PNG"
 update_system_agents
 update_gtk_css
 
