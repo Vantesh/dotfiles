@@ -72,9 +72,9 @@ else
 fi
 
 # update system first
-print_info "Updating system first"
+print_info "Updating system......"
 if sudo pacman -Syu --noconfirm &>/dev/null; then
-   print_info "System updated, installing deps"
+  print_info "System updated, installing deps"
 fi
 
 failed_packages=()
@@ -304,7 +304,7 @@ if confirm "Do you want to set up Snapper?"; then
       echo # just to space out the entry
       cat "$LIMINE_SNAPPER_TEMPLATE"
     } | sudo tee "$LIMINE_CONFIG_FILE" >/dev/null; then
-      print_info "Limine template added."
+      print_info "Limine snapper template added."
     else
       print_error "Failed to update Limine configuration."
     fi
@@ -400,12 +400,10 @@ EOF
 
   enable_service "libinput-gestures.service" "user"
 
-  precision_5530=$(sudo dmidecode -s system-product-name | grep -i "Precision 5530")
-  if [[ -n "$precision_5530" ]]; then
-    if sudo cp "${CHEZMOI_WORKING_TREE}/extras/udev/"*.rules /etc/udev/rules.d/ && reload_udev_rules &>/dev/null; then
-      print_info "Precision 5530 udev rules applied"
-    else
-      print_error "Failed to apply Precision 5530 udev rules"
-    fi
+  print_info "Setting up powertop"
+  if sudo powertop --auto-tune >/dev/null 2>&1; then
+    print_info "Powertop auto-tune applied successfully"
+  else
+    print_warning "Failed to apply Powertop auto-tune"
   fi
 fi

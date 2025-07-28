@@ -8,6 +8,8 @@ readonly SWAP_FILE_PATH="/swap/swapfile"
 readonly MKINIT_CONF="/etc/mkinitcpio.conf"
 readonly HOOKS="base systemd autodetect microcode modconf kms keyboard sd-vconsole block filesystems"
 
+gpu_info=$(lspci -nn | grep -Ei "VGA compatible controller|3D controller|Display controller")
+
 # ram size in GB
 ram_size=$(awk '/MemTotal/ {printf "%d\n", int(($2 + 1024 * 1024 - 1) / (1024 * 1024)) + ((($2 + 1024 * 1024 - 1) % (1024 * 1024)) > 0 ? 1 : 0)}' /proc/meminfo)
 
@@ -124,7 +126,7 @@ setup_hibernation() {
 
 if is_btrfs && is_laptop && confirm "Do you want to set up hibernation? "; then
   print_box "smslant" "Hibernation"
-  print_step "Setting up hibernation with Btrfs swap subvolume and file"
+  print_step "Setting up hibernation"
 
   create_backup "$MKINIT_CONF"
   create_backup "/etc/fstab"
@@ -173,10 +175,16 @@ w    /sys/power/image_size  -    -    -    -   0
 EOF
   fi
 
-  if sudo sed -i -E '/btrfs/ { s/\brelatime\b/noatime/g; s/\bdefaults\b/defaults,noatime/g; s/(,noatime){2,}/,noatime/g; s/,+/,/g; }' /etc/fstab; then
-    print_info "Updated /etc/fstab with noatime for Btrfs"
-    reload_systemd_daemon
-  else
-    print_error "Failed to update /etc/fstab with noatime for Btrfs"
+  # nvidia services
+  if [[ $gpu_info == *"NVIDIA Corporation"* ]]; then
+    enable_service "nvidia-suspend-then-hibernate.service" "system"
+    enable_service "nvidia-hibernate.service" "system"
+    enable_service "nvidia-suspend.service" "system"
+    enable_service "nvidia-resume.service" "system"
+
+    write_system_config "/etc/tmpfiles.d/nvidia_pm.conf" "nvidia power management config" <<'EOF'
+# /etc/tmpfiles.d/nvidia_pm.conf# /etc/tmpfiles.d/nvidia_pm.conf
+w /sys/bus/pci/devices/0000:01:00.0/power/control - - - - auto
+EOF
   fi
 fi
