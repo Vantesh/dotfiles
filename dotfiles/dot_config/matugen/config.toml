@@ -9,8 +9,12 @@
   post_hook   = 'kitty +kitten themes --reload-in=all Matugen'
 
 [templates.hyprland]
-  input_path  = '~/.config/matugen/templates/hyprland.conf'
+  input_path  = '~/.config/matugen/templates/hypr/hyprland.conf'
   output_path = '~/.config/hypr/hyprland/theme/colors.conf'
+
+[templates.hyprlock-icon]
+  input_path  = '~/.config/matugen/templates/hypr/icon.svg'
+  output_path = '~/.cache/wal/icon.svg'
 
 [templates.btop]
   input_path  = '~/.config/matugen/templates/cli/btop.theme'
