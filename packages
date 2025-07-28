@@ -17,6 +17,7 @@ core=(
   swww
   imv
   matugen-bin
+  wallust
   ags-hyprpanel-git #TODO: replace with quickshell
   pyprland
   devify
@@ -59,12 +60,14 @@ core=(
   nvtop
   btop
   reflector
+  wget
   pacman-contrib
 
   # ZSH and related tools
   zsh
   oh-my-posh-bin
   zoxide
+  fd
   duf
   fastfetch
   pkgfile
@@ -79,7 +82,6 @@ core=(
   ripgrep
   imagemagick
   chafa
-
 )
 
 fonts=(
@@ -112,11 +114,13 @@ optional=(
   mpv
   neovim
   spotify-launcher
+  spicetify-cli
   git-delta
   localsend
   antidot
   vesktop-bin
   yazi
+  gpu-screen-recorder
 )
 
 drivers=(
@@ -191,6 +195,7 @@ if [[ -n $is_laptop ]]; then
   core+=(
     auto-cpufreq
     upower
+    powertop
     libinput-gestures
   )
 fi
