@@ -38,12 +38,21 @@ else
   print_error "Failed to copy SDDM theme files"
 fi
 
+# ===================================================================================
+# BOOTLOADER THEME
+# ===================================================================================
+
 if [[ $(detect_bootloader) == "grub" ]]; then
   print_box "smslant" "GRUB"
   print_step "Setting up GRUB theme"
-  temp_dir=$(mktemp -d)
-  if [[ ! -d "/usr/share/grub/themes/Sekiro" ]]; then
+
+  if [[ -d "/usr/share/grub/themes/Sekiro" ]]; then
+    print_warning "GRUB theme already exists, skipping download"
+
+  else
     print_info "Installing GRUB theme"
+
+    temp_dir=$(mktemp -d)
     if git clone "${GRUB_THEME_URL}" "$temp_dir" >/dev/null 2>&1; then
       if cd "$temp_dir" && sudo ./install.sh >/dev/null 2>&1; then
         print_info "GRUB theme installed successfully"
@@ -51,12 +60,68 @@ if [[ $(detect_bootloader) == "grub" ]]; then
         rm -rf "$temp_dir"
       fi
     fi
-  else
-    print_warning "GRUB theme already exists"
-  fi
 
+  fi
 fi
 
+if [[ $(detect_bootloader) == "limine" ]] && ! grep -q "CachyOS" /etc/os-release; then
+  print_box "smslant" "Limine"
+  print_step "Setting up Limine theme"
+
+  limine_conf="/boot/limine.conf"
+  THEME_BLOCK=$(
+    cat <<'EOF'
+# catppuccin mocha theme for limine
+timeout: 1
+default_entry: 2
+interface_branding:
+term_palette: 1e1e2e;f38ba8;a6e3a1;f9e2af;89b4fa;f5c2e7;94e2d5;cdd6f4
+term_palette_bright: 585b70;f38ba8;a6e3a1;f9e2af;89b4fa;f5c2e7;94e2d5;cdd6f4
+term_background: 1e1e2e
+term_foreground: cdd6f4
+term_background_bright: 1e1e2e
+term_foreground_bright: cdd6f4
+EOF
+  )
+
+  if grep -iq "term_palette=" "$limine_conf"; then
+    print_warning "Limine theme settings already exist."
+  else
+    if create_backup "$limine_conf"; then
+      sudo sed -i -E \
+        -e '/^\s*#*\s*(timeout|default_entry|interface_branding|term_palette|term_palette_bright|term_background|term_foreground|term_background_bright|term_foreground_bright)\s*[:=].*/Id' \
+        -e '/^\s*#*\s*catppuccin mocha theme for limine/Id' \
+        "$limine_conf"
+
+      # Create a temporary file to safely store the new content
+      temp_file=$(mktemp)
+
+      # Use awk to generate the new content and save it to the temp file
+      awk -v block="$THEME_BLOCK" '
+        BEGIN { inserted=0 }
+        {
+          if (!inserted && $0 ~ /^\/\+Arch Linux/) {
+            print "";
+            print block;
+            print "";
+            inserted=1
+          }
+          print
+        }
+      ' "$limine_conf" >"$temp_file"
+
+      # If awk succeeded, write the new content to the original file.
+      if [[ -s "$temp_file" ]]; then
+        sudo cat "$temp_file" | sudo tee "$limine_conf" >/dev/null
+        rm "$temp_file"
+        print_info "Limine theme has been added successfully."
+      else
+        print_error "Failed to generate new limine.conf. No changes made."
+        rm "$temp_file"
+      fi
+    fi
+  fi
+fi
 #===================================================================================
 # Plymouth
 #===================================================================================
@@ -177,7 +242,7 @@ EOF
 
 # make zsh the default shell
 if confirm "Do you want to set ZSH as your default shell?"; then
-  if chsh -s "$(which zsh)" >/dev/null 2>&1; then
+  if chsh -s "$(which zsh)"; then
     print_info "ZSH set as default shell successfully"
   else
     print_error "Failed to set ZSH as default shell"
@@ -187,7 +252,7 @@ else
 fi
 
 if confirm "Make ZSH default for root user?"; then
-  if sudo chsh -s "$(which zsh)" root >/dev/null 2>&1; then
+  if sudo chsh -s "$(which zsh)" root; then
     if [[ ! -d "/root/.config" ]]; then
       sudo mkdir -p "/root/.config"
       if sudo cp -r "${HOME}/.config/zsh" "/root/.config/" &&
@@ -267,7 +332,7 @@ EOF
     ["server_names"]="['cloudflare', 'cloudflare-ipv6']"
   )
   for key in "${!cloudflare_dns[@]}"; do
-    update_config_file "$DNSCRYPT_CONFIG_FILE" "$key" "${cloudflare_dns[$key]}"
+    update_config "$DNSCRYPT_CONFIG_FILE" "$key" "${cloudflare_dns[$key]}"
   done
 
   enable_service "dnscrypt-proxy.service" "system"
@@ -290,4 +355,29 @@ systemd-resolved=false
 EOF
   fi
 
+fi
+
+# ===============================================================================
+# FSTAB
+# ===============================================================================
+
+if is_btrfs; then
+  if sudo sed -i -E '/btrfs/ { s/\brelatime\b/noatime/g; s/\bdefaults\b/defaults,noatime/g; s/(,noatime){2,}/,noatime/g; s/,+/,/g; }' /etc/fstab; then
+    print_info "Updated /etc/fstab with noatime for Btrfs"
+    reload_systemd_daemon
+  else
+    print_error "Failed to update /etc/fstab with noatime for Btrfs"
+  fi
+
+fi
+
+# ===============================================================================
+# FINALIZE
+# ===============================================================================
+
+if confirm "Setup done. Do you want to reboot now?"; then
+  print_info "Rebooting system to apply changes..."
+  reboot
+else
+  print_warning "Setup done, but you need to reboot for changes to take effect."
 fi
