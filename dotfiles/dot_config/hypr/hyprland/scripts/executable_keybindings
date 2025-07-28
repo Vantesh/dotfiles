@@ -39,8 +39,8 @@ format_special_key() {
   "XF86AudioPause") echo "Pause" ;;
   "XF86AudioPlay") echo "Play" ;;
   "XF86AudioPrev") echo "Previous Track" ;;
-  "mouse:272") echo "Left Mouse" ;;
-  "mouse:273") echo "Right Mouse" ;;
+  "mouse:272") echo "LMB" ;;
+  "mouse:273") echo "RMB" ;;
   "mouse_down") echo "Mouse Scroll Down" ;;
   "mouse_up") echo "Mouse Scroll Up" ;;
   *) echo "$key" ;;
@@ -59,9 +59,7 @@ format_modifier() {
 
   # Handle space-separated modifiers with proper spacing
   modifier="${modifier// /   +  }"
-  modifier="${modifier//CTRL/Ctrl}"
-  modifier="${modifier//ALT/Alt}"
-  modifier="${modifier//SHIFT/Shift}"
+  modifier="${modifier//ALT_R/Right ALT}"
 
   echo "$modifier"
 }
@@ -135,8 +133,8 @@ show_keybindings_gui() {
   echo "$bindings_data" | yad \
     --list \
     --title="keybindings" \
-    --width=650 \
-    --height=750 \
+    --width=800 \
+    --height=900 \
     --no-selection \
     --no-buttons \
     --search-column=2 \
