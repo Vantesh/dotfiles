@@ -1,17 +1,15 @@
-@import "colors.rasi"
+@import "colors"
 
 /* ---- Map colors ---- */
 * {
     foreground: @on-surface;
+
 }
 
 /*****----- Configuration -----*****/
 configuration {
 
-font:                      "Monolisa Nerd Font 15";
-
-
-	modi:                       "drun,filebrowser,window";
+  modi:                       "drun,filebrowser,window";
   show-icons:                 true;
   display-drun:               "";
   display-run:                "";
@@ -121,25 +119,26 @@ prompt {
 }
 textbox-prompt-colon {
     enabled:                     true;
-    padding:                     10px 5px 10px 0px;
+    padding:                     10px 10px 10px 0px;
     expand:                      false;
     str:                         "";
     background-color:            inherit;
-    text-color:                  @foreground;
+    text-color:                  @secondary;
 }
+
 entry {
     enabled:                     true;
+    border-radius:               10px;
     spacing:                     1em;
     padding:                     8px 5px;
-    border:                      1px solid;
-    border-radius:               10px;
-    border-color:                inherit;
+    border:                      0px solid;
+    background-color:            @background;
+    text-color:                  @foreground;
     cursor:                      text;
-    placeholder:                 "";
-    placeholder-color:           inherit;
+    placeholder:                 " Search";
+    placeholder-color:           @surface-container-highest;
 
 }
-
 
 
 /*****----- Listview -----*****/

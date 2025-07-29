@@ -1,7 +1,6 @@
 
 [config]
-  mode        = "dark"
-  reload_apps = true
+  mode = "dark"
 
 [templates.kitty]
   input_path  = '~/.config/matugen/templates/kitty.conf'
@@ -106,3 +105,8 @@
 [config.custom_colors.purple]
   color = "#cba6f7"
   blend = true
+
+[config.custom_keywords]
+  font1     = "JetBrainsMono Nerd Font"
+  font2     = "SF Pro Rounded Semi-Bold"
+  font_size = "15"
