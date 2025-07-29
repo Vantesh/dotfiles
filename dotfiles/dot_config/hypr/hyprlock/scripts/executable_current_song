@@ -1,6 +1,10 @@
 #!/bin/bash
 
 get_current_song() {
+  SPOTIFY_ICON="<span color='#a6e3a1'>󰓇 </span>"
+  FIREFOX_ICON="<span color='#f38ba8'> </span>"
+  VLC_ICON="<span color='#FFDB3C > 󰕼 </span>"
+
   command -v playerctl &>/dev/null || exit 1
 
   current_player=$(playerctl -a metadata -f '{{playerName}} {{status}}' 2>/dev/null | awk '$2 == "Playing" {print $1; exit}')
@@ -21,10 +25,10 @@ get_current_song() {
     -e 's/^\s+|\s+$//g')
 
   case "$current_player" in
-  *spotify*) icon="" ;;
+  *spotify*) icon="$SPOTIFY_ICON" ;;
   *mpv*) icon="" ;;
-  *vlc*) icon="󰕼" ;;
-  *firefox*) icon="" ;;
+  *vlc*) icon="$VLC_ICON" ;;
+  *firefox*) icon="$FIREFOX_ICON" ;;
   *brave*) icon="" ;;
   *chromium* | *chrome*) icon="" ;;
   *) icon="" ;;
