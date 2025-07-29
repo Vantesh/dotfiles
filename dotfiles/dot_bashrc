@@ -6,6 +6,9 @@ PS1='[\u@\h \W]\$ '
 
 
 source "$ZDOTDIR/aliasrc"
+source "$ZDOTDIR/exportsrc"
+
+export HISTFILE="${XDG_CACHE_HOME}/bash/history"
 
 ## GENERAL OPTIONS ##
 
