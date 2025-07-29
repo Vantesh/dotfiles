@@ -67,3 +67,5 @@
   path = ~/.config/git/.gitconfig.local
 
 
+[init]
+	defaultBranch = main
