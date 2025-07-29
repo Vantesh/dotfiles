@@ -1,0 +1,9 @@
+
+[".local/share/fonts/maple-mono"]
+  url     = {{ gitHubLatestReleaseAssetURL "subframe7536/maple-font" "MapleMonoNormal-TTF-AutoHint.zip" | quote }}
+  type    = "archive"
+  include = ["*.ttf"]
+
+[".local/share/icons/macOS"]
+  url     = {{ gitHubLatestReleaseAssetURL "driedpampas/macOS-hyprcursor" "macOS.Hyprcursor.SVG.White.tar.gz" | quote }}
+  type = "archive"
