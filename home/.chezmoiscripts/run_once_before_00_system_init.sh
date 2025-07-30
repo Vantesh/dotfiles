@@ -67,13 +67,12 @@ if ! is_chaotic_aur; then
   else
     print_warning "Skipping Chaotic AUR installation."
   fi
-else
-  print_info "Chaotic AUR is already installed."
 fi
 
 # update system first
 print_info "Updating system......"
-if sudo pacman -Syu --noconfirm &>/dev/null; then
+if sudo pacman -Syu --noconfirm; then
+  clear
   print_info "System updated, installing deps"
 fi
 
