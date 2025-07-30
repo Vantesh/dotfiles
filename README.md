@@ -11,36 +11,36 @@ Hyprland dotfiles managed using [chezmoi](https://github.com/twpayne/chezmoi).
 
 #### Desktop
 
-![Desktop](docs/previews/desktop.png)
+![Desktop](assets/previews/desktop.png)
 
 #### Lock Screen
 
-![Lock Screen](docs/previews/hyprlock.png)
+![Lock Screen](assets/previews/hyprlock.png)
 
 #### Rofi Application Launcher
 
-![Application Launcher](docs/previews/launcher.png)
+![Application Launcher](assets/previews/launcher.png)
 
 #### Kitty Terminal
 
-![Terminal](docs/previews/terminal.png)
+![Terminal](assets/previews/terminal.png)
 
 #### Thunar File Manager
 
-![File Manager](docs/previews/filemanager.png)
+![File Manager](assets/previews/filemanager.png)
 
 #### Clipboard Manager
 
-![clipboard](docs/previews/clipboard.png)
+![clipboard](assets/previews/clipboard.png)
 
 #### Emoji Picker
 
-![emoji picker](docs/previews/emoji-picker.png)
+![emoji picker](assets/previews/emoji-picker.png)
 
 #### Development Environment
 
-![nvim](docs/previews/nvim.png)
-![VSCode](docs/previews/vscode.png)
+![nvim](assets/previews/nvim.png)
+![VSCode](assets/previews/vscode.png)
 
 </details>
 

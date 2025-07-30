@@ -24,7 +24,7 @@ EnableHiDPI=true
 EOF
 
 # copy stray theme files
-if sudo cp -r "${CHEZMOI_WORKING_TREE}/extras/sddm/stray" /usr/share/sddm/themes/; then
+if sudo cp -r "${CHEZMOI_WORKING_TREE}/assets/sddm/stray" /usr/share/sddm/themes/; then
   sudo chmod -R 755 /usr/share/sddm/themes/stray
   print_info "SDDM theme files copied successfully"
 
