@@ -4,7 +4,7 @@
 source "${CHEZMOI_SOURCE_DIR:?env variable missing. Please only run this script via chezmoi}/.chezmoiscripts/helpers/.00_helpers"
 source "${CHEZMOI_SOURCE_DIR:?env variable missing. Please only run this script via chezmoi}/.chezmoiscripts/helpers/.01_chaotic_aur"
 
-source "${CHEZMOI_WORKING_TREE}/packages"
+source "${CHEZMOI_WORKING_TREE}/assets/packages"
 
 dependencies=(
   "${core[@]}"
