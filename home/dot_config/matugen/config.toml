@@ -57,7 +57,7 @@
 
 [templates.papirus-folders]
   input_path  = '~/.config/matugen/templates/folder-color.txt'
-  output_path = '~/.local/share/papirus-folders/folder-color.txt'
+  output_path = '~/.cache/wal/papirus-folders.txt'
 
 [templates.spicetify]
   input_path  = '~/.config/matugen/templates/spotify.ini'
