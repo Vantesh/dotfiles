@@ -114,7 +114,7 @@ update_system_agents
 update_gtk_css
 
 # update bat cache
-#bat cache --build &> /dev/null
+bat cache --build &> /dev/null
 
 # Run slow updates in the background.
 update_folder_colors &
