@@ -1,0 +1,17 @@
+# vim: ft=sshconfig
+
+Host *
+    AddKeysToAgent yes
+    HashKnownHosts no
+    Compression yes
+    ConnectionAttempts 5
+    ServerAliveInterval 60
+    # IdentitiesOnly yes
+
+Host github.com
+    HostName github.com
+
+Host gist.github.com
+  HostName gist.github.com
+
+
