@@ -5,8 +5,8 @@ PS1='[\u@\h \W]\$ '
 
 
 
-source "$ZDOTDIR/aliasrc"
-source "$ZDOTDIR/exportsrc"
+source "$HOME/.config/shell/exportsrc"
+source "$HOME/.config/shell/aliasrc"
 
 export HISTFILE="${XDG_CACHE_HOME}/bash/history"
 
