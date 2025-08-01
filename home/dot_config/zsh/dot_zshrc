@@ -1,4 +1,4 @@
-
+#!/usr/bin/env zsh
 # If not running interactively, don't do anything
 [[ $- != *i* ]] && return
 
@@ -150,7 +150,7 @@ fi
 # PROMPT
 # ---------------------------------------------------
 if command -v starship &>/dev/null; then
-    eval "$(starship init zsh)" 
+    eval "$(starship init zsh)"
 fi
 
 # Add a newline between commands
