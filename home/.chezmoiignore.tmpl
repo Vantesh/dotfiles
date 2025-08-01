@@ -1,0 +1,21 @@
+key.txt.age
+
+{{ if eq .chezmoi.os "linux" }}
+.chezmoiscripts/windows/**
+Documents
+{{ else if eq .chezmoi.os "windows" }}
+.chezmoiscripts/linux/**
+.config/kitty
+.config/hypr/**
+.config/waybar
+.config/rofi
+.config/matugen
+.config/kvantum
+.config/paru
+.config/clipse
+.config/gtk*
+.config/
+{{ else }}
+.chezmoiscripts/windows/**
+.chezmoiscripts/linux/**
+{{ end }}
