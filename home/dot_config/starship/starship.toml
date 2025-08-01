@@ -1,0 +1,74 @@
+
+add_newline = false
+
+
+format = """
+$username\
+$hostname\
+$directory\
+$git_branch\
+$git_state\
+$git_status\
+$git_metrics\
+$git_commit\
+$line_break\
+$status\
+$character"""
+
+right_format = """
+$time\
+$cmd_duration\
+"""
+
+[character]
+  success_symbol            = "[➜](bold green)"
+  error_symbol              = "[➜](bold red)"
+  vimcmd_symbol             = "[❮](bold green)"
+  vimcmd_visual_symbol      = "[❮](bold yellow)"
+  vimcmd_replace_one_symbol = "[❮](bold purple)"
+
+
+[directory]
+  truncation_length = 3
+  read_only         = " 󰌾"
+
+[username]
+  show_always = true
+  format      = '[$user]($style) in '
+
+
+[hostname]
+  disabled = false
+  format   = "[$ssh_symbol$hostname]($style) in "
+
+[status]
+  format   = '[$symbol ]($style)'
+  disabled = false
+  symbol   = ""
+
+
+[cmd_duration]
+  min_time = 5000
+  format   = "[󰔟 $duration](bold yellow)"
+
+
+[git_metrics]
+  disabled      = false
+  added_style   = "green"
+  deleted_style = "red"
+
+[git_branch]
+  symbol = " "
+
+[git_status]
+  format    = '([\[$all_status$ahead_behind\]]($style) )'
+  style     = "red bold"
+  ahead     = '⇡${count} '
+  behind    = '⇣${count} '
+  diverged  = '⇕⇡${ahead_count}⇣${behind_count}'
+  modified  = "!${count} "
+  staged    = "+${count} "
+  renamed   = '→${count} '
+  untracked = '?${count} '
+  stashed   = '[ $count](cyan) '
+  deleted   = '[-${count}](red) '
