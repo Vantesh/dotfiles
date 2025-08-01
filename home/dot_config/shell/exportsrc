@@ -21,17 +21,6 @@ export WGETRC="${XDG_CONFIG_HOME}/wget/wgetrc"
 alias wget="wget --hsts-file="${XDG_CACHE_HOME}/wget-hsts""
 export LESSHISTFILE="-"
 
-{{- if eq .passwordManager "Bitwarden" }}
-export SSH_AUTH_SOCK="$HOME/.bitwarden-ssh-agent.sock"
-export GPG_TTY=$(tty) # some fix idk
-{{- end }}
-
-{{- if eq .passwordManager "1Password" }}
-export SSH_AUTH_SOCK=~/.1password/agent.sock
-export GPG_TTY=$(tty)
-{{- end }}
-
-
 # ----------------------------------------------------------------------------
 # DEFAULT ENVIRONMENT VARIABLES
 # ----------------------------------------------------------------------------
@@ -49,12 +38,9 @@ export PATH=$PATH:"$CARGO_HOME"/bin
 export PATH=$PATH:"$RUSTUP_HOME"/bin
 export PATH=$PATH:"$GOPATH"/bin
 export PATH=$PATH:"$HOME/.spicetify"
-export PATH=$PATH:"$HOME/.local/bin"
-
 # ----------------------------------------------------------------------------
 # COLORS
 # ----------------------------------------------------------------------------
 export MANPAGER="sh -c 'sed -u -e \"s/\\x1B\[[0-9;]*m//g; s/.\\x08//g\" | bat -p -lman'"
 export MANROFFOPT="-P -c"
 export LESS='-R --use-color -Dd+r$Du+b$'
-export SUDO_PROMPT=$'[\e[31;5msudo\e[m] password for \e[33;1m%p\e[m: '
