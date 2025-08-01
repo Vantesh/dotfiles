@@ -49,11 +49,35 @@ Hyprland dotfiles managed using [chezmoi](https://github.com/twpayne/chezmoi).
 - **Minimal Arch Linux installation** OR **CachyOS** (not thoroughly tested)
 - **Network access** - For downloading packages and dependencies
 
-1. Initialize and apply the dotfiles:
+## Installation
+
+### Method 1: Direct Installation
+
+Initialize and apply the dotfiles directly:
 
 ```bash
-sh -c "$(curl -fsLS get.chezmoi.io)" -- -b "$HOME/.local/bin" init --apply vantesh
+chezmoi init --apply vantesh
 ```
+
+### Method 2: Clone and Install
+
+If you prefer to clone the repository first:
+
+```bash
+# Clone the dotfiles repository
+git clone https://github.com/vantesh/dotfiles.git
+
+# Navigate to the cloned directory
+cd dotfiles
+
+# Make the install script executable
+chmod +x install.sh
+
+# Run the installation script
+./install.sh
+```
+
+This method allows you to inspect and modify the configurations before installation.
 
 ## Keybindings
 
