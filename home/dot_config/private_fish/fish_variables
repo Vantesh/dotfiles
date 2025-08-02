@@ -1,0 +1,53 @@
+# This file contains fish universal variable definitions.
+# VERSION: 3.0
+SETUVAR --export FZF_DEFAULT_OPTS:\x20\x20\x2d\x2dcolor\x3dbg\x2b\x3a\x23343a3b\x2cbg\x3a\x230e1415\x2cspinner\x3a\x23b6c7e9\x2chl\x3a\x2380d4d9\x20\x20\x20\x2d\x2dcolor\x3dfg\x3a\x23dde4e4\x2cheader\x3a\x2380d4d9\x2cinfo\x3a\x23b6c7e9\x2cpointer\x3a\x23dde4e4\x20\x20\x20\x2d\x2dcolor\x3dmarker\x3a\x23ffb4ab\x2cfg\x2b\x3a\x23dde4e4\x2cprompt\x3a\x2380d4d9\x2chl\x2b\x3a\x2380d4d9\x20\x20\x20\x2d\x2dcolor\x3dselected\x2dbg\x3a\x23343a3b\x20\x20\x20\x2d\x2dheight\x2040\x25\x20\x2d\x2dlayout\x3dreverse\x20\x2d\x2dborder\x3drounded\x20\x2d\x2dinfo\x3dright\x20\x20\x20\x2d\x2dcolor\x3dlabel\x3a\x23bec8c9\x20\x20\x20\x2d\x2dcolor\x3dborder\x3a\x233f4949\x20\x20\x20\x2d\x2dpointer\x3d\x27\x27\x20\x20\x20\x2d\x2dprompt\x3d\x27\u276f\x20\x27\x20\x20\x20\x2d\x2dmulti
+SETUVAR --export GROFF_NO_SGR:1
+SETUVAR --export LESS_TERMCAP_mb:\x1b\x5b1\x3b34m
+SETUVAR --export LESS_TERMCAP_md:\x1b\x5b1\x3b34m
+SETUVAR --export LESS_TERMCAP_me:\x1b\x5b0\x3b10m
+SETUVAR --export LESS_TERMCAP_se:\x1b\x5b0\x3b10m
+SETUVAR --export LESS_TERMCAP_so:\x1b\x5b1\x3b33m
+SETUVAR --export LESS_TERMCAP_ue:\x1b\x5b0\x3b10m
+SETUVAR --export LESS_TERMCAP_us:\x1b\x5b4\x3b35m
+SETUVAR __fish_initialized:3800
+SETUVAR fish_color_autosuggestion:899295
+SETUVAR fish_color_cancel:dee3e5
+SETUVAR fish_color_command:85d2e7
+SETUVAR fish_color_comment:dee3e5
+SETUVAR fish_color_cwd:dee3e5
+SETUVAR fish_color_cwd_root:red
+SETUVAR fish_color_end:b2cbd2
+SETUVAR fish_color_error:ffb4ab
+SETUVAR fish_color_escape:131937
+SETUVAR fish_color_gray:343a3c
+SETUVAR fish_color_history_current:\x2d\x2dbold
+SETUVAR fish_color_host:dee3e5
+SETUVAR fish_color_host_remote:dee3e5
+SETUVAR fish_color_keyword:dde1ff
+SETUVAR fish_color_match:accae5
+SETUVAR fish_color_normal:dee3e5
+SETUVAR fish_color_operator:dde1ff
+SETUVAR fish_color_option:85d2e7
+SETUVAR fish_color_param:bfc4eb
+SETUVAR fish_color_quote:dee3e5
+SETUVAR fish_color_redirection:bfc4eb
+SETUVAR fish_color_search_match:\x2d\x2dbackground\x3d899295
+SETUVAR fish_color_selection:\x2d\x2dbackground\x3d899295
+SETUVAR fish_color_status:dee3e5
+SETUVAR fish_color_user:dee3e5
+SETUVAR fish_color_valid_path:\x2d\x2dunderline
+SETUVAR fish_key_bindings:fish_default_key_bindings
+SETUVAR fish_pager_color_background:\x1d
+SETUVAR fish_pager_color_completion:85d2e7
+SETUVAR fish_pager_color_description:85d2e7
+SETUVAR fish_pager_color_prefix:bfc4eb
+SETUVAR fish_pager_color_progress:85d2e7
+SETUVAR fish_pager_color_secondary_background:\x1d
+SETUVAR fish_pager_color_secondary_completion:\x1d
+SETUVAR fish_pager_color_secondary_description:\x1d
+SETUVAR fish_pager_color_secondary_prefix:\x1d
+SETUVAR fish_pager_color_selected_background:\x1d
+SETUVAR fish_pager_color_selected_completion:\x1d
+SETUVAR fish_pager_color_selected_description:\x1d
+SETUVAR fish_pager_color_selected_prefix:\x1d
+SETUVAR fish_user_paths:/home/vantesh/\x2elocal/share/go/bin\x1e/home/vantesh/\x2elocal/bin
