@@ -85,17 +85,15 @@ if [[ -n $is_laptop ]]; then
 fi
 
 # SHELL
-{{- if eq .shell.default "fish" }}
-dependencies+=(
-  fish
-)
-
-{{- else if eq .shell.default "zsh" }}
-dependencies+=(
-  zsh
-)
-
+{{- if ne .chezmoi.username "vantesh" }}
+dependencies+=("{{ .default_shell }}")
+{{- else }}
+dependencies+=("{{ .shell.default }}")
 {{- end }}
+
+
+
+
 # =============================================================================
 # Initialize Environment
 # =============================================================================
