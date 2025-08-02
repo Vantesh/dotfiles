@@ -6,9 +6,6 @@ apps=(
   "pypr"
   "hyprpanel"
   "/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1"
-  {{- if eq .passwordManager "1Password" }}
-  "1password --silent"
-  {{- end }}
 )
 
 for app in "${apps[@]}"; do

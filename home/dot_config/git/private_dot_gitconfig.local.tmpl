@@ -1,25 +1,17 @@
+{{- if eq .chezmoi.username "vantesh" }}
 [user]
-  name = {{ .name }}
-  email = {{ .email }}
-{{- if .signkey }}
-{{- if eq .passwordManager "Bitwarden" }}
-  signingkey = {{ (bitwarden "item" "git commits").sshKey.publicKey }}
-{{- else if eq .passwordManager "1Password" }}
-  signingkey = {{ onepasswordRead "op://Personal/Git commits/public key" }}
-{{- end }}
-{{- end }}
-
-{{- if .signkey }}
+    name = "{{ .git.username }}"
+    email = "{{ .git.email }}"
+    signingkey = {{ (bitwarden "item" "git commits").sshKey.publicKey }}
 
 [gpg]
-  format = ssh
-
-{{- if eq .passwordManager "1Password" }}
-
-[gpg "ssh"]
-  program = "/opt/1Password/op-ssh-sign"
-{{- end }}
+    format = ssh
 
 [commit]
-  gpgsign = true
-{{- end }}
+    gpgsign = true
+
+{{ else }}
+[user]
+    name = "{{ .git_username }}"
+    email = "{{ .git_email }}"
+{{ end }}
