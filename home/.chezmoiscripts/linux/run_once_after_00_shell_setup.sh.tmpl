@@ -1,0 +1,76 @@
+#!/usr/bin/env bash
+
+# shellcheck disable=SC1091
+source "${CHEZM‌​OI_SOURCE_DIR:?env variable missing. Please only run this script via chezmoi}/.chezmoiscripts/linux/helpers/.00_helpers"
+
+# =============================================================================
+# Initialize Environment
+# =============================================================================
+common_init "Shell Setup"
+
+# =============================================================================
+# ZSH setup
+# =============================================================================
+zsh_setup() {
+  print_box "smslant" "ZSH"
+  print_step "Setting up ZSH"
+
+  readonly ZSHENV_FILE="/etc/zsh/zshenv"
+  write_system_config "$ZSHENV_FILE" "ZSH environment configuration" <<EOF
+# ZSH environment file for XDG Base Directories
+
+export XDG_CONFIG_HOME="\${XDG_CONFIG_HOME:-\$HOME/.config}"
+export XDG_DATA_HOME="\${XDG_DATA_HOME:-\$HOME/.local/share}"
+export XDG_CACHE_HOME="\${XDG_CACHE_HOME:-\$HOME/.cache}"
+export XDG_STATE_HOME="\${XDG_STATE_HOME:-\$HOME/.local/state}"
+export ZDOTDIR="\$XDG_CONFIG_HOME/zsh"
+EOF
+
+  # Pacman hook to reload zsh
+  write_system_config "/etc/pacman.d/hooks/zsh.hook" "ZSH Pacman Hook" <<EOF
+[Trigger]
+Operation = Install
+Operation = Upgrade
+Operation = Remove
+Type = Path
+Target = usr/bin/*
+
+[Action]
+Depends = zsh
+Depends = procps-ng
+Description = Reloading zsh shell...
+When = PostTransaction
+Exec = /usr/bin/pkill zsh --signal=USR1
+EOF
+}
+
+# =============================================================================
+# Detect preferred shell
+# =============================================================================
+{{- if ne .chezmoi.username "vantesh" }}
+PREFERRED_SHELL={{ .default_shell | quote }}
+{{- else }}
+PREFERRED_SHELL={{ .shell.default | quote }}
+{{- end }}
+
+# =============================================================================
+# Main execution
+# =============================================================================
+if [[ "$PREFERRED_SHELL" == "zsh" ]]; then
+  zsh_setup
+fi
+
+if confirm "Set $PREFERRED_SHELL as your default shell?"; then
+  print_info "Setting $PREFERRED_SHELL as default shell..."
+  SHELL_PATH=$(command -v "$PREFERRED_SHELL")
+  if [[ -z "$SHELL_PATH" ]]; then
+    print_error "Shell binary not found: $PREFERRED_SHELL"
+  fi
+  if chsh -s "$SHELL_PATH"; then
+    print_info "$PREFERRED_SHELL set as default shell."
+  else
+    print_error "Failed to set $PREFERRED_SHELL as default shell."
+  fi
+else
+  print_info "Skipping setting default shell."
+fi

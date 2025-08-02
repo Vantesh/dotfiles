@@ -6,7 +6,7 @@ source "${CHEZMOI_SOURCE_DIR:?env variable missing. Please only run this script 
 # =============================================================================
 # Install password manager
 # =============================================================================
-
+{{- if ne .chezmoi.username "vantesh" }}
 print_box "smslant" "Pass Manager"
 
 install_package "bitwarden-bin"
@@ -57,7 +57,9 @@ bw_login() {
       fi
     done
 
-    if ! export BW_SESSION=$(bw login "$BW_EMAIL" --raw); then
+    BW_SESSION=""
+    BW_SESSION=$(bw login "$BW_EMAIL" --raw)
+    if ! export BW_SESSION; then
       print_error "Bitwarden login failed. Please check your credentials."
     fi
 
@@ -67,7 +69,9 @@ bw_login() {
   elif ! bw unlock --check &>/dev/null; then
     print_info "Bitwarden is locked. Please provide your master password to unlock."
 
-    if ! export BW_SESSION=$(bw unlock --raw); then
+    BW_SESSION=""
+    BW_SESSION=$(bw unlock --raw)
+    if ! export BW_SESSION; then
       print_error "Failed to unlock Bitwarden vault."
     fi
     print_info "Bitwarden unlocked successfully."
@@ -77,10 +81,7 @@ bw_login() {
   fi
 }
 
-
-
 bw_login
-
 
 # =============================================================================
 # SSH Setup
@@ -92,5 +93,7 @@ if [[ ! -d ~/.ssh ]]; then
   chmod 700 ~/.ssh
 fi
 
-ssh-keyscan github.com >> ~/.ssh/known_hosts
-ssh-keyscan gitlab.com >> ~/.ssh/known_hosts
+ssh-keyscan github.com >>~/.ssh/known_hosts
+ssh-keyscan gitlab.com >>~/.ssh/known_hosts
+
+{{- end }}

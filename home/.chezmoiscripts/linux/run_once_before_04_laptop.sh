@@ -2,6 +2,53 @@
 # shellcheck disable=SC1091
 source "${CHEZMOI_SOURCE_DIR:?env variable missing. Please only run this script via chezmoi}/.chezmoiscripts/linux/helpers/.00_helpers"
 
+# =============================================================================
+# Initialize Environment
+# =============================================================================
+common_init "laptop setup"
+show_welcome "Laptop" "Configure laptop settings" "Do you want to continue with laptop setup?"
+
+#=============================================================================
+# LAPTOP
+#=============================================================================
+
+if is_laptop; then
+  print_box "smslant" "Laptop"
+  print_step "Setting up laptop tweaks"
+
+  if ! sudo systemctl is-enabled auto-cpufreq.service &>/dev/null; then
+    if sudo auto-cpufreq --install >/dev/null 2>&1; then
+      print_info "Auto CPU frequency scaling enabled"
+    else
+      print_warning "Failed to enable auto CPU frequency scaling"
+    fi
+  else
+    print_info "Auto CPU frequency scaling is already enabled"
+  fi
+
+  readonly TOUCHPAD_RULE_FILE="/etc/udev/rules.d/90-touchpad-access.rules"
+  write_system_config "$TOUCHPAD_RULE_FILE" "touchpad udev rule" <<'EOF'
+KERNEL=="event*", SUBSYSTEM=="input", ENV{ID_INPUT_TOUCHPAD}=="1", TAG+="uaccess"
+EOF
+
+  reload_udev_rules || {
+    print_error "Failed to reload udev rules"
+  }
+
+  enable_service "libinput-gestures.service" "user"
+
+  print_info "Setting up powertop"
+  if sudo powertop --auto-tune >/dev/null 2>&1; then
+    print_info "Powertop auto-tune applied successfully"
+  else
+    print_warning "Failed to apply Powertop auto-tune"
+  fi
+fi
+
+#=============================================================================
+# HIBERNATION SETUP
+#=============================================================================
+
 readonly SWAP_SUBVOL="@swap"
 readonly SWAP_MOUNT_POINT="/swap"
 readonly SWAP_FILE_PATH="/swap/swapfile"
@@ -84,10 +131,6 @@ create_btrfs_swap_subvolume() {
 
 }
 
-# ===========================================================================================
-# HIBERNATION SETUP
-# ===========================================================================================
-
 setup_hibernation() {
   swap_path=$(sudo swapon --show --noheadings | awk '{print $1}' | grep -v '^/dev/zram' | head -n1)
 
@@ -124,8 +167,11 @@ setup_hibernation() {
 
 }
 
-if is_btrfs && is_laptop && confirm "Do you want to set up hibernation? "; then
-  print_box "smslant" "Hibernation"
+# ===========================================================================================
+# MAIN HIBERNATION SETUP LOGIC
+# ===========================================================================================
+
+if is_btrfs && is_laptop; then
   print_step "Setting up hibernation"
 
   create_backup "$MKINIT_CONF"

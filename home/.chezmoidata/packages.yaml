@@ -1,0 +1,153 @@
+packageGroups:
+  core:
+    - hyprland
+    - hyprlock
+    - hypridle
+    - hyprpicker
+    - hyprsunset
+    - hyprshot
+    - xdg-desktop-portal-hyprland
+    - uwsm
+    - app2unit-git
+    - polkit-gnome
+    - rofi-wayland
+    - grimblast
+    - waypaper
+    - swww
+    - imv
+    - matugen-bin
+    - wallust
+    - ags-hyprpanel-git # TODO: replace with quickshell
+    - pyprland
+    - devify
+    - brightnessctl
+    - playerctl
+    - nautilus
+    - sddm-git
+    - kitty
+    - rofimoji
+    - yad # for keybinds popup
+    - xdg-desktop-portal-gtk
+    - xdg-user-dirs
+    - xdg-autostart
+    - xdg-terminal-exec
+    - gnome-keyring
+    - libgnome-keyring
+    - topgrade
+    - mission-center
+    - udiskie
+    - ntfs-3g
+    - exfatprogs
+    - dosfstools
+    - f2fs-tools
+    - gparted
+    - gpart
+    - overskride
+    - ufw
+    - pwvucontrol
+    - networkmanager
+    - usbutils
+    - man-db
+    - xorg-xhost
+    - layer-shell-qt
+    - layer-shell-qt5
+    - qt6-multimedia-ffmpeg
+    - libfido2
+    - clipse
+    - clipse-gui
+    - wmctrl
+    - nvtop
+    - btop
+    - reflector
+    - wget
+    - pacman-contrib
+    - starship
+    - zoxide
+    - fd
+    - duf
+    - fastfetch
+    - pkgfile
+    - eza
+    - fzf
+    - ugrep
+    - bat
+    - curlie
+    - ripgrep
+    - imagemagick
+    - chafa
+
+  fonts:
+    - ttf-nerd-fonts-symbols
+    - ttf-nerd-fonts-symbols-mono
+    - ttf-apple-emoji
+    - apple-fonts
+    - ttf-font-awesome
+    - noto-fonts-cjk
+    - noto-fonts-extra
+    - ttf-liberation
+
+  theming:
+    - apple_cursor
+    - nwg-look
+    - kvantum
+    - kvantum-qt5
+    - qt6ct-kde
+    - qt5ct-kde
+    - adw-gtk-theme
+    - plymouth
+
+  optional:
+    - brave-bin
+    - visual-studio-code-bin
+    - qbittorrent
+    - mpv
+    - neovim
+    - spotify-launcher
+    - spicetify-cli
+    - git-delta
+    - localsend
+    - antidot
+    - vesktop-bin
+    - yazi
+    - gpu-screen-recorder
+
+  drivers:
+    base:
+      - mesa-utils
+      - mesa
+      - wireless-regdb
+      - libva-utils
+      - vulkan-tools
+      - vulkan-headers
+
+    kernelHeaders:
+      zen: linux-zen-headers
+      lts: linux-lts-headers
+      cachyos: linux-cachyos-headers
+      default: linux-headers
+
+    nvidia:
+      - libva-nvidia-driver
+      - nvidia-utils
+      - nvidia-dkms
+      - nvidia-settings
+      - nvidia-prime
+      - opencl-nvidia
+
+    amd:
+      - xf86-video-amdgpu
+      - vulkan-radeon
+      - libva-mesa-driver
+      - mesa-vdpau
+
+    intel:
+      - libva-intel-driver
+      - intel-media-driver
+      - vulkan-intel
+      - intel-ucode
+
+  laptop:
+    - auto-cpufreq
+    - upower
+    - powertop
+    - libinput-gestures

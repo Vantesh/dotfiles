@@ -217,6 +217,46 @@ initialize_env() {
 
 }
 
+# Common initialization function for all scripts
+common_init() {
+  local script_name="${1:-script}"
+
+  # Check if running as root
+  if [[ $EUID -eq 0 ]]; then
+    print_error "This script should not be run as root. Please run it as a normal user."
+  fi
+
+  # Request sudo privileges
+  ask_for_sudo
+
+  # Initialize environment
+  if initialize_env; then
+    print_info "Starting $script_name..."
+    clear
+  else
+    print_error "Failed to initialize environment."
+  fi
+}
+
+# Show welcome message with confirmation
+show_welcome() {
+  local title="$1"
+  local description="$2"
+  local confirmation_text="${3:-Do you want to continue?}"
+
+  print_box "smslant" "$title"
+
+  echo -e "\n---------------------------------------------"
+  echo -e "This script will $description."
+  echo -e "---------------------------------------------\n"
+
+  if ! confirm "$confirmation_text"; then
+    print_info "Operation aborted by user."
+  fi
+
+  clear
+}
+
 # =============================================================================
 # SERVICE MANAGEMENT
 # =============================================================================

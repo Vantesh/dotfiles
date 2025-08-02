@@ -4,7 +4,6 @@ source "${CHEZMOI_SOURCE_DIR:?env variable missing. Please only run this script 
 
 readonly GRUB_THEME_URL="https://github.com/semimqmo/sekiro_grub_theme"
 readonly QUIET_FLAGS_HOOKS="quiet loglevel=3 splash vt.global_cursor_default=0 nowatchdog rd.udev.log_level=3"
-readonly ZSHENV_FILE="/etc/zsh/zshenv"
 
 #===================================================================================
 # SDDM
@@ -186,85 +185,6 @@ if gsettings set org.gnome.desktop.interface gtk-theme "adw-gtk3-dark" &&
   print_info "GTK theme and icons set successfully"
 else
   print_warning "Failed to set GTK theme or icons"
-fi
-
-# ==================================================================================
-# ZSH
-# ==================================================================================
-print_box "smslant" "ZSH"
-print_step "Setting up ZSH"
-write_system_config "$ZSHENV_FILE" "ZSH environment configuration" <<EOF
-# ZSH environment configuration
-
-
-# ZSH environment file
-
-# This file is sourced by ZSH at startup to set environment variables.
-# XDG BASE DIRS
-
-# export XDG Base Directories
-if [[ -z "$XDG_CONFIG_HOME" ]]; then
-  export XDG_CONFIG_HOME="$HOME/.config"
-fi
-
-if [[ -z "$XDG_DATA_HOME" ]]; then
-  export XDG_DATA_HOME="$HOME/.local/share"
-fi
-
-if [[ -z "$XDG_CACHE_HOME" ]]; then
-  export XDG_CACHE_HOME="$HOME/.cache"
-fi
-
-if [[ -z "$XDG_STATE_HOME" ]]; then
-  export XDG_STATE_HOME="$HOME/.local/state"
-fi
-
-# export ZDOTDIR
-export ZDOTDIR="$XDG_CONFIG_HOME/zsh"
-EOF
-
-# zsh_pacman_hook
-write_system_config "/etc/pacman.d/hooks/zsh.hook" "ZSH Pacman Hook" <<EOF
-[Trigger]
-Operation = Install
-Operation = Upgrade
-Operation = Remove
-Type = Path
-Target = usr/bin/*
-
-[Action]
-Depends = zsh
-Depends = procps-ng
-Description = Reloading zsh shell...
-When = PostTransaction
-Exec = /usr/bin/pkill zsh --signal=USR1
-EOF
-
-# make zsh the default shell
-if confirm "Do you want to set ZSH as your default shell?"; then
-  if chsh -s "$(which zsh)"; then
-    print_info "ZSH set as default shell successfully"
-  else
-    print_error "Failed to set ZSH as default shell"
-  fi
-else
-  print_info "Skipping setting ZSH as default shell"
-fi
-
-if confirm "Make ZSH default for root user?"; then
-  if sudo chsh -s "$(which zsh)" root; then
-    if [[ ! -d "/root/.config" ]]; then
-      sudo mkdir -p "/root/.config"
-      if sudo cp -r "${HOME}/.config/zsh" "/root/.config/" &&
-        sudo cp -r "${HOME}/.config/ohmyposh" "/root/.config/" &&
-        sudo cp -r "${HOME}/.config/fsh" "/root/.config/"; then
-        print_info "ZSH configuration copied for root user"
-      else
-        print_error "Failed to copy ZSH configuration for root user"
-      fi
-    fi
-  fi
-
 fi
 
 # ===============================================================================
