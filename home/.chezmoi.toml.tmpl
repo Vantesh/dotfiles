@@ -1,11 +1,14 @@
 {{- if ne .chezmoi.username "vantesh" }}
 {{- $git_username := promptString "Enter your Git username:" }}
 {{- $git_email := promptString "Enter your Git email:" }}
+{{- $shells := list "zsh" "fish" }}
+{{- $default_shell := promptChoice "Whats your preffered shell?" $shells -}}
 
 
 [data]
  git_username = {{ $git_username | quote }}
  git_email = {{ $git_email | quote }}
+ default_shell = {{ $default_shell | quote }}
 {{- end }}
 [edit]
   command = "code"
