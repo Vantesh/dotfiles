@@ -4,8 +4,8 @@
 
 export FZF_DEFAULT_OPTS=" \
 --height 40% --layout=reverse --border=rounded --info=right \
- --pointer='' \
- --prompt='❯ ' \
+--pointer='' \
+--prompt='❯ ' \
 --color=gutter:{{colors.surface.default.hex}} \
 --color=bg+:{{colors.surface_container_high.default.hex}} \
 --color=bg:{{colors.surface.default.hex}} \
