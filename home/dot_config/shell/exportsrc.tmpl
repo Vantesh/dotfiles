@@ -18,7 +18,7 @@ export CUDA_CACHE_PATH="${XDG_CACHE_HOME}/nv"
 export __GL_SHADER_DISK_CACHE_PATH="${XDG_CACHE_HOME}/nv"
 export npm_config_cache="${XDG_CACHE_HOME}/npm"
 export WGETRC="${XDG_CONFIG_HOME}/wget/wgetrc"
-alias wget='wget --hsts-file="${XDG_CACHE_HOME}/wget-hsts"'
+alias wget="wget --hsts-file="${XDG_CACHE_HOME}/wget-hsts""
 export LESSHISTFILE="-"
 
 # ----------------------------------------------------------------------------
@@ -44,3 +44,12 @@ export PATH=$PATH:"$HOME/.spicetify"
 export MANPAGER="sh -c 'sed -u -e \"s/\\x1B\[[0-9;]*m//g; s/.\\x08//g\" | bat -p -lman'"
 export MANROFFOPT="-P -c"
 export LESS='-R --use-color -Dd+r$Du+b$'
+
+# ----------------------------------------------------------------------------
+# SSH
+# ----------------------------------------------------------------------------
+
+{{- if eq .chezmoi.username "vantesh" }}
+export SSH_AUTH_SOCK="$HOME/.bitwarden-ssh-agent.sock"
+{{- end }}
+
