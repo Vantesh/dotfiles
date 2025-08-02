@@ -19,3 +19,7 @@ Documents
 .chezmoiscripts/windows/**
 .chezmoiscripts/linux/**
 {{ end }}
+
+{{- if ne .chezmoi.username "vantesh" }}
+.chezmoiscripts/linux/run_once_before_02_password_manager.sh.tmpl
+{{- end }}
