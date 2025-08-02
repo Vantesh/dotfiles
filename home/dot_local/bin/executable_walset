@@ -98,12 +98,27 @@ if [[ $# -lt 1 ]] || [[ ! -f $1 ]]; then
 fi
 
 # ------------------------------------------------------------------------------------
+# terminal
+# ------------------------------------------------------------------------------------
+reload_terminal() {
+    if command -v fish >/dev/null; then
+        fish -c "yes | fish_config theme save Matugen"
+        fish ~/.cache/wal/fzf.fish
+
+    fi
+    kitty +kitten themes --reload-in=all matugen
+}
+
+# ------------------------------------------------------------------------------------
 # Main script
 # ------------------------------------------------------------------------------------
 
 # Generate the color scheme.
 matugen -t scheme-tonal-spot image "$1" >/dev/null 2>&1
-wallust -I background -I cursor -I foreground run "$1"
+wallust -I background -I foreground run "$1"
+
+# Reload terminal
+reload_terminal
 
 if pgrep nvim >/dev/null; then
   killall -SIGUSR1 nvim

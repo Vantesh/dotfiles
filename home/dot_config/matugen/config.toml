@@ -3,9 +3,8 @@
   mode = "dark"
 
 [templates.kitty]
-  input_path  = '~/.config/matugen/templates/kitty.conf'
+  input_path  = '~/.config/matugen/templates/terminal/kitty.conf'
   output_path = '~/.config/kitty/themes/Matugen.conf'
-  post_hook   = 'kitty +kitten themes --reload-in=all Matugen'
 
 [templates.hyprland]
   input_path  = '~/.config/matugen/templates/hypr/hyprland.conf'
@@ -16,16 +15,24 @@
   output_path = '~/.cache/wal/icon.svg'
 
 [templates.btop]
-  input_path  = '~/.config/matugen/templates/cli/btop.theme'
+  input_path  = '~/.config/matugen/templates/terminal/btop.theme'
   output_path = '~/.config/btop/themes/matugen.theme'
 
 [templates.bat]
-  input_path  = '~/.config/matugen/templates/cli/bat.tmTheme'
+  input_path  = '~/.config/matugen/templates/terminal/bat.tmTheme'
   output_path = '~/.config/bat/themes/Matugen.tmTheme'
 
 [templates.yazi]
-  input_path  = '~/.config/matugen/templates/cli/yazi.toml'
+  input_path  = '~/.config/matugen/templates/terminal/yazi.toml'
   output_path = '~/.config/yazi/theme.toml'
+
+[templates.fish]
+  input_path  = '~/.config/matugen/templates/terminal/colors.fish'
+  output_path = '~/.config/fish/themes/Matugen.theme'
+
+[templates.fzf-fish]
+  input_path  = '~/.config/matugen/templates/terminal/fzf.fish'
+  output_path = '~/.cache/wal/fzf.fish'
 
 [templates.rofi]
   input_path  = '~/.config/matugen/templates/rofi.rasi'
@@ -36,7 +43,7 @@
   output_path = '~/.local/share/color-schemes/Matugen.colors'
 
 [templates.fzf]
-  input_path  = '~/.config/matugen/templates/cli/fzf.sh'
+  input_path  = '~/.config/matugen/templates/terminal/fzf.sh'
   output_path = '~/.config/zsh/fzf'
 
 [templates.kvantum]
