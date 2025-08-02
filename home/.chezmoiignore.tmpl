@@ -20,6 +20,13 @@ Documents
 .chezmoiscripts/linux/**
 {{ end }}
 
+{{- if and (eq .chezmoi.username "vantesh") (eq .shell.default "fish") }}
+.config/zsh
+.config/shell
+{{- end }}
+
 {{- if ne .chezmoi.username "vantesh" }}
-.chezmoiscripts/linux/run_once_before_02_password_manager.sh.tmpl
+{{- if eq .default_shell "zsh" }}
+.config/fish
+{{- end }}
 {{- end }}
