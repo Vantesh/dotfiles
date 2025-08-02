@@ -1,0 +1,195 @@
+#!/usr/bin/env bash
+
+# shellcheck disable=SC1091
+source "${CHEZMOI_SOURCE_DIR:?env variable missing. Please only run this script via chezmoi}/.chezmoiscripts/linux/helpers/.00_helpers"
+source "${CHEZMOI_SOURCE_DIR:?env variable missing. Please only run this script via chezmoi}/.chezmoiscripts/linux/helpers/.01_chaotic_aur"
+
+# Package lists from chezmoi data
+dependencies=(
+  {{- range .packageGroups.core }}
+  "{{ . }}"
+  {{- end }}
+  {{- range .packageGroups.fonts }}
+  "{{ . }}"
+  {{- end }}
+  {{- range .packageGroups.theming }}
+  "{{ . }}"
+  {{- end }}
+)
+
+optional=(
+  {{- range .packageGroups.optional }}
+  "{{ . }}"
+  {{- end }}
+)
+
+# Driver packages
+drivers=(
+  {{- range .packageGroups.drivers.base }}
+  "{{ . }}"
+  {{- end }}
+)
+
+kernel_version=$(uname -r)
+if [[ "$kernel_version" == *"-zen"* ]]; then
+  drivers+=("{{ .packageGroups.drivers.kernelHeaders.zen }}")
+elif [[ "$kernel_version" == *"-lts"* ]]; then
+  drivers+=("{{ .packageGroups.drivers.kernelHeaders.lts }}")
+elif [[ "$kernel_version" == *"-cachyos"* ]]; then
+  drivers+=("{{ .packageGroups.drivers.kernelHeaders.cachyos }}")
+else
+  drivers+=("{{ .packageGroups.drivers.kernelHeaders.default }}")
+fi
+
+gpu_info=$(lspci -nn | grep -Ei "VGA compatible controller|3D controller|Display controller")
+
+# NVIDIA
+if [[ $gpu_info == *"NVIDIA Corporation"* ]]; then
+  drivers+=(
+    {{- range .packageGroups.drivers.nvidia }}
+    "{{ . }}"
+    {{- end }}
+  )
+fi
+
+# AMD/ATI
+if [[ $gpu_info == *"AMD/ATI"* ]]; then
+  drivers+=(
+    {{- range .packageGroups.drivers.amd }}
+    "{{ . }}"
+    {{- end }}
+  )
+fi
+
+# Intel
+if [[ $gpu_info == *"Intel Corporation"* ]]; then
+  drivers+=(
+    {{- range .packageGroups.drivers.intel }}
+    "{{ . }}"
+    {{- end }}
+  )
+fi
+
+if [[ ! $gpu_info =~ (NVIDIA|AMD/ATI|Intel Corporation) ]]; then
+  print_warning "No supported GPU found, skipping GPU-specific driver installation."
+fi
+
+# Check if the system is a laptop to add power management tools
+is_laptop=$(hostnamectl chassis | grep -i "laptop\|notebook")
+if [[ -n $is_laptop ]]; then
+  dependencies+=(
+    {{- range .packageGroups.laptop }}
+    "{{ . }}"
+    {{- end }}
+  )
+fi
+
+# SHELL
+{{- if eq .shell.default "fish" }}
+dependencies+=(
+  fish
+)
+
+{{- else if eq .shell.default "zsh" }}
+dependencies+=(
+  zsh
+)
+
+{{- end }}
+# =============================================================================
+# Initialize Environment
+# =============================================================================
+common_init "package installation"
+
+# =============================================================================
+# Welcome Message
+# =============================================================================
+print_box "smslant" "Dependencies"
+
+echo -e "\n---------------------------------------------"
+echo -e "Hyprland Dotfiles - Package Installation"
+echo -e "Copyright 2025 \e]8;;https://github.com/vantesh/dotfiles\a${STYLE_BOLD}${COLOR_CYAN}[Vantesh]${COLOR_RESET}\e]8;;\a"
+echo -e "This script will install all required packages."
+echo -e "\nCore packages: ${COLOR_MAGENTA}${#dependencies[@]}${COLOR_RESET}"
+echo -e "Optional packages: ${COLOR_MAGENTA}${#optional[@]}${COLOR_RESET}"
+echo -e "---------------------------------------------\n"
+
+if ! confirm "Do you want to continue with package installation?"; then
+  print_info "Package installation aborted by user."
+  exit 1
+fi
+
+clear
+
+# =============================================================================
+# Setup Chaotic AUR
+# =============================================================================
+
+if ! is_chaotic_aur; then
+  if confirm "Do you want to install Chaotic AUR?"; then
+    print_box "smslant" "Chaotic AUR"
+    print_step "Installing Chaotic AUR"
+    install_chaotic_aur
+  else
+    print_warning "Skipping Chaotic AUR installation."
+  fi
+fi
+
+# =============================================================================
+# System Update
+# =============================================================================
+print_info "Updating system......"
+if sudo pacman -Syu --noconfirm; then
+  clear
+  print_info "System updated, proceeding with package installation"
+fi
+
+# =============================================================================
+# Install Packages
+# =============================================================================
+
+failed_packages=()
+
+print_box "smslant" "Core Dependencies"
+print_step "Installing core dependencies"
+
+for pkg in "${dependencies[@]}"; do
+  install_package "$pkg"
+done
+
+# Install drivers
+if confirm "Do you want to install drivers?"; then
+  print_box "smslant" "Drivers"
+  print_step "Installing drivers"
+  for driver in "${drivers[@]}"; do
+    install_package "$driver"
+  done
+fi
+
+# Install optional packages
+if confirm "Do you want to install optional packages?"; then
+  print_box "smslant" "Optional Packages"
+  print_step "Installing optional packages"
+  for pkg in "${optional[@]}"; do
+    install_package "$pkg"
+  done
+fi
+
+# Handle failed packages
+if [[ ${#failed_packages[@]} -gt 0 ]]; then
+  print_warning "The following packages failed to install:"
+  for failed_pkg in "${failed_packages[@]}"; do
+    echo "  - $failed_pkg"
+  done
+
+  if confirm "Do you want to retry failed packages manually?"; then
+    print_step "Retrying failed packages"
+    for failed_pkg in "${failed_packages[@]}"; do
+      if confirm "Retry installing $failed_pkg?"; then
+        "$AUR_HELPER" -S "$failed_pkg"
+      fi
+    done
+  else
+    print_warning "Skipping failed packages."
+  fi
+fi
