@@ -6,7 +6,7 @@ source "${CHEZMOI_SOURCE_DIR:?env variable missing. Please only run this script 
 # =============================================================================
 # Install password manager
 # =============================================================================
-{{- if ne .chezmoi.username "vantesh" }}
+{{- if eq .chezmoi.username "vantesh" }}
 print_box "smslant" "Pass Manager"
 
 install_package "bitwarden-bin"
