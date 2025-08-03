@@ -50,5 +50,5 @@
 }
 
 configuration {
-  font: "{{custom.font1}} {{custom.font_size}}";
+  font: "{{custom.font_mono}} {{custom.font_size}}";
 }

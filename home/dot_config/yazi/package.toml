@@ -4,11 +4,6 @@ rev = "b114b01"
 hash = "7676d7da18953f4351048004ab45f0f4"
 
 [[plugin.deps]]
-use = "ndtoan96/ouch"
-rev = "1ee69a5"
-hash = "63679f3daf8551ff8755be38b5ced0f"
-
-[[plugin.deps]]
 use = "yazi-rs/plugins:full-border"
 rev = "e5f00e2"
 hash = "3996fc74044bc44144b323686f887e1"

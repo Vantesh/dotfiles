@@ -114,6 +114,6 @@
   blend = true
 
 [config.custom_keywords]
-  font1     = "JetBrainsMono Nerd Font"
-  font2     = "SF Pro Rounded Semi-Bold"
+  font_mono = "JetBrainsMono Nerd Font"
+  font_sans = "SF Pro Rounded Semi-Bold"
   font_size = "15"
