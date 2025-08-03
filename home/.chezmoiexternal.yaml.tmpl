@@ -1,0 +1,62 @@
+{{- $fontDir := "" -}}
+{{- if eq .chezmoi.os "linux" }}
+{{- $fontDir = ".local/share/fonts" }}
+{{- else if eq .chezmoi.os "windows" }}
+{{- $fontDir = "windows/Fonts" }}
+{{- end }}
+
+"{{ $fontDir }}/font-awesome":
+  type: archive
+  url: {{ gitHubLatestReleaseAssetURL "FortAwesome/Font-Awesome" (printf "fontawesome-free-*-desktop.zip") | quote }}
+  exact: true
+  stripComponents: 2
+  refreshPeriod: "168h"
+  include:
+    - "**/otfs/Font*.otf"
+
+"{{ $fontDir }}/emojis/AppleColorEmoji.ttf":
+  url: {{ gitHubLatestReleaseAssetURL "samuelngs/apple-emoji-linux" "AppleColorEmoji.ttf" | quote }}
+  type: file
+  refreshPeriod: "336h"
+
+{{- if eq .chezmoi.os "linux" }}
+".local/share/icons/macOS-hypr":
+  url: {{ gitHubLatestReleaseAssetURL "driedpampas/macOS-hyprcursor" "macOS.Hyprcursor.SVG.White.tar.gz" | quote }}
+  type: archive
+  stripComponents: 1
+  refreshPeriod: "744h"
+
+".local/share/icons/macOS-hypr-dark":
+  url: {{ gitHubLatestReleaseAssetURL "driedpampas/macOS-hyprcursor" "macOS.Hyprcursor.SVG.tar.gz" | quote }}
+  type: archive
+  stripComponents: 1
+  refreshPeriod: "744h"
+
+".local/share/icons/macOS":
+  url: {{ gitHubLatestReleaseAssetURL "ful1e5/apple_cursor" "macOS.tar.xz" | quote }}
+  type: archive
+  include:
+    - "*/macOS/**"
+  refreshPeriod: "744h"
+  stripComponents: 2
+
+".local/share/icons/macOS-White":
+  url: {{ gitHubLatestReleaseAssetURL "ful1e5/apple_cursor" "macOS.tar.xz" | quote }}
+  type: archive
+  include:
+    - "*/macOS-White/**"
+  refreshPeriod: "744h"
+  stripComponents: 2
+
+
+"Pictures/Wallpapers":
+  type: archive
+  url: {{ gitHubLatestReleaseAssetURL "vantesh/wallpapers" "wallpapers.zip" | quote }}
+  stripComponents: 1
+  refreshPeriod: "336h"
+  include:
+    - "**/*.jpg"
+    - "**/*.png"
+    - "**/*.jpeg"
+{{- else }}
+{{- end }}

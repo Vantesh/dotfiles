@@ -77,17 +77,12 @@ packageGroups:
     - chafa
 
   fonts:
-    - ttf-nerd-fonts-symbols
-    - ttf-nerd-fonts-symbols-mono
-    - ttf-apple-emoji
     - apple-fonts
-    - ttf-font-awesome
     - noto-fonts-cjk
     - noto-fonts-extra
     - ttf-liberation
 
   theming:
-    - apple_cursor
     - nwg-look
     - kvantum
     - kvantum-qt5
