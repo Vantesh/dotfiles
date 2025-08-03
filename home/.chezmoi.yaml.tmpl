@@ -1,0 +1,32 @@
+{{- if ne .chezmoi.username "vantesh" }}
+{{- $git_username := promptString "Enter your Git username:" }}
+{{- $git_email := promptString "Enter your Git email:" }}
+{{- $shells := list "zsh" "fish" }}
+{{- $default_shell := promptChoice "What's your preffered shell?" $shells -}}
+
+data:
+  git_username: {{ $git_username | quote }}
+  git_email: {{ $git_email | quote }}
+  default_shell: {{ $default_shell | quote }}
+{{- end }}
+
+edit:
+  command: "code"
+  args:
+    - "--wait"
+
+merge:
+  command: "bash"
+  args:
+    - "-c"
+    - "cp {{ "{{" }} .Target {{ "}}" }} {{ "{{" }} .Target {{ "}}" }}.base && code --new-window --wait --merge {{ "{{" }} .Destination {{ "}}" }} {{ "{{" }} .Target {{ "}}" }} {{ "{{" }} .Target {{ "}}" }}.base {{ "{{" }} .Source {{ "}}" }}"
+
+diff:
+  command: "delta"
+  args:
+    - "--paging=never"
+    - "{{ "{{ .Destination }}" }}"
+    - "{{ "{{ .Target }}" }}"
+  pager: "delta"
+  exclude:
+    - "scripts"
