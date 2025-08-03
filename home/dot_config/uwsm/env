@@ -12,7 +12,7 @@ export SDL_VIDEODRIVER=wayland
 export XCURSOR_SIZE=24
 export XCURSOR_THEME=macOS-White
 export HYPRCURSOR_SIZE=24
-export HYPRCURSOR_THEME=macOS
+export HYPRCURSOR_THEME=macOS-hypr
 
 export GDK_BACKEND=wayland,x11
 export GDK_SCALE=1
