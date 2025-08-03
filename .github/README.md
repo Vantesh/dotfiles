@@ -1,6 +1,15 @@
-# Hyprland Desktop Environment Setup
+# Hyprland Dotfiles
 
-Hyprland dotfiles managed using [chezmoi](https://github.com/twpayne/chezmoi).
+<div align="left">
+
+<a href="https://github.com/Vantesh/dotfiles/commits/main/"><img alt="Commit Activity" src="https://img.shields.io/github/commit-activity/m/Vantesh/dotfiles/main?style=for-the-badge&logo=github&color=F2CDCD&logoColor=D9E0EE&labelColor=302D41"/></a>
+<a href="https://github.com/Vantesh/dotfiles"><img alt="Size" src="https://img.shields.io/github/repo-size/Vantesh/dotfiles?style=for-the-badge&logo=discord&color=DDB6F2&logoColor=D9E0EE&labelColor=302D41"></a>
+
+</div>
+
+##
+
+Hyprland dotfiles managed with [chezmoi](https://github.com/twpayne/chezmoi).
 
 ## Previews
 
@@ -11,36 +20,36 @@ Hyprland dotfiles managed using [chezmoi](https://github.com/twpayne/chezmoi).
 
 #### Desktop
 
-![Desktop](assets/previews/desktop.png)
+![Desktop](previews/desktop.png)
 
 #### Lock Screen
 
-![Lock Screen](assets/previews/hyprlock.png)
+![Lock Screen](previews/hyprlock.png)
 
 #### Rofi Application Launcher
 
-![Application Launcher](assets/previews/launcher.png)
+![Application Launcher](previews/launcher.png)
 
 #### Kitty Terminal
 
-![Terminal](assets/previews/terminal.png)
+![Terminal](previews/terminal.png)
 
 #### Thunar File Manager
 
-![File Manager](assets/previews/filemanager.png)
+![File Manager](previews/filemanager.png)
 
 #### Clipboard Manager
 
-![clipboard](assets/previews/clipboard.png)
+![clipboard](previews/clipboard.png)
 
 #### Emoji Picker
 
-![emoji picker](assets/previews/emoji-picker.png)
+![emoji picker](previews/emoji-picker.png)
 
 #### Development Environment
 
-![nvim](assets/previews/nvim.png)
-![VSCode](assets/previews/vscode.png)
+![nvim](previews/nvim.png)
+![VSCode](previews/vscode.png)
 
 </details>
 
