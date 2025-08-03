@@ -7,12 +7,11 @@ source "${CHEZMOI_SOURCE_DIR:?env variable missing. Please only run this script 
 # Initialize Environment
 # =============================================================================
 common_init "hibernation setup"
-show_welcome "Snapper" "Configure Snapper for Btrfs" "Do you want to continue with Snapper setup?"
 
 # =============================================================================
 # SNAPPER
 # =============================================================================
-if is_btrfs; then
+if is_btrfs && confirm "Set up Snapper?"; then
   print_box "smslant" "Snapper"
   print_step "Setting up Snapper configuration"
   snapper_deps=(

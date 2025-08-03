@@ -1,20 +1,20 @@
 #!/usr/bin/env bash
 
 # shellcheck disable=SC1091
-source "${CHEZM‌​OI_SOURCE_DIR:?env variable missing. Please only run this script via chezmoi}/.chezmoiscripts/linux/helpers/.00_helpers"
+source "${CHEZMOI_SOURCE_DIR:?env variable missing. Please only run this script via chezmoi}/.chezmoiscripts/linux/helpers/.00_helpers"
 
 # =============================================================================
 # Initialize Environment
 # =============================================================================
 common_init "Shell Setup"
 
+print_box "smslant" "Shell"
+print_step "Setting up default shell"
+
 # =============================================================================
 # ZSH setup
 # =============================================================================
 zsh_setup() {
-  print_box "smslant" "ZSH"
-  print_step "Setting up ZSH"
-
   readonly ZSHENV_FILE="/etc/zsh/zshenv"
   write_system_config "$ZSHENV_FILE" "ZSH environment configuration" <<EOF
 # ZSH environment file for XDG Base Directories

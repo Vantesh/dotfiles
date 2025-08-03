@@ -232,29 +232,9 @@ common_init() {
   # Initialize environment
   if initialize_env; then
     print_info "Starting $script_name..."
-    clear
   else
     print_error "Failed to initialize environment."
   fi
-}
-
-# Show welcome message with confirmation
-show_welcome() {
-  local title="$1"
-  local description="$2"
-  local confirmation_text="${3:-Do you want to continue?}"
-
-  print_box "smslant" "$title"
-
-  echo -e "\n---------------------------------------------"
-  echo -e "This script will $description."
-  echo -e "---------------------------------------------\n"
-
-  if ! confirm "$confirmation_text"; then
-    print_info "Operation aborted by user."
-  fi
-
-  clear
 }
 
 # =============================================================================

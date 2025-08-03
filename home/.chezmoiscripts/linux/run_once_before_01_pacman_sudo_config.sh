@@ -8,12 +8,11 @@ source "${CHEZMOI_SOURCE_DIR:?env variable missing. Please only run this script 
 # =============================================================================
 common_init "system configuration"
 
-show_welcome "Pacman & Sudo" "Configure sudo and pacman" "Do you want to continue with system configuration?"
-
 # =============================================================================
 # SETUP PACMAN
 # =============================================================================
-
+print_box "smslant" "Pacman"
+print_step "Configuring Pacman settings"
 pacman_conf="/etc/pacman.conf"
 lines_to_edit=(
   "Color"
