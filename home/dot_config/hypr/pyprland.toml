@@ -8,7 +8,7 @@ command = "kitty --class scratchpad-large"
 lazy = true
 
 [scratchpads.yazi]
-command = "kitty --class scratchpad-large zsh -c yazi"
+command = "kitty --class scratchpad-large fish -c yazi"
 unfocus = "hide"
 hysteresis = 0.1
 lazy = true
@@ -25,13 +25,13 @@ lazy = true
 close_on_hide = true
 
 [scratchpads.topgrade-system]
-command = 'kitty --class scratchpad-large zsh -i -c "up"'
+command = 'kitty --class scratchpad-large fish -c "up"'
 
 lazy = true
 close_on_hide = true
 
 [scratchpads.topgrade-all]
-command = 'kitty --class scratchpad-large zsh -i -c "upall"'
+command = 'kitty --class scratchpad-large fish -c "upall"'
 lazy = true
 close_on_hide = true
 
