@@ -6,7 +6,6 @@ source "${CHEZMOI_SOURCE_DIR:?env variable missing. Please only run this script 
 # Initialize Environment
 # =============================================================================
 common_init "laptop setup"
-show_welcome "Laptop" "Configure laptop settings" "Do you want to continue with laptop setup?"
 
 #=============================================================================
 # LAPTOP
@@ -171,7 +170,8 @@ setup_hibernation() {
 # MAIN HIBERNATION SETUP LOGIC
 # ===========================================================================================
 
-if is_btrfs && is_laptop; then
+if is_btrfs && is_laptop && confirm "Set up hibernation?"; then
+  print_box "smslant" "Hibernation"
   print_step "Setting up hibernation"
 
   create_backup "$MKINIT_CONF"
