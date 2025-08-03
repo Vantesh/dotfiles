@@ -1,22 +1,25 @@
 function missing_package
-    while true
-        read -l -P "$argv[1] not found. Do you want to install it? [y/N] " confirm
+    if status is-interactive
 
-        if test "$confirm" = y
-            if type -q paru
-                paru -S $argv[1]
-            else if type -q yay
-                yay -S $argv[1]
+        while true
+            read -l -P "$argv[1] not found. Do you want to install it? [y/N] " confirm
 
-            else if type -q pacman
-                sudo pacman -S $argv[1]
+            if test "$confirm" = y
+                if type -q paru
+                    paru -S $argv[1]
+                else if type -q yay
+                    yay -S $argv[1]
+
+                else if type -q pacman
+                    sudo pacman -S $argv[1]
+                else
+                    echo "No package manager found to install $argv[1]."
+                    return 1
+                end
+                break
             else
-                echo "No package manager found to install $argv[1]."
-                return 1
+                break
             end
-            break
-        else
-            break
         end
     end
 end

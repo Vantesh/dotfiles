@@ -1,6 +1,12 @@
 abbr -a -- sysu 'systemctl --user'
 abbr -a -- cls clear
 abbr -a cm chezmoi
-abbr -a g git
-abbr -a ga git add
-abbr -a gc git commit
+
+# git abbreviations
+abbr -a gco 'git checkout'
+abbr -a ga 'git add'
+abbr -a gcm 'git commit -m'
+
+# package manager abbreviations
+abbr -a pi 'paru -S'
+abbr -a pu 'paru -Syu'
