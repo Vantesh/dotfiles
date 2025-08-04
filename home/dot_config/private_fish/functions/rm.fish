@@ -1,3 +1,3 @@
-function rm --wraps=rm --description 'alias rm=rm --interactive --verbose'
-    command rm -i -v $argv
+function rm --description 'alias rm=safe-rm'
+    safe-rm $argv
 end
