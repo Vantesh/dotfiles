@@ -25,13 +25,13 @@ lazy = true
 close_on_hide = true
 
 [scratchpads.topgrade-system]
-command = 'kitty --class scratchpad-large fish -c "up"'
+command = 'kitty --class scratchpad-large fish -c "update"'
 
 lazy = true
 close_on_hide = true
 
 [scratchpads.topgrade-all]
-command = 'kitty --class scratchpad-large fish -c "upall"'
+command = 'kitty --class scratchpad-large fish -c "update-all"'
 lazy = true
 close_on_hide = true
 

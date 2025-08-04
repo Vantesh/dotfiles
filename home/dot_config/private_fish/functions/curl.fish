@@ -1,4 +1,4 @@
-function curl --wraps=curl --description 'alias curl=curlie'
+function curl --wraps=curl --description 'alias curlie'
     if type -f curlie &>/dev/null
         curlie $argv
     else
