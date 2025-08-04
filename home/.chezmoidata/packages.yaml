@@ -23,7 +23,7 @@ packageGroups:
     - brightnessctl
     - playerctl
     - nautilus
-    - sddm-git
+    - ly
     - kitty
     - rofimoji
     - yad # for keybinds popup
