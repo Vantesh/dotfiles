@@ -8,6 +8,11 @@ data:
   git_username: {{ $git_username | quote }}
   git_email: {{ $git_email | quote }}
   default_shell: {{ $default_shell | quote }}
+
+{{- else }}
+data:
+  git:
+    signingKey: {{ (bitwarden "item" "git commits").sshKey.publicKey | quote }}
 {{- end }}
 
 edit:

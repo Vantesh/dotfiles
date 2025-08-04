@@ -2,7 +2,7 @@
 [user]
     name = "{{ .git.username }}"
     email = "{{ .git.email }}"
-    signingkey = {{ (bitwarden "item" "git commits").sshKey.publicKey }}
+    signingkey = "{{ .git.signingKey }}"
 
 [gpg]
     format = ssh

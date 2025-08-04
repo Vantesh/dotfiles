@@ -1,0 +1,20 @@
+{{- $fontDir := "" -}}
+{{- if eq .chezmoi.os "linux" }}
+{{- $fontDir = ".local/share/fonts" }}
+{{- else if eq .chezmoi.os "windows" }}
+{{- $fontDir = "windows/Fonts" }}
+{{- end }}
+
+"{{ $fontDir }}/font-awesome":
+  type: archive
+  url: {{ gitHubLatestReleaseAssetURL "FortAwesome/Font-Awesome" (printf "fontawesome-free-*-desktop.zip") | quote }}
+  exact: true
+  stripComponents: 2
+  refreshPeriod: "336h"
+  include:
+    - "**/otfs/Font*.otf"
+
+"{{ $fontDir }}/emojis/AppleColorEmoji.ttf":
+  url: {{ gitHubLatestReleaseAssetURL "samuelngs/apple-emoji-linux" "AppleColorEmoji.ttf" | quote }}
+  type: file
+  refreshPeriod: "336h"
