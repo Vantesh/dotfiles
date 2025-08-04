@@ -5,38 +5,6 @@ source "${CHEZMOI_SOURCE_DIR:?env variable missing. Please only run this script 
 readonly GRUB_THEME_URL="https://github.com/semimqmo/sekiro_grub_theme"
 readonly QUIET_FLAGS_HOOKS="quiet loglevel=3 splash vt.global_cursor_default=0 nowatchdog rd.udev.log_level=3"
 
-#===================================================================================
-# SDDM
-#===================================================================================
-print_box "smslant" "SDDM"
-print_step "Setting up SDDM theme"
-
-write_system_config "/etc/sddm.conf.d/10-wayland.conf" "SDDM wayland configuration" <<EOF
-[General]
-DisplayServer=wayland
-GreeterEnvironment=QT_WAYLAND_SHELL_INTEGRATION=layer-shell
-EOF
-
-write_system_config "/etc/sddm.conf.d/hidpi.conf" "SDDM HiDPI configuration" <<EOF
-[Wayland]
-EnableHiDPI=true
-EOF
-
-# copy stray theme files
-if sudo cp -r "${CHEZMOI_WORKING_TREE}/assets/sddm/stray" /usr/share/sddm/themes/; then
-  sudo chmod -R 755 /usr/share/sddm/themes/stray
-  print_info "SDDM theme files copied successfully"
-
-  write_system_config "/etc/sddm.conf.d/theme.conf" "SDDM theme" <<EOF
-[Theme]
-Current=stray
-EOF
-  print_info "SDDM theme set to Stray"
-
-else
-  print_error "Failed to copy SDDM theme files"
-fi
-
 # ===================================================================================
 # BOOTLOADER THEME
 # ===================================================================================
@@ -121,6 +89,7 @@ EOF
     fi
   fi
 fi
+
 #===================================================================================
 # Plymouth
 #===================================================================================
@@ -185,4 +154,32 @@ if gsettings set org.gnome.desktop.interface gtk-theme "adw-gtk3-dark" &&
   print_info "GTK theme and icons set successfully"
 else
   print_warning "Failed to set GTK theme or icons"
+fi
+
+#===================================================================================
+# Ly
+#===================================================================================
+print_box "smslant" "Ly"
+print_step "Setting up Ly display manager"
+
+readonly LY_CONFIG_FILE="/etc/ly/config.ini"
+declare -a ly_config=(
+  ["allow_empty_password"]="false"
+  ["bg"]="0"
+  ["fg"]="8"
+  ["bigclock"]="en"
+  ["border_fg"]="8"
+  ["session_log"]="/tmp/ly-session.log"
+)
+
+for key in "${!ly_config[@]}"; do
+  update_config "$LY_CONFIG_FILE" "$key" "${ly_config[$key]}"
+done
+
+enable_service "ly.service" "system"
+
+if sudo systemctl disable getty@tty2.sevice >/dev/null 2>&1; then
+  print_info "TTY2 service disabled successfully"
+else
+  print_warning "Failed to disable TTY2 service"
 fi

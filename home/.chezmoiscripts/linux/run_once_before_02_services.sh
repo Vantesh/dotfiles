@@ -23,7 +23,6 @@ readonly USER_SERVICES=(
 
 readonly SYSTEM_SERVICES=(
   bluetooth.service
-  sddm.service
   ufw.service
 )
 
