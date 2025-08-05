@@ -54,6 +54,15 @@ Templates
 .config/yazi/plugins/**
 .config/yazi/flavors/**
 
+# bar
+{{- if not (lookPath "waybar") }}
+.config/waybar
+{{- end }}
+
+{{- if not (lookPath "swaync") }}
+.config/swaync
+{{- end }}
+
 {{ if eq .chezmoi.os "linux" }}
 .chezmoiscripts/windows/**
 Documents

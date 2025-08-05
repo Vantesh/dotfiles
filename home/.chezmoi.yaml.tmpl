@@ -13,6 +13,8 @@ data:
 data:
   git:
     signingKey: {{ (bitwarden "item" "git commits").sshKey.publicKey | quote }}
+    github_token: {{ (bitwardenFields "item" "git commits").GITHUB_TOKEN.value }}
+
 {{- end }}
 
 edit:
@@ -35,3 +37,8 @@ diff:
   pager: "delta"
   exclude:
     - "scripts"
+
+git:
+  autoAdd: true
+  autoCommit: false
+  autoPush: false
