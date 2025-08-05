@@ -4,94 +4,111 @@
 source "${CHEZMOI_SOURCE_DIR:?env variable missing. Please only run this script via chezmoi}/.chezmoiscripts/linux/helpers/.00_helpers"
 
 # =============================================================================
-# Install password manager
+# Install Bitwarden
 # =============================================================================
 {{- if eq .chezmoi.username "vantesh" }}
 print_box "smslant" "Bitwarden"
 
 install_package "bitwarden-bin"
 
-if ! command -v bw &>/dev/null; then
+install_bitwarden_cli() {
+  if command -v bw &>/dev/null; then
+    print_info "Bitwarden CLI is already installed."
+    return 0
+  fi
+
   print_info "Installing Bitwarden CLI..."
 
-  mkdir -p "$HOME/.local/bin"
+  local -r bw_zip_url="https://bitwarden.com/download/?app=cli&platform=linux"
+  local -r bw_zip_file="/tmp/bitwarden-cli.zip"
+  local -r install_dir="$HOME/.local/bin"
 
-  BW_ZIP_URL="https://bitwarden.com/download/?app=cli&platform=linux"
-  BW_ZIP_FILE="/tmp/bitwarden-cli.zip"
+  mkdir -p "$install_dir"
 
-  if ! curl -L "$BW_ZIP_URL" -o "$BW_ZIP_FILE"; then
+  if ! curl -fsSL "$bw_zip_url" -o "$bw_zip_file"; then
     print_error "Failed to download Bitwarden CLI."
-    exit 1 # Exit if download fails
+    return 1
   fi
 
-  if unzip -o "$BW_ZIP_FILE" -d "$HOME/.local/bin"; then
-    chmod +x "$HOME/.local/bin/bw"
-    print_info "Bitwarden CLI installed successfully."
-  else
-    rm -f "$BW_ZIP_FILE"
+  trap 'rm -f "$bw_zip_file"' EXIT
+
+  if ! unzip -oq "$bw_zip_file" -d "$install_dir"; then
     print_error "Failed to unzip the Bitwarden CLI."
+    return 1
   fi
 
-  # Clean up the zip file on success
-  rm -f "$BW_ZIP_FILE"
+  chmod +x "$install_dir/bw"
+  print_info "Bitwarden CLI installed successfully."
+}
 
-else
-  print_info "Bitwarden CLI is already installed."
-fi
+install_bitwarden_cli
 
 # ==========================================================================
 # LOGIN
 # ==========================================================================
 
+validate_email() {
+  local email="$1"
+  [[ "$email" =~ ^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$ ]]
+}
+
+get_bitwarden_email() {
+  local email
+  while true; do
+    read -r -p "Enter your Bitwarden email: " email
+    if validate_email "$email"; then
+      echo "$email"
+      return 0
+    else
+      print_warning "Invalid email format. Please try again."
+    fi
+  done
+}
+
 bw_login() {
+  if bw login --check &>/dev/null && bw unlock --check &>/dev/null; then
+    print_info "Bitwarden is already logged in and unlocked."
+    return 0
+  fi
+
   if ! bw login --check &>/dev/null; then
     print_info "Bitwarden CLI is not logged in. Please log in."
 
-    local BW_EMAIL
-    while true; do
-      read -r -p "Enter your Bitwarden email: " BW_EMAIL
-      if [[ "$BW_EMAIL" =~ ^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$ ]]; then
-        break
-      else
-        print_warning "Invalid email format. Please try again."
-      fi
-    done
+    local email session_token
+    email=$(get_bitwarden_email)
 
-    local session_token
-    session_token=$(bw login "$BW_EMAIL" --raw)
-    if [[ $? -ne 0 || -z "$session_token" ]]; then
+    if ! session_token=$(bw login "$email" --raw ); then
       print_error "Bitwarden login failed. Please check your credentials."
+      return 1
     fi
 
     export BW_SESSION="$session_token"
-    bw sync # Sync vault after a fresh login
+    bw sync
     print_info "Successfully logged in and synced."
+    return 0
+  fi
 
-  elif ! bw unlock --check &>/dev/null; then
+  if ! bw unlock --check &>/dev/null; then
     print_info "Bitwarden is locked. Please provide your master password to unlock."
 
-    local session_token
-    local attempts=0
-    local max_attempts=3
+    local session_token attempts=0
+    local -r max_attempts=3
 
-    while [[ $attempts -lt $max_attempts ]]; do
-      session_token=$(bw unlock --raw)
-      if [[ $? -eq 0 && -n "$session_token" ]]; then
+    while (( attempts < max_attempts )); do
+      if session_token=$(bw unlock --raw 2>/dev/null); then
         export BW_SESSION="$session_token"
         print_info "Bitwarden unlocked successfully."
         return 0
+      fi
+
+      (( ++attempts ))
+      if (( attempts < max_attempts )); then
+        print_warning "Invalid master password. Attempt $attempts of $max_attempts. Please try again."
       else
-        ((attempts++))
-        if [[ $attempts -lt $max_attempts ]]; then
-          print_warning "Invalid master password. Attempt $attempts of $max_attempts. Please try again."
-        else
-          print_error "Failed to unlock Bitwarden vault after $max_attempts attempts."
-        fi
+        print_error "Failed to unlock Bitwarden vault after $max_attempts attempts."
+        return 1
       fi
     done
-
-  else
-    print_info "Bitwarden is already logged in and unlocked."
   fi
 }
 
@@ -101,13 +118,32 @@ bw_login
 # SSH Setup
 # =============================================================================
 
-if [[ ! -d ~/.ssh ]]; then
-  print_info "Creating SSH directory..."
-  mkdir -p ~/.ssh
-  chmod 700 ~/.ssh
-fi
+setup_ssh() {
+  local -r ssh_dir="$HOME/.ssh"
+  local -r known_hosts="$ssh_dir/known_hosts"
 
-ssh-keyscan github.com >>~/.ssh/known_hosts
-ssh-keyscan gitlab.com >>~/.ssh/known_hosts
+  if [[ ! -d "$ssh_dir" ]]; then
+    print_info "Creating SSH directory..."
+    mkdir -p "$ssh_dir"
+    chmod 700 "$ssh_dir"
+  fi
+
+  local -a hosts=("github.com" "gitlab.com")
+
+  for host in "${hosts[@]}"; do
+    if [[ ! -f "$known_hosts" ]] || ! grep -q "^$host " "$known_hosts" 2>/dev/null; then
+      print_info "Adding $host to known_hosts..."
+      ssh-keyscan "$host" >> "$known_hosts" 2>/dev/null || {
+        print_warning "Failed to add $host to known_hosts"
+      }
+    else
+      print_info "$host already in known_hosts"
+    fi
+  done
+
+  [[ -f "$known_hosts" ]] && chmod 644 "$known_hosts"
+}
+
+setup_ssh
 
 {{- end }}
