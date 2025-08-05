@@ -15,7 +15,7 @@ pre_sudo = true
 # sudo_command = "sudo"
 
 # Disable specific steps - same options as the command line flag
-disable = ["poetry", "spicetify", "vim", "containers"]
+disable = ["chezmoi","poetry", "spicetify", "vim", "containers"]
 
 # Ignore failures for these steps
 # ignore_failures = []
@@ -33,7 +33,7 @@ disable = ["poetry", "spicetify", "vim", "containers"]
 # tmux_arguments = "-S /var/tmux.sock"
 
 # Do not set the terminal title (dfault: true)
-# set_title = true
+ set_title = true
 
 # Display the time in step titles (default: true)
 # display_time = true
@@ -48,7 +48,7 @@ disable = ["poetry", "spicetify", "vim", "containers"]
 # run_in_tmux = true
 
 # Cleanup temporary or old files (default: false)
- cleanup = true
+ cleanup = false
 
 # Send a notification for every step (default: false)
 # notify_each_step = true
