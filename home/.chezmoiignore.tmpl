@@ -28,7 +28,6 @@ Templates
 
 .local/*
 !.local/bin
-!.local/share
 !.local/share/icons
 !.local/share/fonts
 
@@ -50,6 +49,10 @@ Templates
 .config/qt6ct/{colors,qss}
 .config/gtk-3.0/{colors.css,bookmarks}
 .config/gtk-4.0/{colors.css,assets}
+
+# ignore yazi folders
+.config/yazi/plugins/**
+.config/yazi/flavors/**
 
 {{ if eq .chezmoi.os "linux" }}
 .chezmoiscripts/windows/**
