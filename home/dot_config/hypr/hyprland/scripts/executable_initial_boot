@@ -4,9 +4,15 @@
 # Do not run it manually(it wont run though as long as the ".first_setup_done" exists)
 
 if [[ ! -f ~/.config/hypr/.first_setup_done ]]; then
-    sleep 1
+    sleep 2
     if command -v waypaper &>/dev/null; then
-        waypaper --random
+
+        if [[ ! -d "$HOME/Pictures/Wallpapers" ]]; then
+            notify-send "ERROR" "Wallpapers not found! Please create it at $HOME/Pictures/Wallpapers"
+            exit 1
+        fi
+
+        waypaper --folder "$HOME/Pictures/Wallpapers" --random
     fi
 
     # create the first setup done file
