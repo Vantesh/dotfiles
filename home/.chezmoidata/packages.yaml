@@ -93,6 +93,7 @@ packageGroups:
 
   optional:
     - brave-bin
+    - atuin
     - visual-studio-code-bin
     - qbittorrent
     - mpv
