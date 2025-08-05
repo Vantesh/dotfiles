@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+
+# shellcheck disable=SC1091
+source "${CHEZMOI_SOURCE_DIR:?env variable missing. Please only run this script via chezmoi}/.chezmoiscripts/linux/helpers/.00_helpers"
+
+# =============================================================================
+# Initialize Environment
+# =============================================================================
+common_init "Shell Setup"
+
+{{- if eq .chezmoi.username "vantesh" }}
+
+if [[ "$(atuin status)" == *"You are not logged in to a sync server"* ]]; then
+print_box "smslant" "Atuin Login"
+print_step "Logging in to Atuin"
+atuin login \
+ --username '{{ (bitwarden "item" "Atuin").login.username }}' \
+ --password '{{ (bitwarden "item" "Atuin").login.password }}' \
+ --key '{{ (bitwardenFields "item" "Atuin").atuin_key.value }}'
+
+atuin sync
+else
+print_info "Atuin is already logged in. Skipping login step."
+fi
+{{- end }}
