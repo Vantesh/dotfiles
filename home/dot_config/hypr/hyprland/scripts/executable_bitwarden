@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+if command -v bitwarden-desktop &> /dev/null; then
+    bitwarden-desktop
+else
+    bitwarden
+fi

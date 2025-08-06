@@ -14,9 +14,11 @@ if [[ ! -f ~/.config/hypr/.first_setup_done ]]; then
         fi
 
         waypaper --folder "$HOME/Pictures/Wallpapers" --random
-    fi
+        notify-send -w --icon=dialog-information "Wallpaper" "Wallpaper set successfully"
 
-    # create the first setup done file
-    printf "#DO NOT DELETE THIS FILE\n#This file is used to check if the first setup has been done\n" >~/.config/hypr/.first_setup_done
+       # create the first setup done file
+       printf "#DO NOT DELETE THIS FILE\n#This file is used to check if the first setup has been done\n" >~/.config/hypr/.first_setup_done
+
+    fi
 
 fi
