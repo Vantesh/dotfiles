@@ -28,7 +28,6 @@ packageGroups:
     - rofimoji
     - yad # for keybinds popup
     - xdg-desktop-portal-gtk
-    - xdg-user-dirs
     - xdg-autostart
     - xdg-terminal-exec
     - gnome-keyring
@@ -110,7 +109,6 @@ packageGroups:
   drivers:
     base:
       - mesa-utils
-      - mesa
       - wireless-regdb
       - libva-utils
       - vulkan-tools
@@ -140,7 +138,6 @@ packageGroups:
       - libva-intel-driver
       - intel-media-driver
       - vulkan-intel
-      - intel-ucode
 
   laptop:
     - auto-cpufreq
