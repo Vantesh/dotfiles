@@ -4,7 +4,7 @@
 # Do not run it manually(it wont run though as long as the ".first_setup_done" exists)
 
 if [[ ! -f ~/.config/hypr/.first_setup_done ]]; then
-    sleep 2
+    sleep 1
     if command -v waypaper &>/dev/null; then
 
         if [[ ! -d "$HOME/Pictures/Wallpapers" ]] || [[ -z "$(ls -A "$HOME/Pictures/Wallpapers")" ]]; then
@@ -12,13 +12,15 @@ if [[ ! -f ~/.config/hypr/.first_setup_done ]]; then
             notify-send -w --icon=dialog-error "Wallpaper" "Please add wallpaper to the dir and restart hyprland"
             exit 1
         fi
+        RANDOM_WALLPAPER=$(find "$HOME/Pictures/Wallpapers" -type f | shuf -n 1)
 
-        waypaper --folder "$HOME/Pictures/Wallpapers" --random
-        notify-send -w --icon=dialog-information "Wallpaper" "Wallpaper set successfully"
+        waypaper --wallpaper "$RANDOM_WALLPAPER" &
+        "$HOME"/.local/bin/walset "$RANDOM_WALLPAPER" &
+         hyprctl reload
+
+    fi
 
        # create the first setup done file
        printf "#DO NOT DELETE THIS FILE\n#This file is used to check if the first setup has been done\n" >~/.config/hypr/.first_setup_done
-
-    fi
 
 fi
