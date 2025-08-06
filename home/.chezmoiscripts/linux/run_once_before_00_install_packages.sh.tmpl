@@ -98,11 +98,19 @@ dependencies+=("{{ .shell.default }}")
 # Initialize Environment
 # =============================================================================
 common_init
-clear
+
+if [[ $(tty) =~ ^/dev/tty[0-9]+$ ]]; then
+   print_info "setting up tty fonts for visibility"
+   sudo pacman -S --needed --noconfirm terminus-font &>/dev/null
+   sudo setfont ter-122b &>/dev/null
+
+fi
+
 
 # =============================================================================
 # Welcome Message
 # =============================================================================
+clear
 print_box "smslant" "Welcome"
 
 echo -e "\n---------------------------------------------"
