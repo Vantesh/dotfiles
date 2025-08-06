@@ -47,6 +47,11 @@ install_bitwarden_cli
 # LOGIN
 # ==========================================================================
 
+if [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
+  export PATH="$HOME/.local/bin:$PATH"
+fi
+
+
 validate_email() {
   local email="$1"
   [[ "$email" =~ ^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$ ]]
