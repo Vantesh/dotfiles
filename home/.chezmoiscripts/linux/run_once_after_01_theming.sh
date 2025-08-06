@@ -163,7 +163,7 @@ print_box "smslant" "Ly"
 print_step "Setting up Ly display manager"
 
 readonly LY_CONFIG_FILE="/etc/ly/config.ini"
-declare -a ly_config=(
+declare -A ly_config=(
   ["allow_empty_password"]="false"
   ["bg"]="0"
   ["fg"]="8"
@@ -173,8 +173,19 @@ declare -a ly_config=(
 )
 
 for key in "${!ly_config[@]}"; do
-  update_config "$LY_CONFIG_FILE" "$key" "${ly_config[$key]}"
+  # Use custom config update for Ly to maintain proper spacing: key = value
+  escaped_key=$(printf '%s' "$key" | sed 's/\[/\\[/g; s/\]/\\]/g')
+  key_regex="^\s*#*\s*${escaped_key}\s*="
+
+  if sudo grep -qE "$key_regex" "$LY_CONFIG_FILE"; then
+    # Update existing key with proper spacing
+    sudo sed -i -E "s|$key_regex.*|$key = ${ly_config[$key]}|" "$LY_CONFIG_FILE"
+  else
+    # Add new key with proper spacing
+    echo "$key = ${ly_config[$key]}" | sudo tee -a "$LY_CONFIG_FILE" >/dev/null
+  fi
 done
+
 
 enable_service "ly.service" "system"
 
