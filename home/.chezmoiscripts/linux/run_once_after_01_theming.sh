@@ -165,10 +165,13 @@ print_step "Setting up Ly display manager"
 readonly LY_CONFIG_FILE="/etc/ly/config.ini"
 declare -A ly_config=(
   ["allow_empty_password"]="false"
+  ["clear_password"]="true"
+  ["path"]="null"
   ["bg"]="0"
   ["fg"]="8"
   ["bigclock"]="en"
   ["border_fg"]="8"
+  ["sleep_cmd"]="systemctl suspend"
   ["session_log"]="/tmp/ly-session.log"
 )
 
