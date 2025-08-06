@@ -9,39 +9,8 @@ source "${CHEZMOI_SOURCE_DIR:?env variable missing. Please only run this script 
 {{- if eq .chezmoi.username "vantesh" }}
 print_box "smslant" "Bitwarden"
 
-install_package "bitwarden-bin"
-
-install_bitwarden_cli() {
-  if command -v bw &>/dev/null; then
-    print_info "Bitwarden CLI is already installed."
-    return 0
-  fi
-
-  print_info "Installing Bitwarden CLI..."
-
-  local -r bw_zip_url="https://bitwarden.com/download/?app=cli&platform=linux"
-  local -r bw_zip_file="/tmp/bitwarden-cli.zip"
-  local -r install_dir="$HOME/.local/bin"
-
-  mkdir -p "$install_dir"
-
-  if ! curl -fsSL "$bw_zip_url" -o "$bw_zip_file"; then
-    print_error "Failed to download Bitwarden CLI."
-    return 1
-  fi
-
-  trap 'rm -f "$bw_zip_file"' EXIT
-
-  if ! unzip -oq "$bw_zip_file" -d "$install_dir"; then
-    print_error "Failed to unzip the Bitwarden CLI."
-    return 1
-  fi
-
-  chmod +x "$install_dir/bw"
-  print_info "Bitwarden CLI installed successfully."
-}
-
-install_bitwarden_cli
+install_package "bitwarden"
+install_package "bitwarden-cli"
 
 # ==========================================================================
 # LOGIN
@@ -95,7 +64,7 @@ bw_login() {
     local -r max_attempts=3
 
     while (( attempts < max_attempts )); do
-      if session_token=$(bw unlock --raw 2>/dev/null); then
+      if session_token=$(bw unlock --raw); then
         export BW_SESSION="$session_token"
         print_info "Bitwarden unlocked successfully."
         return 0
