@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+set -euo pipefail
+
 readonly GTK_IMPORT_LINE='@import "colors.css";'
 readonly GTK_CSS_FILES=(
   "$HOME/.config/gtk-4.0/gtk.css"
@@ -8,131 +10,253 @@ readonly GTK_CSS_FILES=(
 readonly SERVICES_TO_RESTART=(
   "xdg-desktop-portal-gtk"
 )
-
 readonly HYPRLOCK_PNG="$HOME/.config/hypr/hyprlock/icon.png"
 readonly HYPRLOCK_SVG="$HOME/.cache/wal/icon.svg"
 
-update_system_agents() {
-  for service in "${SERVICES_TO_RESTART[@]}"; do
-    if systemctl --user is-active --quiet "$service"; then
-      systemctl --user restart "$service" >/dev/null 2>&1
-    fi
-  done
-  pkill -f "/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1" >/dev/null 2>&1 || true
-  /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1 &
+declare -A FOLDER_COLORS=(
+  ["blue"]="#89B4FA" ["grey"]="#878688" ["green"]="#84A756" ["adwaita"]="#B4BEFE"
+  ["carmine"]="#AC0406" ["magenta"]="#CBA6F7" ["orange"]="#E58E3B" ["pink"]="#F5C2E7"
+  ["red"]="#F38BA8" ["breeze"]="#89DCEB" ["teal"]="#94E2D5" ["yellow"]="#F9E2AF"
+  ["violet"]="#7653B4" ["cyan"]="#04ADC4" ["nordic"]="#7895B3" ["palebrown"]="#D1BFAE"
+  ["deeporange"]="#DB633A" ["brown"]="#AD8B6C" ["paleorange"]="#E8C289" ["darkcyan"]="#45ABB7"
+  ["black"]="#4F4F4F" ["bluegrey"]="#607D8B"
+)
+
+log_error() {
+  echo "Error: $*" >&2
 }
 
+log_info() {
+  echo "Info: $*"
+}
+
+# Optimized system agents update
+update_system_agents() {
+  local pids=()
+
+  for service in "${SERVICES_TO_RESTART[@]}"; do
+    if systemctl --user is-active --quiet "$service" 2>/dev/null; then
+      systemctl --user restart "$service" &>/dev/null &
+      pids+=($!)
+    fi
+  done
+
+
+  pkill -f "/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1" &>/dev/null || true
+  /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1 &>/dev/null &
+
+  for pid in "${pids[@]}"; do
+    wait "$pid" 2>/dev/null || true
+  done
+}
+
+# Optimized GTK CSS update
 update_gtk_css() {
+  local file
   for file in "${GTK_CSS_FILES[@]}"; do
     if [[ -L "$file" ]] || ! grep -Fxq "$GTK_IMPORT_LINE" "$file" 2>/dev/null; then
-      # Forcefully remove the symlink/file and create a new, correct file.
-      rm -f "$file"
-      echo "$GTK_IMPORT_LINE" >"$file"
+      mkdir -p "$(dirname "$file")"
+      echo "$GTK_IMPORT_LINE" > "${file}.tmp" && mv "${file}.tmp" "$file"
     fi
   done
 }
 
-# ------------------------------------------------------------------------------------
-# Spicetify
-# ------------------------------------------------------------------------------------
 update_spotify() {
-  if [[ "$(spicetify config current_theme)" != "marketplace" ]]; then
-    spicetify config current_theme marketplace >/dev/null 2>&1
+  if ! command -v spicetify &>/dev/null; then
+    return 0
   fi
 
-  if pgrep spotify >/dev/null 2>&1; then
-    (
-      spicetify -q watch -s &
-      sleep 1
-      pkill spicetify || true
-    ) >/dev/null 2>&1 &
-  else
-    spicetify apply >/dev/null 2>&1
+  if ! pgrep -x spotify &>/dev/null; then
+    return 0
   fi
+
+  if [[ "$(spicetify config current_theme 2>/dev/null)" != "marketplace" ]]; then
+    spicetify config current_theme marketplace &>/dev/null || {
+      log_error "Failed to set spicetify theme"
+      return 1
+    }
+  fi
+
+  {
+    timeout 10s spicetify -q watch -s &
+    local watch_pid=$!
+    sleep 2
+    kill "$watch_pid" 2>/dev/null || true
+  } &>/dev/null &
 }
 
-# ------------------------------------------------------------------------------------
-# Folder colors
-# ------------------------------------------------------------------------------------
-
 update_folder_colors() {
-  export PATH="$HOME/.local/bin:$PATH"
-  declare -A colors=(
-    [blue]="#89B4FA" [grey]="#878688" [green]="#84A756" [adwaita]="#B4BEFE"
-    [carmine]="#AC0406" [magenta]="#CBA6F7" [orange]="#E58E3B" [pink]="#F5C2E7"
-    [red]="#F38BA8" [breeze]="#89DCEB" [teal]="#94E2D5" [yellow]="#F9E2AF"
-    [violet]="#7653B4" [cyan]="#04ADC4" [nordic]="#7895B3" [palebrown]="#D1BFAE"
-    [deeporange]="#DB633A" [brown]="#AD8B6C" [paleorange]="#E8C289" [darkcyan]="#45ABB7"
-    [black]="#4F4F4F" [bluegrey]="#607D8B"
-  )
+  if ! command -v papirus-folders &>/dev/null; then
+    log_info "papirus-folders not found, skipping folder theming"
+    return 0
+  fi
 
-  hex_to_rgb() {
-    local hex=$1
-    printf -v "$2" '%d' "0x${hex:1:2}"
-    printf -v "$3" '%d' "0x${hex:3:2}"
-    printf -v "$4" '%d' "0x${hex:5:2}"
+  local cache_file="$HOME/.cache/wal/papirus-folders.txt"
+  if [[ ! -f "$cache_file" ]]; then
+    log_error "Color cache file not found: $cache_file"
+    return 1
+  fi
+
+  local target_hex
+  target_hex=$(<"$cache_file") || {
+    log_error "Failed to read color from cache file"
+    return 1
   }
 
-  local hex r1 g1 b1 r2 g2 b2 distance min_distance closest_color name
-  hex=$(<"$HOME/.cache/wal/papirus-folders.txt")
-  hex_to_rgb "$hex" r1 g1 b1
-  min_distance=1000000
+  local -i r1 g1 b1
+  r1=$(( 0x${target_hex:1:2} ))
+  g1=$(( 0x${target_hex:3:2} ))
+  b1=$(( 0x${target_hex:5:2} ))
 
-  for name in "${!colors[@]}"; do
-    hex_to_rgb "${colors[$name]}" r2 g2 b2
-    distance=$(((r1 - r2) ** 2 + (g1 - g2) ** 2 + (b1 - b2) ** 2))
-    if ((distance < min_distance)); then
+  # Find closest color using optimized distance calculation
+  local min_distance=1000000 closest_color=""
+  local name color_hex r2 g2 b2 distance
+
+  for name in "${!FOLDER_COLORS[@]}"; do
+    color_hex="${FOLDER_COLORS[$name]}"
+    r2=$(( 0x${color_hex:1:2} ))
+    g2=$(( 0x${color_hex:3:2} ))
+    b2=$(( 0x${color_hex:5:2} ))
+
+    distance=$(( (r1-r2)*(r1-r2) + (g1-g2)*(g1-g2) + (b1-b2)*(b1-b2) ))
+
+    if (( distance < min_distance )); then
       min_distance=$distance
       closest_color=$name
     fi
   done
 
-  papirus-folders -C "$closest_color" -t Papirus-Dark
+  if [[ -n "$closest_color" ]]; then
+    papirus-folders -C "$closest_color" -t Papirus-Dark &>/dev/null || {
+      log_error "Failed to apply folder color: $closest_color"
+      return 1
+    }
+  else
+    log_error "No matching folder color found"
+    return 1
+  fi
 }
 
-if [[ $# -lt 1 ]] || [[ ! -f $1 ]]; then
-  echo "Description: Apply a new colorscheme and update the system theme."
-  echo "Usage: walset <path_to_wallpaper>" >&2
+validate_input() {
+  local wallpaper="$1"
 
-  exit 1
-fi
+  if [[ ! -f "$wallpaper" ]]; then
+    log_error "Wallpaper file not found: $wallpaper"
+    exit 1
+  fi
 
-# ------------------------------------------------------------------------------------
-# terminal
-# ------------------------------------------------------------------------------------
+  # Check if it's an image file
+  if ! file "$wallpaper" | grep -qE "(image|bitmap)" 2>/dev/null; then
+    log_error "File is not a valid image: $wallpaper"
+    exit 1
+  fi
+}
+
+# Optimized terminal reload
 reload_terminal() {
-    if command -v fish >/dev/null; then
-        fish -c "yes | fish_config theme save Matugen"
-        fish ~/.cache/wal/fzf.fish
+  local pids=()
 
-    fi
-    kitty +kitten themes --reload-in=all matugen
+  if command -v fish &>/dev/null; then
+    {
+      fish -c "yes | fish_config theme save Matugen" 2>/dev/null
+      [[ -f "$HOME/.cache/wal/fzf.fish" ]] && fish "$HOME/.cache/wal/fzf.fish" 2>/dev/null
+    } &
+    pids+=($!)
+  fi
+
+  if command -v kitty &>/dev/null; then
+    kitty +kitten themes --reload-in=all matugen &>/dev/null &
+    pids+=($!)
+  fi
+
+  for pid in "${pids[@]}"; do
+    wait "$pid" 2>/dev/null || true
+  done
 }
 
-# ------------------------------------------------------------------------------------
-# Main script
-# ------------------------------------------------------------------------------------
+main() {
 
-# Generate the color scheme.
-matugen -t scheme-tonal-spot image "$1" >/dev/null 2>&1
-wallust -I background -I foreground run "$1"
+  if [[ $# -eq 0 ]]; then
+    echo "Description: Apply a new colorscheme and update the system theme."
+    echo "Usage: $(basename "$0") <path_to_wallpaper>" >&2
+    echo ""
+    echo "This script will:"
+    echo "  • Generate color schemes from the wallpaper"
+    echo "  • Update terminal themes (fish, kitty)"
+    echo "  • Apply GTK themes"
+    echo "  • Update folder colors"
+    echo "  • Theme Spotify (if running)"
+    echo "  • Restart relevant system services"
+    echo ""
+    echo "Example: $(basename "$0") ~/Pictures/wallpaper.jpg"
+    exit 1
+  fi
 
-# Reload terminal
-reload_terminal
+  local wallpaper="$1"
+  local pids=()
 
-if pgrep nvim >/dev/null; then
-  killall -SIGUSR1 nvim
-fi
+  validate_input "$@"
 
-magick -background none "$HYPRLOCK_SVG" "$HYPRLOCK_PNG"
-update_system_agents
-update_gtk_css
+  log_info "Applying wallpaper and updating theme: $wallpaper"
 
-# update bat cache
-bat cache --build &> /dev/null
+  if ! matugen -t scheme-tonal-spot image "$wallpaper" &>/dev/null; then
+    log_error "Failed to generate color scheme with matugen"
+    exit 1
+  fi
 
-# Run slow updates in the background.
-update_folder_colors &
-update_spotify &
+  if ! wallust -s run "$wallpaper" &>/dev/null; then
+    log_error "Failed to process wallpaper with wallust"
+    exit 1
+  fi
 
-wait
+  reload_terminal &
+  pids+=($!)
+
+  if pgrep -x nvim &>/dev/null; then
+    killall -SIGUSR1 nvim 2>/dev/null || true
+  fi
+
+  if [[ -f "$HYPRLOCK_SVG" ]]; then
+    if command -v magick &>/dev/null; then
+      magick -background none "$HYPRLOCK_SVG" "$HYPRLOCK_PNG" &>/dev/null &
+      pids+=($!)
+    else
+      log_error "ImageMagick not found, skipping hyprlock icon generation"
+    fi
+  fi
+
+
+  update_system_agents &
+  pids+=($!)
+
+  update_gtk_css &
+  pids+=($!)
+
+  if command -v bat &>/dev/null; then
+    bat cache --build &>/dev/null &
+    pids+=($!)
+  fi
+
+  for pid in "${pids[@]}"; do
+    wait "$pid" 2>/dev/null || true
+  done
+
+  # Slow updates in background - but wait for them to prevent orphaned processes
+  local bg_pids=()
+
+  update_folder_colors &
+  bg_pids+=($!)
+
+  update_spotify &
+  bg_pids+=($!)
+
+  # Wait for background processes to complete to prevent hanging
+  for pid in "${bg_pids[@]}"; do
+    wait "$pid" 2>/dev/null || true
+  done
+
+  log_info "Theme application completed successfully"
+}
+
+
+main "$@"
