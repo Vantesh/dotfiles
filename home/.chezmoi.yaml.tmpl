@@ -9,12 +9,6 @@ data:
   git_email: {{ $git_email | quote }}
   default_shell: {{ $default_shell | quote }}
 
-{{- else }}
-data:
-  git:
-    signingKey: {{ (bitwarden "item" "git commits").sshKey.publicKey | quote }}
-    github_token: {{ (bitwardenFields "item" "git commits").GITHUB_TOKEN.value }}
-
 {{- end }}
 
 edit:
