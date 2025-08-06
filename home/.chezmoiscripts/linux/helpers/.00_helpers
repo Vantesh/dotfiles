@@ -208,15 +208,6 @@ initialize_env() {
       sudo pacman -S --needed --noconfirm "$dep" &>/dev/null
     done
   fi
-  # Only set up tty fonts once per session
-  if [[ -z "${TTY_FONT_SETUP_DONE:-}" ]]; then
-    if [[ $(tty) =~ ^/dev/tty[0-9]+$ ]]; then
-      print_info "setting up tty fonts for visibility"
-      sudo pacman -S --needed --noconfirm terminus-font &>/dev/null
-      sudo setfont ter-122b &>/dev/null
-      export TTY_FONT_SETUP_DONE=1
-    fi
-  fi
 
 }
 

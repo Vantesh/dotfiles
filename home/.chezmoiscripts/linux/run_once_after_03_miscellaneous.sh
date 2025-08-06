@@ -38,6 +38,15 @@ else
   print_info "GnuPG directory already exists"
 fi
 
+
+if [[ ! -d "${HOME}/.cache/bash" ]]; then
+  print_info "Creating bash cache directory"
+  mkdir -p "${HOME}/.cache/bash"
+  print_info "Bash cache directory created successfully"
+else
+  print_info "Bash cache directory already exists"
+fi
+
 # ====================================================================================
 # DNS OVER HTTPS
 # ====================================================================================
