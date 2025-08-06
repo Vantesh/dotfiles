@@ -53,5 +53,5 @@ set -xg SUDO_EDITOR $EDITOR
 #--------------------------------------------------
 {{- if eq .chezmoi.username "vantesh" }}
 set -xg SSH_AUTH_SOCK ~/.bitwarden-ssh-agent.sock
-set -xg GITHUB_TOKEN {{ .git.github_token | quote }}
+set -xg GITHUB_TOKEN {{ (bitwardenFields "item" "git commits").GITHUB_TOKEN.value | quote }}
 {{- end }}
