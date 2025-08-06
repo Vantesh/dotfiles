@@ -208,19 +208,20 @@ initialize_env() {
       sudo pacman -S --needed --noconfirm "$dep" &>/dev/null
     done
   fi
-
-  if [[ $(tty) =~ ^/dev/tty[0-9]+$ ]]; then
-    print_info "setting up tty fonts for visibility"
-    sudo pacman -S --needed --noconfirm terminus-font &>/dev/null
-    sudo setfont ter-122b &>/dev/null
+  # Only set up tty fonts once per session
+  if [[ -z "${TTY_FONT_SETUP_DONE:-}" ]]; then
+    if [[ $(tty) =~ ^/dev/tty[0-9]+$ ]]; then
+      print_info "setting up tty fonts for visibility"
+      sudo pacman -S --needed --noconfirm terminus-font &>/dev/null
+      sudo setfont ter-122b &>/dev/null
+      export TTY_FONT_SETUP_DONE=1
+    fi
   fi
 
 }
 
 # Common initialization function for all scripts
 common_init() {
-  local script_name="${1:-script}"
-
   # Check if running as root
   if [[ $EUID -eq 0 ]]; then
     print_error "This script should not be run as root. Please run it as a normal user."
@@ -231,7 +232,7 @@ common_init() {
 
   # Initialize environment
   if initialize_env; then
-    print_info "Starting $script_name..."
+    return 0
   else
     print_error "Failed to initialize environment."
   fi

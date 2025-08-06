@@ -14,14 +14,14 @@ install_chaotic_aur() {
   fi
 
   print_info "Installing Chaotic keyring..."
-  if sudo pacman -U 'https://cdn-mirror.chaotic.cx/chaotic-aur/chaotic-keyring.pkg.tar.zst' &>/dev/null; then
+  if sudo pacman -U --noconfirm 'https://cdn-mirror.chaotic.cx/chaotic-aur/chaotic-keyring.pkg.tar.zst' &>/dev/null; then
     print_info "Chaotic keyring installed successfully"
   else
     print_error "Failed to install the chaotic keyring"
   fi
 
   print_info "Installing Chaotic mirrorlist..."
-  if sudo pacman -U 'https://cdn-mirror.chaotic.cx/chaotic-aur/chaotic-mirrorlist.pkg.tar.zst' &>/dev/null; then
+  if sudo pacman -U --noconfirm 'https://cdn-mirror.chaotic.cx/chaotic-aur/chaotic-mirrorlist.pkg.tar.zst' &>/dev/null; then
     print_info "Chaotic mirrorlist installed successfully"
   else
     print_error "Failed to install the chaotic mirrorlist"
