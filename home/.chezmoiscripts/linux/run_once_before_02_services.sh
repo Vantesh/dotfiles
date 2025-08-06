@@ -6,7 +6,7 @@ source "${CHEZMOI_SOURCE_DIR:?env variable missing. Please only run this script 
 # Initialize Environment
 # =============================================================================
 
-common_init "hibernation setup"
+common_init
 
 # =============================================================================
 # ENABLE SERVICES
