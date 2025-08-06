@@ -103,20 +103,29 @@ update_folder_colors() {
     return 1
   }
 
+  # Clean up the hex color (remove # if present and ensure uppercase)
+  target_hex="${target_hex#\#}"
+  target_hex="${target_hex^^}"
+
+  if [[ ! "$target_hex" =~ ^[0-9A-F]{6}$ ]]; then
+    log_error "Invalid hex color format in cache file: $target_hex"
+    return 1
+  fi
+
   local -i r1 g1 b1
-  r1=$(( 0x${target_hex:1:2} ))
-  g1=$(( 0x${target_hex:3:2} ))
-  b1=$(( 0x${target_hex:5:2} ))
+  r1=$(( 0x${target_hex:0:2} ))
+  g1=$(( 0x${target_hex:2:2} ))
+  b1=$(( 0x${target_hex:4:2} ))
 
   # Find closest color using optimized distance calculation
   local min_distance=1000000 closest_color=""
   local name color_hex r2 g2 b2 distance
 
   for name in "${!FOLDER_COLORS[@]}"; do
-    color_hex="${FOLDER_COLORS[$name]}"
-    r2=$(( 0x${color_hex:1:2} ))
-    g2=$(( 0x${color_hex:3:2} ))
-    b2=$(( 0x${color_hex:5:2} ))
+    color_hex="${FOLDER_COLORS[$name]#\#}"
+    r2=$(( 0x${color_hex:0:2} ))
+    g2=$(( 0x${color_hex:2:2} ))
+    b2=$(( 0x${color_hex:4:2} ))
 
     distance=$(( (r1-r2)*(r1-r2) + (g1-g2)*(g1-g2) + (b1-b2)*(b1-b2) ))
 
@@ -127,6 +136,7 @@ update_folder_colors() {
   done
 
   if [[ -n "$closest_color" ]]; then
+
     papirus-folders -C "$closest_color" -t Papirus-Dark &>/dev/null || {
       log_error "Failed to apply folder color: $closest_color"
       return 1
