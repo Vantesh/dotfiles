@@ -1,18 +1,18 @@
 {{- if eq .chezmoi.os "linux" }}
 ".local/share/icons/macOS-hypr":
-  url: {{ gitHubLatestReleaseAssetURL "driedpampas/macOS-hyprcursor" "macOS.Hyprcursor.SVG.White.tar.gz" | quote }}
+  url: {{ .macOSHyprWhiteIconsUrl }}
   type: archive
   stripComponents: 1
   refreshPeriod: "744h"
 
 ".local/share/icons/macOS-hypr-dark":
-  url: {{ gitHubLatestReleaseAssetURL "driedpampas/macOS-hyprcursor" "macOS.Hyprcursor.SVG.tar.gz" | quote }}
+  url: {{ .macOSHyprDarkIconsUrl }}
   type: archive
   stripComponents: 1
   refreshPeriod: "744h"
 
 ".local/share/icons/macOS":
-  url: {{ gitHubLatestReleaseAssetURL "ful1e5/apple_cursor" "macOS.tar.xz" | quote }}
+  url: {{ .macOSIconsUrl }}
   type: archive
   include:
     - "*/macOS/**"
@@ -20,7 +20,7 @@
   stripComponents: 2
 
 ".local/share/icons/macOS-White":
-  url: {{ gitHubLatestReleaseAssetURL "ful1e5/apple_cursor" "macOS.tar.xz" | quote }}
+  url: {{ .macOSIconsUrl }}
   type: archive
   include:
     - "*/macOS-White/**"
