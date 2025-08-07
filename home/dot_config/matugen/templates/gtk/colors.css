@@ -1,0 +1,127 @@
+/*
+ adw-gtk-theme colors
+ Generated with Matugen
+
+ GTK 3
+ https://github.com/lassekongo83/adw-colors/blob/main/HOWTO.md
+*/
+
+@define-color window_bg_color {{colors.surface_dim.default.hex}};
+@define-color window_fg_color {{colors.on_surface.default.hex}};
+@define-color view_bg_color {{colors.surface.default.hex}};
+@define-color view_fg_color @window_fg_color;
+@define-color accent_bg_color {{colors.primary_fixed_dim.default.hex}};
+@define-color accent_fg_color {{colors.on_primary_fixed.default.hex}};
+@define-color accent_color @accent_bg_color;
+@define-color headerbar_bg_color @window_bg_color;
+@define-color headerbar_fg_color @window_fg_color;
+@define-color headerbar_backdrop_color @window_bg_color;
+@define-color headerbar_border_color @window_bg_color;
+@define-color headerbar_shade_color @window_bg_color;
+@define-color card_bg_color {{colors.surface.default.hex}};
+@define-color card_fg_color @window_fg_color;
+@define-color card_shade_color rgba(0, 0, 0, 0.07);
+@define-color popover_bg_color @window_bg_color;
+@define-color popover_fg_color @window_fg_color;
+@define-color dialog_bg_color @card_bg_color;
+@define-color dialog_fg_color @card_fg_color;
+@define-color sidebar_bg_color {{colors.surface_container.default.hex}};
+@define-color sidebar_fg_color @window_fg_color;
+@define-color sidebar_backdrop_color @window_bg_color;
+@define-color sidebar_shade_color rgba(0,0,0,0.25);
+@define-color secondary_sidebar_bg_color @window_bg_color;
+@define-color secondary_sidebar_fg_color @window_fg_color;
+@define-color secondary_sidebar_backdrop_color @window_bg_color;
+@define-color secondary_sidebar_shade_color rgba(0,0,0,0.25);
+@define-color secondary_sidebar_border_color @window_bg_color;
+
+@define-color warning_bg_color {{colors.tertiary_container.default.hex}};
+@define-color warning_fg_color {{colors.on_tertiary_container.default.hex}};
+@define-color warning_color {{colors.tertiary.default.hex}};
+@define-color error_bg_color {{colors.error_container.default.hex}};
+@define-color error_fg_color {{colors.on_error_container.default.hex}};
+@define-color error_color {{colors.error.default.hex}};
+@define-color success_bg_color {{colors.secondary_container.default.hex}};
+@define-color success_fg_color {{colors.on_secondary_container.default.hex}};
+@define-color success_color {{colors.secondary.default.hex}};
+@define-color destructive_bg_color {{colors.error_container.default.hex}};
+@define-color destructive_fg_color {{colors.on_error_container.default.hex}};
+@define-color destructive_color {{colors.error.default.hex}};
+
+
+/*
+ adw-gtk-theme colors
+ Generated with Matugen
+
+ GTK 4.16+
+ https://gitlab.gnome.org/GNOME/libadwaita/-/blob/main/src/stylesheet/_colors.scss
+*/
+
+:root {
+    --accent-blue: #89b4fa;
+    --accent-teal: #94e2d5;
+    --accent-green: #a6e3a1;
+    --accent-yellow: #f9e2af;
+    --accent-orange: #fab387;
+    --accent-red: #f38ba8;
+    --accent-pink: #f5c2e7;
+    --accent-purple: #cba6f7;
+    --accent-slate: #cdd6f4;
+
+    --accent-bg-color: @accent_bg_color;
+    --accent-fg-color: @accent_fg_color;
+
+    --destructive-bg-color: @destructive_bg_color;
+    --destructive-fg-color: @destructive_fg_color;
+
+    --success-bg-color: @success_bg_color;
+    --success-fg-color: @success_fg_color;
+
+    --warning-bg-color: @warning_bg_color;
+    --warning-fg-color: @warning_fg_color;
+
+    --error-bg-color: @error_bg_color;
+    --error-fg-color: @error_fg_color;
+
+    --window-bg-color: @window_bg_color;
+    --window-fg-color: @window_fg_color;
+
+    --view-bg-color: @view_bg_color;
+    --view-fg-color: @view_fg_color;
+
+    --headerbar-bg-color: @headerbar_bg_color;
+    --headerbar-fg-color: @headerbar_fg_color;
+    --headerbar-border-color: @headerbar_border_color;
+    --headerbar-backdrop-color: @headerbar_backdrop_color;
+    --headerbar-shade-color: @headerbar_shade_color;
+    --headerbar-darker-shade-color: @headerbar_darker_shade_color;
+
+    --sidebar-bg-color: @sidebar_bg_color;
+    --sidebar-fg-color: @sidebar_fg_color;
+    --sidebar-backdrop-color: @sidebar_backdrop_color;
+    --sidebar-border-color: @sidebar_border_color;
+    --sidebar-shade-color: @sidebar_shade_color;
+
+    --secondary-sidebar-bg-color: @secondary_sidebar_bg_color;
+    --secondary-sidebar-fg-color: @secondary_sidebar_fg_color;
+    --secondary-sidebar-backdrop-color: @secondary_sidebar_backdrop_color;
+    --secondary-sidebar-border-color: @secondary_sidebar_border_color;
+    --secondary-sidebar-shade-color: @secondary_sidebar_shade_color;
+
+    --card-bg-color: @card_bg_color;
+    --card-fg-color: @card_fg_color;
+    --card-shade-color: @card_shade_color;
+
+    --dialog-bg-color: @dialog_bg_color;
+    --dialog-fg-color: @dialog_fg_color;
+
+    --popover-bg-color: @popover_bg_color;
+    --popover-fg-color: @popover_fg_color;
+    --popover-shade-color: @popover_shade_color;
+
+    --thumbnail-bg-color: @thumbnail_bg_color;
+    --thumbnail-fg-color: @thumbnail_fg_color;
+
+    --shade-color: @shade_color;
+    --scrollbar-outline-color: @scrollbar_outline_color;
+}
