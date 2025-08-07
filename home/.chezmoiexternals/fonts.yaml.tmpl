@@ -7,7 +7,7 @@
 
 "{{ $fontDir }}/font-awesome":
   type: archive
-  url: {{ gitHubLatestReleaseAssetURL "FortAwesome/Font-Awesome" (printf "fontawesome-free-*-desktop.zip") | quote }}
+  url: {{ .fontAwesomeUrl }}
   exact: true
   stripComponents: 2
   refreshPeriod: "336h"
@@ -15,7 +15,7 @@
     - "**/otfs/Font*.otf"
 
 "{{ $fontDir }}/emojis/AppleColorEmoji.ttf":
-  url: {{ gitHubLatestReleaseAssetURL "samuelngs/apple-emoji-linux" "AppleColorEmoji.ttf" | quote }}
+  url: {{ .appleEmojiUrl }}
   type: file
   refreshPeriod: "336h"
 
