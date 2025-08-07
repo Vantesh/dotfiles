@@ -15,8 +15,8 @@ if [[ ! -f ~/.config/hypr/.first_setup_done ]]; then
         RANDOM_WALLPAPER=$(find "$HOME/Pictures/Wallpapers" -type f | shuf -n 1)
 
         waypaper --wallpaper "$RANDOM_WALLPAPER" &
-        "$HOME"/.local/bin/walset "$RANDOM_WALLPAPER" &
-         hyprctl reload
+        sleep 1
+        hyprctl reload
 
     fi
 
