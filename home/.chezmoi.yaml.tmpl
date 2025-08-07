@@ -1,3 +1,10 @@
+{{- $wallpaperUrl := gitHubLatestReleaseAssetURL "vantesh/wallpapers" "wallpapers.zip" | quote }}
+{{- $fontAwesomeUrl := gitHubLatestReleaseAssetURL "FortAwesome/Font-Awesome" (printf "fontawesome-free-*-desktop.zip") | quote }}
+{{- $appleEmojiUrl := gitHubLatestReleaseAssetURL "samuelngs/apple-emoji-linux" "AppleColorEmoji.ttf" | quote }}
+{{- $macOSIconsUrl := gitHubLatestReleaseAssetURL "ful1e5/apple_cursor" "macOS.tar.xz" | quote }}
+{{- $macOSHyprDarkIconsUrl := gitHubLatestReleaseAssetURL "driedpampas/macOS-hyprcursor" "macOS.Hyprcursor.SVG.tar.gz" | quote }}
+{{- $macOSHyprWhiteIconsUrl := gitHubLatestReleaseAssetURL "driedpampas/macOS-hyprcursor" "macOS.Hyprcursor.SVG.White.tar.gz" | quote }}
+
 {{- if ne .chezmoi.username "vantesh" }}
 {{- $git_username := promptString "Enter your Git username:" }}
 {{- $git_email := promptString "Enter your Git email:" }}
@@ -8,6 +15,21 @@ data:
   git_username: {{ $git_username | quote }}
   git_email: {{ $git_email | quote }}
   default_shell: {{ $default_shell | quote }}
+  wallpapersUrl: {{ $wallpaperUrl }}
+  fontAwesomeUrl: {{ $fontAwesomeUrl }}
+  appleEmojiUrl: {{ $appleEmojiUrl }}
+  macOSIconsUrl: {{ $macOSIconsUrl }}
+  macOSHyprDarkIconsUrl: {{ $macOSHyprDarkIconsUrl }}
+  macOSHyprWhiteIconsUrl: {{ $macOSHyprWhiteIconsUrl }}
+
+{{- else }}
+data:
+  wallpapersUrl: {{ $wallpaperUrl }}
+  fontAwesomeUrl: {{ $fontAwesomeUrl }}
+  appleEmojiUrl: {{ $appleEmojiUrl }}
+  macOSIconsUrl: {{ $macOSIconsUrl }}
+  macOSHyprDarkIconsUrl: {{ $macOSHyprDarkIconsUrl }}
+  macOSHyprWhiteIconsUrl: {{ $macOSHyprWhiteIconsUrl }}
 
 {{- end }}
 
@@ -32,3 +54,9 @@ diff:
   exclude:
     - "scripts"
 
+bitwarden:
+ unlock: auto
+ command: "{{ .chezmoi.homeDir }}/.local/bin/bw"
+
+github:
+  refreshPeriod: 1h
