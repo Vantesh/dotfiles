@@ -31,7 +31,7 @@ print_box() {
 }
 
 confirm() {
-  echo && gum confirm --no-show-help --default=true "$1"
+  gum confirm --no-show-help --default=true "$1"
 }
 
 spinner() {
