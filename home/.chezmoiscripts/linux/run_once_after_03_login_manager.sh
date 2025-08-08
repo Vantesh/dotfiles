@@ -44,5 +44,14 @@ done
 
 write_system_config "$LY_SAVE_FILE" "Ly session save file"  <<EOF
 user=${USER}
-session_index=0
+session_index=2
 EOF
+
+enable_service "ly.service" "system"
+
+if sudo systemctl disable getty@tty2.sevice >/dev/null 2>&1; then
+  print_info "TTY2 service disabled successfully"
+else
+  print_warning "Failed to disable TTY2 service"
+fi
+

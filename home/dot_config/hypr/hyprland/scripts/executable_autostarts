@@ -2,7 +2,6 @@
 apps=(
   "waypaper --restore"
   "clipse -listen"
-  "udiskie"
   "pypr"
   "hyprpanel"
   "/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1"
