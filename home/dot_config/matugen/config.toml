@@ -55,11 +55,11 @@
   output_path = "~/.config/Kvantum/Matugen/Matugen.svg"
 
 [templates.gtk4]
-  input_path  = '~/.config/matugen/templates/gtk/gtk4.css'
+  input_path  = '~/.config/matugen/templates/gtk/colors.css'
   output_path = '~/.config/gtk-4.0/colors.css'
 
 [templates.gtk3]
-  input_path  = '~/.config/matugen/templates/gtk/gtk3.css'
+  input_path  = '~/.config/matugen/templates/gtk/colors.css'
   output_path = '~/.config/gtk-3.0/colors.css'
 
 [templates.papirus-folders]
