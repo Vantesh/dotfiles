@@ -23,16 +23,19 @@ set -xg WORKON_HOME $XDG_DATA_HOME/virtualenvs
 set -xg XINITRC $XDG_CONFIG_HOME/X11/xinitrcexport
 set -xg XSERVERRC $XDG_CONFIG_HOME/X11/xserverrc
 set -xg HISTFILE $XDG_STATE_HOME/bash/history
-set -xg ZSH $XDG_DATA_HOME/oh-my-zsh
 set -xg WINEPREFIX $XDG_DATA_HOME/wine
 set -xg NPM_CONFIG_USERCONFIG $XDG_CONFIG_HOME/npm/npmrc
 set -xg GTK2_RC_FILES $XDG_CONFIG_HOME/gtk-2.0/gtkrc
-set -xg W3M_DIR $XDG_DATA_HOME/w3m
 set -xg DOTNET_CLI_HOME $XDG_DATA_HOME/dotnet
 set -xg PNPM_HOME $XDG_DATA_HOME/pnpm
 set -xg WGETRC $XDG_CONFIG_HOME/wget/wgetrc
 set -xg GNUPGHOME $XDG_DATA_HOME/gnupg
+set -xg CUDA_CACHE_PATH $XDG_CACHE_HOME/nv
+set -xg PYTHON_HISTORY $XDG_STATE_HOME/python_history
+set -xg _JAVA_OPTIONS -Djava.util.prefs.userRoot=$XDG_CONFIG_HOME/java
 
+set -xg MAVEN_OPTS -Dmaven.repo.local=$XDG_DATA_HOME/maven/repository
+set -xg MAVEN_ARGS --settings $XDG_CONFIG_HOME/maven/settings.xml
 #--------------------------------------------------
 # PATHS
 #--------------------------------------------------
