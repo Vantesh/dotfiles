@@ -13,6 +13,11 @@ readonly SERVICES_TO_RESTART=(
 readonly HYPRLOCK_PNG="$HOME/.config/hypr/hyprlock/icon.png"
 readonly HYPRLOCK_SVG="$HOME/.cache/wal/icon.svg"
 
+# Concurrency/debounce helpers
+readonly CACHE_DIR="$HOME/.cache/walset"
+readonly STATE_FILE="$CACHE_DIR/walset.last"
+readonly PIDFILE="$CACHE_DIR/walset.pid"
+
 declare -A FOLDER_COLORS=(
   ["blue"]="#89B4FA" ["grey"]="#878688" ["green"]="#84A756" ["adwaita"]="#B4BEFE"
   ["carmine"]="#AC0406" ["magenta"]="#CBA6F7" ["orange"]="#E58E3B" ["pink"]="#F5C2E7"
@@ -28,6 +33,66 @@ log_error() {
 
 log_info() {
   echo "Info: $*"
+}
+
+# Usage/help
+print_usage() {
+  echo "Description: Apply a new colorscheme and update the system theme."
+  echo "Usage: $(basename "$0") <path_to_wallpaper> [--scheme <matugen_scheme>] [--mode <dark|light>]"
+  echo ""
+  echo "Options:"
+  echo "  -s, --scheme   Matugen scheme type (default: scheme-tonal-spot)"
+  echo "  -m, --mode     Theme mode: dark|light (default: dark)"
+  echo "  -h, --help     Show this help and exit"
+  echo ""
+  echo "Examples:"
+  echo "  $(basename "$0") ~/Pictures/wallpaper.jpg"
+  echo "  $(basename "$0") ~/Pictures/wallpaper.jpg --mode light"
+  echo "  $(basename "$0") ~/Pictures/wallpaper.jpg --scheme scheme-tonal-spot --mode dark"
+}
+
+# Cleanup child jobs and pidfile on exit or termination
+cleanup() {
+  local ec=$?
+  # Kill background jobs spawned by this shell
+  local jpids
+  jpids=$(jobs -p 2>/dev/null || true)
+  if [[ -n "$jpids" ]]; then
+    kill -TERM "$jpids" 2>/dev/null || true
+    sleep 0.2
+    kill -KILL "$jpids" 2>/dev/null || true
+  fi
+  # Remove pidfile only if we still own it
+  if [[ -f "$PIDFILE" ]] && [[ "$(cat "$PIDFILE" 2>/dev/null)" == "$$" ]]; then
+    rm -f "$PIDFILE" 2>/dev/null || true
+  fi
+  return $ec
+}
+
+# Kill any previously running walset instance and its children
+preempt_previous() {
+  [[ -f "$PIDFILE" ]] || return 0
+  local oldpid
+  oldpid=$(cat "$PIDFILE" 2>/dev/null || true)
+  [[ -n "$oldpid" ]] || return 0
+  if [[ "$oldpid" != "$$" ]] && kill -0 "$oldpid" 2>/dev/null; then
+    log_info "Preempting previous walset (PID $oldpid)"
+    # Try graceful termination: children first, then parent
+    pkill -TERM -P "$oldpid" 2>/dev/null || true
+    kill -TERM "$oldpid" 2>/dev/null || true
+    # Wait briefly, then escalate if needed
+    for _ in 1 2 3; do
+      if kill -0 "$oldpid" 2>/dev/null; then
+        sleep 0.2
+      else
+        break
+      fi
+    done
+    if kill -0 "$oldpid" 2>/dev/null; then
+      pkill -KILL -P "$oldpid" 2>/dev/null || true
+      kill -KILL "$oldpid" 2>/dev/null || true
+    fi
+  fi
 }
 
 # Optimized system agents update
@@ -162,7 +227,6 @@ validate_input() {
   fi
 }
 
-# Optimized terminal reload
 reload_terminal() {
   local pids=()
 
@@ -186,35 +250,79 @@ reload_terminal() {
 
 main() {
 
-  if [[ $# -eq 0 ]]; then
-    echo "Description: Apply a new colorscheme and update the system theme."
-    echo "Usage: $(basename "$0") <path_to_wallpaper>" >&2
-    echo ""
-    echo "This script will:"
-    echo "  • Generate color schemes from the wallpaper"
-    echo "  • Update terminal themes (fish, kitty)"
-    echo "  • Apply GTK themes"
-    echo "  • Update folder colors"
-    echo "  • Theme Spotify (if running)"
-    echo "  • Restart relevant system services"
-    echo ""
-    echo "Example: $(basename "$0") ~/Pictures/wallpaper.jpg"
+  # Defaults
+  local MATUGEN_SCHEME="scheme-tonal-spot"
+  local MODE="dark"
+  local wallpaper=""
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      -h|--help)
+        print_usage; exit 0 ;;
+      -s|--scheme)
+        [[ $# -ge 2 ]] || { log_error "Missing value for $1"; exit 1; }
+        MATUGEN_SCHEME="$2"; shift 2 ;;
+      -m|--mode)
+        [[ $# -ge 2 ]] || { log_error "Missing value for $1"; exit 1; }
+        MODE="$2"; shift 2 ;;
+      --)
+        shift; break ;;
+      -*)
+        # Unknown flag from external caller; skip it and its value if present
+        if [[ $# -ge 2 && "$2" != -* ]]; then shift 2; else shift; fi ;;
+      *)
+        if [[ -z "$wallpaper" ]]; then
+          wallpaper="$1"; shift
+        else
+          log_error "Unexpected positional argument: '$1'. Use --scheme or --mode flags."
+          exit 1
+        fi ;;
+    esac
+  done
+
+  if [[ -z "$wallpaper" ]]; then
+    print_usage
     exit 1
   fi
 
-  local wallpaper="$1"
+  # Sanity: constrain MODE to dark|light
+  if [[ "$MODE" != "dark" && "$MODE" != "light" ]]; then
+    MODE="dark"
+  fi
+
+  [[ -d "$CACHE_DIR" ]] || mkdir -p "$CACHE_DIR" || {
+    log_error "Failed to create cache directory: $CACHE_DIR"
+    exit 1
+  }
+
+  # Preempt any previous run, then register our PID and set traps for clean termination
+  preempt_previous
+  echo "$$" > "$PIDFILE" 2>/dev/null || true
+  trap cleanup EXIT
+  trap 'exit 130' INT
+  trap 'exit 143' TERM
+
   local pids=()
 
-  validate_input "$@"
+  validate_input "$wallpaper"
 
   log_info "Applying wallpaper and updating theme: $wallpaper"
 
-  if ! matugen -t scheme-tonal-spot image "$wallpaper" &>/dev/null; then
+  # Skip if identical to last applied
+  if [[ -f "$STATE_FILE" ]]; then
+    readarray -t __last < "$STATE_FILE" 2>/dev/null || true
+    if [[ "${__last[0]:-}" == "$wallpaper" && "${__last[1]:-}" == "$MATUGEN_SCHEME" && "${__last[2]:-}" == "$MODE" ]]; then
+      log_info "No changes since last apply; skipping."
+      exit 0
+    fi
+  fi
+
+  if ! matugen image --type "$MATUGEN_SCHEME" --mode "$MODE" "$wallpaper"; then
     log_error "Failed to generate color scheme with matugen"
     exit 1
   fi
 
-  if ! wallust -s run "$wallpaper" &>/dev/null; then
+  if ! wallust -q -s run "$wallpaper" -p "${MODE}16"; then
     log_error "Failed to process wallpaper with wallust"
     exit 1
   fi
@@ -264,6 +372,9 @@ main() {
   for pid in "${bg_pids[@]}"; do
     wait "$pid" 2>/dev/null || true
   done
+
+  # Record last applied state
+  printf "%s\n%s\n%s\n" "$wallpaper" "$MATUGEN_SCHEME" "$MODE" > "$STATE_FILE" 2>/dev/null || true
 
   log_info "Theme application completed successfully"
 }
