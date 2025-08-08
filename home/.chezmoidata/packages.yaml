@@ -87,7 +87,7 @@ packageGroups:
     - kvantum-qt5
     - qt6ct-kde
     - qt5ct-kde
-    - adw-gtk-theme
+    - adw-gtk-theme-git
     - plymouth
 
   optional:

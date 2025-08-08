@@ -1,0 +1,6 @@
+program_options:
+  tray: false
+  notify: false
+  automount: true
+  file_manager: xdg-open
+  terminal: "kitty -e"

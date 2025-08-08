@@ -15,7 +15,7 @@ print_box "smslant" "Services"
 print_step "Enabling necessary services"
 
 readonly USER_SERVICES=(
-  gnome-keyring-daemon.service
+  gnome-keyring-daemon.socket
   hypridle.service
   hyprsunset.service
   gcr-ssh-agent.socket

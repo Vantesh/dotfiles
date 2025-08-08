@@ -31,11 +31,11 @@ set -xg W3M_DIR $XDG_DATA_HOME/w3m
 set -xg DOTNET_CLI_HOME $XDG_DATA_HOME/dotnet
 set -xg PNPM_HOME $XDG_DATA_HOME/pnpm
 set -xg WGETRC $XDG_CONFIG_HOME/wget/wgetrc
+set -xg GNUPGHOME $XDG_DATA_HOME/gnupg
 
 #--------------------------------------------------
 # PATHS
 #--------------------------------------------------
-
 fish_add_path $XDG_BIN_HOME
 fish_add_path $CARGO_HOME/bin
 fish_add_path $GOPATH/bin
@@ -45,13 +45,26 @@ fish_add_path $XDG_DATA_HOME/npm/bin
 # EDITORS
 #--------------------------------------------------
 set -xg EDITOR nvim
-set -xg VISUAL $EDITOR
+set -xg VISUAL code
 set -xg SUDO_EDITOR $EDITOR
+set -xg PAGER less
 
 #--------------------------------------------------
-# SSH
+# FISHER
 #--------------------------------------------------
-{{- if eq .chezmoi.username "vantesh" }}
-set -xg SSH_AUTH_SOCK ~/.bitwarden-ssh-agent.sock
-set -xg GITHUB_TOKEN {{ (rbwFields "github").GITHUB_TOKEN.value | quote }}
-{{- end }}
+set -xg fisher_path ~/.local/share/fisher
+set -g fish_function_path $fisher_path/functions $fish_function_path
+set -g fish_complete_path $fisher_path/completions $fish_complete_path
+
+#--------------------------------------------------
+# MANPAGER
+#--------------------------------------------------
+
+set -x LESS_TERMCAP_mb (printf '\033[1;34m')
+set -x LESS_TERMCAP_md (printf '\033[1;34m')
+set -x LESS_TERMCAP_so (printf '\033[1;33m')
+set -x LESS_TERMCAP_se (printf '\033[0;10m')
+set -x LESS_TERMCAP_us (printf '\033[4;35m')
+set -x LESS_TERMCAP_ue (printf '\033[0;10m')
+set -x LESS_TERMCAP_me (printf '\033[0;10m')
+set -xg GROFF_NO_SGR 1
