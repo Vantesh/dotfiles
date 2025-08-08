@@ -1,6 +1,14 @@
 #--------------------------------------------------
 # RESPECT XDG BASE DIRECTORIES
 #--------------------------------------------------
+# uwsm sets these variables but we add a fallback if not running under uwsm
+set -q XDG_CONFIG_HOME; or set -xg XDG_CONFIG_HOME $HOME/.config
+set -q XDG_DATA_HOME; or set -xg XDG_DATA_HOME $HOME/.local/share
+set -q XDG_CACHE_HOME; or set -xg XDG_CACHE_HOME $HOME/.cache
+set -q XDG_STATE_HOME; or set -xg XDG_STATE_HOME $HOME/.local/state
+set -q XDG_BIN_HOME; or set -xg XDG_BIN_HOME $HOME/.local/bin
+set -q XDG_RUNTIME_DIR; or set -xg XDG_RUNTIME_DIR /run/user/$UID
+
 set -xg CONAN_USER_HOME $XDG_CONFIG_HOME
 set -xg GOPATH $XDG_DATA_HOME/go
 set -xg GOMODCACHE $XDG_CACHE_HOME/go/mod
@@ -20,7 +28,7 @@ set -xg MYSQL_HISTFILE $XDG_DATA_HOME/mysql_history
 set -xg OMNISHARPHOME $XDG_CONFIG_HOME/omnisharp
 set -xg PYENV_ROOT $XDG_DATA_HOME/pyenv
 set -xg WORKON_HOME $XDG_DATA_HOME/virtualenvs
-set -xg XINITRC $XDG_CONFIG_HOME/X11/xinitrcexport
+set -xg XINITRC $XDG_CONFIG_HOME/X11/xinitrc
 set -xg XSERVERRC $XDG_CONFIG_HOME/X11/xserverrc
 set -xg HISTFILE $XDG_STATE_HOME/bash/history
 set -xg WINEPREFIX $XDG_DATA_HOME/wine
