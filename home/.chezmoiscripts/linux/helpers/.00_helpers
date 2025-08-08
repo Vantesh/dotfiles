@@ -112,18 +112,34 @@ update_config() {
   local escaped_key
   escaped_key=$(printf '%s' "$key" | sed 's/\[/\\[/g; s/\]/\\]/g')
   # Regex to match lines like: [spaces][#][spaces]key[spaces]=
-  local key_regex="^\s*#*\s*${escaped_key}\s*="
+  local key_regex="^[[:space:]]*#*[[:space:]]*${escaped_key}[[:space:]]*="
   if sudo grep -qE "$key_regex" "$config_file"; then
-    if sudo sed -i -E "s|$key_regex.*|$key=${value}|" "$config_file"; then
+    # Preserve existing spacing around '=' when updating
+    # Capture spaces before and after '=' and reuse them in replacement
+    if sudo sed -i -E "s|^[[:space:]]*#*[[:space:]]*${escaped_key}([[:space:]]*)=([[:space:]]*).*|${key}\\1=\\2${value}|" "$config_file"; then
       return 0
     else
       print_error "Failed to update $key in $config_file"
     fi
   else
-    if echo -e "\n${key}=${value}" | sudo tee -a "$config_file" >/dev/null; then
-      return 0
+    # Decide append style based on predominant style in file
+    local style="compact"
+    if sudo grep -qE '^[[:space:]]*[^#;][^=[:space:]]+[[:space:]]+=[[:space:]]+' "$config_file"; then
+      style="spaced"
+    fi
+
+    if [[ "$style" == "spaced" ]]; then
+      if echo -e "\n${key} = ${value}" | sudo tee -a "$config_file" >/dev/null; then
+        return 0
+      else
+        print_error "Failed to append $key to $config_file"
+      fi
     else
-      print_error "Failed to append $key to $config_file"
+      if echo -e "\n${key}=${value}" | sudo tee -a "$config_file" >/dev/null; then
+        return 0
+      else
+        print_error "Failed to append $key to $config_file"
+      fi
     fi
   fi
 }
@@ -445,3 +461,9 @@ add_entry_to_fstab() {
     fi
   fi
 }
+
+# lets set gopath and see if it hopefully respects the XDG base directory
+if [[ -z "$GOPATH" ]]; then
+  export GOPATH="$HOME/.local/share/go"
+  export PATH="$GOPATH/bin:$PATH"
+fi
