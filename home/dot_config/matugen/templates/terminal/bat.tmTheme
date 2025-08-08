@@ -26,7 +26,7 @@
           <key>accent</key>
           <string>{{colors.tertiary_fixed_dim.default.hex}}</string>
           <key>selection</key>
-          <string>{{colors.primary_container.default.hex}}40</string>
+          <string>#{{colors.secondary_fixed_dim.default.hex_stripped}}40</string>
           <key>activeGuide</key>
           <string>{{colors.outline.default.hex}}</string>
           <key>findHighlight</key>
@@ -54,7 +54,7 @@
         <key>settings</key>
         <dict>
           <key>foreground</key>
-          <string>{{colors.blue_source.default.hex}}</string>
+          <string>{{colors.on_surface_variant.default.hex}}</string>
           <key>fontStyle</key>
           <string/>
         </dict>
@@ -73,25 +73,21 @@
         </dict>
       </dict>
       <dict>
-        <key>name</key>
-        <string>Strings</string>
         <key>scope</key>
         <string>string, punctuation.definition.string</string>
         <key>settings</key>
         <dict>
           <key>foreground</key>
-          <string>{{colors.green_source.default.hex}}</string>
+          <string>{{colors.tertiary.default.hex}}</string>
         </dict>
       </dict>
       <dict>
-        <key>name</key>
-        <string>Escape Sequences</string>
         <key>scope</key>
         <string>constant.character.escape</string>
         <key>settings</key>
         <dict>
           <key>foreground</key>
-          <string>{{colors.purple_source.default.hex}}</string>
+          <string>{{colors.tertiary_fixed_dim.default.hex}}</string>
         </dict>
       </dict>
       <dict>
@@ -102,31 +98,27 @@
         <key>settings</key>
         <dict>
           <key>foreground</key>
-          <string>{{colors.yellow_source.default.hex}}</string>
+          <string>{{colors.inverse_primary.default.hex}}</string>
         </dict>
       </dict>
       <dict>
-        <key>name</key>
-        <string>Keywords</string>
         <key>scope</key>
         <string>keyword, keyword.operator.word, keyword.operator.new, variable.language.super, support.type.primitive, storage.type, storage.modifier, punctuation.definition.keyword</string>
         <key>settings</key>
         <dict>
           <key>foreground</key>
-          <string>{{colors.purple_source.default.hex}}</string>
+          <string>{{colors.tertiary_fixed_dim.default.hex}}</string>
           <key>fontStyle</key>
-          <string>bold</string>
+          <string/>
         </dict>
       </dict>
       <dict>
-        <key>name</key>
-        <string>Documentation Tags</string>
         <key>scope</key>
         <string>entity.name.tag.documentation</string>
         <key>settings</key>
         <dict>
           <key>foreground</key>
-          <string>{{colors.secondary.default.hex}}</string>
+          <string>{{colors.tertiary_fixed_dim.default.hex}}</string>
         </dict>
       </dict>
       <dict>
@@ -137,18 +129,16 @@
         <key>settings</key>
         <dict>
           <key>foreground</key>
-          <string>{{colors.blue_source.default.hex}}</string>
+          <string>{{colors.tertiary_fixed.default.hex}}</string>
         </dict>
       </dict>
       <dict>
-        <key>name</key>
-        <string>Functions</string>
         <key>scope</key>
         <string>entity.name.function, meta.function-call.method, support.function, support.function.misc, variable.function</string>
         <key>settings</key>
         <dict>
           <key>foreground</key>
-          <string>{{colors.blue_value.default.hex}}</string>
+          <string>{{colors.primary.default.hex}}</string>
           <key>fontStyle</key>
           <string>italic</string>
         </dict>
@@ -161,7 +151,7 @@
         <key>settings</key>
         <dict>
           <key>foreground</key>
-          <string>{{colors.yellow_value.default.hex}}</string>
+          <string>{{colors.primary_fixed_dim.default.hex}}</string>
           <key>fontStyle</key>
           <string>italic</string>
         </dict>
@@ -174,7 +164,7 @@
         <key>settings</key>
         <dict>
           <key>foreground</key>
-          <string>{{colors.yellow_value.default.hex}}</string>
+          <string>{{colors.primary_fixed_dim.default.hex}}</string>
           <key>fontStyle</key>
           <string>italic</string>
         </dict>
@@ -187,7 +177,7 @@
         <key>settings</key>
         <dict>
           <key>foreground</key>
-          <string>{{colors.on_surface.default.hex}}</string>
+          <string>{{colors.tertiary_fixed.default.hex}}</string>
         </dict>
       </dict>
       <dict>
@@ -198,7 +188,7 @@
         <key>settings</key>
         <dict>
           <key>foreground</key>
-          <string>{{colors.on_surface.default.hex}}</string>
+          <string>{{colors.tertiary_fixed.default.hex}}</string>
         </dict>
       </dict>
       <dict>
@@ -209,7 +199,7 @@
         <key>settings</key>
         <dict>
           <key>foreground</key>
-          <string>{{colors.blue_value.default.hex}}</string>
+          <string>{{colors.primary_fixed_dim.default.hex}}</string>
           <key>fontStyle</key>
           <string>italic</string>
         </dict>
@@ -222,18 +212,16 @@
         <key>settings</key>
         <dict>
           <key>foreground</key>
-          <string>{{colors.purple_value.default.hex}}</string>
+          <string>{{colors.inverse_primary.default.hex}}</string>
         </dict>
       </dict>
       <dict>
-        <key>name</key>
-        <string>Parameters</string>
         <key>scope</key>
         <string>variable.parameter, meta.function.parameters</string>
         <key>settings</key>
         <dict>
           <key>foreground</key>
-          <string>{{colors.red_value.default.hex}}</string>
+          <string>{{colors.on_error_container.default.hex}}</string>
           <key>fontStyle</key>
           <string>italic</string>
         </dict>
@@ -246,18 +234,16 @@
         <key>settings</key>
         <dict>
           <key>foreground</key>
-          <string>{{colors.red_source.default.hex}}</string>
+          <string>{{colors.error.default.hex}}</string>
         </dict>
       </dict>
       <dict>
-        <key>name</key>
-        <string>Documentation Attributes</string>
         <key>scope</key>
         <string>entity.other.attribute-name.documentation</string>
         <key>settings</key>
         <dict>
           <key>foreground</key>
-          <string>{{colors.yellow_source.default.hex}}</string>
+          <string>{{colors.error.default.hex}}</string>
         </dict>
       </dict>
       <dict>
@@ -268,7 +254,7 @@
         <key>settings</key>
         <dict>
           <key>foreground</key>
-          <string>{{colors.secondary.default.hex}}</string>
+          <string>{{colors.primary_fixed_dim.default.hex}}</string>
         </dict>
       </dict>
       <dict>
@@ -279,7 +265,7 @@
         <key>settings</key>
         <dict>
           <key>foreground</key>
-          <string>{{colors.primary.default.hex}}</string>
+          <string>{{colors.tertiary_container.default.hex}}</string>
         </dict>
       </dict>
       <dict>
@@ -290,7 +276,7 @@
         <key>settings</key>
         <dict>
           <key>foreground</key>
-          <string>{{colors.blue_source.default.hex}}</string>
+          <string>{{colors.primary_fixed_dim.default.hex}}</string>
         </dict>
       </dict>
       <dict>
@@ -301,7 +287,7 @@
         <key>settings</key>
         <dict>
           <key>foreground</key>
-          <string>{{colors.blue_value.default.hex}}</string>
+          <string>{{colors.primary.default.hex}}</string>
           <key>fontStyle</key>
           <string/>
         </dict>
@@ -314,9 +300,7 @@
         <key>settings</key>
         <dict>
           <key>foreground</key>
-          <string>{{colors.purple_value.default.hex}}</string>
-          <key>fontStyle</key>
-          <string>italic</string>
+          <string>{{colors.error.default.hex}}</string>
         </dict>
       </dict>
       <dict>
@@ -348,80 +332,8 @@
         <string>keyword.operator.new</string>
         <key>settings</key>
         <dict>
-          <key>foreground</key>
-          <string>{{colors.purple_source.default.hex}}</string>
           <key>fontStyle</key>
           <string>bold</string>
-        </dict>
-      </dict>
-      <dict>
-        <key>name</key>
-        <string>Numbers</string>
-        <key>scope</key>
-        <string>constant.numeric</string>
-        <key>settings</key>
-        <dict>
-          <key>foreground</key>
-          <string>{{colors.yellow_value.default.hex}}</string>
-        </dict>
-      </dict>
-      <dict>
-        <key>name</key>
-        <string>Variables</string>
-        <key>scope</key>
-        <string>variable.other</string>
-        <key>settings</key>
-        <dict>
-          <key>foreground</key>
-          <string>{{colors.on_surface.default.hex}}</string>
-        </dict>
-      </dict>
-      <dict>
-        <key>name</key>
-        <string>Attributes</string>
-        <key>scope</key>
-        <string>entity.other.attribute-name</string>
-        <key>settings</key>
-        <dict>
-          <key>foreground</key>
-          <string>{{colors.yellow_source.default.hex}}</string>
-          <key>fontStyle</key>
-          <string>italic</string>
-        </dict>
-      </dict>
-      <dict>
-        <key>name</key>
-        <string>Macros</string>
-        <key>scope</key>
-        <string>entity.name.function.preprocessor</string>
-        <key>settings</key>
-        <dict>
-          <key>foreground</key>
-          <string>{{colors.purple_value.default.hex}}</string>
-        </dict>
-      </dict>
-      <dict>
-        <key>name</key>
-        <string>Tags</string>
-        <key>scope</key>
-        <string>entity.name.tag</string>
-        <key>settings</key>
-        <dict>
-          <key>foreground</key>
-          <string>{{colors.red_source.default.hex}}</string>
-          <key>fontStyle</key>
-          <string>bold</string>
-        </dict>
-      </dict>
-      <dict>
-        <key>name</key>
-        <string>Modules/Imports</string>
-        <key>scope</key>
-        <string>entity.name.namespace, variable.import</string>
-        <key>settings</key>
-        <dict>
-          <key>foreground</key>
-          <string>{{colors.blue_source.default.hex}}</string>
         </dict>
       </dict>
       <dict>
@@ -531,7 +443,7 @@
         <key>settings</key>
         <dict>
           <key>foreground</key>
-          <string>{{colors.tertiary.default.hex}}</string>
+          <string>{{colors.inverse_primary.default.hex}}</string>
         </dict>
       </dict>
       <dict>
@@ -540,7 +452,7 @@
         <key>settings</key>
         <dict>
           <key>foreground</key>
-          <string>{{colors.primary.default.hex}}</string>
+          <string>{{colors.source_color.default.hex}}</string>
           <key>fontStyle</key>
           <string/>
         </dict>
@@ -553,7 +465,7 @@
         <key>settings</key>
         <dict>
           <key>foreground</key>
-          <string>{{colors.tertiary.default.hex}}</string>
+          <string>{{colors.tertiary_container.default.hex}}</string>
         </dict>
       </dict>
       <dict>
@@ -586,7 +498,7 @@
         <key>settings</key>
         <dict>
           <key>foreground</key>
-          <string>{{colors.tertiary.default.hex}}</string>
+          <string>{{colors.inverse_primary.default.hex}}</string>
         </dict>
       </dict>
       <dict>
@@ -597,7 +509,7 @@
         <key>settings</key>
         <dict>
           <key>foreground</key>
-          <string>{{colors.primary.default.hex}}</string>
+          <string>{{colors.source_color.default.hex}}</string>
         </dict>
       </dict>
       <dict>
@@ -609,6 +521,8 @@
         <dict>
           <key>foreground</key>
           <string>{{colors.primary.default.hex}}</string>
+          <key>fontStyle</key>
+          <string/>
         </dict>
       </dict>
       <dict>
@@ -619,7 +533,7 @@
         <key>settings</key>
         <dict>
           <key>foreground</key>
-          <string>{{colors.tertiary.default.hex}}</string>
+          <string>{{colors.inverse_primary.default.hex}}</string>
         </dict>
       </dict>
       <dict>
@@ -631,6 +545,8 @@
         <dict>
           <key>foreground</key>
           <string>{{colors.primary_fixed_dim.default.hex}}</string>
+          <key>fontStyle</key>
+          <string/>
         </dict>
       </dict>
       <dict>
@@ -685,7 +601,7 @@
         <key>settings</key>
         <dict>
           <key>foreground</key>
-          <string>{{colors.tertiary.default.hex}}</string>
+          <string>{{colors.inverse_primary.default.hex}}</string>
         </dict>
       </dict>
       <dict>
@@ -707,7 +623,7 @@
         <key>settings</key>
         <dict>
           <key>foreground</key>
-          <string>{{colors.primary.default.hex}}</string>
+          <string>{{colors.source_color.default.hex}}</string>
         </dict>
       </dict>
       <dict>
@@ -762,7 +678,7 @@
         <key>settings</key>
         <dict>
           <key>foreground</key>
-          <string>{{colors.tertiary.default.hex}}</string>
+          <string>{{colors.inverse_primary.default.hex}}</string>
         </dict>
       </dict>
       <dict>
@@ -784,7 +700,7 @@
         <key>settings</key>
         <dict>
           <key>foreground</key>
-          <string>{{colors.tertiary.default.hex}}</string>
+          <string>{{colors.inverse_primary.default.hex}}</string>
         </dict>
       </dict>
       <dict>
@@ -795,7 +711,7 @@
         <key>settings</key>
         <dict>
           <key>foreground</key>
-          <string>{{colors.tertiary.default.hex}}</string>
+          <string>{{colors.inverse_primary.default.hex}}</string>
         </dict>
       </dict>
       <dict>
@@ -909,7 +825,7 @@
         <key>settings</key>
         <dict>
           <key>foreground</key>
-          <string>{{colors.tertiary.default.hex}}</string>
+          <string>{{colors.inverse_primary.default.hex}}</string>
         </dict>
       </dict>
       <dict>
@@ -941,8 +857,6 @@
         <string>comment.block.javadoc.java keyword.other.documentation.javadoc.java</string>
         <key>settings</key>
         <dict>
-          <key>foreground</key>
-          <string>{{colors.tertiary_fixed_dim.default.hex}}</string>
           <key>fontStyle</key>
           <string/>
         </dict>
@@ -989,8 +903,6 @@
         <string>storage.type.class.jsdoc</string>
         <key>settings</key>
         <dict>
-          <key>foreground</key>
-          <string>{{colors.tertiary_fixed_dim.default.hex}}</string>
           <key>fontStyle</key>
           <string/>
         </dict>
@@ -1023,9 +935,7 @@
         <key>settings</key>
         <dict>
           <key>foreground</key>
-          <string>{{colors.primary.default.hex}}</string>
-          <key>fontStyle</key>
-          <string>bold</string>
+          <string>{{colors.tertiary_fixed_dim.default.hex}}</string>
         </dict>
       </dict>
       <dict>
@@ -1036,9 +946,7 @@
         <key>settings</key>
         <dict>
           <key>foreground</key>
-          <string>{{colors.primary.default.hex}}</string>
-          <key>fontStyle</key>
-          <string>bold</string>
+          <string>{{colors.tertiary_fixed_dim.default.hex}}</string>
         </dict>
       </dict>
       <dict>
@@ -1082,9 +990,7 @@
         <key>settings</key>
         <dict>
           <key>foreground</key>
-          <string>{{colors.primary.default.hex}}</string>
-          <key>fontStyle</key>
-          <string>bold</string>
+          <string>{{colors.tertiary_fixed_dim.default.hex}}</string>
         </dict>
       </dict>
       <dict>
@@ -1108,7 +1014,7 @@
         <key>settings</key>
         <dict>
           <key>foreground</key>
-          <string>{{colors.tertiary.default.hex}}</string>
+          <string>{{colors.inverse_primary.default.hex}}</string>
         </dict>
       </dict>
       <dict>
@@ -1141,7 +1047,7 @@
         <key>settings</key>
         <dict>
           <key>foreground</key>
-          <string>{{colors.tertiary.default.hex}}</string>
+          <string>{{colors.tertiary_container.default.hex}}</string>
         </dict>
       </dict>
       <dict>
@@ -1194,7 +1100,7 @@
         <key>settings</key>
         <dict>
           <key>foreground</key>
-          <string>{{colors.tertiary.default.hex}}</string>
+          <string>{{colors.inverse_primary.default.hex}}</string>
         </dict>
       </dict>
       <dict>
@@ -1212,7 +1118,7 @@
         <key>settings</key>
         <dict>
           <key>foreground</key>
-          <string>{{colors.primary.default.hex}}</string>
+          <string>{{colors.source_color.default.hex}}</string>
         </dict>
       </dict>
       <dict>
@@ -1261,7 +1167,7 @@
         <key>settings</key>
         <dict>
           <key>foreground</key>
-          <string>{{colors.outline.default.hex}}</string>
+          <string>{{colors.on_surface_variant.default.hex}}</string>
           <key>fontStyle</key>
           <string>strikethrough</string>
         </dict>
@@ -1296,7 +1202,7 @@
         <key>settings</key>
         <dict>
           <key>foreground</key>
-          <string>{{colors.primary.default.hex}}</string>
+          <string>{{colors.source_color.default.hex}}</string>
         </dict>
       </dict>
       <dict>
@@ -1307,7 +1213,7 @@
         <key>settings</key>
         <dict>
           <key>foreground</key>
-          <string>{{colors.tertiary.default.hex}}</string>
+          <string>{{colors.tertiary_container.default.hex}}</string>
         </dict>
       </dict>
       <dict>
@@ -1318,7 +1224,7 @@
         <key>settings</key>
         <dict>
           <key>foreground</key>
-          <string>{{colors.outline.default.hex}}</string>
+          <string>{{colors.on_surface_variant.default.hex}}</string>
         </dict>
       </dict>
       <dict>
@@ -1445,7 +1351,7 @@
         <key>settings</key>
         <dict>
           <key>foreground</key>
-          <string>{{colors.tertiary.default.hex}}</string>
+          <string>{{colors.tertiary_container.default.hex}}</string>
         </dict>
       </dict>
       <dict>
@@ -1455,8 +1361,6 @@
         <string>keyword.other.phpdoc.php</string>
         <key>settings</key>
         <dict>
-          <key>foreground</key>
-          <string>{{colors.tertiary_fixed_dim.default.hex}}</string>
           <key>fontStyle</key>
           <string/>
         </dict>
@@ -1480,7 +1384,7 @@
         <key>settings</key>
         <dict>
           <key>foreground</key>
-          <string>{{colors.tertiary.default.hex}}</string>
+          <string>{{colors.tertiary_container.default.hex}}</string>
           <key>fontStyle</key>
           <string>italic</string>
         </dict>
@@ -1506,9 +1410,7 @@
         <key>settings</key>
         <dict>
           <key>foreground</key>
-          <string>{{colors.primary.default.hex}}</string>
-          <key>fontStyle</key>
-          <string>bold</string>
+          <string>{{colors.tertiary_fixed_dim.default.hex}}</string>
         </dict>
       </dict>
       <dict>
@@ -1519,9 +1421,7 @@
         <key>settings</key>
         <dict>
           <key>foreground</key>
-          <string>{{colors.primary.default.hex}}</string>
-          <key>fontStyle</key>
-          <string>bold</string>
+          <string>{{colors.tertiary_fixed_dim.default.hex}}</string>
         </dict>
       </dict>
       <dict>
@@ -1532,7 +1432,7 @@
         <key>settings</key>
         <dict>
           <key>foreground</key>
-          <string>{{colors.tertiary.default.hex}}</string>
+          <string>{{colors.tertiary_container.default.hex}}</string>
         </dict>
       </dict>
       <dict>
@@ -1554,7 +1454,7 @@
         <key>settings</key>
         <dict>
           <key>foreground</key>
-          <string>{{colors.tertiary.default.hex}}</string>
+          <string>{{colors.inverse_primary.default.hex}}</string>
           <key>fontStyle</key>
           <string>italic</string>
         </dict>
@@ -1578,7 +1478,7 @@
         <key>settings</key>
         <dict>
           <key>foreground</key>
-          <string>{{colors.tertiary.default.hex}}</string>
+          <string>{{colors.inverse_primary.default.hex}}</string>
         </dict>
       </dict>
       <dict>
@@ -1589,7 +1489,7 @@
         <key>settings</key>
         <dict>
           <key>foreground</key>
-          <string>{{colors.tertiary.default.hex}}</string>
+          <string>{{colors.inverse_primary.default.hex}}</string>
         </dict>
       </dict>
       <dict>
@@ -1624,7 +1524,7 @@
         <key>settings</key>
         <dict>
           <key>foreground</key>
-          <string>{{colors.primary.default.hex}}</string>
+          <string>{{colors.source_color.default.hex}}</string>
           <key>fontStyle</key>
           <string>italic</string>
         </dict>
@@ -1636,8 +1536,6 @@
         <string>meta.function.parameters.python</string>
         <key>settings</key>
         <dict>
-          <key>foreground</key>
-          <string>{{colors.primary_fixed_dim.default.hex}}</string>
           <key>fontStyle</key>
           <string/>
         </dict>
@@ -1683,7 +1581,7 @@
         <key>settings</key>
         <dict>
           <key>foreground</key>
-          <string>{{colors.primary.default.hex}}</string>
+          <string>{{colors.source_color.default.hex}}</string>
         </dict>
       </dict>
       <dict>
@@ -1772,8 +1670,6 @@
         <string>meta.attribute.rust string.quoted.double.rust, meta.attribute.rust string.quoted.single.char.rust</string>
         <key>settings</key>
         <dict>
-          <key>foreground</key>
-          <string>{{colors.source_color.default.hex}}</string>
           <key>fontStyle</key>
           <string/>
         </dict>
@@ -1952,7 +1848,7 @@
         <key>settings</key>
         <dict>
           <key>foreground</key>
-          <string>{{colors.tertiary.default.hex}}</string>
+          <string>{{colors.tertiary_container.default.hex}}</string>
         </dict>
       </dict>
       <dict>
@@ -2137,8 +2033,6 @@
         </dict>
       </dict>
       <dict>
-        <key>name</key>
-        <string>Markdown Headings</string>
         <key>scope</key>
         <string>markup.heading.markdown</string>
         <key>settings</key>

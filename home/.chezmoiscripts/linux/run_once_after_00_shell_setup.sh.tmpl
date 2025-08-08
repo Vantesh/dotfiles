@@ -60,17 +60,32 @@ if [[ "$PREFERRED_SHELL" == "zsh" ]]; then
   zsh_setup
 fi
 
-if confirm "Set $PREFERRED_SHELL as your default shell?"; then
-  print_info "Setting $PREFERRED_SHELL as default shell..."
-  SHELL_PATH=$(command -v "$PREFERRED_SHELL")
-  if [[ -z "$SHELL_PATH" ]]; then
-    print_error "Shell binary not found: $PREFERRED_SHELL"
-  fi
-  if chsh -s "$SHELL_PATH"; then
-    print_info "$PREFERRED_SHELL set as default shell."
-  else
-    print_error "Failed to set $PREFERRED_SHELL as default shell."
-  fi
+if [[ "$PREFERRED_SHELL" == "fish" ]]; then
+  {{- if eq .chezmoi.username "vantesh" }}
+ fish -c 'set -Ux GITHUB_TOKEN {{ (rbwFields "github").GITHUB_TOKEN.value | quote }}'
+  {{- end }}
+fi
+
+# Check current default shell
+CURRENT_SHELL=$(getent passwd "$USER" | cut -d: -f7)
+PREFERRED_SHELL_PATH=$(command -v "$PREFERRED_SHELL")
+
+if [[ -z "$PREFERRED_SHELL_PATH" ]]; then
+  print_error "Shell binary not found: $PREFERRED_SHELL"
+  exit 1
+fi
+
+if [[ "$CURRENT_SHELL" == "$PREFERRED_SHELL_PATH" ]]; then
+  print_info "$PREFERRED_SHELL is already your default shell."
 else
-  print_info "Skipping setting default shell."
+  if confirm "Set $PREFERRED_SHELL as your default shell? (current: $(basename "$CURRENT_SHELL"))"; then
+    print_info "Setting $PREFERRED_SHELL as default shell..."
+    if chsh -s "$PREFERRED_SHELL_PATH"; then
+      print_info "$PREFERRED_SHELL set as default shell."
+    else
+      print_error "Failed to set $PREFERRED_SHELL as default shell."
+    fi
+  else
+    print_info "Skipping setting default shell."
+  fi
 fi
