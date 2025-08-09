@@ -5,6 +5,9 @@
 {{- $macOSHyprDarkIconsUrl := gitHubLatestReleaseAssetURL "driedpampas/macOS-hyprcursor" "macOS.Hyprcursor.SVG.tar.gz" | quote }}
 {{- $macOSHyprWhiteIconsUrl := gitHubLatestReleaseAssetURL "driedpampas/macOS-hyprcursor" "macOS.Hyprcursor.SVG.White.tar.gz" | quote }}
 
+{{- $adw_version := (gitHubLatestRelease "lassekongo83/adw-gtk3").TagName | toString -}}
+{{- $adwGTKThemeUrl := gitHubLatestReleaseAssetURL "lassekongo83/adw-gtk3" (printf "adw-gtk3%s.tar.gz" $adw_version) | quote -}}
+
 {{- if ne .chezmoi.username "vantesh" }}
 {{- $git_username := promptString "Enter your Git username:" }}
 {{- $git_email := promptString "Enter your Git email:" }}
@@ -21,6 +24,7 @@ data:
   macOSIconsUrl: {{ $macOSIconsUrl }}
   macOSHyprDarkIconsUrl: {{ $macOSHyprDarkIconsUrl }}
   macOSHyprWhiteIconsUrl: {{ $macOSHyprWhiteIconsUrl }}
+  adwGTKThemeUrl: {{ $adwGTKThemeUrl }}
 
 {{- else }}
 data:
@@ -30,6 +34,7 @@ data:
   macOSIconsUrl: {{ $macOSIconsUrl }}
   macOSHyprDarkIconsUrl: {{ $macOSHyprDarkIconsUrl }}
   macOSHyprWhiteIconsUrl: {{ $macOSHyprWhiteIconsUrl }}
+  adwGTKThemeUrl: {{ $adwGTKThemeUrl }}
 
 {{- end }}
 
