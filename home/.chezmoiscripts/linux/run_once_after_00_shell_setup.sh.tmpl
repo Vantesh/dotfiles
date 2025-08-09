@@ -60,11 +60,6 @@ if [[ "$PREFERRED_SHELL" == "zsh" ]]; then
   zsh_setup
 fi
 
-if [[ "$PREFERRED_SHELL" == "fish" ]]; then
-  {{- if eq .chezmoi.username "vantesh" }}
- fish -c 'set -Ux GITHUB_TOKEN {{ (rbwFields "github").GITHUB_TOKEN.value | quote }}'
-  {{- end }}
-fi
 
 # Check current default shell
 CURRENT_SHELL=$(getent passwd "$USER" | cut -d: -f7)
@@ -88,4 +83,17 @@ else
   else
     print_info "Skipping setting default shell."
   fi
+fi
+
+if [[ "$PREFERRED_SHELL" == "fish" ]]; then
+  {{- if eq .chezmoi.username "vantesh" }}
+ TOKEN={{ (rbwFields "github").GITHUB_TOKEN.value | quote }}
+ if [[ -n "$TOKEN" ]]; then
+  # Use argv to avoid quoting issues with special characters in the token
+  fish -c 'set -Ux GITHUB_TOKEN $argv[1]' -- "$TOKEN"
+  print_info "Configured GITHUB_TOKEN as a fish universal variable."
+ else
+   print_warn "Empty GITHUB_TOKEN from secrets; skipping fish universal variable setup."
+ fi
+  {{- end }}
 fi
