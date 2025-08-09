@@ -61,13 +61,6 @@ set -xg SUDO_EDITOR $EDITOR
 set -xg PAGER less
 
 #--------------------------------------------------
-# FISHER
-#--------------------------------------------------
-set -xg fisher_path ~/.local/share/fisher
-set -g fish_function_path $fisher_path/functions $fish_function_path
-set -g fish_complete_path $fisher_path/completions $fish_complete_path
-
-#--------------------------------------------------
 # MANPAGER
 #--------------------------------------------------
 
