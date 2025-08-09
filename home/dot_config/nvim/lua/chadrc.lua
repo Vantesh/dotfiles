@@ -1,3 +1,4 @@
+---@diagnostic disable: undefined-global
 -- This file needs to have same structure as nvconfig.lua
 -- https://github.com/NvChad/ui/blob/v3.0/lua/nvconfig.lua
 -- Please read that file to know all available options :(
@@ -5,18 +6,17 @@
 ---@type ChadrcConfig
 local M = {}
 
-local theme = "matugen"
-local theme_path = vim.fn.stdpath("data") .. "/lazy/base46/lua/base46/themes/" .. theme .. ".lua"
+local preferred = "matugen"
+local fallback = "catppuccin"
 
-if vim.fn.filereadable(theme_path) ~= 1 then
-	os.execute("waypaper --restore >/dev/null 2>&1")
-end
-
+local theme_path = vim.fn.stdpath("data") .. "/lazy/base46/lua/base46/themes/" .. preferred .. ".lua"
+-- If dynamic theme isn't generated yet, fall back to a known theme
+local theme = (vim.fn.filereadable(theme_path) == 1) and preferred or fallback
+-- Optionally try to (re)generate the preferred theme in background without blocking
 M.base46 = {
 	theme = theme,
-	transparency = true,                       -- set to false if you want a solid background
-	theme_toggle = { "matugen", "catppuccin" }, -- themes to toggle between
-
+	transparency = true,                   -- set to false if you want a solid background
+	theme_toggle = { preferred, fallback }, -- themes to toggle between
 }
 
 -- M.nvdash = { load_on_startup = true }
