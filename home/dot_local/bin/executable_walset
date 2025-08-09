@@ -15,7 +15,7 @@ readonly HYPRLOCK_SVG="$HOME/.cache/wal/icon.svg"
 
 # Concurrency/debounce helpers
 readonly CACHE_DIR="$HOME/.cache/walset"
-readonly STATE_FILE="$CACHE_DIR/walset.last"
+readonly CURRENT_FILE="$CACHE_DIR/walset.current"
 readonly PIDFILE="$CACHE_DIR/walset.pid"
 
 declare -A FOLDER_COLORS=(
@@ -33,6 +33,11 @@ log_error() {
 
 log_info() {
   echo "Info: $*"
+}
+
+# Write walset.current directly (simple, non-atomic)
+write_current() {
+  printf "%s\n%s\n%s\n" "$1" "$2" "$3" > "$CURRENT_FILE" 2>/dev/null || true
 }
 
 # Usage/help
@@ -308,14 +313,17 @@ main() {
 
   log_info "Applying wallpaper and updating theme: $wallpaper"
 
-  # Skip if identical to last applied
-  if [[ -f "$STATE_FILE" ]]; then
-    readarray -t __last < "$STATE_FILE" 2>/dev/null || true
-    if [[ "${__last[0]:-}" == "$wallpaper" && "${__last[1]:-}" == "$MATUGEN_SCHEME" && "${__last[2]:-}" == "$MODE" ]]; then
-      log_info "No changes since last apply; skipping."
+  # If current selection matches, skip work
+  if [[ -f "$CURRENT_FILE" ]]; then
+    readarray -t __cur < "$CURRENT_FILE" 2>/dev/null || true
+    if [[ "${__cur[0]:-}" == "$wallpaper" && "${__cur[1]:-}" == "$MATUGEN_SCHEME" && "${__cur[2]:-}" == "$MODE" ]]; then
+      log_info "Current selection unchanged; skipping."
       exit 0
     fi
   fi
+
+  # Record current selection immediately so external tools see latest selection
+  write_current "$wallpaper" "$MATUGEN_SCHEME" "$MODE" || true
 
   if ! matugen image --type "$MATUGEN_SCHEME" --mode "$MODE" "$wallpaper"; then
     log_error "Failed to generate color scheme with matugen"
@@ -373,8 +381,7 @@ main() {
     wait "$pid" 2>/dev/null || true
   done
 
-  # Record last applied state
-  printf "%s\n%s\n%s\n" "$wallpaper" "$MATUGEN_SCHEME" "$MODE" > "$STATE_FILE" 2>/dev/null || true
+  # Finished applying; current already reflects selection
 
   log_info "Theme application completed successfully"
 }
