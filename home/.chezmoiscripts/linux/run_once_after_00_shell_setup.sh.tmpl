@@ -91,9 +91,7 @@ if [[ "$PREFERRED_SHELL" == "fish" ]]; then
  if [[ -n "$TOKEN" ]]; then
   # Use argv to avoid quoting issues with special characters in the token
   fish -c 'set -Ux GITHUB_TOKEN $argv[1]' -- "$TOKEN"
-  print_info "Configured GITHUB_TOKEN as a fish universal variable."
- else
-   print_warn "Empty GITHUB_TOKEN from secrets; skipping fish universal variable setup."
+  fish -c 'set -Ux SSH_AUTH_SOCK ~/.bitwarden-ssh-agent.sock'
  fi
   {{- end }}
 fi

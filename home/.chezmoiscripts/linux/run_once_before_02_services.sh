@@ -18,7 +18,7 @@ readonly USER_SERVICES=(
   gnome-keyring-daemon.socket
   hypridle.service
   hyprsunset.service
-  gcr-ssh-agent.socket
+  # gcr-ssh-agent.socket --- IGNORE --- if using bitwarden
 )
 
 readonly SYSTEM_SERVICES=(
