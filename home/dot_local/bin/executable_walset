@@ -2,11 +2,6 @@
 
 set -euo pipefail
 
-readonly GTK_IMPORT_LINE='@import "colors.css";'
-readonly GTK_CSS_FILES=(
-  "$HOME/.config/gtk-4.0/gtk.css"
-  "$HOME/.config/gtk-4.0/gtk-dark.css"
-)
 readonly SERVICES_TO_RESTART=(
   "xdg-desktop-portal-gtk"
 )
@@ -17,15 +12,7 @@ readonly HYPRLOCK_SVG="$HOME/.cache/wal/icon.svg"
 readonly CACHE_DIR="$HOME/.cache/walset"
 readonly CURRENT_FILE="$CACHE_DIR/walset.current"
 readonly PIDFILE="$CACHE_DIR/walset.pid"
-
-declare -A FOLDER_COLORS=(
-  ["blue"]="#89B4FA" ["grey"]="#878688" ["green"]="#84A756" ["adwaita"]="#B4BEFE"
-  ["carmine"]="#AC0406" ["magenta"]="#CBA6F7" ["orange"]="#E58E3B" ["pink"]="#F5C2E7"
-  ["red"]="#F38BA8" ["breeze"]="#89DCEB" ["teal"]="#94E2D5" ["yellow"]="#F9E2AF"
-  ["violet"]="#7653B4" ["cyan"]="#04ADC4" ["nordic"]="#7895B3" ["palebrown"]="#D1BFAE"
-  ["deeporange"]="#DB633A" ["brown"]="#AD8B6C" ["paleorange"]="#E8C289" ["darkcyan"]="#45ABB7"
-  ["black"]="#4F4F4F" ["bluegrey"]="#607D8B"
-)
+readonly MATUGEN_SCRIPTS_DIR="$HOME/.config/matugen/scripts"
 
 log_error() {
   echo "Error: $*" >&2
@@ -33,6 +20,31 @@ log_error() {
 
 log_info() {
   echo "Info: $*"
+}
+
+# Wait for all provided PIDs, ignoring individual failures
+wait_all() {
+  local pid
+  for pid in "$@"; do
+    wait "$pid" 2>/dev/null || true
+  done
+}
+
+auto_pick_matugen_scheme() {
+  local img="$1"
+  if command -v python3 &>/dev/null && [[ -x "$MATUGEN_SCRIPTS_DIR/pick_monet_scheme.py" ]]; then
+    local py_out
+    if py_out=$("$MATUGEN_SCRIPTS_DIR/pick_monet_scheme.py" "$img" 2>/dev/null); then
+      if [[ -n "$py_out" ]]; then
+        echo "$py_out"
+        return 0
+      fi
+    fi
+  else
+    log_info "Matugen auto scheme picker not found; using default scheme"
+  fi
+  echo "scheme-tonal-spot"
+  return 0
 }
 
 # Write walset.current directly (simple, non-atomic)
@@ -43,17 +55,19 @@ write_current() {
 # Usage/help
 print_usage() {
   echo "Description: Apply a new colorscheme and update the system theme."
-  echo "Usage: $(basename "$0") <path_to_wallpaper> [--scheme <matugen_scheme>] [--mode <dark|light>]"
+  echo "Usage: $(basename "$0") <path_to_wallpaper> [--scheme <matugen_scheme>] [--mode <dark|light>] [--no-auto-scheme]"
   echo ""
   echo "Options:"
-  echo "  -s, --scheme   Matugen scheme type (default: scheme-tonal-spot)"
+  echo "  -s, --scheme   Matugen scheme type (if omitted, auto-picked from image; fallback: scheme-tonal-spot)"
   echo "  -m, --mode     Theme mode: dark|light (default: dark)"
+  echo "      --no-auto-scheme   Disable auto-pick (requires --scheme)"
   echo "  -h, --help     Show this help and exit"
   echo ""
   echo "Examples:"
   echo "  $(basename "$0") ~/Pictures/wallpaper.jpg"
   echo "  $(basename "$0") ~/Pictures/wallpaper.jpg --mode light"
   echo "  $(basename "$0") ~/Pictures/wallpaper.jpg --scheme scheme-tonal-spot --mode dark"
+  echo "  $(basename "$0") ~/Pictures/wallpaper.jpg --no-auto-scheme --scheme scheme-tonal-spot"
 }
 
 # Cleanup child jobs and pidfile on exit or termination
@@ -82,7 +96,7 @@ preempt_previous() {
   [[ -n "$oldpid" ]] || return 0
   if [[ "$oldpid" != "$$" ]] && kill -0 "$oldpid" 2>/dev/null; then
     log_info "Preempting previous walset (PID $oldpid)"
-    # Try graceful termination: children first, then parent
+
     pkill -TERM -P "$oldpid" 2>/dev/null || true
     kill -TERM "$oldpid" 2>/dev/null || true
     # Wait briefly, then escalate if needed
@@ -100,7 +114,7 @@ preempt_previous() {
   fi
 }
 
-# Optimized system agents update
+
 update_system_agents() {
   local pids=()
 
@@ -120,100 +134,30 @@ update_system_agents() {
   done
 }
 
-# Optimized GTK CSS update
 update_gtk_css() {
-  local file
-  for file in "${GTK_CSS_FILES[@]}"; do
-    if [[ -L "$file" ]] || ! grep -Fxq "$GTK_IMPORT_LINE" "$file" 2>/dev/null; then
-      mkdir -p "$(dirname "$file")"
-      echo "$GTK_IMPORT_LINE" > "${file}.tmp" && mv "${file}.tmp" "$file"
-    fi
-  done
+  local script="$MATUGEN_SCRIPTS_DIR/update_gtk_css.sh"
+  if [[ -x "$script" ]]; then
+    "$script"
+  else
+    log_info "GTK update script not found: $script"
+  fi
 }
 
 update_spotify() {
-  if ! command -v spicetify &>/dev/null; then
-    return 0
+  local script="$MATUGEN_SCRIPTS_DIR/update_spotify.sh"
+  if [[ -x "$script" ]]; then
+    "$script"
+  else
+    log_info "Spotify update script not found: $script"
   fi
-
-  if ! pgrep -x spotify &>/dev/null; then
-    return 0
-  fi
-
-  if [[ "$(spicetify config current_theme 2>/dev/null)" != "marketplace" ]]; then
-    spicetify config current_theme marketplace &>/dev/null || {
-      log_error "Failed to set spicetify theme"
-      return 1
-    }
-  fi
-
-  {
-    timeout 10s spicetify -q watch -s &
-    local watch_pid=$!
-    sleep 2
-    kill "$watch_pid" 2>/dev/null || true
-  } &>/dev/null &
 }
 
 update_folder_colors() {
-  if ! command -v papirus-folders &>/dev/null; then
-    log_info "papirus-folders not found, skipping folder theming"
-    return 0
-  fi
-
-  local cache_file="$HOME/.cache/wal/papirus-folders.txt"
-  if [[ ! -f "$cache_file" ]]; then
-    log_error "Color cache file not found: $cache_file"
-    return 1
-  fi
-
-  local target_hex
-  target_hex=$(<"$cache_file") || {
-    log_error "Failed to read color from cache file"
-    return 1
-  }
-
-  # Clean up the hex color (remove # if present and ensure uppercase)
-  target_hex="${target_hex#\#}"
-  target_hex="${target_hex^^}"
-
-  if [[ ! "$target_hex" =~ ^[0-9A-F]{6}$ ]]; then
-    log_error "Invalid hex color format in cache file: $target_hex"
-    return 1
-  fi
-
-  local -i r1 g1 b1
-  r1=$(( 0x${target_hex:0:2} ))
-  g1=$(( 0x${target_hex:2:2} ))
-  b1=$(( 0x${target_hex:4:2} ))
-
-  # Find closest color using optimized distance calculation
-  local min_distance=1000000 closest_color=""
-  local name color_hex r2 g2 b2 distance
-
-  for name in "${!FOLDER_COLORS[@]}"; do
-    color_hex="${FOLDER_COLORS[$name]#\#}"
-    r2=$(( 0x${color_hex:0:2} ))
-    g2=$(( 0x${color_hex:2:2} ))
-    b2=$(( 0x${color_hex:4:2} ))
-
-    distance=$(( (r1-r2)*(r1-r2) + (g1-g2)*(g1-g2) + (b1-b2)*(b1-b2) ))
-
-    if (( distance < min_distance )); then
-      min_distance=$distance
-      closest_color=$name
-    fi
-  done
-
-  if [[ -n "$closest_color" ]]; then
-
-    papirus-folders -C "$closest_color" -t Papirus-Dark &>/dev/null || {
-      log_error "Failed to apply folder color: $closest_color"
-      return 1
-    }
+  local script="$MATUGEN_SCRIPTS_DIR/update_papirus_folders.sh"
+  if [[ -x "$script" ]]; then
+    "$script"
   else
-    log_error "No matching folder color found"
-    return 1
+    log_info "Papirus folders update script not found: $script"
   fi
 }
 
@@ -235,6 +179,11 @@ validate_input() {
 reload_terminal() {
   local pids=()
 
+  if command -v kitty &>/dev/null; then
+    kitty +kitten themes --reload-in=all matugen &>/dev/null &
+    pids+=($!)
+  fi
+
   if command -v fish &>/dev/null; then
     {
       fish -c "yes | fish_config theme save Matugen" 2>/dev/null
@@ -243,20 +192,14 @@ reload_terminal() {
     pids+=($!)
   fi
 
-  if command -v kitty &>/dev/null; then
-    kitty +kitten themes --reload-in=all matugen &>/dev/null &
-    pids+=($!)
-  fi
-
-  for pid in "${pids[@]}"; do
-    wait "$pid" 2>/dev/null || true
-  done
+  wait_all "${pids[@]}"
 }
 
 main() {
 
   # Defaults
-  local MATUGEN_SCHEME="scheme-tonal-spot"
+  local MATUGEN_SCHEME=""
+  local AUTO_SCHEME=1
   local MODE="dark"
   local wallpaper=""
 
@@ -266,10 +209,12 @@ main() {
         print_usage; exit 0 ;;
       -s|--scheme)
         [[ $# -ge 2 ]] || { log_error "Missing value for $1"; exit 1; }
-        MATUGEN_SCHEME="$2"; shift 2 ;;
+        MATUGEN_SCHEME="$2"; AUTO_SCHEME=0; shift 2 ;;
       -m|--mode)
         [[ $# -ge 2 ]] || { log_error "Missing value for $1"; exit 1; }
         MODE="$2"; shift 2 ;;
+      --no-auto-scheme)
+        AUTO_SCHEME=0; shift ;;
       --)
         shift; break ;;
       -*)
@@ -313,6 +258,30 @@ main() {
 
   log_info "Applying wallpaper and updating theme: $wallpaper"
 
+  # If auto-pick is disabled explicitly, a scheme must be provided
+  if (( AUTO_SCHEME == 0 )) && [[ -z "$MATUGEN_SCHEME" ]]; then
+    log_error "--no-auto-scheme requires --scheme <matugen_scheme>"
+    echo ""
+    print_usage
+    exit 1
+  fi
+
+  # Resolve scheme: auto-pick if requested or if no explicit scheme provided
+  if (( AUTO_SCHEME == 1 )); then
+    local picked_scheme
+    picked_scheme=$(auto_pick_matugen_scheme "$wallpaper") || true
+    if [[ -n "${picked_scheme:-}" ]]; then
+      MATUGEN_SCHEME="$picked_scheme"
+    fi
+  fi
+  # Fallback if still empty
+  if [[ -z "$MATUGEN_SCHEME" ]]; then
+    MATUGEN_SCHEME="scheme-tonal-spot"
+  fi
+
+  # Ensure only a single scheme token is passed to matugen (strip after first space/comma)
+  MATUGEN_SCHEME="${MATUGEN_SCHEME%%[ ,]*}"
+
   # If current selection matches, skip work
   if [[ -f "$CURRENT_FILE" ]]; then
     readarray -t __cur < "$CURRENT_FILE" 2>/dev/null || true
@@ -322,7 +291,7 @@ main() {
     fi
   fi
 
-  # Record current selection immediately so external tools see latest selection
+  # Record current selection
   write_current "$wallpaper" "$MATUGEN_SCHEME" "$MODE" || true
 
   if ! matugen image --type "$MATUGEN_SCHEME" --mode "$MODE" "$wallpaper"; then
@@ -338,13 +307,13 @@ main() {
   reload_terminal &
   pids+=($!)
 
-  if pgrep -x nvim &>/dev/null; then
-    killall -SIGUSR1 nvim 2>/dev/null || true
-  fi
+  pkill -USR1 -x nvim 2>/dev/null || true
 
   if [[ -f "$HYPRLOCK_SVG" ]]; then
-    if command -v magick &>/dev/null; then
-      magick -background none "$HYPRLOCK_SVG" "$HYPRLOCK_PNG" &>/dev/null &
+    local _img_conv=""
+    if command -v magick &>/dev/null; then _img_conv="magick"; elif command -v convert &>/dev/null; then _img_conv="convert"; fi
+    if [[ -n "$_img_conv" ]]; then
+      "$_img_conv" -background none "$HYPRLOCK_SVG" "$HYPRLOCK_PNG" &>/dev/null &
       pids+=($!)
     else
       log_error "ImageMagick not found, skipping hyprlock icon generation"
@@ -352,39 +321,28 @@ main() {
   fi
 
 
-  update_system_agents &
-  pids+=($!)
-
-  update_gtk_css &
-  pids+=($!)
+  update_system_agents & pids+=($!)
+  update_gtk_css & pids+=($!)
 
   if command -v bat &>/dev/null; then
     bat cache --build &>/dev/null &
     pids+=($!)
   fi
 
-  for pid in "${pids[@]}"; do
-    wait "$pid" 2>/dev/null || true
-  done
+  wait_all "${pids[@]}"
 
   # Slow updates in background - but wait for them to prevent orphaned processes
   local bg_pids=()
 
-  update_folder_colors &
-  bg_pids+=($!)
-
-  update_spotify &
-  bg_pids+=($!)
+  update_folder_colors & bg_pids+=($!)
+  update_spotify & bg_pids+=($!)
 
   # Wait for background processes to complete to prevent hanging
-  for pid in "${bg_pids[@]}"; do
-    wait "$pid" 2>/dev/null || true
-  done
-
-  # Finished applying; current already reflects selection
+  wait_all "${bg_pids[@]}"
 
   log_info "Theme application completed successfully"
 }
 
-
+# prevent lags when transitioning to a new wallpaper
+sleep 1
 main "$@"
