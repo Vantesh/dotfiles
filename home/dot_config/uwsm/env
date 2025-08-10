@@ -8,6 +8,9 @@ export APP2UNIT_SLICES='a=app-graphical.slice b=background-graphical.slice s=ses
 # sdl
 export SDL_VIDEODRIVER=wayland
 
+# Electron
+export ELECTRON_ARGS="--enable-features=UseOzonePlatform --ozone-platform=wayland"
+
 #cursor
 export XCURSOR_SIZE=24
 export XCURSOR_THEME=macOS-White
