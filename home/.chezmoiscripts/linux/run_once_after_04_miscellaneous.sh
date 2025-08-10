@@ -6,49 +6,6 @@ source "${CHEZMOI_SOURCE_DIR:?env variable missing. Please only run this script 
 # Initialize Environment
 # =============================================================================
 common_init
-# ===============================================================================
-# RESPECT XDG BASE DIRECTORIES
-# ===============================================================================
-print_box "smslant" "XDG"
-print_step "Setting up XDG base directories"
-
-
-if [[ ! -d "${HOME}/.local/share/gnupg" ]]; then
-  print_info "Creating GnuPG directory"
-  mkdir -p "${HOME}/.local/share/gnupg"
-  chmod 700 "${HOME}/.local/share/gnupg"
-  print_info "GnuPG directory created successfully"
-else
-  chmod 700 "${HOME}/.local/share/gnupg"
-  print_info "GnuPG directory already exists"
-fi
-
-
-if [[ ! -d "${HOME}/.cache/bash" ]]; then
-  print_info "Creating bash cache directory"
-  mkdir -p "${HOME}/.cache/bash"
-  print_info "Bash cache directory created successfully"
-else
-  print_info "Bash cache directory already exists"
-fi
-
-if [[ ! -d "${HOME}/.config/maven" ]]; then
-  print_info "Creating Maven configuration directory"
-  mkdir -p "${HOME}/.config/maven"
-  print_info "Maven configuration directory created successfully"
-else
-  print_info "Maven configuration directory already exists"
-fi
-
-cat <<'EOF' > "${HOME}/.config/maven/settings.xml"
-<settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
-  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-  xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0
-                      https://maven.apache.org/xsd/settings-1.0.0.xsd">
-  <localRepository>${env.XDG_CACHE_HOME}/maven/repository</localRepository>
-</settings>
-EOF
-
 
 # ===============================================================================
 # MISCELLANEOUS

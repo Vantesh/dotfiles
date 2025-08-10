@@ -461,9 +461,3 @@ add_entry_to_fstab() {
     fi
   fi
 }
-
-# lets set gopath and see if it hopefully respects the XDG base directory
-if [[ -z "$GOPATH" ]]; then
-  export GOPATH="$HOME/.local/share/go"
-  export PATH="$GOPATH/bin:$PATH"
-fi

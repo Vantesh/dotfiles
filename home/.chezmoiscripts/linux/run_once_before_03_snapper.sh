@@ -2,6 +2,7 @@
 
 # shellcheck disable=SC1091
 source "${CHEZMOI_SOURCE_DIR:?env variable missing. Please only run this script via chezmoi}/.chezmoiscripts/linux/helpers/.00_helpers"
+source "${CHEZMOI_SOURCE_DIR:?env variable missing. Please only run this script via chezmoi}/.chezmoiscripts/linux/helpers/.02_XDG"
 
 # =============================================================================
 # Initialize Environment
@@ -20,7 +21,6 @@ if is_btrfs && confirm "Set up Snapper?"; then
     btrfs-assistant
     btrfs-progs
     inotify-tools
-    sbctl
   )
   snapper_services=(
     snapper-cleanup.timer

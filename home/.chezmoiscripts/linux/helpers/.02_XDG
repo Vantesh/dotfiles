@@ -1,0 +1,100 @@
+#!/usr/bin/env bash
+
+ # setup XDG before running packages install script to avoid messy home dir on first launch
+ # STILL WIP ( MIGHT DELETE IF IT DOES NOT WORK AS EXPECTED )
+
+# =============================================================================
+# XDG BASE DIRECTORY
+# =============================================================================
+if [[ -z "$XDG_CONFIG_HOME" ]]; then
+  export XDG_CONFIG_HOME="$HOME/.config"
+fi
+if [[ -z "$XDG_DATA_HOME" ]]; then
+  export XDG_DATA_HOME="$HOME/.local/share"
+fi
+if [[ -z "$XDG_CACHE_HOME" ]]; then
+  export XDG_CACHE_HOME="$HOME/.cache"
+fi
+if [[ -z "$XDG_STATE_HOME" ]]; then
+  export XDG_STATE_HOME="$HOME/.local/state"
+fi
+if [[ -z "$XDG_RUNTIME_DIR" ]]; then
+  export XDG_RUNTIME_DIR="$HOME/.local/run"
+  mkdir -p "$XDG_RUNTIME_DIR"
+  chmod 700 "$XDG_RUNTIME_DIR"
+fi
+
+
+# lets set gopath and see if it hopefully respects the XDG base directory
+if [[ -z "$GOPATH" ]]; then
+  export GOPATH="$HOME/.local/share/go"
+  export PATH="$GOPATH/bin:$PATH"
+fi
+
+# since go did respect the XDG base directory, lets see the rest
+if [[ -z "$XDG_BIN_HOME" ]]; then
+  export XDG_BIN_HOME="$HOME/.local/bin"
+  export PATH="$XDG_BIN_HOME:$PATH"
+fi
+
+if [[ ! -d "${HOME}/.local/share/gnupg" ]]; then
+  mkdir -p "${HOME}/.local/share/gnupg"
+  chmod 700 "${HOME}/.local/share/gnupg"
+else
+  chmod 700 "${HOME}/.local/share/gnupg"
+fi
+
+if [[ ! -d "${HOME}/.cache/bash" ]]; then
+  mkdir -p "${HOME}/.cache/bash"
+fi
+
+
+if [[ ! -d "${HOME}/.config/maven" ]]; then
+  mkdir -p "${HOME}/.config/maven"
+fi
+
+cat <<'EOF' > "${HOME}/.config/maven/settings.xml"
+<settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0
+                      https://maven.apache.org/xsd/settings-1.0.0.xsd">
+  <localRepository>${env.XDG_CACHE_HOME}/maven/repository</localRepository>
+</settings>
+EOF
+
+
+export CONAN_USER_HOME="$XDG_CONFIG_HOME"
+export GOPATH="$XDG_DATA_HOME/go"
+export GOMODCACHE="$XDG_CACHE_HOME/go/mod"
+export RUSTUP_HOME="$XDG_DATA_HOME/rustup"
+export CARGO_HOME="$XDG_DATA_HOME/cargo"
+export LEIN_HOME="$XDG_DATA_HOME/lein"
+export NUGET_PACKAGES="$XDG_CACHE_HOME/NuGetPackages"
+export ANDROID_USER_HOME="$XDG_DATA_HOME/android"
+export NODE_REPL_HISTORY="$XDG_DATA_HOME/node_repl_history"
+export DOCKER_CONFIG="$XDG_CONFIG_HOME/docker"
+export SQLITE_HISTORY="$XDG_DATA_HOME/sqlite_history"
+export GRADLE_USER_HOME="$XDG_DATA_HOME/gradle"
+export RIPGREP_CONFIG_PATH="$HOME/.config/rg/.ripgreprc"
+export ANSIBLE_HOME="$XDG_CONFIG_HOME/ansible"
+export FFMPEG_DATADIR="$XDG_CONFIG_HOME/ffmpeg"
+export MYSQL_HISTFILE="$XDG_DATA_HOME/mysql_history"
+export OMNISHARPHOME="$XDG_CONFIG_HOME/omnisharp"
+export DOTNET_CLI_HOME="$XDG_DATA_HOME/dotnet"
+export PYENV_ROOT="$XDG_DATA_HOME/pyenv"
+export WORKON_HOME="$XDG_DATA_HOME/virtualenvs"
+export XINITRC="$XDG_CONFIG_HOME/X11/xinitrc"
+export XSERVERRC="$XDG_CONFIG_HOME/X11/xserverrc"
+export HISTFILE="$XDG_STATE_HOME/bash/history"
+export WINEPREFIX="$XDG_DATA_HOME/wine"
+export NPM_CONFIG_USERCONFIG="$XDG_CONFIG_HOME/npm/npmrc"
+export GTK2_RC_FILES="$XDG_CONFIG_HOME/gtk-2.0/gtkrc"
+export DOTNET_CLI_HOME="$XDG_DATA_HOME/dotnet"
+export PNPM_HOME="$XDG_DATA_HOME/pnpm"
+export WGETRC="$XDG_CONFIG_HOME/wget/wgetrc"
+export GNUPGHOME="$XDG_DATA_HOME/gnupg"
+export CUDA_CACHE_PATH="$XDG_CACHE_HOME/nv"
+export PYTHON_HISTORY="$XDG_STATE_HOME/python_history"
+export _JAVA_OPTIONS="-Djava.util.prefs.userRoot=$XDG_CONFIG_HOME/java"
+export MAVEN_OPTS="-Dmaven.repo.local=$XDG_DATA_HOME/maven/repository"
+export MAVEN_ARGS="--settings $XDG_CONFIG_HOME/maven/settings.xml"
