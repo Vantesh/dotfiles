@@ -1,26 +1,51 @@
-#!/bin/env bash
+#!/usr/bin/env bash
 
-# This script is meant to be run on first boot inorder to populate themes and set wallpaper if not set
-# Do not run it manually(it wont run though as long as the ".first_setup_done" exists)
+# First-boot setup: set a random wallpaper and reload Hyprland once.
+# Sentinel file follows XDG Base Directory spec and lives in XDG_STATE_HOME
+# (persistent state that isn't user-editable config).
 
-if [[ ! -f ~/.config/hypr/.first_setup_done ]]; then
+# Determine sentinel location
+STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/hypr"
+SENTINEL_NEW="$STATE_DIR/first_setup_done"
+
+# Run only if the sentinel is missing (i.e., first setup not yet done)
+if [[ ! -f "$SENTINEL_NEW" ]]; then
     sleep 1
-    if command -v waypaper &>/dev/null; then
 
-        if [[ ! -d "$HOME/Pictures/Wallpapers" ]] || [[ -z "$(ls -A "$HOME/Pictures/Wallpapers")" ]]; then
-            notify-send -w --icon=dialog-error "Wallpaper" "Missing directory: $HOME/Pictures/Wallpapers"
-            notify-send -w --icon=dialog-error "Wallpaper" "Please add wallpaper to the dir and restart hyprland"
+    if command -v waypaper >/dev/null 2>&1; then
+        WALLPAPER_DIR="$HOME/Pictures/Wallpapers"
+
+        if [[ ! -d "$WALLPAPER_DIR" ]] || ! find "$WALLPAPER_DIR" -type f -print -quit | grep -q .; then
+            if command -v notify-send >/dev/null 2>&1; then
+                notify-send --icon=dialog-error "Wallpaper" "Missing or empty: $WALLPAPER_DIR"
+                notify-send --icon=dialog-error "Wallpaper" "Add a wallpaper and restart Hyprland"
+            fi
             exit 1
         fi
-        RANDOM_WALLPAPER=$(find "$HOME/Pictures/Wallpapers" -type f | shuf -n 1)
 
-        waypaper --wallpaper "$RANDOM_WALLPAPER" &
+
+        RANDOM_WALLPAPER=$(find "$WALLPAPER_DIR" -type f | shuf -n 1)
+        waypaper --wallpaper "$RANDOM_WALLPAPER" >/dev/null 2>&1 &
         sleep 1
-        hyprctl reload
 
+        # Try a few times in case hyprctl isn't ready yet (simple, fast retry)
+        if command -v hyprctl >/dev/null 2>&1; then
+            tries=0
+            until hyprctl reload >/dev/null 2>&1 || [[ $tries -ge 3 ]]; do
+                sleep 0.5
+                tries=$((tries + 1))
+            done
+        fi
+
+        # Remove nvim cache folder created by matugen to prevent Nvim issues on first launch
+        NVIM_CACHE_DIR="$HOME/.local/share/nvim"
+        if [[ -d "$NVIM_CACHE_DIR" ]]; then
+            rm -rf "$NVIM_CACHE_DIR"
+        fi
     fi
 
-       # create the first setup done file
-       printf "#DO NOT DELETE THIS FILE\n#This file is used to check if the first setup has been done\n" >~/.config/hypr/.first_setup_done
-
+    # Create the new sentinel to mark first-setup completion
+    [[ ! -d "$STATE_DIR" ]] && mkdir -p "$STATE_DIR"
+    printf "# DO NOT DELETE THIS FILE\n# This file indicates the first setup has been completed.\n" > "$SENTINEL_NEW"
+    notify-send --icon=dialog-information "Hyprland" "First setup completed. Hyprland is now ready to use."
 fi
