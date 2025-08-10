@@ -74,6 +74,7 @@ packageGroups:
     - ripgrep
     - imagemagick
     - chafa
+    - python-opencv
 
   fonts:
     - apple-fonts
@@ -100,7 +101,6 @@ packageGroups:
     - spicetify-cli
     - git-delta
     - localsend
-    - antidot
     - vesktop-bin
     - yazi
     - gpu-screen-recorder
