@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 
  # setup XDG before running packages install script to avoid messy home dir on first launch
- # STILL WIP ( MIGHT DELETE IF IT DOES NOT WORK AS EXPECTED )
+
+ # Currently only .dotnet, .npm, and wget-hsts fails but we can delete .npm folder and wgets-hsts file later
+ # For .dotnet, no fix yet
 
 # =============================================================================
 # XDG BASE DIRECTORY
@@ -88,6 +90,7 @@ export XSERVERRC="$XDG_CONFIG_HOME/X11/xserverrc"
 export HISTFILE="$XDG_STATE_HOME/bash/history"
 export WINEPREFIX="$XDG_DATA_HOME/wine"
 export NPM_CONFIG_USERCONFIG="$XDG_CONFIG_HOME/npm/npmrc"
+export npm_config_cache="$XDG_CACHE_HOME/npm"
 export GTK2_RC_FILES="$XDG_CONFIG_HOME/gtk-2.0/gtkrc"
 export DOTNET_CLI_HOME="$XDG_DATA_HOME/dotnet"
 export PNPM_HOME="$XDG_DATA_HOME/pnpm"
