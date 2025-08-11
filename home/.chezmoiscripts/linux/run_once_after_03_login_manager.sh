@@ -19,7 +19,9 @@ readonly LY_SAVE_FILE="/etc/ly/save.ini"
 declare -A ly_config=(
   ["allow_empty_password"]="false"
   ["clear_password"]="true"
-  ["path"]="null"
+  # https://codeberg.org/fairyglade/ly/issues/811
+  # issue fixed
+  # ["path"]="null"
   ["bg"]="0"
   ["fg"]="8"
   ["bigclock"]="en"
