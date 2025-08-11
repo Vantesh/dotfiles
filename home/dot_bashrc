@@ -1,12 +1,15 @@
+#!/usr/bin/env bash
 # If not running interactively, don't do anything
 [[ $- != *i* ]] && return
 
-PS1='[\u@\h \W]\$ '
+PS1='\[\e[32m\]\u\[\e[37m\]@\[\e[36m\]\h\[\e[37m\] in \[\e[35m\]\w\n\[\e[32m\]\$ \[\e[0m\]'
 
-
-
-source "$HOME/.config/shell/exportsrc"
-source "$HOME/.config/shell/aliasrc"
+# shellcheck disable=SC1091
+[[ -f "$HOME/.config/shell/exportsrc" ]] && source "$HOME/.config/shell/exportsrc"
+# shellcheck disable=SC1091
+[[ -f "$HOME/.config/shell/aliasrc" ]] && source "$HOME/.config/shell/aliasrc"
+# shellcheck disable=SC1091
+[[ -f /usr/share/doc/pkgfile/command-not-found.bash ]] && source /usr/share/doc/pkgfile/command-not-found.bash
 
 export HISTFILE="${XDG_CACHE_HOME}/bash/history"
 
@@ -88,17 +91,8 @@ shopt -s dirspell 2> /dev/null
 # Correct spelling errors in arguments supplied to cd
 shopt -s cdspell 2> /dev/null
 
-# This defines where cd looks for targets
-# Add the directories you want to have fast access to, separated by colon
-# Ex: CDPATH=".:~:~/projects" will look for targets in the current working directory, in home and in the ~/projects folder
-CDPATH="."
-
-# This allows you to bookmark your favorite places across the file system
-# Define a variable containing a path and you will be able to cd into it regardless of the directory you're in
-shopt -s cdable_vars
-
-
 # Better cd
 if command -v zoxide &>/dev/null;then
+export _ZO_ECHO=0
 eval "$(zoxide init --cmd cd bash)"
 fi
