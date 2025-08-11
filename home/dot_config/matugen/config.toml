@@ -82,6 +82,11 @@
   input_path  = "~/.config/matugen/templates/discord.css"
   output_path = "~/.config/vesktop/themes/Matugen.css"
 
+[templates.cava]
+  input_path  = "~/.config/matugen/templates/terminal/cava.config"
+  output_path = "~/.config/cava/config"
+
+
 [config.custom_colors.red]
   color = "#f38ba8"
   blend = true

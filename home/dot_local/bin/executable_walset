@@ -308,6 +308,7 @@ main() {
   pids+=($!)
 
   pkill -USR1 -x nvim 2>/dev/null || true
+  pkill -USR1 -x cava 2>/dev/null || true
 
   if [[ -f "$HYPRLOCK_SVG" ]]; then
     local _img_conv=""
@@ -344,5 +345,5 @@ main() {
 }
 
 # prevent lags when transitioning to a new wallpaper
-sleep 1
+sleep 0.8
 main "$@"
