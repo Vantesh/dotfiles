@@ -1,6 +1,5 @@
-# Hyprland Dotfiles
-
-<div align="left">
+<h1 align="center">Hyprland Dotfiles</h1>
+<div align="center">
 
 <a href="https://github.com/Vantesh/dotfiles/commits/main/"><img alt="Commit Activity" src="https://img.shields.io/github/commit-activity/m/Vantesh/dotfiles/main?style=for-the-badge&logo=github&color=F2CDCD&logoColor=D9E0EE&labelColor=302D41"/></a>
 <a href="https://github.com/Vantesh/dotfiles"><img alt="Size" src="https://img.shields.io/github/repo-size/Vantesh/dotfiles?style=for-the-badge&logo=discord&color=DDB6F2&logoColor=D9E0EE&labelColor=302D41"></a>
@@ -18,8 +17,7 @@ https://github.com/user-attachments/assets/bd263e88-f2b6-477a-97dc-e8c1afa23669
 ## Requirements
 
 - **Fresh arch installation** - The script is designed for a fresh minimal Arch Linux installation.
-- **Root privileges** - The script requires root access to install packages and configure the system.
-- **Network access** - For downloading packages and dependencies
+- (Other arch based distros or existing setups may work but may require manual adjustments)
 
 ## Installation
 
@@ -51,26 +49,35 @@ chmod +x install.sh
 
 This method allows you to inspect and modify the configurations before installation.
 
-## Keybindings
+### Keybindings
 
 Use **SUPER + F2** to view all available keybindings and shortcuts.
-Super is the **Windows** key or **Command** key on macOS keyboards.
+Super is the **Windows** key
 
-## What The Script Does
+### What The Script Does
 
-1. **System Configuration** - Configures sudo, pacman, and installs AUR helper
-2. **Dependencies** - Installs core packages and GPU drivers
-3. **Services** - Configures system services and settings
-4. **Theming** - Sets up fonts, cursors, and visual themes
-5. **Dotfiles** - Applies configuration files
-6. **Shell Setup** - Configures ZSH (optional)
-7. **Snapshots** - Sets up Snapper for BTRFS (optional)
-8. **Bootloader** - Configures GRUB or limine theme
-9. **Laptop Tweaks** - Applies laptop-specific optimizations if detected
+<details>
+<summary>Click to expand</summary>
 
-## ⚠️ Warning
+- **System Configuration** - Configures sudo, pacman, and installs AUR helper
+- **Dependencies** - Installs core packages and GPU drivers
+- **Services** - Configures system services and settings
+- **Theming** - Sets up fonts, cursors, and visual themes
+- **Dotfiles** - Applies configuration files
+- **Shell Setup** - Configures ZSH (optional)
+- **Snapshots** - Sets up Snapper for BTRFS (optional)
+- **Bootloader** - Configures GRUB or limine theme
+- **Laptop Tweaks** - Applies laptop-specific optimizations if detected
 
-The script will backup existing configurations where possible, but **make sure to backup important data before running the script**.
+</details>
+
+### Post Installation
+
+After running the script, you may need to:
+
+- **Hyprland:** Reload Hyprland with `hyprctl reload` if theme doesnt autoreload.
+- **Yazi:** Run `ya pkg install` to install any missing plugins.
+- **Neovim:** Remove the `~/.local/share/nvim` directory then run `nvim` to install plugins.
 
 ## Credits
 
