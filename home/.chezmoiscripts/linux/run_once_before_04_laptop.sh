@@ -105,7 +105,6 @@ create_btrfs_swap_subvolume() {
       print_info "Btrfs swap file created at $SWAP_FILE_PATH"
       uuid=$(sudo blkid -s UUID -o value "$(get_btrfs_root_device)") || {
         print_error "Failed to get UUID of Btrfs root device"
-        return 1
       }
 
       add_entry_to_fstab "UUID=$uuid $SWAP_MOUNT_POINT btrfs defaults,noatime,nodatacow,subvol=$SWAP_SUBVOL 0 0" "swap subvolume mount"
@@ -159,10 +158,23 @@ setup_hibernation() {
     fi
   fi
 
-  update_kernel_cmdline "${hibernation_params[@]}" || {
-    print_error "Failed to update kernel command line for hibernation"
-    return 1
-  }
+  case "$(detect_bootloader)" in
+    grub)
+      update_grub_cmdline "${hibernation_params[@]}" || {
+        print_error "Failed to update GRUB kernel command line for hibernation"
+
+      }
+      ;;
+    limine)
+      update_limine_cmdline "50-hibernation.conf" "${hibernation_params[@]}" || {
+        print_error "Failed to write Limine drop-in for hibernation"
+
+      }
+      ;;
+    *)
+      print_warning "Unsupported bootloader, skipping kernel parameter update."
+      ;;
+  esac
 
 }
 
@@ -180,8 +192,25 @@ if is_btrfs && is_laptop && confirm "Set up hibernation?"; then
   if [[ $(detect_bootloader) == "grub" ]]; then
     create_backup "/etc/default/grub"
   elif [[ $(detect_bootloader) == "limine" ]]; then
-    create_backup "/etc/kernel/cmdline"
+    # Back up limine drop-in dir and UKI cmdline if present
+    [[ -d /etc/limine-entry-tool.d ]] && create_backup "/etc/limine-entry-tool.d"
+    [[ -f /etc/kernel/cmdline ]] && create_backup "/etc/kernel/cmdline"
   fi
+
+  # For Limine, create 01-default.conf once from /proc/cmdline if missing
+  if [[ $(detect_bootloader) == "limine" ]]; then
+    if [[ ! -f /etc/limine-entry-tool.d/01-default.conf ]]; then
+      if [[ -r /proc/cmdline ]]; then
+        default_params=$(cat /proc/cmdline)
+        update_limine_cmdline "01-default.conf" "$default_params"
+      else
+        print_error "/proc/cmdline not readable; cannot create default Limine drop-in"
+      fi
+    else
+      print_info "Limine default drop-in exists; skipping creation"
+    fi
+  fi
+
   setup_hibernation
 
   if sudo sed -i -E "s/^HOOKS=(.*)/HOOKS=(${HOOKS})/" "$MKINIT_CONF"; then
