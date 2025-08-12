@@ -304,6 +304,10 @@ main() {
     exit 1
   fi
 
+
+# Reload hyprland
+hyprctl reload
+
   reload_terminal &
   pids+=($!)
 
