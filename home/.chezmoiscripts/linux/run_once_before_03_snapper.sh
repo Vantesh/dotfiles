@@ -69,13 +69,17 @@ if is_btrfs && confirm "Set up Snapper?"; then
     else
       print_error "Failed to update Limine configuration."
     fi
-    declare -A limine_entries=(["MAX_SNAPSHOT_ENTRIES"]=15
+    declare -A limine_entries=(
+      ["MAX_SNAPSHOT_ENTRIES"]=15
       ["TERMINAL"]="kitty"
       ["TERMINAL_ARG"]="-e"
       ["SNAPSHOT_FORMAT_CHOICE"]=0
       ["QUIET_MODE"]="yes"
-      ["ENABLE_UKI"]="yes"
     )
+
+    if [[ -f /etc/kernel/cmdline ]]; then
+      limine_entries["ENABLE_UKI"]="yes"
+    fi
 
     success=true
     for key in "${!limine_entries[@]}"; do
