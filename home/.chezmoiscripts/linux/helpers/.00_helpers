@@ -70,26 +70,35 @@ write_system_config() {
 }
 
 create_backup() {
-  local file_path="$1"
+  local target_path="$1"
   local backup_path
-  backup_path="${file_path}.bak.$(date +%Y%m%d%H%M%S)"
+  backup_path="${target_path}.bak.$(date +%Y%m%d%H%M%S)"
 
-  if [ -f "$file_path" ]; then
+  if [ -e "$target_path" ]; then
     local backup_dir
     backup_dir=$(dirname "$backup_path")
 
-    local copy_cmd="cp"
+    local copy_cmd=(cp)
+    # Use sudo if destination dir is not writable
     if [ ! -w "$backup_dir" ]; then
-      copy_cmd="sudo cp"
+      copy_cmd=(sudo cp)
     fi
 
-    if $copy_cmd "$file_path" "$backup_path"; then
-      return 0
+    if [ -d "$target_path" ]; then
+      if "${copy_cmd[@]}" -a "$target_path" "$backup_path"; then
+        return 0
+      else
+        return 1
+      fi
     else
-      return 1
+      if "${copy_cmd[@]}" -a "$target_path" "$backup_path"; then
+        return 0
+      else
+        return 1
+      fi
     fi
   else
-    print_warning "File $file_path does not exist, skipping backup."
+    print_warning "Path $target_path does not exist, skipping backup."
   fi
 }
 
@@ -379,41 +388,46 @@ update_grub_cmdline() {
 }
 
 update_limine_cmdline() {
+  local dropin_name="$1"
+  if [[ -z "$dropin_name" ]]; then
+    print_error "update_limine_cmdline: drop-in filename is required (e.g., '50-hibernation.conf')"
+  fi
+  shift
+
   local params="$*"
-  local cmdline_file="/etc/kernel/cmdline"
+  # Ensure .conf suffix for convenience
+  [[ "$dropin_name" != *.conf ]] && dropin_name+=".conf"
 
-  print_info "Updating Limine kernel command line..."
+  local dropin_dir="/etc/limine-entry-tool.d"
 
-  local current_cmdline
-  current_cmdline=$(cat "$cmdline_file" 2>/dev/null)
+  if [[ ! -d "$dropin_dir" ]]; then
+    if not has_package "limine-mkinitcpio-hook"; then
+      print_info "Installing limine-mkinitcpio-hook for managing Limine drop-ins..."
+      install_package "limine-mkinitcpio-hook" || {
+      print_error "Failed to install limine-entry-tool. Cannot manage Limine drop-ins."
 
-  local new_cmdline
-  new_cmdline=$(_build_new_cmdline "$current_cmdline" "$params")
+      }
+    fi
+  fi
+  local dropin_file="$dropin_dir/$dropin_name"
 
-  if echo "$new_cmdline" | sudo tee "$cmdline_file" >/dev/null; then
-    print_info "Limine kernel command line updated."
+
+  print_info "Writing Limine drop-in: $(basename "$dropin_file")"
+
+  # Escape any double quotes in params to safely embed in quoted string
+  local escaped
+  escaped=$(printf '%s' "$params" | sed 's/"/\\"/g')
+
+  if sudo mkdir -p "$dropin_dir" && \
+   # must include += to append to existing KERNEL_CMDLINE else it will overwrite
+     printf 'KERNEL_CMDLINE[default]+= "%s"\n' "$escaped" | sudo tee "$dropin_file" >/dev/null; then
+    sudo chmod 0644 "$dropin_file" || true
+    print_info "Limine drop-in updated: $dropin_file"
   else
-    print_error "Failed to update Limine cmdline file."
+    print_error "Failed to write Limine drop-in: $dropin_file"
   fi
 }
 
-update_kernel_cmdline() {
-  local params="$*"
-  local bootloader
-  bootloader=$(detect_bootloader)
-
-  case "$bootloader" in
-  "limine")
-    update_limine_cmdline "$params"
-    ;;
-  "grub")
-    update_grub_cmdline "$params"
-    ;;
-  *)
-    print_warning "Unsupported bootloader, skipping kernel parameter update."
-    ;;
-  esac
-}
 
 regenerate_initramfs() {
   if [[ $(detect_bootloader) == "grub" ]]; then

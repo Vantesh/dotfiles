@@ -110,18 +110,36 @@ if ! sudo grep -qE '^\s*HOOKS=.*\bplymouth\b' "$mkinitcpio_conf"; then
     config_changed=true
   else
     print_error "Failed to add plymouth hook."
-    return 1
   fi
 else
   print_info "Plymouth hook already configured."
 fi
 
 # --- Update Kernel Parameters for a quiet boot experience ---
-
-update_kernel_cmdline "${QUIET_FLAGS_HOOKS}" || {
-  print_error "Failed to update kernel command line for Plymouth"
-  return 1
-}
+case "$(detect_bootloader)" in
+  grub)
+    update_grub_cmdline "${QUIET_FLAGS_HOOKS}" || {
+      print_error "Failed to update GRUB kernel command line for Plymouth"
+    }
+    ;;
+  limine)
+    # Ensure the Limine default drop-in exists once, sourced from /proc/cmdline
+    if [[ ! -f /etc/limine-entry-tool.d/01-default.conf ]]; then
+      if [[ -r /proc/cmdline ]]; then
+        update_limine_cmdline "01-default.conf" "$(cat /proc/cmdline)"
+      else
+        print_error "/proc/cmdline not readable; cannot create default Limine drop-in"
+      fi
+    fi
+    # Add quiet flags into a dedicated drop-in
+    update_limine_cmdline "20-quiet-boot.conf" "${QUIET_FLAGS_HOOKS}" || {
+      print_error "Failed to write Limine drop-in for Plymouth"
+    }
+    ;;
+  *)
+    print_warning "Unsupported bootloader, skipping kernel parameter update."
+    ;;
+esac
 
 # --- Regenerate Initramfs only if we changed the hooks ---
 if [[ "$config_changed" == true ]]; then
