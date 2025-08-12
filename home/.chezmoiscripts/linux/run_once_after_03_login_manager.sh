@@ -13,15 +13,47 @@ common_init
 print_box "smslant" "Ly"
 print_step "Setting up Ly display manager"
 
+# -----------------------------------------------------------------------------
+# Disable any other active display/login managers before enabling ly
+# -----------------------------------------------------------------------------
+print_step "Checking for other display managers to disable"
+
+other_dm_services=(
+  gdm.service gdm3.service sddm.service lightdm.service lxdm.service
+  greetd.service emptty.service
+)
+
+disabled_any=false
+for svc in "${other_dm_services[@]}"; do
+  if systemctl list-unit-files --type=service | grep -q "^${svc}"; then
+    if systemctl is-enabled --quiet "$svc" 2>/dev/null; then
+      if [[ "$svc" != "ly.service" ]]; then
+        if sudo systemctl disable --now "$svc" >/dev/null 2>&1; then
+          print_info "Disabled conflicting display manager: $svc"
+          disabled_any=true
+        else
+          print_warning "Failed to disable $svc"
+        fi
+      else
+        # Ensure we stop it so we can start clean after config changes
+        sudo systemctl stop "$svc" >/dev/null 2>&1 || true
+      fi
+    fi
+  fi
+done
+
+if [[ "$disabled_any" == true ]]; then
+  print_success "Conflicting display managers disabled"
+else
+  print_info "No conflicting enabled display managers found"
+fi
+
 readonly LY_CONFIG_FILE="/etc/ly/config.ini"
 readonly LY_SAVE_FILE="/etc/ly/save.ini"
 
 declare -A ly_config=(
   ["allow_empty_password"]="false"
   ["clear_password"]="true"
-  # https://codeberg.org/fairyglade/ly/issues/811
-  # issue fixed
-  # ["path"]="null"
   ["bg"]="0"
   ["fg"]="8"
   ["bigclock"]="en"
@@ -41,7 +73,7 @@ EOF
 
 enable_service "ly.service" "system"
 
-if sudo systemctl disable getty@tty2.sevice >/dev/null 2>&1; then
+if sudo systemctl disable getty@tty2.service >/dev/null 2>&1; then
   print_info "TTY2 service disabled successfully"
 else
   print_warning "Failed to disable TTY2 service"
