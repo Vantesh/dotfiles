@@ -13,7 +13,7 @@ Hyprland dotfiles managed with [chezmoi](https://github.com/twpayne/chezmoi).
 
 ## Demo
 
-![Demo](https://github.com/user-attachments/assets/bd263e88-f2b6-477a-97dc-e8c1afa23669)
+https://github.com/user-attachments/assets/bd263e88-f2b6-477a-97dc-e8c1afa23669
 
 ## Requirements
 
