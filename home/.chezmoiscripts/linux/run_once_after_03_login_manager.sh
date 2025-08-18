@@ -28,15 +28,12 @@ for svc in "${other_dm_services[@]}"; do
   if systemctl list-unit-files --type=service | grep -q "^${svc}"; then
     if systemctl is-enabled --quiet "$svc" 2>/dev/null; then
       if [[ "$svc" != "ly.service" ]]; then
-        if sudo systemctl disable --now "$svc" >/dev/null 2>&1; then
+        if sudo systemctl disable "$svc" >/dev/null 2>&1; then
           print_info "Disabled conflicting display manager: $svc"
           disabled_any=true
         else
           print_warning "Failed to disable $svc"
         fi
-      else
-        # Ensure we stop it so we can start clean after config changes
-        sudo systemctl stop "$svc" >/dev/null 2>&1 || true
       fi
     fi
   fi
@@ -58,6 +55,7 @@ declare -A ly_config=(
   ["fg"]="8"
   ["bigclock"]="en"
   ["border_fg"]="8"
+  ["path"]="null"
   ["sleep_cmd"]="systemctl suspend"
   ["session_log"]="/tmp/ly-session.log"
 )
