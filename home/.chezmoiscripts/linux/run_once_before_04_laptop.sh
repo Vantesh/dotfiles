@@ -74,7 +74,6 @@ create_btrfs_swap_subvolume() {
     temp_mount_point=$(mktemp -d)
     if sudo mount "$(get_btrfs_root_device)" "$temp_mount_point" >/dev/null; then
       if sudo btrfs subvolume create "$temp_mount_point/$SWAP_SUBVOL" >/dev/null; then
-        print_info "Btrfs swap subvolume created"
         sudo umount "$temp_mount_point"
         rm -rf "$temp_mount_point"
       else
@@ -84,8 +83,6 @@ create_btrfs_swap_subvolume() {
       print_error "Failed to mount Btrfs root device"
     fi
     sudo umount "$temp_mount_point" 2>/dev/null || true
-  else
-    print_info "Btrfs swap subvolume already exists"
   fi
 
   if ! mountpoint -q "$SWAP_MOUNT_POINT"; then
@@ -96,8 +93,6 @@ create_btrfs_swap_subvolume() {
         print_error "Failed to mount Btrfs swap subvolume"
       fi
     fi
-  else
-    print_info "Btrfs swap subvolume already mounted at $SWAP_MOUNT_POINT"
   fi
 
   if [[ ! -f "$SWAP_FILE_PATH" ]]; then
@@ -129,32 +124,43 @@ create_btrfs_swap_subvolume() {
 
 }
 
+get_swap_path() {
+  # Return first non-zram active swap (device or file)
+  sudo swapon --show=NAME --noheadings 2>/dev/null | awk '$1 !~ /\/dev\/zram/ {print; exit}'
+}
+
 setup_hibernation() {
-  swap_path=$(sudo swapon --show --noheadings | awk '{print $1}' | grep -v '^/dev/zram' | head -n1)
+  swap_path=$(get_swap_path)
 
   if [[ -z "$swap_path" ]]; then
-    print_info "No swap file found, creating Btrfs swap subvolume and file"
+    print_info "No swap found, creating Btrfs swapfile"
     create_btrfs_swap_subvolume
+    swap_path=$(get_swap_path)
+    [[ -z "$swap_path" ]] && print_warning "Swap still not detected after creation; resume parameters will be skipped."
   fi
 
   hibernation_params=(hibernate.compressor=lz4)
 
-  if [[ -b "$swap_path" ]]; then
-    resume_uuid=$(sudo blkid -s UUID -o value "$swap_path")
-    if [[ -n "$resume_uuid" ]]; then
-      hibernation_params+=("resume=UUID=$resume_uuid")
+  if [[ -n "$swap_path" ]]; then
+    if [[ -b "$swap_path" ]]; then
+      # Direct block device swap (e.g. partition)
+      resume_uuid=$(sudo blkid -s UUID -o value "$swap_path")
+      if [[ -n "$resume_uuid" ]]; then
+        hibernation_params+=("resume=UUID=$resume_uuid")
+      else
+        print_error "Failed to get UUID for swap device: $swap_path"
+      fi
+    elif [[ -f "$swap_path" ]]; then
+      # Swap file (Btrfs)
+      resume_uuid=$(sudo blkid -s UUID -o value "$(get_btrfs_root_device)")
+      resume_offset=$(sudo btrfs inspect-internal map-swapfile -r "$swap_path")
+      if [[ -n "$resume_uuid" && -n "$resume_offset" ]]; then
+        hibernation_params+=("resume=UUID=$resume_uuid" "resume_offset=$resume_offset")
+      else
+        print_error "Failed to get UUID or offset for swap file: $swap_path"
+      fi
     else
-      print_error "Failed to get UUID for swap device: $swap_path"
-    fi
-  fi
-
-  if [[ -f $swap_path ]]; then
-    resume_uuid=$(sudo blkid -s UUID -o value "$(get_btrfs_root_device)")
-    resume_offset=$(sudo btrfs inspect-internal map-swapfile -r "$swap_path")
-    if [[ -n "$resume_uuid" && -n "$resume_offset" ]]; then
-      hibernation_params+=("resume=UUID=$resume_uuid" "resume_offset=$resume_offset")
-    else
-      print_error "Failed to get UUID or offset for swap file: $swap_path"
+      print_warning "Swap path $swap_path exists but is neither block device nor regular file"
     fi
   fi
 
@@ -166,6 +172,19 @@ setup_hibernation() {
       }
       ;;
     limine)
+      # For Limine, create 01-default.conf once from /proc/cmdline if missing
+      if [[ $(detect_bootloader) == "limine" ]]; then
+        if [[ ! -f /etc/limine-entry-tool.d/01-default.conf ]]; then
+          if [[ -r /proc/cmdline ]]; then
+            default_params=$(cat /proc/cmdline)
+            update_limine_cmdline "01-default.conf" "$default_params"
+          else
+            print_error "/proc/cmdline not readable; cannot create default Limine drop-in"
+          fi
+        fi
+      fi
+
+      # add hibernation params in a dedicated drop-in file
       update_limine_cmdline "50-hibernation.conf" "${hibernation_params[@]}" || {
         print_error "Failed to write Limine drop-in for hibernation"
 
@@ -191,24 +210,6 @@ if is_btrfs && is_laptop && confirm "Set up hibernation?"; then
 
   if [[ $(detect_bootloader) == "grub" ]]; then
     create_backup "/etc/default/grub"
-  elif [[ $(detect_bootloader) == "limine" ]]; then
-    # Back up limine drop-in dir and UKI cmdline if present
-    [[ -d /etc/limine-entry-tool.d ]] && create_backup "/etc/limine-entry-tool.d"
-    [[ -f /etc/kernel/cmdline ]] && create_backup "/etc/kernel/cmdline"
-  fi
-
-  # For Limine, create 01-default.conf once from /proc/cmdline if missing
-  if [[ $(detect_bootloader) == "limine" ]]; then
-    if [[ ! -f /etc/limine-entry-tool.d/01-default.conf ]]; then
-      if [[ -r /proc/cmdline ]]; then
-        default_params=$(cat /proc/cmdline)
-        update_limine_cmdline "01-default.conf" "$default_params"
-      else
-        print_error "/proc/cmdline not readable; cannot create default Limine drop-in"
-      fi
-    else
-      print_info "Limine default drop-in exists; skipping creation"
-    fi
   fi
 
   setup_hibernation
