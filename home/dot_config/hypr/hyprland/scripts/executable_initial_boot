@@ -2,7 +2,6 @@
 
 # First-boot setup: set a random wallpaper and reload Hyprland once.
 # Sentinel file follows XDG Base Directory spec and lives in XDG_STATE_HOME
-# (persistent state that isn't user-editable config).
 
 # Determine sentinel location
 STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/hypr"
@@ -24,7 +23,7 @@ if [[ ! -f "$SENTINEL_NEW" ]]; then
         fi
 
         RANDOM_WALLPAPER=$(find "$WALLPAPER_DIR" -type f | shuf -n 1)
-        waypaper --foldder "$WALLPAPER_DIR" --wallpaper "$RANDOM_WALLPAPER" >/dev/null 2>&1 &
+        waypaper --folder "$WALLPAPER_DIR" --wallpaper "$RANDOM_WALLPAPER" >/dev/null 2>&1 &
         sleep 1
 
         # Remove nvim cache folder created by matugen to prevent Nvim issues on first launch
