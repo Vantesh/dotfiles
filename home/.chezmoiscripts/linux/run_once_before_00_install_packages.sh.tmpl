@@ -51,6 +51,14 @@ if [[ $gpu_info == *"NVIDIA Corporation"* ]]; then
     "{{ . }}"
     {{- end }}
   )
+  # Skip nvidia-dkms on CachyOS (prebuilt repos provide modules). Detect via kernel suffix or os-release.
+  if [[ "$kernel_version" == *"-cachyos"* ]] || grep -qi 'cachyos' /etc/os-release 2>/dev/null; then
+    for i in "${!drivers[@]}"; do
+      if [[ ${drivers[i]} == "nvidia-dkms" ]]; then
+        unset 'drivers[i]'
+      fi
+    done
+  fi
 fi
 
 # AMD/ATI
