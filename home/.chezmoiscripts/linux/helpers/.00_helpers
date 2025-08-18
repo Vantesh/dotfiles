@@ -325,7 +325,7 @@ set_snapper_config_value() {
     elif [ "$config_name" = "home" ]; then
       sudo snapper -c "$config_name" create-config /home
     else
-      printc yellow "Snapper config '$config_name' does not exist. Create it first."
+      print_warning "Snapper config '$config_name' does not exist. Create it first."
       return 1
     fi
   fi
@@ -411,7 +411,6 @@ update_limine_cmdline() {
   fi
   local dropin_file="$dropin_dir/$dropin_name"
 
-
   print_info "Writing Limine drop-in: $(basename "$dropin_file")"
 
   # Escape any double quotes in params to safely embed in quoted string
@@ -422,7 +421,6 @@ update_limine_cmdline() {
    # must include += to append to existing KERNEL_CMDLINE else it will overwrite
      printf 'KERNEL_CMDLINE[default]+= "%s"\n' "$escaped" | sudo tee "$dropin_file" >/dev/null; then
     sudo chmod 0644 "$dropin_file" || true
-    print_info "Limine drop-in updated: $dropin_file"
   else
     print_error "Failed to write Limine drop-in: $dropin_file"
   fi

@@ -2,7 +2,7 @@
 
  # setup XDG before running packages install script to avoid messy home dir on first launch
 
- # Currently only .dotnet, .npm, and wget-hsts fails but we can delete .npm folder and wgets-hsts file later
+ # Currently only .dotnet, .npm, and wget-hsts fails but we can delete .npm folder and wget-hsts file later
  # For .dotnet, no fix yet
 
 # =============================================================================
@@ -26,14 +26,11 @@ if [[ -z "$XDG_RUNTIME_DIR" ]]; then
   chmod 700 "$XDG_RUNTIME_DIR"
 fi
 
-
-# lets set gopath and see if it hopefully respects the XDG base directory
 if [[ -z "$GOPATH" ]]; then
   export GOPATH="$HOME/.local/share/go"
   export PATH="$GOPATH/bin:$PATH"
 fi
 
-# since go did respect the XDG base directory, lets see the rest
 if [[ -z "$XDG_BIN_HOME" ]]; then
   export XDG_BIN_HOME="$HOME/.local/bin"
   export PATH="$XDG_BIN_HOME:$PATH"
@@ -49,7 +46,6 @@ fi
 if [[ ! -d "${HOME}/.cache/bash" ]]; then
   mkdir -p "${HOME}/.cache/bash"
 fi
-
 
 if [[ ! -d "${HOME}/.config/maven" ]]; then
   mkdir -p "${HOME}/.config/maven"
