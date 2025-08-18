@@ -10,7 +10,7 @@ function toggle() {
   hyprctl --batch "dispatch togglefloating; dispatch resizeactive exact ${width} ${height}; dispatch centerwindow"
 }
 
-function untoggle() {
+function un-toggle() {
   hyprctl dispatch togglefloating
 }
 
@@ -21,7 +21,7 @@ function handle() {
   if [ "$floating" == "false" ]; then
     toggle "$width" "$height"
   else
-    untoggle
+    un-toggle
   fi
 }
 

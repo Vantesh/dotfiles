@@ -36,5 +36,5 @@ if [[ ! -f "$SENTINEL_NEW" ]]; then
     # Create the new sentinel to mark first-setup completion
     [[ ! -d "$STATE_DIR" ]] && mkdir -p "$STATE_DIR"
     printf "# DO NOT DELETE THIS FILE\n# This file indicates the first setup has been completed.\n" > "$SENTINEL_NEW"
-    notify-send --icon=dialog-information "Hyprland" "First setup completed. Run nvim before changing wallppaper again."
+    notify-send --icon=dialog-information "Hyprland" "First setup completed. Run nvim before changing wallpaper again."
 fi
