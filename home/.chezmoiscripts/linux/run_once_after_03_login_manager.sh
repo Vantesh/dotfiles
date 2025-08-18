@@ -40,7 +40,7 @@ for svc in "${other_dm_services[@]}"; do
 done
 
 if [[ "$disabled_any" == true ]]; then
-  print_success "Conflicting display managers disabled"
+  print_info "Conflicting display managers disabled"
 else
   print_info "No conflicting enabled display managers found"
 fi
