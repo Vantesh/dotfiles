@@ -69,9 +69,8 @@ EOF
 }
 
 
-if systemctl is-active --quiet dnscrypt-proxy.service; then
-:
-else
+if ! systemctl is-active --quiet dnscrypt-proxy.service; then
+
  if confirm "Setup DNS over HTTPS ?"; then
   setup_doh
   echo ""
