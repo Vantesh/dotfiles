@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC1091
 source "${CHEZMOI_SOURCE_DIR:?env variable missing. Please only run this script via chezmoi}/.chezmoiscripts/linux/helpers/.00_helpers"
+source "${CHEZMOI_SOURCE_DIR:?env variable missing. Please only run this script via chezmoi}/.chezmoiscripts/linux/helpers/.02_XDG"
 
 common_init
 
 readonly GRUB_THEME_URL="https://github.com/semimqmo/sekiro_grub_theme"
-readonly QUIET_FLAGS_HOOKS="quiet splash loglevel=3 systemd.show_status=auto rd.udev.log_level=3 vt.global_cursor_default=0 nowatchdog"
+readonly QUIET_FLAGS_HOOKS="quiet splash loglevel=3 systemd.show_status=auto rd.udev.log_level=3 vt.global_cursor_default=0"
 
 # ===================================================================================
 # BOOTLOADER THEME
