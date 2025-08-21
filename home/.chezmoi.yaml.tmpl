@@ -1,5 +1,6 @@
 {{- $wallpaperUrl := gitHubLatestReleaseAssetURL "vantesh/wallpapers" "wallpapers.zip" | quote }}
 {{- $fontAwesomeUrl := gitHubLatestReleaseAssetURL "FortAwesome/Font-Awesome" (printf "fontawesome-free-*-desktop.zip") | quote }}
+{{ $nerd_fonts_version := (gitHubLatestRelease "ryanoasis/nerd-fonts").TagName -}}
 {{- $appleEmojiUrl := gitHubLatestReleaseAssetURL "samuelngs/apple-emoji-linux" "AppleColorEmoji.ttf" | quote }}
 {{- $macOSIconsUrl := gitHubLatestReleaseAssetURL "ful1e5/apple_cursor" "macOS.tar.xz" | quote }}
 {{- $macOSHyprDarkIconsUrl := gitHubLatestReleaseAssetURL "driedpampas/macOS-hyprcursor" "macOS.Hyprcursor.SVG.tar.gz" | quote }}
@@ -20,6 +21,7 @@ data:
   default_shell: {{ $default_shell | quote }}
   wallpapersUrl: {{ $wallpaperUrl }}
   fontAwesomeUrl: {{ $fontAwesomeUrl }}
+  nerd_fonts_version: {{ $nerd_fonts_version | quote }}
   appleEmojiUrl: {{ $appleEmojiUrl }}
   macOSIconsUrl: {{ $macOSIconsUrl }}
   macOSHyprDarkIconsUrl: {{ $macOSHyprDarkIconsUrl }}
@@ -30,6 +32,7 @@ data:
 data:
   wallpapersUrl: {{ $wallpaperUrl }}
   fontAwesomeUrl: {{ $fontAwesomeUrl }}
+  nerd_fonts_version: {{ $nerd_fonts_version | quote }}
   appleEmojiUrl: {{ $appleEmojiUrl }}
   macOSIconsUrl: {{ $macOSIconsUrl }}
   macOSHyprDarkIconsUrl: {{ $macOSHyprDarkIconsUrl }}
