@@ -157,20 +157,9 @@ print_box "smslant" "GTK Theme"
 print_step "Setting up GTK theme"
 print_info "Setting GTK theme"
 
-if [[ ! -d "${HOME}/.local/share/icons/Papirus-Dark" ]]; then
-  print_info "Installing Papirus icon theme"
-  if wget -qO- https://git.io/papirus-icon-theme-install | env DESTDIR="$HOME/.local/share/icons" sh >/dev/null 2>&1; then
-    print_info "Papirus icon theme installed successfully"
-  else
-    print_warning "Failed to install Papirus icon theme"
-  fi
-else
-  print_info "Papirus icon theme already exists"
-fi
 
 if gsettings set org.gnome.desktop.interface gtk-theme "adw-gtk3-dark" &&
   gsettings set org.gnome.desktop.interface font-name "SF Pro Text 12" &&
-  gsettings set org.gnome.desktop.interface icon-theme "Papirus-Dark" &&
   gsettings set org.gnome.desktop.interface color-scheme "prefer-dark"; then
   print_info "GTK theme and icons set successfully"
 else
