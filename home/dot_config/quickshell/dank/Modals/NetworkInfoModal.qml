@@ -16,19 +16,19 @@ DankModal {
     property string networkDetails: ""
 
     function showNetworkInfo(ssid, data) {
-        networkSSID = ssid
-        networkData = data
-        networkInfoModalVisible = true
-        open()
-        NetworkService.fetchNetworkInfo(ssid)
+        networkSSID = ssid;
+        networkData = data;
+        networkInfoModalVisible = true;
+        open();
+        NetworkService.fetchNetworkInfo(ssid);
     }
 
     function hideDialog() {
-        networkInfoModalVisible = false
-        close()
-        networkSSID = ""
-        networkData = null
-        networkDetails = ""
+        networkInfoModalVisible = false;
+        close();
+        networkSSID = "";
+        networkData = null;
+        networkDetails = "";
     }
 
     visible: networkInfoModalVisible
@@ -36,13 +36,13 @@ DankModal {
     height: 500
     enableShadow: true
     onBackgroundClicked: {
-        hideDialog()
+        hideDialog();
     }
     onVisibleChanged: {
         if (!visible) {
-            networkSSID = ""
-            networkData = null
-            networkDetails = ""
+            networkSSID = "";
+            networkData = null;
+            networkDetails = "";
         }
     }
 
@@ -84,7 +84,7 @@ DankModal {
                         iconColor: Theme.surfaceText
                         hoverColor: Theme.errorHover
                         onClicked: {
-                            root.hideDialog()
+                            root.hideDialog();
                         }
                     }
                 }
@@ -109,26 +109,19 @@ DankModal {
                     WheelHandler {
                         acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
                         onWheel: event => {
-                                     let delta = event.pixelDelta.y
-                                     !== 0 ? event.pixelDelta.y
-                                             * 1.8 : event.angleDelta.y / 120 * 60
-                                     let newY = parent.contentY - delta
-                                     newY = Math.max(
-                                         0, Math.min(
-                                             parent.contentHeight - parent.height,
-                                             newY))
-                                     parent.contentY = newY
-                                     event.accepted = true
-                                 }
+                            let delta = event.pixelDelta.y !== 0 ? event.pixelDelta.y * 1.8 : event.angleDelta.y / 120 * 60;
+                            let newY = parent.contentY - delta;
+                            newY = Math.max(0, Math.min(parent.contentHeight - parent.height, newY));
+                            parent.contentY = newY;
+                            event.accepted = true;
+                        }
                     }
 
                     Rectangle {
                         id: detailsRect
 
                         width: parent.width
-                        height: Math.max(
-                                    parent.parent.height,
-                                    detailsText.contentHeight + Theme.spacingM * 2)
+                        height: Math.max(parent.parent.height, detailsText.contentHeight + Theme.spacingM * 2)
                         radius: Theme.cornerRadius
                         color: Theme.surfaceHover
                         border.color: Theme.outlineStrong
@@ -139,9 +132,7 @@ DankModal {
 
                             anchors.fill: parent
                             anchors.margins: Theme.spacingM
-                            text: NetworkService.networkInfoDetails.replace(
-                                      /\\n/g,
-                                      '\n') || "No information available"
+                            text: NetworkService.networkInfoDetails.replace(/\\n/g, '\n') || "No information available"
                             font.pixelSize: Theme.fontSizeMedium
                             color: Theme.surfaceText
                             wrapMode: Text.WordWrap
@@ -165,14 +156,10 @@ DankModal {
                     Rectangle {
                         anchors.right: parent.right
                         anchors.verticalCenter: parent.verticalCenter
-                        width: Math.max(
-                                   70,
-                                   closeText.contentWidth + Theme.spacingM * 2)
+                        width: Math.max(70, closeText.contentWidth + Theme.spacingM * 2)
                         height: 36
                         radius: Theme.cornerRadius
-                        color: closeArea.containsMouse ? Qt.darker(
-                                                             Theme.primary,
-                                                             1.1) : Theme.primary
+                        color: closeArea.containsMouse ? Qt.darker(Theme.primary, 1.1) : Theme.primary
 
                         StyledText {
                             id: closeText
@@ -191,7 +178,7 @@ DankModal {
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
                             onClicked: {
-                                root.hideDialog()
+                                root.hideDialog();
                             }
                         }
 
