@@ -62,9 +62,9 @@
   input_path  = '~/.config/matugen/templates/gtk/colors.css'
   output_path = '~/.config/gtk-3.0/colors.css'
 
-[templates.papirus-folders]
+[templates.folders-color]
   input_path  = '~/.config/matugen/templates/folder-color.txt'
-  output_path = '~/.cache/wal/papirus-folders.txt'
+  output_path = '~/.cache/wal/folder-color.txt'
 
 [templates.spicetify]
   input_path  = '~/.config/matugen/templates/spotify.ini'
@@ -85,7 +85,6 @@
 [templates.cava]
   input_path  = "~/.config/matugen/templates/terminal/cava.config"
   output_path = "~/.config/cava/config"
-
 
 [config.custom_colors.red]
   color = "#f38ba8"
