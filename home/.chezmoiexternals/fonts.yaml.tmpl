@@ -14,11 +14,6 @@
   include:
     - "**/otfs/Font*.otf"
 
-"{{ $fontDir }}/emojis/AppleColorEmoji.ttf":
-  url: {{ .appleEmojiUrl }}
-  type: file
-  refreshPeriod: "336h"
-
 "{{ $fontDir }}/Material-Symbols/MaterialSymbolsRounded[FILL,GRAD,opsz,wght].ttf":
   url: "https://github.com/google/material-design-icons/raw/refs/heads/master/variablefont/MaterialSymbolsRounded%5BFILL,GRAD,opsz,wght%5D.ttf"
   type: file
@@ -33,3 +28,43 @@
   url: "https://github.com/google/material-design-icons/raw/refs/heads/master/variablefont/MaterialSymbolsSharp%5BFILL,GRAD,opsz,wght%5D.ttf"
   type: file
   refreshPeriod: "336h"
+
+
+{{- if eq .chezmoi.os "linux" }}
+
+"{{ $fontDir }}/emojis/AppleColorEmoji.ttf":
+  url: {{ .appleEmojiUrl }}
+  type: file
+  refreshPeriod: "336h"
+
+
+"{{ $fontDir }}/fluent-icons/FluentSystemIcons-Regular.ttf":
+  url: "https://github.com/microsoft/fluentui-system-icons/raw/refs/heads/main/fonts/FluentSystemIcons-Regular.ttf"
+  type: file
+  refreshPeriod: "336h"
+
+"{{ $fontDir }}/fluent-icons/FluentSystemIcons-Filled.ttf":
+  url: "https://github.com/microsoft/fluentui-system-icons/raw/refs/heads/main/fonts/FluentSystemIcons-Filled.ttf"
+  type: file
+  refreshPeriod: "336h"
+
+"{{ $fontDir }}/fluent-icons/FluentSystemIcons-Light.ttf":
+  url: "https://github.com/microsoft/fluentui-system-icons/raw/refs/heads/main/fonts/FluentSystemIcons-Light.ttf"
+  type: file
+  refreshPeriod: "336h"
+
+"{{ $fontDir }}/Segoe-UI":
+  type: archive
+  url: https://aka.ms/SegoeFluentIcons
+  include:
+    - "*ttf"
+  refreshPeriod: "336h"
+
+"{{ $fontDir }}/Segoe-VF":
+  type: archive
+  url: https://aka.ms/SegoeUIVariable
+  include:
+    - "*ttf"
+  refreshPeriod: "336h"
+
+{{- end }}

@@ -282,7 +282,7 @@ local osc_param = {                  -- calculated by osc_init()
 
 local icon_theme = {
     ["fluent"] = {
-        iconfont = "fluent-system-icons",
+        iconfont = "FluentSystemIcons-Regular",
         window = {
             maximize = "\238\159\171",
             unmaximize = "\238\174\150",
@@ -328,7 +328,7 @@ local icon_theme = {
         zoom_out = "\238\186\143",
     },
     ["material"] = {
-        iconfont = "Material Design Icons",
+        iconfont = "Material Symbols Rounded",
         window = {
             maximize = '\243\176\150\175',
             unmaximize = '\243\176\150\178',
