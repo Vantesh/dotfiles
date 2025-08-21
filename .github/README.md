@@ -82,3 +82,4 @@ After running the script, you may need to:
 ## Credits
 
 - [END4 Dotfiles](https://github.com/end-4/dots-hyprland) for monet stuff
+- [DankMaterialShell](https://github.com/AvengeMedia/DankMaterialShell) for the quickshell
