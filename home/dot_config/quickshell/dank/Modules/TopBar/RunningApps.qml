@@ -1,0 +1,192 @@
+import QtQuick
+import QtQuick.Controls
+import Quickshell
+import Quickshell.Widgets
+import qs.Common
+import qs.Services
+import qs.Widgets
+
+Rectangle {
+    id: root
+
+    property string section: "left"
+    property var parentScreen
+    property var hoveredItem: null
+    property var topBar: null
+    // The visual root for this window
+    property Item windowRoot: (Window.window ? Window.window.contentItem : null)
+    readonly property int windowCount: HyprlandService.windows.length
+    readonly property int calculatedWidth: {
+        if (windowCount === 0)
+            return 0;
+        if (SettingsData.runningAppsCompactMode) {
+            return windowCount * 24 + (windowCount - 1) * Theme.spacingXS + Theme.spacingS * 2;
+        } else {
+            return windowCount * (24 + Theme.spacingXS + 120) + (windowCount - 1) * Theme.spacingXS + Theme.spacingS * 2;
+        }
+    }
+
+    width: calculatedWidth
+    height: 30
+    radius: Theme.cornerRadius
+    visible: windowCount > 0
+    clip: false
+    color: {
+        if (windowCount === 0)
+            return "transparent";
+
+        const baseColor = Theme.secondaryHover;
+        return Qt.rgba(baseColor.r, baseColor.g, baseColor.b, baseColor.a * Theme.widgetTransparency);
+    }
+
+    Row {
+        id: windowRow
+
+        anchors.centerIn: parent
+        spacing: Theme.spacingXS
+
+        Repeater {
+            id: windowRepeater
+
+            model: HyprlandService.windows
+
+            delegate: Item {
+                id: delegateItem
+
+                property bool isCurrentWindow: modelData.id == String(HyprlandService.focusedWindowId)
+                property string appId: modelData.app_id || ""
+                property string windowTitle: modelData.title || "(Unnamed)"
+                property int windowId: modelData.id
+                property string tooltipText: {
+                    var appName = "Unknown";
+                    if (appId) {
+                        var desktopEntry = DesktopEntries.byId(appId);
+                        appName = desktopEntry && desktopEntry.name ? desktopEntry.name : appId;
+                    }
+                    return appName + (windowTitle ? " • " + windowTitle : "");
+                }
+
+                width: SettingsData.runningAppsCompactMode ? 24 : (24 + Theme.spacingXS + 120)
+                height: 24
+
+                Rectangle {
+                    anchors.fill: parent
+                    radius: Theme.cornerRadius
+                    color: {
+                        if (isFocused)
+                            return mouseArea.containsMouse ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.3) : Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.2);
+                        else
+                            return mouseArea.containsMouse ? Qt.rgba(Theme.primaryHover.r, Theme.primaryHover.g, Theme.primaryHover.b, 0.1) : "transparent";
+                    }
+
+                    Behavior on color {
+                        ColorAnimation {
+                            duration: Theme.shortDuration
+                            easing.type: Theme.standardEasing
+                        }
+                    }
+                }
+
+                // App icon
+                IconImage {
+                    id: iconImg
+
+                    anchors.left: parent.left
+                    anchors.leftMargin: SettingsData.runningAppsCompactMode ? (parent.width - 18) / 2 : Theme.spacingXS
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: 18
+                    height: 18
+                    source: {
+                        if (!appId)
+                            return "";
+
+                        var desktopEntry = DesktopEntries.byId(appId);
+                        if (desktopEntry && desktopEntry.icon) {
+                            var iconPath = Quickshell.iconPath(desktopEntry.icon, SettingsData.iconTheme === "System Default" ? "" : SettingsData.iconTheme);
+                            return iconPath;
+                        }
+                        return "";
+                    }
+                    smooth: true
+                    mipmap: true
+                    asynchronous: true
+                    visible: status === Image.Ready
+                }
+
+                // Fallback text if no icon found
+                Text {
+                    anchors.left: parent.left
+                    anchors.leftMargin: SettingsData.runningAppsCompactMode ? (parent.width - 18) / 2 : Theme.spacingXS
+                    anchors.verticalCenter: parent.verticalCenter
+                    visible: !iconImg.visible
+                    text: {
+                        if (!appId)
+                            return "?";
+
+                        var desktopEntry = DesktopEntries.byId(appId);
+                        if (desktopEntry && desktopEntry.name)
+                            return desktopEntry.name.charAt(0).toUpperCase();
+
+                        return appId.charAt(0).toUpperCase();
+                    }
+                    font.pixelSize: 10
+                    color: Theme.surfaceText
+                    font.weight: Font.Medium
+                }
+
+                // Window title text (only visible in expanded mode)
+                StyledText {
+                    anchors.left: iconImg.right
+                    anchors.leftMargin: Theme.spacingXS
+                    anchors.right: parent.right
+                    anchors.rightMargin: Theme.spacingS
+                    anchors.verticalCenter: parent.verticalCenter
+                    visible: !SettingsData.runningAppsCompactMode
+                    text: windowTitle
+                    font.pixelSize: Theme.fontSizeMedium - 1
+                    color: Theme.surfaceText
+                    font.weight: Font.Medium
+                    elide: Text.ElideRight
+                    maximumLineCount: 1
+                }
+
+                MouseArea {
+                    id: mouseArea
+
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: {
+                        HyprlandService.focusWindow(windowId);
+                    }
+                    onEntered: {
+                        root.hoveredItem = delegateItem;
+                        var globalPos = delegateItem.mapToGlobal(delegateItem.width / 2, delegateItem.height);
+                        tooltipLoader.active = true;
+                        if (tooltipLoader.item) {
+                            var tooltipY = Theme.barHeight + SettingsData.topBarSpacing + Theme.spacingXS;
+                            tooltipLoader.item.showTooltip(delegateItem.tooltipText, globalPos.x, tooltipY, root.parentScreen);
+                        }
+                    }
+                    onExited: {
+                        if (root.hoveredItem === delegateItem) {
+                            root.hoveredItem = null;
+                            if (tooltipLoader.item)
+                                tooltipLoader.item.hideTooltip();
+
+                            tooltipLoader.active = false;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    Loader {
+        id: tooltipLoader
+
+        active: false
+
+        sourceComponent: RunningAppsTooltip {}
+    }
+}
