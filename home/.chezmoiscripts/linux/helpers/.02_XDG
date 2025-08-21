@@ -2,8 +2,7 @@
 
  # setup XDG before running packages install script to avoid messy home dir on first launch
 
- # Currently only .dotnet, .npm, and wget-hsts fails but we can delete .npm folder and wget-hsts file later
- # For .dotnet, no fix yet
+ # Currently only .dotnet fails to respect XDG_CONFIG_HOME
 
 # =============================================================================
 # XDG BASE DIRECTORY

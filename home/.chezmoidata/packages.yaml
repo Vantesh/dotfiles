@@ -12,14 +12,13 @@ packageGroups:
     - polkit-gnome
     - rofi-wayland
     - grimblast
-    - waypaper
-    - swww
     - imv
     - matugen-bin
     - wallust
-    - ags-hyprpanel-git # TODO: replace with quickshell
+    - quickshell-git
+    - dgop
     - pyprland
-    - devify
+    - libcanberra
     - brightnessctl
     - playerctl
     - nautilus
@@ -33,7 +32,6 @@ packageGroups:
     - gnome-keyring
     - libgnome-keyring
     - topgrade
-    - mission-center
     - udiskie
     - ntfs-3g
     - exfatprogs
@@ -41,9 +39,7 @@ packageGroups:
     - f2fs-tools
     - gparted
     - gpart
-    - overskride
     - ufw
-    - pwvucontrol
     - networkmanager
     - usbutils
     - man-db
@@ -81,6 +77,8 @@ packageGroups:
     - noto-fonts-cjk
     - noto-fonts-extra
     - ttf-liberation
+    - ttf-jetbrains-mono-nerd
+    - inter-font
 
   theming:
     - nwg-look
@@ -89,6 +87,7 @@ packageGroups:
     - qt6ct-kde
     - qt5ct-kde
     - plymouth
+    - tela-circle-icon-theme-all
 
   optional:
     - brave-bin
