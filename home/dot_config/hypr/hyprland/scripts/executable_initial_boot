@@ -11,7 +11,7 @@ SENTINEL_NEW="$STATE_DIR/first_setup_done"
 if [[ ! -f "$SENTINEL_NEW" ]]; then
     sleep 1
 
-    if command -v waypaper >/dev/null 2>&1; then
+    if command -v qs >/dev/null 2>&1; then
         WALLPAPER_DIR="$HOME/Pictures/Wallpapers"
 
         if [[ ! -d "$WALLPAPER_DIR" ]] || ! find "$WALLPAPER_DIR" -type f -print -quit | grep -q .; then
@@ -23,7 +23,7 @@ if [[ ! -f "$SENTINEL_NEW" ]]; then
         fi
 
         RANDOM_WALLPAPER=$(find "$WALLPAPER_DIR" -type f | shuf -n 1)
-        waypaper --folder "$WALLPAPER_DIR" --wallpaper "$RANDOM_WALLPAPER" >/dev/null 2>&1 &
+        qs -c dank ipc call wallpaper set "$RANDOM_WALLPAPER" >/dev/null 2>&1 &
         sleep 1
 
         # Remove nvim cache folder created by matugen to prevent Nvim issues on first launch
