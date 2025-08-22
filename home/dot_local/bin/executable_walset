@@ -188,6 +188,10 @@ main() {
   reload_terminal &
   hyprctl reload
 
+  # Background slow updates
+  pkill -USR1 -x nvim 2>/dev/null || true
+  pkill -USR1 -x cava 2>/dev/null || true
+
   # Parallel updates
   local pids=()
   export MODE
@@ -195,8 +199,6 @@ main() {
   update_script "folders" "$MODE" & pids+=($!)
   wait_all "${pids[@]}"
 
-  # Background slow updates
-  pkill -USR1 -x nvim cava 2>/dev/null || true
   update_system_agents & pids+=($!)
 
    # Hyprlock icon
