@@ -86,6 +86,10 @@
   input_path  = "~/.config/matugen/templates/terminal/cava.config"
   output_path = "~/.config/cava/config"
 
+[templates.dgop]
+  input_path  = "~/.config/matugen/templates/dgop.json"
+  output_path = "~/.config/dgop/colors.json"
+
 [config.custom_colors.red]
   color = "#f38ba8"
   blend = true
