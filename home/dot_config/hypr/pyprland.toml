@@ -12,21 +12,15 @@ command = "kitty --class scratchpad-large fish -c yazi"
 unfocus = "hide"
 hysteresis = 0.1
 lazy = true
-
+close_on_hide = true
 
 [scratchpads.btop]
 command = "kitty --class scratchpad-large btop"
 lazy = true
 close_on_hide = true
 
-[scratchpads.nvtop]
-command = "kitty --class scratchpad-large nvtop"
-lazy = true
-close_on_hide = true
-
 [scratchpads.topgrade-system]
 command = 'kitty --class scratchpad-large fish -c "update"'
-
 lazy = true
 close_on_hide = true
 
@@ -35,29 +29,3 @@ command = 'kitty --class scratchpad-large fish -c "update-all"'
 lazy = true
 close_on_hide = true
 
-[scratchpads.bluetooth]
-command = "overskride"
-animation = "fromTop"
-position = "70% 10%"
-size = "15% 45%"
-lazy = true
-
-[scratchpads.wifi]
-command = "iwgtk"
-class = "org.twosheds.iwgtk"
-animation = "fromTop"
-position = "70% 10%"
-size = "30% 40%"
-close_on_hide = true
-lazy = true
-
-[scratchpads.network]
-command = "nm-connection-editor"
-animation = "fromRight"
-margin = 20
-lazy = true
-
-[scratchpads.volume]
-command = "pwvucontrol"
-lazy = true
-close_on_hide = true
