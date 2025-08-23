@@ -11,9 +11,9 @@ Singleton {
 
     property int themeIndex: 0
     property bool themeIsDynamic: false
-    property real topBarTransparency: 0.75
-    property real topBarWidgetTransparency: 0.85
-    property real popupTransparency: 0.92
+    property real topBarTransparency: 0.95
+    property real topBarWidgetTransparency: 0.95
+    property real popupTransparency: 0.95
     property real dockTransparency: 1
     property bool use24HourClock: true
     property bool useFahrenheit: false
@@ -26,7 +26,7 @@ Singleton {
     property bool showFocusedWindow: true
     property bool showWeather: true
     property bool showMusic: true
-    property bool showClipboard: true
+    property bool showClipboard: false
     property bool showCpuUsage: true
     property bool showMemUsage: true
     property bool showCpuTemp: true
@@ -61,7 +61,7 @@ Singleton {
     property string systemDefaultIconTheme: ""
     property bool qt5ctAvailable: false
     property bool qt6ctAvailable: false
-    property bool useOSLogo: false
+    property bool useOSLogo: true
     property string osLogoColorOverride: ""
     property real osLogoBrightness: 0.5
     property real osLogoContrast: 1

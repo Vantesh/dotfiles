@@ -13,7 +13,6 @@ Item {
     id: bluetoothTab
 
     property alias bluetoothContextMenuWindow: bluetoothContextMenuWindow
-    property alias simpleCodecSelectionModal: simpleCodecSelectionModal
 
     DankFlickable {
         anchors.fill: parent
@@ -23,6 +22,7 @@ Item {
 
         Column {
             id: mainColumn
+
             width: parent.width
             spacing: Theme.spacingL
 
@@ -45,19 +45,23 @@ Item {
 
     BluetoothContextMenu {
         id: bluetoothContextMenuWindow
+
         parentItem: bluetoothTab
+        codecSelector: codecSelector
     }
 
-    SimpleCodecSelectionModal {
-        id: simpleCodecSelectionModal
+    BluetoothCodecSelector {
+        id: codecSelector
+
         parentItem: bluetoothTab
     }
 
     MouseArea {
         anchors.fill: parent
-        visible: bluetoothContextMenuWindow.visible
+        visible: bluetoothContextMenuWindow.visible || codecSelector.visible
         onClicked: {
             bluetoothContextMenuWindow.hide();
+            codecSelector.hide();
         }
 
         MouseArea {
@@ -71,6 +75,7 @@ Item {
 
     Component {
         id: toggleComponent
+
         BluetoothToggle {
             width: parent.width
         }
@@ -78,6 +83,7 @@ Item {
 
     Component {
         id: pairedComponent
+
         PairedDevicesList {
             width: parent.width
         }
@@ -85,6 +91,7 @@ Item {
 
     Component {
         id: availableComponent
+
         AvailableDevicesList {
             width: parent.width
         }

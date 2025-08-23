@@ -23,16 +23,16 @@ DankModal {
     function executePowerAction(action) {
         switch (action) {
         case "logout":
-            HyprlandService.quit();
+            CompositorService.logout();
             break;
         case "suspend":
-            Quickshell.execDetached(["systemctl", "suspend"]);
+            SessionService.suspend();
             break;
         case "reboot":
-            Quickshell.execDetached(["systemctl", "reboot"]);
+            SessionService.reboot();
             break;
         case "poweroff":
-            Quickshell.execDetached(["systemctl", "poweroff"]);
+            SessionService.poweroff();
             break;
         }
     }

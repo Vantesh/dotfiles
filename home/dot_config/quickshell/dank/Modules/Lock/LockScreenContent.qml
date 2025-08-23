@@ -1,4 +1,3 @@
-pragma ComponentBehavior
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Effects
@@ -43,7 +42,7 @@ Item {
         source: SessionData.wallpaperPath || ""
         fillMode: Image.PreserveAspectCrop
         smooth: true
-        asynchronous: true
+        asynchronous: false
         cache: true
         visible: source !== ""
         layer.enabled: true
@@ -91,7 +90,7 @@ Item {
 
                 anchors.horizontalCenter: parent.horizontalCenter
                 anchors.top: parent.top
-                text: SettingsData.use24HourClock ? Qt.formatTime(systemClock.date, "HH:mm") : Qt.formatTime(systemClock.date, "hh:mm AP")
+                text: SettingsData.use24HourClock ? Qt.formatTime(systemClock.date, "H:mm") : Qt.formatTime(systemClock.date, "h:mm AP")
                 font.pixelSize: 120
                 font.weight: Font.Light
                 color: "white"
@@ -907,7 +906,7 @@ Item {
                             cursorShape: Qt.PointingHandCursor
                             onClicked: {
                                 powerDialog.close();
-                                Quickshell.execDetached(["systemctl", "poweroff"]);
+                                SessionService.poweroff();
                             }
                         }
                     }
@@ -1009,7 +1008,7 @@ Item {
                             cursorShape: Qt.PointingHandCursor
                             onClicked: {
                                 rebootDialog.close();
-                                Quickshell.execDetached(["systemctl", "reboot"]);
+                                SessionService.reboot();
                             }
                         }
                     }
@@ -1111,7 +1110,7 @@ Item {
                             cursorShape: Qt.PointingHandCursor
                             onClicked: {
                                 logoutDialog.close();
-                                HyprlandService.quit();
+                                CompositorService.logout();
                             }
                         }
                     }

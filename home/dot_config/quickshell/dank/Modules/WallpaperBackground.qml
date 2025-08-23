@@ -37,11 +37,11 @@ LazyLoader {
 
                 onSourceChanged: {
                     if (!source)
-                        current = null
+                        current = null;
                     else if (current === one)
-                        two.update()
+                        two.update();
                     else
-                        one.update()
+                        one.update();
                 }
 
                 Loader {
@@ -91,54 +91,52 @@ LazyLoader {
                 Img {
                     id: two
                 }
+            }
+        }
+    }
 
-                component Img: Image {
-                    id: img
+    component Img: Image {
+        id: img
 
-                    function update(): void {
-                        source = ""
-                        source = root.source
-                    }
+        function update(): void {
+            source = "";
+            source = root.source;
+        }
 
-                    anchors.fill: parent
-                    fillMode: Image.PreserveAspectCrop
-                    smooth: true
-                    asynchronous: true
-                    cache: false
-                    sourceSize.width: parent.width
-                    sourceSize.height: parent.height
+        anchors.fill: parent
+        fillMode: Image.PreserveAspectCrop
+        smooth: true
+        asynchronous: true
+        cache: false
 
-                    opacity: 0
+        opacity: 0
 
-                    onStatusChanged: {
-                        if (status === Image.Ready) {
-                            root.current = this
-                            if (root.current === one && two.source) {
-                                two.source = ""
-                            } else if (root.current === two && one.source) {
-                                one.source = ""
-                            }
-                        }
-                    }
-
-                    states: State {
-                        name: "visible"
-                        when: root.current === img
-
-                        PropertyChanges {
-                            img.opacity: 1
-                        }
-                    }
-
-                    transitions: Transition {
-                        NumberAnimation {
-                            target: img
-                            properties: "opacity"
-                            duration: Theme.mediumDuration
-                            easing.type: Easing.OutCubic
-                        }
-                    }
+        onStatusChanged: {
+            if (status === Image.Ready) {
+                root.current = this;
+                if (root.current === one && two.source) {
+                    two.source = "";
+                } else if (root.current === two && one.source) {
+                    one.source = "";
                 }
+            }
+        }
+
+        states: State {
+            name: "visible"
+            when: root.current === img
+
+            PropertyChanges {
+                img.opacity: 1
+            }
+        }
+
+        transitions: Transition {
+            NumberAnimation {
+                target: img
+                properties: "opacity"
+                duration: Theme.mediumDuration
+                easing.type: Easing.OutCubic
             }
         }
     }

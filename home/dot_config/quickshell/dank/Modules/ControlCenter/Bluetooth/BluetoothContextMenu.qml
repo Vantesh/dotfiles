@@ -14,6 +14,7 @@ Rectangle {
     property var deviceData: null
     property bool menuVisible: false
     property var parentItem
+    property var codecSelector
 
     function show(x, y) {
         const menuWidth = 160;
@@ -119,26 +120,11 @@ Rectangle {
         }
 
         Rectangle {
-            width: parent.width - Theme.spacingS * 2
-            height: 5
-            anchors.horizontalCenter: parent.horizontalCenter
-            color: "transparent"
-            visible: isAudioDevice()
-
-            Rectangle {
-                anchors.centerIn: parent
-                width: parent.width
-                height: 1
-                color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.2)
-            }
-        }
-
-        Rectangle {
             width: parent.width
             height: 32
             radius: Theme.cornerRadius
             color: codecArea.containsMouse ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.12) : "transparent"
-            visible: isAudioDevice() && root.deviceData && root.deviceData.connected
+            visible: root.deviceData && BluetoothService.isAudioDevice(root.deviceData) && root.deviceData.connected
 
             Row {
                 anchors.left: parent.left
@@ -155,7 +141,7 @@ Rectangle {
                 }
 
                 StyledText {
-                    text: "Audio Quality"
+                    text: "Audio Codec"
                     font.pixelSize: Theme.fontSizeSmall
                     color: Theme.surfaceText
                     font.weight: Font.Normal
@@ -170,7 +156,7 @@ Rectangle {
                 hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
                 onClicked: {
-                    openCodecSelection();
+                    codecSelector.show(root.deviceData);
                     root.hide();
                 }
             }
@@ -246,25 +232,6 @@ Rectangle {
                     easing.type: Theme.standardEasing
                 }
             }
-        }
-    }
-
-    function isAudioDevice() {
-        if (!root.deviceData)
-            return false;
-
-        var icon = BluetoothService.getDeviceIcon(root.deviceData);
-        return icon === "headset" || icon === "speaker";
-    }
-
-    function openCodecSelection() {
-        if (!root.deviceData || !root.deviceData.connected)
-            return;
-        console.log("BluetoothContextMenu: Opening codec selection for", root.deviceData.name);
-
-        // Find the simple codec selection modal in the parent
-        if (root.parentItem && root.parentItem.simpleCodecSelectionModal) {
-            root.parentItem.simpleCodecSelectionModal.show(root.deviceData);
         }
     }
 

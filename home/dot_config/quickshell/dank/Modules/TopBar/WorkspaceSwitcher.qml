@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import Quickshell
 import qs.Common
+import Quickshell.Hyprland
 import qs.Services
 import qs.Widgets
 

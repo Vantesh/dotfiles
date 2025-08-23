@@ -4,7 +4,6 @@ pragma ComponentBehavior
 import QtQuick
 import Quickshell
 import Quickshell.Bluetooth
-import Quickshell.Io
 
 Singleton {
     id: root
@@ -140,42 +139,69 @@ Singleton {
         device.connect();
     }
 
-    function toggleAudioQuality(device) {
-        if (!device || !device.connected) {
-            console.warn("BluetoothService: No device provided or device not connected");
+    function getCardName(device) {
+        if (!device)
+            return "";
+        return "bluez_card." + device.address.replace(/:/g, "_");
+    }
+
+    function isAudioDevice(device) {
+        if (!device)
             return false;
-        }
-
-        var cardName = "bluez_card." + device.address.replace(/:/g, "_");
-
-        // Create a process to check current profile and switch
-        var command = ["sh", "-c", `current_profile=$(pactl list cards | grep -A25 '${cardName}' | grep 'Active Profile:' | awk '{print $3}'); ` + `if echo "$current_profile" | grep -q 'ldac\\|aptx'; then ` + `pactl set-card-profile ${cardName} a2dp-sink-aac; echo 'Switched to Balanced Quality (AAC)'; ` + `else ` + `pactl set-card-profile ${cardName} a2dp-sink || pactl set-card-profile ${cardName} a2dp-sink-aptx_hd || pactl set-card-profile ${cardName} a2dp-sink-aptx; echo 'Switched to High Quality (LDAC/aptX)'; ` + `fi`];
-
-        // Note: In a real implementation, you'd use a Process object here
-        // For now, this provides the logic structure
-        console.log("BluetoothService: Toggling audio quality for", device.name);
-        return true;
+        let icon = getDeviceIcon(device);
+        return icon === "headset" || icon === "speaker";
     }
 
-    function getCurrentAudioCodec(device) {
-        if (!device || !device.connected)
-            return "Unknown";
+    function getCodecInfo(codecName) {
+        let codec = codecName.replace(/-/g, "_").toUpperCase();
 
-        // This would need to query pactl in a real implementation
-        // For now, return a placeholder
-        return "AAC"; // Default assumption
-    }
+        let codecMap = {
+            "LDAC": {
+                name: "LDAC",
+                description: "Highest quality • Higher battery usage",
+                qualityColor: "#4CAF50"
+            },
+            "APTX_HD": {
+                name: "aptX HD",
+                description: "High quality • Balanced battery",
+                qualityColor: "#FF9800"
+            },
+            "APTX": {
+                name: "aptX",
+                description: "Good quality • Low latency",
+                qualityColor: "#FF9800"
+            },
+            "AAC": {
+                name: "AAC",
+                description: "Balanced quality and battery",
+                qualityColor: "#2196F3"
+            },
+            "SBC_XQ": {
+                name: "SBC-XQ",
+                description: "Enhanced SBC • Better compatibility",
+                qualityColor: "#2196F3"
+            },
+            "SBC": {
+                name: "SBC",
+                description: "Basic quality • Universal compatibility",
+                qualityColor: "#9E9E9E"
+            },
+            "MSBC": {
+                name: "mSBC",
+                description: "Modified SBC • Optimized for speech",
+                qualityColor: "#9E9E9E"
+            },
+            "CVSD": {
+                name: "CVSD",
+                description: "Basic speech codec • Legacy compatibility",
+                qualityColor: "#9E9E9E"
+            }
+        };
 
-    // IPC function to test codec detection
-    function listAudioCodecs(deviceAddress) {
-        console.log("BluetoothService: Listing codecs for device", deviceAddress);
-
-        // In a real implementation, this would use a Process to query pactl
-        // For now, return mock data based on the known device
-        if (deviceAddress === "48:73:CB:B8:57:BD") {
-            return "Available codecs: LDAC (highest), AAC (balanced), SBC-XQ (enhanced), SBC (basic)";
-        }
-
-        return "No codec information available";
+        return codecMap[codec] || {
+            name: codecName,
+            description: "Unknown codec",
+            qualityColor: "#9E9E9E"
+        };
     }
 }

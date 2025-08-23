@@ -1,5 +1,3 @@
-pragma ComponentBehavior
-
 import QtQuick
 import QtQuick.Controls
 import QtCore
@@ -15,19 +13,20 @@ DankModal {
 
     signal fileSelected(string path)
 
-    property string homeDir: StandardPaths.writableLocation(
-                                 StandardPaths.HomeLocation)
+    property string homeDir: StandardPaths.writableLocation(StandardPaths.HomeLocation)
     property string currentPath: ""
     property var fileExtensions: ["*.*"]
+    property alias filterExtensions: fileBrowserModal.fileExtensions
     property string browserTitle: "Select File"
     property string browserIcon: "folder_open"
     property string browserType: "generic" // "wallpaper" or "profile" for last path memory
+    property bool showHiddenFiles: false
 
     FolderListModel {
         id: folderModel
         showDirsFirst: true
         showDotAndDotDot: false
-        showHidden: false
+        showHidden: fileBrowserModal.showHiddenFiles
         nameFilters: fileExtensions
         showFiles: true
         showDirs: true
@@ -36,35 +35,35 @@ DankModal {
 
     function isImageFile(fileName) {
         if (!fileName)
-            return false
-        var ext = fileName.toLowerCase().split('.').pop()
-        return ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg'].includes(ext)
+            return false;
+        var ext = fileName.toLowerCase().split('.').pop();
+        return ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg'].includes(ext);
     }
 
     function getLastPath() {
-        var lastPath = ""
+        var lastPath = "";
         if (browserType === "wallpaper") {
-            lastPath = SessionData.wallpaperLastPath
+            lastPath = SessionData.wallpaperLastPath;
         } else if (browserType === "profile") {
-            lastPath = SessionData.profileLastPath
+            lastPath = SessionData.profileLastPath;
         }
 
         if (lastPath && lastPath !== "") {
-            return lastPath
+            return lastPath;
         }
-        return homeDir
+        return homeDir;
     }
 
     function saveLastPath(path) {
         if (browserType === "wallpaper") {
-            SessionData.setWallpaperLastPath(path)
+            SessionData.setWallpaperLastPath(path);
         } else if (browserType === "profile") {
-            SessionData.setProfileLastPath(path)
+            SessionData.setProfileLastPath(path);
         }
     }
 
     Component.onCompleted: {
-        currentPath = getLastPath()
+        currentPath = getLastPath();
     }
 
     width: 800
@@ -76,38 +75,36 @@ DankModal {
 
     onVisibleChanged: {
         if (visible) {
-            var startPath = getLastPath()
-            currentPath = startPath
+            var startPath = getLastPath();
+            currentPath = startPath;
         }
     }
 
-    onCurrentPathChanged: {
-
-    }
+    onCurrentPathChanged: {}
 
     function navigateUp() {
-        var path = currentPath
+        var path = currentPath;
 
         if (path === homeDir) {
-            return
+            return;
         }
 
-        var lastSlash = path.lastIndexOf('/')
+        var lastSlash = path.lastIndexOf('/');
         if (lastSlash > 0) {
-            var newPath = path.substring(0, lastSlash)
+            var newPath = path.substring(0, lastSlash);
             if (newPath.length < homeDir.length) {
-                currentPath = homeDir
-                saveLastPath(homeDir)
+                currentPath = homeDir;
+                saveLastPath(homeDir);
             } else {
-                currentPath = newPath
-                saveLastPath(newPath)
+                currentPath = newPath;
+                saveLastPath(newPath);
             }
         }
     }
 
     function navigateTo(path) {
-        currentPath = path
-        saveLastPath(path) // Save the path when navigating
+        currentPath = path;
+        saveLastPath(path); // Save the path when navigating
     }
 
     content: Component {
@@ -160,8 +157,7 @@ DankModal {
                     width: 32
                     height: 32
                     radius: Theme.cornerRadius
-                    color: mouseArea.containsMouse
-                           && currentPath !== homeDir ? Theme.surfaceVariant : "transparent"
+                    color: navMouseArea.containsMouse && currentPath !== homeDir ? Theme.surfaceVariant : "transparent"
                     opacity: currentPath !== homeDir ? 1.0 : 0.0
 
                     DankIcon {
@@ -172,11 +168,10 @@ DankModal {
                     }
 
                     MouseArea {
-                        id: mouseArea
+                        id: navMouseArea
                         anchors.fill: parent
                         hoverEnabled: currentPath !== homeDir
-                        cursorShape: currentPath
-                                     !== homeDir ? Qt.PointingHandCursor : Qt.ArrowCursor
+                        cursorShape: currentPath !== homeDir ? Qt.PointingHandCursor : Qt.ArrowCursor
                         enabled: currentPath !== homeDir
                         onClicked: navigateUp()
                     }
@@ -240,10 +235,9 @@ DankModal {
 
                             CachingImage {
                                 anchors.fill: parent
-                                imagePath: !delegateRoot.fileIsDir ? delegateRoot.filePath : ""
+                                source: (!delegateRoot.fileIsDir && isImageFile(delegateRoot.fileName)) ? ("file://" + delegateRoot.filePath) : ""
                                 fillMode: Image.PreserveAspectCrop
-                                visible: !delegateRoot.fileIsDir && isImageFile(
-                                             delegateRoot.fileName)
+                                visible: !delegateRoot.fileIsDir && isImageFile(delegateRoot.fileName)
                                 maxCacheSize: 80
                             }
 
@@ -252,8 +246,7 @@ DankModal {
                                 name: "description"
                                 size: Theme.iconSizeLarge
                                 color: Theme.primary
-                                visible: !delegateRoot.fileIsDir
-                                         && !isImageFile(delegateRoot.fileName)
+                                visible: !delegateRoot.fileIsDir && !isImageFile(delegateRoot.fileName)
                             }
 
                             DankIcon {
@@ -286,9 +279,9 @@ DankModal {
 
                         onClicked: {
                             if (delegateRoot.fileIsDir) {
-                                navigateTo(delegateRoot.filePath)
+                                navigateTo(delegateRoot.filePath);
                             } else {
-                                fileSelected(delegateRoot.filePath)
+                                fileSelected(delegateRoot.filePath);
                             }
                         }
                     }

@@ -12,16 +12,16 @@ DankOSD {
     enableMouseInteraction: false
 
     Connections {
-        target: IdleInhibitorService
+        target: SessionService
         function onInhibitorChanged() {
-            root.show()
+            root.show();
         }
     }
 
     content: DankIcon {
         anchors.centerIn: parent
-        name: IdleInhibitorService.idleInhibited ? "motion_sensor_active" : "motion_sensor_idle"
+        name: SessionService.idleInhibited ? "motion_sensor_active" : "motion_sensor_idle"
         size: Theme.iconSize
-        color: IdleInhibitorService.idleInhibited ? Theme.primary : Theme.outline
+        color: SessionService.idleInhibited ? Theme.primary : Theme.outline
     }
 }

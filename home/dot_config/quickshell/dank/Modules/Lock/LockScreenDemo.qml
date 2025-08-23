@@ -1,5 +1,3 @@
-pragma ComponentBehavior
-
 import QtQuick
 import Quickshell
 import Quickshell.Wayland
@@ -27,13 +25,13 @@ PanelWindow {
     color: "transparent"
 
     function showDemo(): void {
-        console.log("Showing lock screen demo")
-        demoActive = true
+        console.log("Showing lock screen demo");
+        demoActive = true;
     }
 
     function hideDemo(): void {
-        console.log("Hiding lock screen demo")
-        demoActive = false
+        console.log("Hiding lock screen demo");
+        demoActive = false;
     }
 
     PowerConfirmModal {

@@ -6,13 +6,8 @@ import qs.Widgets
 Column {
     id: root
 
-    property real volumeLevel: Math.min(
-                                   100,
-                                   (AudioService.sink && AudioService.sink.audio
-                                    && AudioService.sink.audio.volume * 100)
-                                   || 0)
-    property bool volumeMuted: (AudioService.sink && AudioService.sink.audio
-                                && AudioService.sink.audio.muted) || false
+    property real volumeLevel: Math.min(100, (AudioService.sink && AudioService.sink.audio && AudioService.sink.audio.volume * 100) || 0)
+    property bool volumeMuted: (AudioService.sink && AudioService.sink.audio && AudioService.sink.audio.muted) || false
 
     width: parent.width
     spacing: Theme.spacingM
@@ -37,33 +32,28 @@ Column {
         unit: "%"
 
         Connections {
-            target: AudioService.sink
-                    && AudioService.sink.audio ? AudioService.sink.audio : null
+            target: AudioService.sink && AudioService.sink.audio ? AudioService.sink.audio : null
             function onVolumeChanged() {
-                volumeSlider.value = Math.round(
-                            AudioService.sink.audio.volume * 100)
+                volumeSlider.value = Math.round(AudioService.sink.audio.volume * 100);
             }
         }
 
         Component.onCompleted: {
             if (AudioService.sink && AudioService.sink.audio) {
-                value = Math.round(AudioService.sink.audio.volume * 100)
+                value = Math.round(AudioService.sink.audio.volume * 100);
             }
 
-            let leftIconItem = volumeSlider.children[0].children[0]
+            let leftIconItem = volumeSlider.children[0].children[0];
             if (leftIconItem) {
-                let mouseArea = Qt.createQmlObject(
-                        'import QtQuick; import qs.Services; MouseArea { anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: { if (AudioService.sink && AudioService.sink.audio) AudioService.sink.audio.muted = !AudioService.sink.audio.muted; } }',
-                        leftIconItem, "dynamicMouseArea")
+                let mouseArea = Qt.createQmlObject('import QtQuick; import qs.Services; MouseArea { anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: { if (AudioService.sink && AudioService.sink.audio) AudioService.sink.audio.muted = !AudioService.sink.audio.muted; } }', leftIconItem, "dynamicMouseArea");
             }
         }
 
         onSliderValueChanged: newValue => {
-                                  if (AudioService.sink
-                                      && AudioService.sink.audio) {
-                                      AudioService.sink.audio.muted = false
-                                      AudioService.sink.audio.volume = newValue / 100
-                                  }
-                              }
+            if (AudioService.sink && AudioService.sink.audio) {
+                AudioService.sink.audio.muted = false;
+                AudioService.sink.audio.volume = newValue / 100;
+            }
+        }
     }
 }

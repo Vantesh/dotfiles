@@ -24,19 +24,19 @@ Rectangle {
     radius: Theme.cornerRadius
     color: "transparent"
     Component.onCompleted: {
-        forceRecreateTimer.start()
+        forceRecreateTimer.start();
     }
     Component.onDestruction: {
-        var popup = popupLoader.item
+        var popup = popupLoader.item;
         if (popup && popup.visible)
-            popup.close()
+            popup.close();
     }
     onVisibleChanged: {
-        var popup = popupLoader.item
+        var popup = popupLoader.item;
         if (!visible && popup && popup.visible)
-            popup.close()
+            popup.close();
         else if (visible)
-            forceRecreateTimer.start()
+            forceRecreateTimer.start();
     }
 
     Timer {
@@ -45,7 +45,7 @@ Rectangle {
         interval: 50
         repeat: false
         onTriggered: {
-            root.forceRecreate = !root.forceRecreate
+            root.forceRecreate = !root.forceRecreate;
         }
     }
 
@@ -94,15 +94,14 @@ Rectangle {
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
             onClicked: {
-                var popup = popupLoader.item
+                var popup = popupLoader.item;
                 if (popup && popup.visible) {
-                    popup.close()
+                    popup.close();
                 } else if (popup) {
-                    var pos = dropdown.mapToItem(Overlay.overlay, 0,
-                                                 dropdown.height + 4)
-                    popup.x = pos.x - (root.popupWidthOffset / 2)
-                    popup.y = pos.y
-                    popup.open()
+                    var pos = dropdown.mapToItem(Overlay.overlay, 0, dropdown.height + 4);
+                    popup.x = pos.x - (root.popupWidthOffset / 2);
+                    popup.y = pos.y;
+                    popup.open();
                 }
             }
         }
@@ -117,9 +116,8 @@ Rectangle {
 
             DankIcon {
                 name: {
-                    var currentIndex = root.options.indexOf(root.currentValue)
-                    return root.optionIcons.length > currentIndex
-                            && currentIndex >= 0 ? root.optionIcons[currentIndex] : ""
+                    var currentIndex = root.options.indexOf(root.currentValue);
+                    return root.optionIcons.length > currentIndex && currentIndex >= 0 ? root.optionIcons[currentIndex] : "";
                 }
                 size: 18
                 color: Theme.surfaceVariantText
@@ -130,8 +128,7 @@ Rectangle {
                 text: root.currentValue
                 font.pixelSize: Theme.fontSizeMedium
                 color: Theme.surfaceText
-                width: dropdown.width - contentRow.x - expandIcon.width
-                       - Theme.spacingM - Theme.spacingS
+                width: dropdown.width - contentRow.x - expandIcon.width - Theme.spacingM - Theme.spacingS
                 elide: Text.ElideRight
             }
         }
@@ -155,8 +152,8 @@ Rectangle {
 
         active: true
         onRecreateFlagChanged: {
-            active = false
-            active = true
+            active = false;
+            active = true;
         }
 
         sourceComponent: Component {
@@ -169,58 +166,52 @@ Rectangle {
 
                 function updateFilteredOptions() {
                     if (!root.enableFuzzySearch || searchQuery.length === 0) {
-                        filteredOptions = root.options
+                        filteredOptions = root.options;
                     } else {
                         var results = FuzzySort.go(searchQuery, root.options, {
-                                                       "limit": 50,
-                                                       "threshold": -10000
-                                                   })
+                            "limit": 50,
+                            "threshold": -10000
+                        });
                         filteredOptions = results.map(function (result) {
-                            return result.target
-                        })
+                            return result.target;
+                        });
                     }
-                    selectedIndex = -1
+                    selectedIndex = -1;
                 }
 
                 function selectNext() {
                     if (filteredOptions.length > 0) {
-                        selectedIndex = (selectedIndex + 1) % filteredOptions.length
-                        listView.positionViewAtIndex(selectedIndex,
-                                                     ListView.Contain)
+                        selectedIndex = (selectedIndex + 1) % filteredOptions.length;
+                        listView.positionViewAtIndex(selectedIndex, ListView.Contain);
                     }
                 }
 
                 function selectPrevious() {
                     if (filteredOptions.length > 0) {
-                        selectedIndex = selectedIndex
-                                <= 0 ? filteredOptions.length - 1 : selectedIndex - 1
-                        listView.positionViewAtIndex(selectedIndex,
-                                                     ListView.Contain)
+                        selectedIndex = selectedIndex <= 0 ? filteredOptions.length - 1 : selectedIndex - 1;
+                        listView.positionViewAtIndex(selectedIndex, ListView.Contain);
                     }
                 }
 
                 function selectCurrent() {
-                    if (selectedIndex >= 0
-                            && selectedIndex < filteredOptions.length) {
-                        root.currentValue = filteredOptions[selectedIndex]
-                        root.valueChanged(filteredOptions[selectedIndex])
-                        close()
+                    if (selectedIndex >= 0 && selectedIndex < filteredOptions.length) {
+                        root.currentValue = filteredOptions[selectedIndex];
+                        root.valueChanged(filteredOptions[selectedIndex]);
+                        close();
                     }
                 }
 
                 parent: Overlay.overlay
                 width: dropdown.width + root.popupWidthOffset
-                height: Math.min(root.maxPopupHeight,
-                                 (root.enableFuzzySearch ? 54 : 0) + Math.min(
-                                     filteredOptions.length, 10) * 36 + 16)
+                height: Math.min(root.maxPopupHeight, (root.enableFuzzySearch ? 54 : 0) + Math.min(filteredOptions.length, 10) * 36 + 16)
                 padding: 0
                 modal: true
                 closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
                 onOpened: {
-                    searchQuery = ""
-                    updateFilteredOptions()
+                    searchQuery = "";
+                    updateFilteredOptions();
                     if (root.enableFuzzySearch && searchField.visible)
-                        searchField.forceActiveFocus()
+                        searchField.forceActiveFocus();
                 }
 
                 background: Rectangle {
@@ -228,9 +219,7 @@ Rectangle {
                 }
 
                 contentItem: Rectangle {
-                    color: Qt.rgba(Theme.surfaceContainer.r,
-                                   Theme.surfaceContainer.g,
-                                   Theme.surfaceContainer.b, 1)
+                    color: Qt.rgba(Theme.surfaceContainer.r, Theme.surfaceContainer.g, Theme.surfaceContainer.b, 1)
                     border.color: Theme.primarySelected
                     border.width: 1
                     radius: Theme.cornerRadius
@@ -258,8 +247,8 @@ Rectangle {
                                 topPadding: Theme.spacingS
                                 bottomPadding: Theme.spacingS
                                 onTextChanged: {
-                                    searchQuery = text
-                                    updateFilteredOptions()
+                                    searchQuery = text;
+                                    updateFilteredOptions();
                                 }
                                 Keys.onDownPressed: selectNext()
                                 Keys.onUpPressed: selectPrevious()
@@ -305,8 +294,7 @@ Rectangle {
                             delegate: Rectangle {
                                 property bool isSelected: selectedIndex === index
                                 property bool isCurrentValue: root.currentValue === modelData
-                                property int optionIndex: root.options.indexOf(
-                                                              modelData)
+                                property int optionIndex: root.options.indexOf(modelData)
 
                                 width: ListView.view.width
                                 height: 32
@@ -320,9 +308,7 @@ Rectangle {
                                     spacing: Theme.spacingS
 
                                     DankIcon {
-                                        name: optionIndex >= 0
-                                              && root.optionIcons.length
-                                              > optionIndex ? root.optionIcons[optionIndex] : ""
+                                        name: optionIndex >= 0 && root.optionIcons.length > optionIndex ? root.optionIcons[optionIndex] : ""
                                         size: 18
                                         color: isCurrentValue ? Theme.primary : Theme.surfaceVariantText
                                         visible: name !== ""
@@ -346,9 +332,9 @@ Rectangle {
                                     hoverEnabled: true
                                     cursorShape: Qt.PointingHandCursor
                                     onClicked: {
-                                        root.currentValue = modelData
-                                        root.valueChanged(modelData)
-                                        dropdownMenu.close()
+                                        root.currentValue = modelData;
+                                        root.valueChanged(modelData);
+                                        ListView.view.popupRef.close();
                                     }
                                 }
                             }

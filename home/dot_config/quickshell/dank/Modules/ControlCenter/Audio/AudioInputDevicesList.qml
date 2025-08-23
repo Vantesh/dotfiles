@@ -11,8 +11,7 @@ import qs.Widgets
 Column {
     id: root
 
-    property string currentSourceDisplayName: AudioService.source ? AudioService.displayName(
-                                                                        AudioService.source) : ""
+    property string currentSourceDisplayName: AudioService.source ? AudioService.displayName(AudioService.source) : ""
 
     width: parent.width
     spacing: Theme.spacingM
@@ -29,8 +28,7 @@ Column {
         height: 35
         radius: Theme.cornerRadius
         color: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.12)
-        border.color: Qt.rgba(Theme.primary.r, Theme.primary.g,
-                              Theme.primary.b, 0.3)
+        border.color: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.3)
         border.width: 1
         visible: AudioService.source !== null
 
@@ -58,28 +56,24 @@ Column {
     Repeater {
         model: {
             if (!Pipewire.ready || !Pipewire.nodes || !Pipewire.nodes.values)
-                return []
+                return [];
 
-            let sources = []
+            let sources = [];
             for (var i = 0; i < Pipewire.nodes.values.length; i++) {
-                let node = Pipewire.nodes.values[i]
+                let node = Pipewire.nodes.values[i];
                 if (!node || node.isStream)
-                    continue
-
-                if ((node.type & PwNodeType.AudioSource) === PwNodeType.AudioSource
-                        && !node.name.includes(".monitor"))
-                    sources.push(node)
+                    continue;
+                if ((node.type & PwNodeType.AudioSource) === PwNodeType.AudioSource && !node.name.includes(".monitor"))
+                    sources.push(node);
             }
-            return sources
+            return sources;
         }
 
         Rectangle {
             width: parent.width
             height: 50
             radius: Theme.cornerRadius
-            color: sourceArea.containsMouse ? Qt.rgba(
-                                                  Theme.primary.r, Theme.primary.g,
-                                                  Theme.primary.b, 0.08) : (modelData === AudioService.source ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.12) : Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g, Theme.surfaceVariant.b, 0.08))
+            color: sourceArea.containsMouse ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.08) : (modelData === AudioService.source ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.12) : Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g, Theme.surfaceVariant.b, 0.08))
             border.color: modelData === AudioService.source ? Theme.primary : "transparent"
             border.width: 1
 
@@ -92,11 +86,11 @@ Column {
                 DankIcon {
                     name: {
                         if (modelData.name.includes("bluez"))
-                            return "headset_mic"
+                            return "headset_mic";
                         else if (modelData.name.includes("usb"))
-                            return "headset_mic"
+                            return "headset_mic";
                         else
-                            return "mic"
+                            return "mic";
                     }
                     size: Theme.iconSize
                     color: modelData === AudioService.source ? Theme.primary : Theme.surfaceText
@@ -116,18 +110,13 @@ Column {
 
                     StyledText {
                         text: {
-                            if (AudioService.subtitle(modelData.name)
-                                    && AudioService.subtitle(
-                                        modelData.name) !== "")
-                                return AudioService.subtitle(modelData.name)
-                                        + (modelData === AudioService.source ? " • Selected" : "")
+                            if (AudioService.subtitle(modelData.name) && AudioService.subtitle(modelData.name) !== "")
+                                return AudioService.subtitle(modelData.name) + (modelData === AudioService.source ? " • Selected" : "");
                             else
-                                return modelData === AudioService.source ? "Selected" : ""
+                                return modelData === AudioService.source ? "Selected" : "";
                         }
                         font.pixelSize: Theme.fontSizeSmall
-                        color: Qt.rgba(Theme.surfaceText.r,
-                                       Theme.surfaceText.g,
-                                       Theme.surfaceText.b, 0.7)
+                        color: Qt.rgba(Theme.surfaceText.r, Theme.surfaceText.g, Theme.surfaceText.b, 0.7)
                         visible: text !== ""
                     }
                 }
@@ -141,7 +130,7 @@ Column {
                 cursorShape: Qt.PointingHandCursor
                 onClicked: {
                     if (modelData)
-                        Pipewire.preferredDefaultAudioSource = modelData
+                        Pipewire.preferredDefaultAudioSource = modelData;
                 }
             }
         }

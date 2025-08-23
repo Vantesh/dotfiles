@@ -1,5 +1,3 @@
-pragma ComponentBehavior
-
 import QtQuick
 import Quickshell
 import Quickshell.Wayland
@@ -14,36 +12,13 @@ WlSessionLockSurface {
 
     signal passwordChanged(string newPassword)
 
-    property bool thisLocked: false
-    readonly property bool locked: thisLocked && lock && !lock.unlocked
+    readonly property bool locked: lock && !lock.locked
 
     function unlock(): void {
-        console.log("LockSurface.unlock() called")
-        if (lock) {
-            lock.unlocked = true
-            animDelay.start()
-        }
-    }
-
-    Component.onCompleted: {
-        thisLocked = true
-    }
-
-    Component.onDestruction: {
-        animDelay.stop()
+        lock.locked = false;
     }
 
     color: "transparent"
-
-    Timer {
-        id: animDelay
-        interval: 1500 // Longer delay for success feedback
-        onTriggered: {
-            if (root.lock) {
-                root.lock.locked = false
-            }
-        }
-    }
 
     PowerConfirmModal {
         id: powerConfirmModal
@@ -58,7 +33,7 @@ WlSessionLockSurface {
             onUnlockRequested: root.unlock()
             onPasswordBufferChanged: {
                 if (root.sharedPasswordBuffer !== passwordBuffer) {
-                    root.passwordChanged(passwordBuffer)
+                    root.passwordChanged(passwordBuffer);
                 }
             }
         }
