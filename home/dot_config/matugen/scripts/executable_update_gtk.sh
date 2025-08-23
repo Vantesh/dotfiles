@@ -4,6 +4,8 @@ set -euo pipefail
 
 GTK_IMPORT_LINE='@import "colors.css";'
 GTK_CSS_FILES=(
+  "$HOME/.config/gtk-3.0/gtk.css"
+  "$HOME/.config/gtk-3.0/gtk-dark.css"
   "$HOME/.config/gtk-4.0/gtk.css"
   "$HOME/.config/gtk-4.0/gtk-dark.css"
 )

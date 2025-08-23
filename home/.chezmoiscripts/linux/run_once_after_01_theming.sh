@@ -160,6 +160,7 @@ print_info "Setting GTK theme"
 
 if gsettings set org.gnome.desktop.interface gtk-theme "adw-gtk3-dark" &&
   gsettings set org.gnome.desktop.interface font-name "SF Pro Text 12" &&
+  gsettings set org.gnome.nautilus.preferences show-hidden-files true &&
   gsettings set org.gnome.desktop.interface color-scheme "prefer-dark"; then
   print_info "GTK theme and icons set successfully"
 else
