@@ -68,7 +68,7 @@ print(nearest_color)
 # =============================================================================
 # Step 3: Switch to matched Tela circle theme
 # =============================================================================
-variant="${MODE:-dark}"  # default to dark if unset
+variant="${MODE:-dark}" # default to dark if unset
 
 if [[ "$nearest_color" == "dark" ]]; then
   if [[ "$variant" == "dark" ]]; then
@@ -82,3 +82,20 @@ fi
 
 echo "Info: Switching icon theme to: $icon_name"
 gsettings set org.gnome.desktop.interface icon-theme "$icon_name"
+
+# =============================================================================
+# Step 4: Also set Qt icon theme
+# =============================================================================
+qt5ct_conf="$HOME/.config/qt5ct/qt5ct.conf"
+qt6ct_conf="$HOME/.config/qt6ct/qt6ct.conf"
+
+for conf in "$qt5ct_conf" "$qt6ct_conf"; do
+  if [[ -f "$conf" ]]; then
+    if grep -q '^icon_theme=' "$conf"; then
+      sed -i "s/^icon_theme=.*/icon_theme=$icon_name/" "$conf"
+    else
+      echo "icon_theme=$icon_name" >>"$conf"
+    fi
+    echo "Info: Updated Qt icon theme in $conf"
+  fi
+done
