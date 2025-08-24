@@ -125,7 +125,7 @@ zstyle ':completion:*' cache-path "$ZSH_CACHE_HOME/zcompletions"
 
 if command -v fzf &>/dev/null; then
   source <(fzf --zsh)
-  source "${ZDOTDIR:-$HOME/.config/zsh}/fzf"
+  source "${XDG_CACHE_HOME:-$HOME/.cache}/zsh/fzf"
 
 	export FZF_CTRL_R_OPTS="
 	--height 40% --layout=reverse --border=rounded --info=right --no-preview --no-sort"

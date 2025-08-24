@@ -44,7 +44,7 @@
 
 [templates.fzf]
   input_path  = '~/.config/matugen/templates/terminal/fzf.sh'
-  output_path = '~/.config/zsh/fzf'
+  output_path = '~/.cache/zsh/fzf'
 
 [templates.kvantum]
   input_path  = '~/.config/matugen/templates/kvantum/kvantum.kvconfig'
