@@ -4,29 +4,20 @@ set -euo pipefail
 # =============================================================================
 # Constants
 # =============================================================================
-readonly SERVICES_TO_RESTART=("xdg-desktop-portal-gtk")
-readonly HYPRLOCK_PNG="$HOME/.config/hypr/hyprlock/icon.png"
-readonly HYPRLOCK_SVG="$HOME/.cache/wal/icon.svg"
-
 readonly CACHE_DIR="$HOME/.cache/walset"
 readonly CURRENT_FILE="$CACHE_DIR/walset.current"
-readonly PIDFILE="$CACHE_DIR/walset.pid"
 readonly MATUGEN_SCRIPTS_DIR="$HOME/.config/matugen/scripts"
+export MODE=${MODE:-dark}
 
 # =============================================================================
 # Logging
 # =============================================================================
 log_error() { echo "Error: $*" >&2; }
-log_info()  { echo "Info:  $*"; }
+log_info() { echo "Info:  $*"; }
 
 # =============================================================================
 # Helpers
 # =============================================================================
-wait_all() {
-  local pid
-  for pid in "$@"; do wait "$pid" 2>/dev/null || true; done
-}
-
 write_current() {
   printf "%s\n%s\n%s\n" "$1" "$2" "$3" >"$CURRENT_FILE" 2>/dev/null || true
 }
@@ -50,87 +41,43 @@ Examples:
 EOF
 }
 
-cleanup() {
-  local ec=$?
-  local jpids
-
-  # Kill child jobs
-  jpids=$(jobs -p 2>/dev/null || true)
-  [[ -n "$jpids" ]] && {
-    kill -TERM "$jpids" 2>/dev/null || true
-    sleep 0.2
-    kill -KILL "$jpids" 2>/dev/null || true
-  }
-
-  # Remove pidfile if owned
-  if [[ -f "$PIDFILE" ]] && [[ "$(cat "$PIDFILE" 2>/dev/null)" == "$$" ]]; then
-    rm -f "$PIDFILE" 2>/dev/null || true
-  fi
-  return $ec
-}
-
-preempt_previous() {
-  [[ -f "$PIDFILE" ]] || return 0
-  local oldpid
-  oldpid=$(cat "$PIDFILE" 2>/dev/null || true)
-  [[ -n "$oldpid" ]] || return 0
-
-  if [[ "$oldpid" != "$$" ]] && kill -0 "$oldpid" 2>/dev/null; then
-    log_info "Preempting previous walset (PID $oldpid)"
-    pkill -TERM -P "$oldpid" 2>/dev/null || true
-    kill -TERM "$oldpid" 2>/dev/null || true
-    sleep 0.6
-
-    if kill -0 "$oldpid" 2>/dev/null; then
-      pkill -KILL -P "$oldpid" 2>/dev/null || true
-      kill -KILL "$oldpid" 2>/dev/null || true
-    fi
-  fi
-}
-
 validate_input() {
   local wallpaper="$1"
-  [[ -f "$wallpaper" ]] || { log_error "Wallpaper not found: $wallpaper"; exit 1; }
+  [[ -f "$wallpaper" ]] || {
+    log_error "Wallpaper not found: $wallpaper"
+    exit 1
+  }
   file "$wallpaper" | grep -qE "(image|bitmap)" || {
     log_error "File is not a valid image: $wallpaper"
     exit 1
   }
 }
 
-# =============================================================================
-# Updates
-# =============================================================================
-update_system_agents() {
-  local pids=()
-  for service in "${SERVICES_TO_RESTART[@]}"; do
-    if systemctl --user is-active --quiet "$service"; then
-      systemctl --user restart "$service" &>/dev/null &
-      pids+=($!)
-    fi
-  done
-  pkill -f "/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1" &>/dev/null || true
-  /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1 &>/dev/null &
-  wait_all "${pids[@]}"
-}
-
 update_script() {
   local name="$1"
   local script="$MATUGEN_SCRIPTS_DIR/update_${name}.sh"
-  if [[ -x "$script" ]]; then "$script"; else log_info "Update script missing: $script"; fi
+
+  if [[ -f "$script" ]]; then
+    if [[ ! -x "$script" ]]; then
+      chmod +x "$script"
+      log_info "Made $script executable"
+    fi
+    "$script"
+  else
+    log_info "Update script missing: $script"
+  fi
 }
 
 reload_terminal() {
-  local pids=()
   if command -v kitty &>/dev/null; then
-    kitty +kitten themes --reload-in=all matugen &>/dev/null & pids+=($!)
+    kitty +kitten themes --reload-in=all matugen &>/dev/null || true
   fi
   if command -v fish &>/dev/null; then
     {
       fish -c "yes | fish_config theme save Matugen" 2>/dev/null
       [[ -f "$HOME/.cache/wal/fzf.fish" ]] && fish "$HOME/.cache/wal/fzf.fish" 2>/dev/null
-    } & pids+=($!)
+    } || true
   fi
-  wait_all "${pids[@]}"
 }
 
 # =============================================================================
@@ -145,23 +92,41 @@ main() {
   # Parse args
   while [[ $# -gt 0 ]]; do
     case "$1" in
-      -h|--help) print_usage; exit 0 ;;
-      -s|--scheme) MATUGEN_SCHEME="${2:-}"; shift 2 ;;
-      -m|--mode)   MODE="${2:-}"; shift 2 ;;
-      --json)      JSON_ARG="--json"; JSON_VALUE="${2:-}"; shift 2 ;;
-      --) shift; break ;;
-      -*) shift ;; # ignore unknown flags
-      *)  wallpaper="$1"; shift ;;
+    -h | --help)
+      print_usage
+      exit 0
+      ;;
+    -s | --scheme)
+      MATUGEN_SCHEME="${2:-}"
+      shift 2
+      ;;
+    -m | --mode)
+      MODE="${2:-}"
+      shift 2
+      ;;
+    --json)
+      JSON_ARG="--json"
+      JSON_VALUE="${2:-}"
+      shift 2
+      ;;
+    --)
+      shift
+      break
+      ;;
+    -*) shift ;; # ignore unknown flags
+    *)
+      wallpaper="$1"
+      shift
+      ;;
     esac
   done
 
-  [[ -n "$wallpaper" ]] || { print_usage; exit 1; }
+  [[ -n "$wallpaper" ]] || {
+    print_usage
+    exit 1
+  }
   [[ "$MODE" =~ ^(dark|light)$ ]] || MODE="dark"
   mkdir -p "$CACHE_DIR"
-
-  preempt_previous
-  echo "$$" >"$PIDFILE" || true
-  trap cleanup EXIT INT TERM
 
   validate_input "$wallpaper"
   log_info "Applying wallpaper and updating theme: $wallpaper"
@@ -169,50 +134,37 @@ main() {
   # Skip if already applied
   if [[ -f "$CURRENT_FILE" ]]; then
     readarray -t __cur <"$CURRENT_FILE"
-    if [[ "${__cur[0]:-}" == "$wallpaper" && "${__cur[1]:-}" == "$MATUGEN_SCHEME" && "${__cur[2]:-}" == "$MODE" ]]; then
+    if [[ "${__cur[0]:-}" == "$wallpaper" &&
+      "${__cur[1]:-}" == "$MATUGEN_SCHEME" &&
+      "${__cur[2]:-}" == "$MODE" ]]; then
       log_info "Selection unchanged; skipping."
       exit 0
     fi
   fi
   write_current "$wallpaper" "$MATUGEN_SCHEME" "$MODE"
 
-  # Run matugen + wallust
-  matugen image --type "$MATUGEN_SCHEME" --mode "$MODE" ${JSON_ARG:+$JSON_ARG "$JSON_VALUE"} "$wallpaper" || {
+  matugen image "$wallpaper" --type "$MATUGEN_SCHEME" --mode "$MODE" ${JSON_ARG:+$JSON_ARG "$JSON_VALUE"} || {
     log_error "Matugen failed to apply theme"
     exit 1
   }
 
-  wallust -q -s run "$wallpaper" -p "${MODE}16" || { log_error "Wallust failed"; exit 1; }
+  wallust -q -s run "$wallpaper" -p "${MODE}16" || {
+    log_error "Wallust failed"
+    exit 1
+  }
 
   # Refresh apps
   reload_terminal &
   hyprctl reload
 
-  # Background slow updates
-  pkill -USR1 -x nvim 2>/dev/null || true
-  pkill -USR1 -x cava 2>/dev/null || true
-
-  # Parallel updates
-  local pids=()
-  export MODE
-  update_script "gtk" & pids+=($!)
-  update_script "folders" "$MODE" & pids+=($!)
-  wait_all "${pids[@]}"
-
-  update_system_agents & pids+=($!)
-
-   # Hyprlock icon
-  if [[ -f "$HYPRLOCK_SVG" ]]; then
-    if command -v magick &>/dev/null; then magick -background none "$HYPRLOCK_SVG" "$HYPRLOCK_PNG" &>/dev/null &
-    elif command -v convert &>/dev/null; then convert -background none "$HYPRLOCK_SVG" "$HYPRLOCK_PNG" &>/dev/null &
-    else log_error "ImageMagick not found, skipping hyprlock icon"
-    fi
-  fi
-
+  # Run update scripts
+  update_script "gtk" &
+  update_script "folders" &
+  update_script "hyprlock_icon" &
+  update_script "services" &
   update_script "spotify" &
-  wait_all $!
+  wait
 
   log_info "Theme application completed successfully"
 }
-
 main "$@"

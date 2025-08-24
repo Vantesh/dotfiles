@@ -18,16 +18,6 @@ for file in "${GTK_CSS_FILES[@]}"; do
   fi
 done
 
-update_gtk_color_scheme() {
-  local mode="$1"
-  local gtk_pref
-  if [[ "$mode" == "light" ]]; then
-    gtk_pref="prefer-light"
-  else
-    gtk_pref="prefer-dark"
-  fi
-  command -v gsettings &>/dev/null && \
-    gsettings set org.gnome.desktop.interface color-scheme "$gtk_pref" 2>/dev/null || true
-}
-
-update_gtk_color_scheme "$MODE"
+gtk_pref="prefer-${MODE:-dark}"
+command -v gsettings &>/dev/null &&
+  gsettings set org.gnome.desktop.interface color-scheme "$gtk_pref" 2>/dev/null || true

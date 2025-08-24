@@ -1,61 +1,84 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Define available Tela circle themes and approximate hex colors
-declare -A TELA_COLORS=(
-  [black]="#11111b"
-  [blue]="#8caaee"
-  [brown]="#fab387"
-  [dracula]="#1e1e2e"
-  [green]="#a6da95"
-  [grey]="#939ab7"
-  [manjaro]="#8bd5ca"
-  [nord]="#838ba7"
-  [orange]="#df8e1d"
-  [pink]="#ea76cb"
-  [purple]="#c6a0f6"
-  [red]="#ed8796"
-  [ubuntu]="#ef9f76"
-  [yellow]="#df8e1d"
-)
-
-hex_to_rgb() {
-  local hex=${1#"#"}
-  echo "$((16#${hex:0:2})) $((16#${hex:2:2})) $((16#${hex:4:2}))"
-}
-
-color_distance() {
-  local r1 g1 b1 r2 g2 b2
-  read -r r1 g1 b1 <<<"$(hex_to_rgb "$1")"
-  read -r r2 g2 b2 <<<"$(hex_to_rgb "$2")"
-  echo $(( (r1-r2)*(r1-r2) + (g1-g2)*(g1-g2) + (b1-b2)*(b1-b2) ))
-}
-
-closest_theme() {
-  local target_hex=$1
-  local best_theme=""
-  local best_dist=999999999
-  for theme in "${!TELA_COLORS[@]}"; do
-    dist=$(color_distance "$target_hex" "${TELA_COLORS[$theme]}")
-    if (( dist < best_dist )); then
-      best_dist=$dist
-      best_theme=$theme
-    fi
-  done
-  echo "$best_theme"
-}
-
-# Read color from wal's papirus-folders file
-if [[ -f "$HOME/.cache/wal/papirus-folders.txt" ]]; then
+# =============================================================================
+# Step 1: Read requested hex color from wal's folder-color.txt
+# =============================================================================
+if [[ -f "$HOME/.cache/wal/folder-color.txt" ]]; then
   requested_hex=$(<"$HOME/.cache/wal/folder-color.txt")
 else
-  echo "Error: $HOME/.cache/wal/papirus-folders.txt not found" >&2
+  echo "Error: $HOME/.cache/wal/folder-color.txt not found" >&2
   exit 1
 fi
 
-theme=$(closest_theme "$requested_hex")
-variant="$MODE"
+# =============================================================================
+# Step 2: Call Python for the complex color math
+# =============================================================================
+nearest_color=$(python3 -c "
+import sys, colorsys, math
 
-icon_name="Tela-circle-$theme-$variant"
+hex_color = sys.argv[1]
+
+# Tela color definitions (name, hex)
+tela_colors = {
+    'nord': '#4d576a',
+    'grey': '#bdbdbd',
+    'purple': '#7e57c2',
+    'brown': '#795548',
+    'dark': '#5294e2',
+    'red': '#ef5350',
+    'manjaro': '#16a085',
+    'orange': '#e18908',
+    'blue': '#5677fc',
+    'pink': '#f06292',
+    'ubuntu': '#fb8441',
+    'green': '#66bb6a',
+    'dracula': '#44475a',
+    'yellow': '#ffca28',
+    'black': '#11111b',
+}
+
+def hex_to_hsl(hex_color):
+    hex_color = hex_color.lstrip('#')
+    r, g, b = tuple(int(hex_color[i:i+2], 16)/255.0 for i in (0, 2, 4))
+    h, l, s = colorsys.rgb_to_hls(r, g, b)
+    return (h*360, s, l)
+
+def color_distance(hsl1, hsl2):
+    # Weighted HSL distance with hue priority
+    dh = min(abs(hsl1[0] - hsl2[0]), 360 - abs(hsl1[0] - hsl2[0])) / 180.0
+    ds = abs(hsl1[1] - hsl2[1])
+    dl = abs(hsl1[2] - hsl2[2])
+    return 0.7*dh + 0.2*ds + 0.1*dl
+
+input_hsl = hex_to_hsl(hex_color)
+min_distance = float('inf')
+nearest_color = ''
+
+for name, tela_hex in tela_colors.items():
+    tela_hsl = hex_to_hsl(tela_hex)
+    distance = color_distance(input_hsl, tela_hsl)
+    if distance < min_distance:
+        min_distance = distance
+        nearest_color = name
+
+print(nearest_color)
+" "$requested_hex")
+
+# =============================================================================
+# Step 3: Switch to matched Tela circle theme
+# =============================================================================
+variant="${MODE:-dark}"  # default to dark if unset
+
+if [[ "$nearest_color" == "dark" ]]; then
+  if [[ "$variant" == "dark" ]]; then
+    icon_name="Tela-circle-dark"
+  else
+    icon_name="Tela-circle"
+  fi
+else
+  icon_name="Tela-circle-$nearest_color-$variant"
+fi
+
 echo "Info: Switching icon theme to: $icon_name"
 gsettings set org.gnome.desktop.interface icon-theme "$icon_name"
