@@ -1,0 +1,101 @@
+{
+  "themeIndex": 10,
+  "themeIsDynamic": true,
+  "topBarTransparency": 0.99,
+  "topBarWidgetTransparency": 0.99,
+  "popupTransparency": 0.99,
+  "dockTransparency": 1,
+  "use24HourClock": true,
+  "useFahrenheit": false,
+  "nightModeEnabled": false,
+  "weatherLocation": "Nairobi",
+  "weatherCoordinates": "-1.3026148,36.8288420",
+  "useAutoLocation": false,
+  "weatherEnabled": true,
+  "showLauncherButton": true,
+  "showWorkspaceSwitcher": true,
+  "showFocusedWindow": true,
+  "showWeather": true,
+  "showMusic": true,
+  "showClipboard": false,
+  "showCpuUsage": true,
+  "showMemUsage": true,
+  "showCpuTemp": true,
+  "showGpuTemp": true,
+  "selectedGpuIndex": 0,
+  "enabledGpuPciIds": [],
+  "showSystemTray": true,
+  "showClock": true,
+  "showNotificationButton": true,
+  "showBattery": true,
+  "showControlCenterButton": true,
+  "showWorkspaceIndex": true,
+  "showWorkspacePadding": false,
+  "workspaceNameIcons": {},
+  "clockCompactMode": false,
+  "focusedWindowCompactMode": false,
+  "runningAppsCompactMode": true,
+  "clockDateFormat": "ddd d",
+  "lockDateFormat": "dddd, MMMM d",
+  "mediaSize": 1,
+  "topBarLeftWidgets": [
+    "launcherButton",
+    "workspaceSwitcher",
+    "focusedWindow"
+  ],
+  "topBarCenterWidgets": [
+    "music",
+    "clock",
+    "weather"
+  ],
+  "topBarRightWidgets": [
+    {
+      "id": "systemTray",
+      "enabled": true
+    },
+    {
+      "id": "cpuUsage",
+      "enabled": true
+    },
+    {
+      "id": "memUsage",
+      "enabled": true
+    },
+    {
+      "id": "battery",
+      "enabled": true
+    },
+    {
+      "id": "controlCenterButton",
+      "enabled": true
+    },
+    {
+      "id": "notificationButton",
+      "enabled": true
+    }
+  ],
+  "appLauncherViewMode": "list",
+  "spotlightModalViewMode": "list",
+  "networkPreference": "auto",
+  "iconTheme": "System Default",
+  "useOSLogo": true,
+  "osLogoColorOverride": "",
+  "osLogoBrightness": 0.5,
+  "osLogoContrast": 1,
+  "wallpaperDynamicTheming": true,
+  "fontFamily": "SF Pro Text",
+  "monoFontFamily": "JetBrainsMono Nerd Font",
+  "fontWeight": 400,
+  "gtkThemingEnabled": false,
+  "qtThemingEnabled": false,
+  "showDock": false,
+  "dockAutoHide": false,
+  "cornerRadius": 12,
+  "notificationOverlayEnabled": false,
+  "topBarAutoHide": false,
+  "topBarSpacing": 4,
+  "topBarSquareCorners": false,
+  "notificationTimeoutLow": 5000,
+  "notificationTimeoutNormal": 5000,
+  "notificationTimeoutCritical": 0
+}
