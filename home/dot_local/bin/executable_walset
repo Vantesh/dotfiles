@@ -13,7 +13,7 @@ export MODE=${MODE:-dark}
 # Logging
 # =============================================================================
 log_error() { echo "Error: $*" >&2; }
-log_info() { echo "Info:  $*"; }
+log_info() { echo "Info: $*"; }
 
 # =============================================================================
 # Helpers
@@ -155,10 +155,10 @@ main() {
 
   # Refresh apps
   reload_terminal &
-  hyprctl reload
+  hyprctl reload &>/dev/null || true
 
   # Run update scripts
-  update_script "gtk" &
+  update_script "gtk"
   update_script "folders" &
   update_script "hyprlock_icon" &
   update_script "services" &
