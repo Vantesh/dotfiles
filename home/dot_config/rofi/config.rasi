@@ -136,7 +136,7 @@ entry {
     text-color:                  @foreground;
     cursor:                      text;
     placeholder:                 " Search";
-    placeholder-color:           @surface-container-highest;
+    placeholder-color:           @outline;
 
 }
 
