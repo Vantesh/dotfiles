@@ -92,6 +92,7 @@ Rectangle {
                     font.weight: Font.Normal
                     anchors.verticalCenter: parent.verticalCenter
                 }
+
             }
 
             MouseArea {
@@ -116,7 +117,9 @@ Rectangle {
                     duration: Theme.shortDuration
                     easing.type: Theme.standardEasing
                 }
+
             }
+
         }
 
         Rectangle {
@@ -147,6 +150,7 @@ Rectangle {
                     font.weight: Font.Normal
                     anchors.verticalCenter: parent.verticalCenter
                 }
+
             }
 
             MouseArea {
@@ -166,7 +170,9 @@ Rectangle {
                     duration: Theme.shortDuration
                     easing.type: Theme.standardEasing
                 }
+
             }
+
         }
 
         Rectangle {
@@ -181,6 +187,7 @@ Rectangle {
                 height: 1
                 color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.2)
             }
+
         }
 
         Rectangle {
@@ -210,6 +217,7 @@ Rectangle {
                     font.weight: Font.Normal
                     anchors.verticalCenter: parent.verticalCenter
                 }
+
             }
 
             MouseArea {
@@ -231,8 +239,11 @@ Rectangle {
                     duration: Theme.shortDuration
                     easing.type: Theme.standardEasing
                 }
+
             }
+
         }
+
     }
 
     Behavior on opacity {
@@ -240,6 +251,7 @@ Rectangle {
             duration: Theme.mediumDuration
             easing.type: Theme.emphasizedEasing
         }
+
     }
 
     Behavior on scale {
@@ -247,5 +259,7 @@ Rectangle {
             duration: Theme.mediumDuration
             easing.type: Theme.emphasizedEasing
         }
+
     }
+
 }
