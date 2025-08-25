@@ -4,20 +4,12 @@ packageGroups:
     - hyprlock
     - hypridle
     - hyprpicker
-    - hyprsunset
     - hyprshot
     - xdg-desktop-portal-hyprland
     - uwsm
-    - app2unit-git
     - polkit-gnome
     - rofi-wayland
-    - grimblast
     - imv
-    - matugen-bin
-    - wallust
-    - quickshell-git
-    - dgop
-    - pyprland
     - libcanberra
     - brightnessctl
     - playerctl
@@ -47,11 +39,11 @@ packageGroups:
     - layer-shell-qt
     - layer-shell-qt5
     - qt6-multimedia-ffmpeg
+    - qt6-positioning
+    - qt6-5compat
+    - gammastep
     - libfido2
-    - clipse
-    - clipse-gui
     - wmctrl
-    - nvtop
     - btop
     - reflector
     - wget
@@ -64,13 +56,21 @@ packageGroups:
     - pkgfile
     - eza
     - fzf
-    - ugrep
     - bat
     - curlie
     - ripgrep
     - imagemagick
     - chafa
     - python-opencv
+    - clipse
+    - clipse-gui
+    - grimblast
+    - matugen-bin
+    - wallust
+    - app2unit-git
+    - quickshell-git
+    - dgop
+    - pyprland
 
   fonts:
     - apple-fonts
