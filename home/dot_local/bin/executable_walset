@@ -68,17 +68,6 @@ update_script() {
   fi
 }
 
-reload_terminal() {
-  if command -v kitty &>/dev/null; then
-    kitty +kitten themes --reload-in=all matugen &>/dev/null || true
-  fi
-  if command -v fish &>/dev/null; then
-    {
-      fish -c "yes | fish_config theme save Matugen" 2>/dev/null
-      [[ -f "$HOME/.cache/wal/fzf.fish" ]] && fish "$HOME/.cache/wal/fzf.fish" 2>/dev/null
-    } || true
-  fi
-}
 
 # =============================================================================
 # Main
@@ -153,16 +142,16 @@ main() {
     exit 1
   }
 
-  # Refresh apps
-  reload_terminal &
   hyprctl reload &>/dev/null || true
 
   # Run update scripts
   update_script "gtk"
+  update_script "terminal" &
   update_script "folders" &
   update_script "hyprlock_icon" &
   update_script "services" &
   update_script "spotify" &
+  update_script "bat" &
   wait
 
   log_info "Theme application completed successfully"
