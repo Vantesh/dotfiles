@@ -90,11 +90,16 @@ fi
 # =============================================================================
 {{- if eq .chezmoi.username "vantesh" }}
 if [[ "$PREFERRED_SHELL" == "fish" ]]; then
- TOKEN={{ (rbwFields "github").GITHUB_TOKEN.value | quote }}
- if [[ -n "$TOKEN" ]]; then
-  # Use argv to avoid quoting issues with special characters in the token
-  fish -c 'set -Ux GITHUB_TOKEN $argv[1]' -- "$TOKEN"
-  fish -c 'set -Ux SSH_AUTH_SOCK ~/.bitwarden-ssh-agent.sock'
- fi
+  fish -c '
+    if not set -q GITHUB_TOKEN
+      set token {{ (rbwFields "github").GITHUB_TOKEN.value | quote }}
+      if test -n "$token"
+        set -Ux GITHUB_TOKEN $token
+      end
+    end
+    if not set -q SSH_AUTH_SOCK
+      set -Ux SSH_AUTH_SOCK ~/.bitwarden-ssh-agent.sock
+    end
+  '
 fi
 {{- end }}
