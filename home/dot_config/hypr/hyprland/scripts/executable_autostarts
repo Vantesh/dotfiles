@@ -3,7 +3,7 @@ apps=(
   "clipse -listen"
   "pypr"
   "/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1"
-  "qs -c dank"
+  "qs -c dms"
 )
 
 for app in "${apps[@]}"; do
