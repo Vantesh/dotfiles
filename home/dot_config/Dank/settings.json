@@ -1,9 +1,9 @@
 {
   "themeIndex": 10,
   "themeIsDynamic": true,
-  "topBarTransparency": 0.99,
-  "topBarWidgetTransparency": 0.99,
-  "popupTransparency": 0.99,
+  "topBarTransparency": 0.8,
+  "topBarWidgetTransparency": 0.8,
+  "popupTransparency": 0.8,
   "dockTransparency": 1,
   "use24HourClock": true,
   "useFahrenheit": false,
