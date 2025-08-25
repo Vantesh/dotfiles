@@ -30,7 +30,6 @@ packageGroups:
     - dosfstools
     - f2fs-tools
     - gparted
-    - gpart
     - ufw
     - networkmanager
     - usbutils
@@ -71,6 +70,7 @@ packageGroups:
     - quickshell-git
     - dgop
     - pyprland
+    - shfmt # shell format tool
 
   fonts:
     - apple-fonts
