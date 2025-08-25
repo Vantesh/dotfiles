@@ -3,6 +3,7 @@
 
 if [ -f /tmp/gamemode-enabled ]; then
   hyprctl reload
+  qs -c dms ipc call bar show
   rm /tmp/gamemode-enabled
   notify-send --icon=dialog-information "Gamemode deactivated" "Default settings restored"
 else
@@ -17,6 +18,7 @@ else
         keyword general:border_size 1;\
         keyword decoration:rounding 0"
 
+  qs -c dms ipc call bar hide
   touch /tmp/gamemode-enabled
   notify-send --icon=dialog-information "Gamemode activated" "Animations and blur disabled"
 fi
