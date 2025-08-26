@@ -138,7 +138,7 @@ packageGroups:
       - vulkan-intel
 
   laptop:
-    - auto-cpufreq
+    - power-profiles-daemon
     - upower
     - powertop
     - libinput-gestures

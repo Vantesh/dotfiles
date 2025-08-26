@@ -7,6 +7,8 @@ source "${CHEZMOI_SOURCE_DIR:?env variable missing. Please only run this script 
 # =============================================================================
 common_init
 
+readonly TOUCHPAD_RULE_FILE="/etc/udev/rules.d/90-touchpad-access.rules"
+
 #=============================================================================
 # LAPTOP
 #=============================================================================
@@ -15,17 +17,6 @@ if is_laptop; then
   print_box "smslant" "Laptop"
   print_step "Setting up laptop tweaks"
 
-  if ! sudo systemctl is-enabled auto-cpufreq.service &>/dev/null; then
-    if sudo auto-cpufreq --install >/dev/null 2>&1; then
-      print_info "Auto CPU frequency scaling enabled"
-    else
-      print_warning "Failed to enable auto CPU frequency scaling"
-    fi
-  else
-    print_info "Auto CPU frequency scaling is already enabled"
-  fi
-
-  readonly TOUCHPAD_RULE_FILE="/etc/udev/rules.d/90-touchpad-access.rules"
   write_system_config "$TOUCHPAD_RULE_FILE" "touchpad udev rule" <<'EOF'
 KERNEL=="event*", SUBSYSTEM=="input", ENV{ID_INPUT_TOUCHPAD}=="1", TAG+="uaccess"
 EOF
@@ -165,34 +156,34 @@ setup_hibernation() {
   fi
 
   case "$(detect_bootloader)" in
-    grub)
-      update_grub_cmdline "${hibernation_params[@]}" || {
-        print_error "Failed to update GRUB kernel command line for hibernation"
+  grub)
+    update_grub_cmdline "${hibernation_params[@]}" || {
+      print_error "Failed to update GRUB kernel command line for hibernation"
 
-      }
-      ;;
-    limine)
-      # For Limine, create 01-default.conf once from /proc/cmdline if missing
-      if [[ $(detect_bootloader) == "limine" ]]; then
-        if [[ ! -f /etc/limine-entry-tool.d/01-default.conf ]]; then
-          if [[ -r /proc/cmdline ]]; then
-            default_params=$(cat /proc/cmdline)
-            update_limine_cmdline "01-default.conf" "$default_params"
-          else
-            print_error "/proc/cmdline not readable; cannot create default Limine drop-in"
-          fi
+    }
+    ;;
+  limine)
+    # For Limine, create 01-default.conf once from /proc/cmdline if missing
+    if [[ $(detect_bootloader) == "limine" ]]; then
+      if [[ ! -f /etc/limine-entry-tool.d/01-default.conf ]]; then
+        if [[ -r /proc/cmdline ]]; then
+          default_params=$(cat /proc/cmdline)
+          update_limine_cmdline "01-default.conf" "$default_params"
+        else
+          print_error "/proc/cmdline not readable; cannot create default Limine drop-in"
         fi
       fi
+    fi
 
-      # add hibernation params in a dedicated drop-in file
-      update_limine_cmdline "50-hibernation.conf" "${hibernation_params[@]}" || {
-        print_error "Failed to write Limine drop-in for hibernation"
+    # add hibernation params in a dedicated drop-in file
+    update_limine_cmdline "50-hibernation.conf" "${hibernation_params[@]}" || {
+      print_error "Failed to write Limine drop-in for hibernation"
 
-      }
-      ;;
-    *)
-      print_warning "Unsupported bootloader, skipping kernel parameter update."
-      ;;
+    }
+    ;;
+  *)
+    print_warning "Unsupported bootloader, skipping kernel parameter update."
+    ;;
   esac
 
 }
