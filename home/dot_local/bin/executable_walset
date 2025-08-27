@@ -68,7 +68,6 @@ update_script() {
   fi
 }
 
-
 # =============================================================================
 # Main
 # =============================================================================
@@ -134,11 +133,6 @@ main() {
 
   matugen image "$wallpaper" --type "$MATUGEN_SCHEME" --mode "$MODE" ${JSON_ARG:+$JSON_ARG "$JSON_VALUE"} || {
     log_error "Matugen failed to apply theme"
-    exit 1
-  }
-
-  wallust -q -s run "$wallpaper" -p "${MODE}16" || {
-    log_error "Wallust failed"
     exit 1
   }
 

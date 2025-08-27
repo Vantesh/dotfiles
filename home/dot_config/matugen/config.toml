@@ -6,6 +6,10 @@
   input_path  = '~/.config/matugen/templates/terminal/kitty.conf'
   output_path = '~/.config/kitty/themes/Matugen.conf'
 
+[templates.terminal_colors]
+  input_path  = '~/.config/matugen/templates/terminal/colors.json'
+  output_path = '~/.cache/wal/colors.json'
+
 [templates.hyprland]
   input_path  = '~/.config/matugen/templates/hypr/hyprland.conf'
   output_path = '~/.config/hypr/hyprland/theme/colors.conf'

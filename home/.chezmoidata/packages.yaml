@@ -65,7 +65,6 @@ packageGroups:
     - clipse-gui
     - grimblast
     - matugen-bin
-    - wallust
     - app2unit-git
     - quickshell-git
     - dgop
