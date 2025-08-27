@@ -11,16 +11,21 @@ Rectangle {
     property string section: "right"
     property var popupTarget: null
     property var parentScreen: null
+    property real widgetHeight: 30
+    readonly property real horizontalPadding: SettingsData.topBarNoBackground ? 0 : Math.max(Theme.spacingXS, Theme.spacingS * (widgetHeight / 30))
 
-    width: 40
-    height: 30
-    radius: Theme.cornerRadius
+    width: idleIcon.width + horizontalPadding * 2
+    height: widgetHeight
+    radius: SettingsData.topBarNoBackground ? 0 : Theme.cornerRadius
     color: {
-        const baseColor = mouseArea.containsMouse ? Theme.primaryPressed : (SessionService.idleInhibited ? Theme.primaryHover : Theme.secondaryHover);
-        return Qt.rgba(baseColor.r, baseColor.g, baseColor.b, baseColor.a * Theme.widgetTransparency);
+        if (SettingsData.topBarNoBackground) return "transparent"
+        const baseColor = mouseArea.containsMouse ? Theme.primaryPressed : (SessionService.idleInhibited ? Theme.primaryHover : Theme.secondaryHover)
+        return Qt.rgba(baseColor.r, baseColor.g, baseColor.b,
+                       baseColor.a * Theme.widgetTransparency)
     }
 
     DankIcon {
+        id: idleIcon
         anchors.centerIn: parent
         name: SessionService.idleInhibited ? "motion_sensor_active" : "motion_sensor_idle"
         size: Theme.iconSize - 6
@@ -35,7 +40,7 @@ Rectangle {
         cursorShape: Qt.PointingHandCursor
 
         onClicked: {
-            SessionService.toggleIdleInhibit();
+            SessionService.toggleIdleInhibit()
         }
     }
 

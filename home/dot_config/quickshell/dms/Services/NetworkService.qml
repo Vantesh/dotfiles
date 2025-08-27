@@ -1,5 +1,5 @@
 pragma Singleton
-pragma ComponentBehavior
+pragma ComponentBehavior: Bound
 
 import QtQuick
 import Quickshell
@@ -33,21 +33,23 @@ Singleton {
     property var wifiNetworks: []
     property var savedConnections: []
     property var wifiSignalIcon: {
-        if (currentWifiSSID == "" || !wifiEnabled) {
-            return "wifi_off";
+        if (!wifiConnected || networkStatus !== "wifi") {
+            return "signal_wifi_off"
         }
-
         // Use nmcli signal strength percentage
-        if (wifiSignalStrength >= 75) {
-            return "wifi";
+        if (wifiSignalStrength >= 70) {
+            return "signal_wifi_4_bar"
         }
         if (wifiSignalStrength >= 50) {
-            return "wifi_2_bar";
+            return "network_wifi_3_bar"
         }
         if (wifiSignalStrength >= 25) {
-            return "wifi_1_bar";
+            return "network_wifi_2_bar"
         }
-        return "signal_wifi_0_bar";
+        if (wifiSignalStrength >= 10) {
+            return "network_wifi_1_bar"
+        }
+        return "signal_wifi_bad"
     }
 
     // Connection management
@@ -81,28 +83,52 @@ Singleton {
     signal networksUpdated
     signal connectionChanged
 
+    // Helper: split nmcli -t output respecting escaped colons (\:)
+    function splitNmcliFields(line) {
+        let parts = []
+        let cur = ""
+        let escape = false
+        for (let i = 0; i < line.length; i++) {
+            const ch = line[i]
+            if (escape) {
+                // Keep literal for escaped colon and other sequences
+                cur += ch
+                escape = false
+            } else if (ch === '\\') {
+                escape = true
+            } else if (ch === ':') {
+                parts.push(cur)
+                cur = ""
+            } else {
+                cur += ch
+            }
+        }
+        parts.push(cur)
+        return parts
+    }
+
     Component.onCompleted: {
-        root.userPreference = SettingsData.networkPreference;
-        initializeDBusMonitors();
+        root.userPreference = SettingsData.networkPreference
+        initializeDBusMonitors()
     }
 
     function addRef() {
-        refCount++;
+        refCount++
         if (refCount === 1) {
-            startAutoScan();
+            startAutoScan()
         }
     }
 
     function removeRef() {
-        refCount = Math.max(0, refCount - 1);
+        refCount = Math.max(0, refCount - 1)
         if (refCount === 0) {
-            stopAutoScan();
+            stopAutoScan()
         }
     }
 
     function initializeDBusMonitors() {
-        nmStateMonitor.running = true;
-        doRefreshNetworkState();
+        nmStateMonitor.running = true
+        doRefreshNetworkState()
     }
 
     Process {
@@ -113,16 +139,20 @@ Singleton {
         stdout: SplitParser {
             splitMarker: "\n"
             onRead: line => {
-                if (line.includes("StateChanged") || line.includes("PrimaryConnectionChanged") || line.includes("WirelessEnabled") || line.includes("ActiveConnection") || line.includes("PropertiesChanged")) {
-                    refreshNetworkState();
+                if (line.includes("StateChanged") || line.includes(
+                        "PrimaryConnectionChanged") || line.includes(
+                        "WirelessEnabled") || line.includes(
+                        "ActiveConnection") || line.includes(
+                        "PropertiesChanged")) {
+                    refreshNetworkState()
                 }
             }
         }
 
         onExited: exitCode => {
             if (exitCode !== 0 && !restartTimer.running) {
-                console.warn("NetworkManager monitor failed, restarting in 5s");
-                restartTimer.start();
+                console.warn("NetworkManager monitor failed, restarting in 5s")
+                restartTimer.start()
             }
         }
     }
@@ -142,21 +172,21 @@ Singleton {
     }
 
     function refreshNetworkState() {
-        refreshDebounceTimer.restart();
+        refreshDebounceTimer.restart()
     }
 
     function doRefreshNetworkState() {
-        updatePrimaryConnection();
-        updateDeviceStates();
-        updateActiveConnections();
-        updateWifiState();
+        updatePrimaryConnection()
+        updateDeviceStates()
+        updateActiveConnections()
+        updateWifiState()
         if (root.refCount > 0 && root.wifiEnabled) {
-            scanWifiNetworks();
+            scanWifiNetworks()
         }
     }
 
     function updatePrimaryConnection() {
-        primaryConnectionQuery.running = true;
+        primaryConnectionQuery.running = true
     }
 
     Process {
@@ -166,13 +196,13 @@ Singleton {
 
         stdout: StdioCollector {
             onStreamFinished: {
-                const match = text.match(/objectpath '([^']+)'/);
+                const match = text.match(/objectpath '([^']+)'/)
                 if (match && match[1] !== '/') {
-                    root.primaryConnection = match[1];
-                    getPrimaryConnectionType.running = true;
+                    root.primaryConnection = match[1]
+                    getPrimaryConnectionType.running = true
                 } else {
-                    root.primaryConnection = "";
-                    root.networkStatus = "disconnected";
+                    root.primaryConnection = ""
+                    root.networkStatus = "disconnected"
                 }
             }
         }
@@ -186,18 +216,18 @@ Singleton {
         stdout: StdioCollector {
             onStreamFinished: {
                 if (text.includes("802-3-ethernet")) {
-                    root.networkStatus = "ethernet";
+                    root.networkStatus = "ethernet"
                 } else if (text.includes("802-11-wireless")) {
-                    root.networkStatus = "wifi";
+                    root.networkStatus = "wifi"
                 }
-                root.connectionChanged();
+                root.connectionChanged()
             }
         }
     }
 
     function updateDeviceStates() {
-        getEthernetDevice.running = true;
-        getWifiDevice.running = true;
+        getEthernetDevice.running = true
+        getWifiDevice.running = true
     }
 
     Process {
@@ -207,26 +237,26 @@ Singleton {
 
         stdout: StdioCollector {
             onStreamFinished: {
-                const lines = text.trim().split('\n');
-                let ethernetInterface = "";
+                const lines = text.trim().split('\n')
+                let ethernetInterface = ""
 
                 for (const line of lines) {
-                    const splitParts = line.split(':');
-                    const device = splitParts[0];
-                    const type = splitParts.length > 1 ? splitParts[1] : "";
+                    const splitParts = line.split(':')
+                    const device = splitParts[0]
+                    const type = splitParts.length > 1 ? splitParts[1] : ""
                     if (type === "ethernet") {
-                        ethernetInterface = device;
-                        break;
+                        ethernetInterface = device
+                        break
                     }
                 }
 
                 if (ethernetInterface) {
-                    root.ethernetInterface = ethernetInterface;
-                    getEthernetDevicePath.command = ["gdbus", "call", "--system", "--dest", "org.freedesktop.NetworkManager", "--object-path", "/org/freedesktop/NetworkManager", "--method", "org.freedesktop.NetworkManager.GetDeviceByIpIface", ethernetInterface];
-                    getEthernetDevicePath.running = true;
+                    root.ethernetInterface = ethernetInterface
+                    getEthernetDevicePath.command = ["gdbus", "call", "--system", "--dest", "org.freedesktop.NetworkManager", "--object-path", "/org/freedesktop/NetworkManager", "--method", "org.freedesktop.NetworkManager.GetDeviceByIpIface", ethernetInterface]
+                    getEthernetDevicePath.running = true
                 } else {
-                    root.ethernetInterface = "";
-                    root.ethernetConnected = false;
+                    root.ethernetInterface = ""
+                    root.ethernetConnected = false
                 }
             }
         }
@@ -238,21 +268,21 @@ Singleton {
 
         stdout: StdioCollector {
             onStreamFinished: {
-                const match = text.match(/objectpath '([^']+)'/);
+                const match = text.match(/objectpath '([^']+)'/)
                 if (match && match[1] !== '/') {
-                    checkEthernetState.command = ["gdbus", "call", "--system", "--dest", "org.freedesktop.NetworkManager", "--object-path", match[1], "--method", "org.freedesktop.DBus.Properties.Get", "org.freedesktop.NetworkManager.Device", "State"];
-                    checkEthernetState.running = true;
+                    checkEthernetState.command = ["gdbus", "call", "--system", "--dest", "org.freedesktop.NetworkManager", "--object-path", match[1], "--method", "org.freedesktop.DBus.Properties.Get", "org.freedesktop.NetworkManager.Device", "State"]
+                    checkEthernetState.running = true
                 } else {
-                    root.ethernetInterface = "";
-                    root.ethernetConnected = false;
+                    root.ethernetInterface = ""
+                    root.ethernetConnected = false
                 }
             }
         }
 
         onExited: exitCode => {
             if (exitCode !== 0) {
-                root.ethernetInterface = "";
-                root.ethernetConnected = false;
+                root.ethernetInterface = ""
+                root.ethernetConnected = false
             }
         }
     }
@@ -263,14 +293,14 @@ Singleton {
 
         stdout: StdioCollector {
             onStreamFinished: {
-                const isConnected = text.includes("uint32 100");
-                root.ethernetConnected = isConnected;
+                const isConnected = text.includes("uint32 100")
+                root.ethernetConnected = isConnected
                 if (isConnected) {
-                    getEthernetIP.running = true;
+                    getEthernetIP.running = true
                 } else {
-                    root.ethernetIP = "";
+                    root.ethernetIP = ""
                     if (root.networkStatus === "ethernet") {
-                        updatePrimaryConnection();
+                        updatePrimaryConnection()
                     }
                 }
             }
@@ -284,9 +314,9 @@ Singleton {
 
         stdout: StdioCollector {
             onStreamFinished: {
-                const match = text.match(/inet (\d+\.\d+\.\d+\.\d+)/);
+                const match = text.match(/inet (\d+\.\d+\.\d+\.\d+)/)
                 if (match)
-                    root.ethernetIP = match[1];
+                root.ethernetIP = match[1]
             }
         }
     }
@@ -298,26 +328,26 @@ Singleton {
 
         stdout: StdioCollector {
             onStreamFinished: {
-                const lines = text.trim().split('\n');
-                let wifiInterface = "";
+                const lines = text.trim().split('\n')
+                let wifiInterface = ""
 
                 for (const line of lines) {
-                    const splitParts = line.split(':');
-                    const device = splitParts[0];
-                    const type = splitParts.length > 1 ? splitParts[1] : "";
+                    const splitParts = line.split(':')
+                    const device = splitParts[0]
+                    const type = splitParts.length > 1 ? splitParts[1] : ""
                     if (type === "wifi") {
-                        wifiInterface = device;
-                        break;
+                        wifiInterface = device
+                        break
                     }
                 }
 
                 if (wifiInterface) {
-                    root.wifiInterface = wifiInterface;
-                    getWifiDevicePath.command = ["gdbus", "call", "--system", "--dest", "org.freedesktop.NetworkManager", "--object-path", "/org/freedesktop/NetworkManager", "--method", "org.freedesktop.NetworkManager.GetDeviceByIpIface", wifiInterface];
-                    getWifiDevicePath.running = true;
+                    root.wifiInterface = wifiInterface
+                    getWifiDevicePath.command = ["gdbus", "call", "--system", "--dest", "org.freedesktop.NetworkManager", "--object-path", "/org/freedesktop/NetworkManager", "--method", "org.freedesktop.NetworkManager.GetDeviceByIpIface", wifiInterface]
+                    getWifiDevicePath.running = true
                 } else {
-                    root.wifiInterface = "";
-                    root.wifiConnected = false;
+                    root.wifiInterface = ""
+                    root.wifiConnected = false
                 }
             }
         }
@@ -329,21 +359,21 @@ Singleton {
 
         stdout: StdioCollector {
             onStreamFinished: {
-                const match = text.match(/objectpath '([^']+)'/);
+                const match = text.match(/objectpath '([^']+)'/)
                 if (match && match[1] !== '/') {
-                    checkWifiState.command = ["gdbus", "call", "--system", "--dest", "org.freedesktop.NetworkManager", "--object-path", match[1], "--method", "org.freedesktop.DBus.Properties.Get", "org.freedesktop.NetworkManager.Device", "State"];
-                    checkWifiState.running = true;
+                    checkWifiState.command = ["gdbus", "call", "--system", "--dest", "org.freedesktop.NetworkManager", "--object-path", match[1], "--method", "org.freedesktop.DBus.Properties.Get", "org.freedesktop.NetworkManager.Device", "State"]
+                    checkWifiState.running = true
                 } else {
-                    root.wifiInterface = "";
-                    root.wifiConnected = false;
+                    root.wifiInterface = ""
+                    root.wifiConnected = false
                 }
             }
         }
 
         onExited: exitCode => {
             if (exitCode !== 0) {
-                root.wifiInterface = "";
-                root.wifiConnected = false;
+                root.wifiInterface = ""
+                root.wifiConnected = false
             }
         }
     }
@@ -354,23 +384,23 @@ Singleton {
 
         stdout: StdioCollector {
             onStreamFinished: {
-                root.wifiConnected = text.includes("uint32 100");
+                root.wifiConnected = text.includes("uint32 100")
                 if (root.wifiConnected) {
-                    getWifiIP.running = true;
-                    getCurrentWifiInfo.running = true;
+                    getWifiIP.running = true
+                    getCurrentWifiInfo.running = true
                     // Ensure SSID is resolved even if scan output lacks ACTIVE marker
                     if (root.currentWifiSSID === "") {
                         if (root.wifiConnectionUuid) {
-                            resolveWifiSSID.running = true;
+                            resolveWifiSSID.running = true
                         }
                         if (root.wifiInterface) {
-                            resolveWifiSSIDFromDevice.running = true;
+                            resolveWifiSSIDFromDevice.running = true
                         }
                     }
                 } else {
-                    root.wifiIP = "";
-                    root.currentWifiSSID = "";
-                    root.wifiSignalStrength = 0;
+                    root.wifiIP = ""
+                    root.currentWifiSSID = ""
+                    root.wifiSignalStrength = 0
                 }
             }
         }
@@ -383,34 +413,50 @@ Singleton {
 
         stdout: StdioCollector {
             onStreamFinished: {
-                const match = text.match(/inet (\d+\.\d+\.\d+\.\d+)/);
+                const match = text.match(/inet (\d+\.\d+\.\d+\.\d+)/)
                 if (match)
-                    root.wifiIP = match[1];
+                root.wifiIP = match[1]
             }
         }
     }
 
     Process {
         id: getCurrentWifiInfo
-        command: root.wifiInterface ? ["nmcli", "-t", "-f", "ACTIVE,SSID,SIGNAL", "dev", "wifi", "list", "ifname", root.wifiInterface] : []
+        // Prefer IN-USE,SIGNAL,SSID, but we'll also parse legacy ACTIVE format
+        command: root.wifiInterface ? ["nmcli", "-t", "-f", "IN-USE,SIGNAL,SSID", "device", "wifi", "list", "ifname", root.wifiInterface] : []
         running: false
 
         stdout: SplitParser {
             splitMarker: "\n"
             onRead: line => {
-                if (line.startsWith("yes:")) {
-                    const parts = line.substring(4).split(":");
+                // IN-USE format: "*:SIGNAL:SSID"
+                if (line.startsWith("*:")) {
+                    const rest = line.substring(2)
+                    const parts = root.splitNmcliFields(rest)
                     if (parts.length >= 2) {
-                        root.currentWifiSSID = parts[0];
-                        root.wifiSignalStrength = parseInt(parts[1]) || 0;
+                        const signal = parseInt(parts[0])
+                        root.wifiSignalStrength = isNaN(signal) ? 0 : signal
+                        root.currentWifiSSID = parts.slice(1).join(":")
                     }
+                    return
+                }
+                if (line.startsWith("yes:")) {
+                    const rest = line.substring(4)
+                    const parts = root.splitNmcliFields(rest)
+                    if (parts.length >= 2) {
+                        root.currentWifiSSID = parts[0]
+                        const signal = parseInt(parts[1])
+                        root.wifiSignalStrength = isNaN(signal) ? 0 : signal
+                    }
+                    return
                 }
             }
         }
     }
 
+
     function updateActiveConnections() {
-        getActiveConnections.running = true;
+        getActiveConnections.running = true
     }
 
     Process {
@@ -420,18 +466,20 @@ Singleton {
 
         stdout: StdioCollector {
             onStreamFinished: {
-                const lines = text.trim().split('\n');
+                const lines = text.trim().split('\n')
                 for (const line of lines) {
-                    const parts = line.split(':');
+                    const parts = line.split(':')
                     if (parts.length >= 4) {
-                        const uuid = parts[0];
-                        const type = parts[1];
-                        const device = parts[2];
-                        const state = parts[3];
-                        if (type === "802-3-ethernet" && state === "activated") {
-                            root.ethernetConnectionUuid = uuid;
-                        } else if (type === "802-11-wireless" && state === "activated") {
-                            root.wifiConnectionUuid = uuid;
+                        const uuid = parts[0]
+                        const type = parts[1]
+                        const device = parts[2]
+                        const state = parts[3]
+                        if (type === "802-3-ethernet"
+                            && state === "activated") {
+                            root.ethernetConnectionUuid = uuid
+                        } else if (type === "802-11-wireless"
+                                   && state === "activated") {
+                            root.wifiConnectionUuid = uuid
                         }
                     }
                 }
@@ -447,9 +495,9 @@ Singleton {
 
         stdout: StdioCollector {
             onStreamFinished: {
-                const ssid = text.trim();
+                const ssid = text.trim()
                 if (ssid) {
-                    root.currentWifiSSID = ssid;
+                    root.currentWifiSSID = ssid
                 }
             }
         }
@@ -464,16 +512,16 @@ Singleton {
         stdout: StdioCollector {
             onStreamFinished: {
                 if (!root.currentWifiSSID) {
-                    const name = text.trim();
+                    const name = text.trim()
                     if (name)
-                        root.currentWifiSSID = name;
+                    root.currentWifiSSID = name
                 }
             }
         }
     }
 
     function updateWifiState() {
-        checkWifiEnabled.running = true;
+        checkWifiEnabled.running = true
     }
 
     Process {
@@ -483,17 +531,18 @@ Singleton {
 
         stdout: StdioCollector {
             onStreamFinished: {
-                root.wifiEnabled = text.includes("true");
-                root.wifiAvailable = true; // Always available if we can check it
+                root.wifiEnabled = text.includes("true")
+                root.wifiAvailable = true // Always available if we can check it
             }
         }
     }
 
     function scanWifi() {
         if (root.isScanning || !root.wifiEnabled)
-            return;
-        root.isScanning = true;
-        requestWifiScan.running = true;
+            return
+
+        root.isScanning = true
+        requestWifiScan.running = true
     }
 
     Process {
@@ -503,22 +552,22 @@ Singleton {
 
         onExited: exitCode => {
             if (exitCode === 0) {
-                scanWifiNetworks();
+                scanWifiNetworks()
             } else {
-                console.warn("WiFi scan request failed");
-                root.isScanning = false;
+                console.warn("WiFi scan request failed")
+                root.isScanning = false
             }
         }
     }
 
     function scanWifiNetworks() {
         if (!root.wifiInterface) {
-            root.isScanning = false;
-            return;
+            root.isScanning = false
+            return
         }
 
-        getWifiNetworks.running = true;
-        getSavedConnections.running = true;
+        getWifiNetworks.running = true
+        getSavedConnections.running = true
     }
 
     Process {
@@ -528,34 +577,34 @@ Singleton {
 
         stdout: StdioCollector {
             onStreamFinished: {
-                let networks = [];
-                const lines = text.trim().split('\n');
-                const seen = new Set();
+                let networks = []
+                const lines = text.trim().split('\n')
+                const seen = new Set()
 
                 for (const line of lines) {
-                    const parts = line.split(':');
+                    const parts = root.splitNmcliFields(line)
                     if (parts.length >= 4 && parts[0]) {
-                        const ssid = parts[0];
+                        const ssid = parts[0]
                         if (!seen.has(ssid)) {
-                            seen.add(ssid);
-                            const signal = parseInt(parts[1]) || 0;
+                            seen.add(ssid)
+                            const signal = parseInt(parts[1]) || 0
 
                             networks.push({
-                                "ssid": ssid,
-                                "signal": signal,
-                                "secured": parts[2] !== "",
-                                "bssid": parts[3],
-                                "connected": ssid === root.currentWifiSSID,
-                                "saved": false // Will be updated by saved connections check
-                            });
+                                              "ssid": ssid,
+                                              "signal": signal,
+                                              "secured": parts[2] !== "",
+                                              "bssid": parts[3],
+                                              "connected": ssid === root.currentWifiSSID,
+                                              "saved": false // Will be updated by saved connections check
+                                          })
                         }
                     }
                 }
 
-                networks.sort((a, b) => b.signal - a.signal);
-                root.wifiNetworks = networks;
-                root.isScanning = false;
-                root.networksUpdated();
+                networks.sort((a, b) => b.signal - a.signal)
+                root.wifiNetworks = networks
+                root.isScanning = false
+                root.networksUpdated()
             }
         }
     }
@@ -567,49 +616,50 @@ Singleton {
 
         stdout: StdioCollector {
             onStreamFinished: {
-                let saved = [];
-                const lines = text.trim().split('\n');
+                let saved = []
+                const lines = text.trim().split('\n')
 
                 for (const line of lines) {
-                    const parts = line.split(':');
+                    const parts = line.split(':')
                     if (parts.length >= 2 && parts[1] === "802-11-wireless") {
                         saved.push({
-                            "ssid": parts[0],
-                            "saved": true
-                        });
+                                       "ssid": parts[0],
+                                       "saved": true
+                                   })
                     }
                 }
 
-                root.savedConnections = saved;
-                root.savedWifiNetworks = saved;
+                root.savedConnections = saved
+                root.savedWifiNetworks = saved
 
-                let updated = [...root.wifiNetworks];
+                let updated = [...root.wifiNetworks]
                 for (let network of updated) {
-                    network.saved = saved.some(s => s.ssid === network.ssid);
+                    network.saved = saved.some(s => s.ssid === network.ssid)
                 }
-                root.wifiNetworks = updated;
+                root.wifiNetworks = updated
             }
         }
     }
 
     function connectToWifi(ssid, password = "") {
         if (root.isConnecting)
-            return;
-        root.isConnecting = true;
-        root.connectingSSID = ssid;
-        root.connectionError = "";
-        root.connectionStatus = "connecting";
+            return
+
+        root.isConnecting = true
+        root.connectingSSID = ssid
+        root.connectionError = ""
+        root.connectionStatus = "connecting"
 
         if (password) {
-            wifiConnector.command = ["nmcli", "dev", "wifi", "connect", ssid, "password", password];
+            wifiConnector.command = ["nmcli", "dev", "wifi", "connect", ssid, "password", password]
         } else {
-            wifiConnector.command = ["nmcli", "dev", "wifi", "connect", ssid];
+            wifiConnector.command = ["nmcli", "dev", "wifi", "connect", ssid]
         }
-        wifiConnector.running = true;
+        wifiConnector.running = true
     }
 
     function connectToWifiWithPassword(ssid, password) {
-        connectToWifi(ssid, password);
+        connectToWifi(ssid, password)
     }
 
     Process {
@@ -621,13 +671,14 @@ Singleton {
         stdout: StdioCollector {
             onStreamFinished: {
                 if (text.includes("successfully")) {
-                    wifiConnector.connectionSucceeded = true;
-                    ToastService.showInfo(`Connected to ${root.connectingSSID}`);
-                    root.connectionError = "";
-                    root.connectionStatus = "connected";
+                    wifiConnector.connectionSucceeded = true
+                    ToastService.showInfo(`Connected to ${root.connectingSSID}`)
+                    root.connectionError = ""
+                    root.connectionStatus = "connected"
 
-                    if (root.userPreference === "wifi" || root.userPreference === "auto") {
-                        setConnectionPriority("wifi");
+                    if (root.userPreference === "wifi"
+                        || root.userPreference === "auto") {
+                        setConnectionPriority("wifi")
                     }
                 }
             }
@@ -635,14 +686,15 @@ Singleton {
 
         stderr: StdioCollector {
             onStreamFinished: {
-                root.connectionError = text;
-                root.lastConnectionError = text;
+                root.connectionError = text
+                root.lastConnectionError = text
                 if (!wifiConnector.connectionSucceeded && text.trim() !== "") {
-                    if (text.includes("password") || text.includes("authentication")) {
-                        root.connectionStatus = "invalid_password";
-                        root.passwordDialogShouldReopen = true;
+                    if (text.includes("password") || text.includes(
+                            "authentication")) {
+                        root.connectionStatus = "invalid_password"
+                        root.passwordDialogShouldReopen = true
                     } else {
-                        root.connectionStatus = "failed";
+                        root.connectionStatus = "failed"
                     }
                 }
             }
@@ -652,32 +704,35 @@ Singleton {
             if (exitCode === 0 || wifiConnector.connectionSucceeded) {
                 if (!wifiConnector.connectionSucceeded) {
                     // Command succeeded but we didn't see "successfully" - still mark as success
-                    ToastService.showInfo(`Connected to ${root.connectingSSID}`);
-                    root.connectionStatus = "connected";
+                    ToastService.showInfo(`Connected to ${root.connectingSSID}`)
+                    root.connectionStatus = "connected"
                 }
             } else {
                 if (root.connectionStatus === "") {
-                    root.connectionStatus = "failed";
+                    root.connectionStatus = "failed"
                 }
                 if (root.connectionStatus === "invalid_password") {
-                    ToastService.showError(`Invalid password for ${root.connectingSSID}`);
+                    ToastService.showError(
+                        `Invalid password for ${root.connectingSSID}`)
                 } else {
-                    ToastService.showError(`Failed to connect to ${root.connectingSSID}`);
+                    ToastService.showError(
+                        `Failed to connect to ${root.connectingSSID}`)
                 }
             }
 
-            wifiConnector.connectionSucceeded = false;
-            root.isConnecting = false;
-            root.connectingSSID = "";
-            refreshNetworkState();
+            wifiConnector.connectionSucceeded = false
+            root.isConnecting = false
+            root.connectingSSID = ""
+            refreshNetworkState()
         }
     }
 
     function disconnectWifi() {
         if (!root.wifiInterface)
-            return;
-        wifiDisconnector.command = ["nmcli", "dev", "disconnect", root.wifiInterface];
-        wifiDisconnector.running = true;
+            return
+
+        wifiDisconnector.command = ["nmcli", "dev", "disconnect", root.wifiInterface]
+        wifiDisconnector.running = true
     }
 
     Process {
@@ -686,18 +741,18 @@ Singleton {
 
         onExited: exitCode => {
             if (exitCode === 0) {
-                ToastService.showInfo("Disconnected from WiFi");
-                root.currentWifiSSID = "";
-                root.connectionStatus = "";
+                ToastService.showInfo("Disconnected from WiFi")
+                root.currentWifiSSID = ""
+                root.connectionStatus = ""
             }
-            refreshNetworkState();
+            refreshNetworkState()
         }
     }
 
     function forgetWifiNetwork(ssid) {
-        root.forgetSSID = ssid;
-        networkForgetter.command = ["nmcli", "connection", "delete", ssid];
-        networkForgetter.running = true;
+        root.forgetSSID = ssid
+        networkForgetter.command = ["nmcli", "connection", "delete", ssid]
+        networkForgetter.running = true
     }
 
     Process {
@@ -706,37 +761,40 @@ Singleton {
 
         onExited: exitCode => {
             if (exitCode === 0) {
-                ToastService.showInfo(`Forgot network ${root.forgetSSID}`);
+                ToastService.showInfo(`Forgot network ${root.forgetSSID}`)
 
-                root.savedConnections = root.savedConnections.filter(s => s.ssid !== root.forgetSSID);
-                root.savedWifiNetworks = root.savedWifiNetworks.filter(s => s.ssid !== root.forgetSSID);
+                root.savedConnections = root.savedConnections.filter(
+                    s => s.ssid !== root.forgetSSID)
+                root.savedWifiNetworks = root.savedWifiNetworks.filter(
+                    s => s.ssid !== root.forgetSSID)
 
-                let updated = [...root.wifiNetworks];
+                let updated = [...root.wifiNetworks]
                 for (let network of updated) {
                     if (network.ssid === root.forgetSSID) {
-                        network.saved = false;
+                        network.saved = false
                         if (network.connected) {
-                            network.connected = false;
-                            root.currentWifiSSID = "";
+                            network.connected = false
+                            root.currentWifiSSID = ""
                         }
                     }
                 }
-                root.wifiNetworks = updated;
-                root.networksUpdated();
-                refreshNetworkState();
+                root.wifiNetworks = updated
+                root.networksUpdated()
+                refreshNetworkState()
             }
-            root.forgetSSID = "";
+            root.forgetSSID = ""
         }
     }
 
     function toggleWifiRadio() {
         if (root.wifiToggling)
-            return;
-        root.wifiToggling = true;
-        const targetState = root.wifiEnabled ? "off" : "on";
-        wifiRadioToggler.targetState = targetState;
-        wifiRadioToggler.command = ["nmcli", "radio", "wifi", targetState];
-        wifiRadioToggler.running = true;
+            return
+
+        root.wifiToggling = true
+        const targetState = root.wifiEnabled ? "off" : "on"
+        wifiRadioToggler.targetState = targetState
+        wifiRadioToggler.command = ["nmcli", "radio", "wifi", targetState]
+        wifiRadioToggler.running = true
     }
 
     Process {
@@ -746,37 +804,38 @@ Singleton {
         property string targetState: ""
 
         onExited: exitCode => {
-            root.wifiToggling = false;
+            root.wifiToggling = false
             if (exitCode === 0) {
                 // Don't manually toggle wifiEnabled - let DBus monitoring handle it
-                ToastService.showInfo(targetState === "on" ? "WiFi enabled" : "WiFi disabled");
+                ToastService.showInfo(
+                    targetState === "on" ? "WiFi enabled" : "WiFi disabled")
             }
-            refreshNetworkState();
+            refreshNetworkState()
         }
     }
 
     // ===== Network Preference Management =====
     function setNetworkPreference(preference) {
-        root.userPreference = preference;
-        root.changingPreference = true;
-        root.targetPreference = preference;
-        SettingsData.setNetworkPreference(preference);
+        root.userPreference = preference
+        root.changingPreference = true
+        root.targetPreference = preference
+        SettingsData.setNetworkPreference(preference)
 
         if (preference === "wifi") {
-            setConnectionPriority("wifi");
+            setConnectionPriority("wifi")
         } else if (preference === "ethernet") {
-            setConnectionPriority("ethernet");
+            setConnectionPriority("ethernet")
         }
-    // "auto" uses default NetworkManager behavior
+        // "auto" uses default NetworkManager behavior
     }
 
     function setConnectionPriority(type) {
         if (type === "wifi") {
-            setRouteMetrics.command = ["bash", "-c", "nmcli -t -f NAME,TYPE connection show | grep 802-11-wireless | cut -d: -f1 | " + "xargs -I {} bash -c 'nmcli connection modify \"{}\" ipv4.route-metric 50 ipv6.route-metric 50'; " + "nmcli -t -f NAME,TYPE connection show | grep 802-3-ethernet | cut -d: -f1 | " + "xargs -I {} bash -c 'nmcli connection modify \"{}\" ipv4.route-metric 100 ipv6.route-metric 100'"];
+            setRouteMetrics.command = ["bash", "-c", "nmcli -t -f NAME,TYPE connection show | grep 802-11-wireless | cut -d: -f1 | " + "xargs -I {} bash -c 'nmcli connection modify \"{}\" ipv4.route-metric 50 ipv6.route-metric 50'; " + "nmcli -t -f NAME,TYPE connection show | grep 802-3-ethernet | cut -d: -f1 | " + "xargs -I {} bash -c 'nmcli connection modify \"{}\" ipv4.route-metric 100 ipv6.route-metric 100'"]
         } else if (type === "ethernet") {
-            setRouteMetrics.command = ["bash", "-c", "nmcli -t -f NAME,TYPE connection show | grep 802-3-ethernet | cut -d: -f1 | " + "xargs -I {} bash -c 'nmcli connection modify \"{}\" ipv4.route-metric 50 ipv6.route-metric 50'; " + "nmcli -t -f NAME,TYPE connection show | grep 802-11-wireless | cut -d: -f1 | " + "xargs -I {} bash -c 'nmcli connection modify \"{}\" ipv4.route-metric 100 ipv6.route-metric 100'"];
+            setRouteMetrics.command = ["bash", "-c", "nmcli -t -f NAME,TYPE connection show | grep 802-3-ethernet | cut -d: -f1 | " + "xargs -I {} bash -c 'nmcli connection modify \"{}\" ipv4.route-metric 50 ipv6.route-metric 50'; " + "nmcli -t -f NAME,TYPE connection show | grep 802-11-wireless | cut -d: -f1 | " + "xargs -I {} bash -c 'nmcli connection modify \"{}\" ipv4.route-metric 100 ipv6.route-metric 100'"]
         }
-        setRouteMetrics.running = true;
+        setRouteMetrics.running = true
     }
 
     Process {
@@ -784,131 +843,162 @@ Singleton {
         running: false
 
         onExited: exitCode => {
-            console.log("Set route metrics process exited with code:", exitCode);
+            console.log("Set route metrics process exited with code:", exitCode)
             if (exitCode === 0) {
-                restartConnections.running = true;
+                restartConnections.running = true
             }
         }
     }
 
     Process {
         id: restartConnections
-        command: ["bash", "-c", "nmcli -t -f UUID,TYPE connection show --active | " + "grep -E '802-11-wireless|802-3-ethernet' | cut -d: -f1 | " + "xargs -I {} sh -c 'nmcli connection down {} && nmcli connection up {}'"]
+        command: ["bash", "-c", "nmcli -t -f UUID,TYPE connection show --active | "
+            + "grep -E '802-11-wireless|802-3-ethernet' | cut -d: -f1 | "
+            + "xargs -I {} sh -c 'nmcli connection down {} && nmcli connection up {}'"]
         running: false
 
         onExited: {
-            root.changingPreference = false;
-            root.targetPreference = "";
-            refreshNetworkState();
+            root.changingPreference = false
+            root.targetPreference = ""
+            refreshNetworkState()
         }
     }
 
     function startAutoScan() {
-        root.autoScan = true;
-        root.autoRefreshEnabled = true;
+        root.autoScan = true
+        root.autoRefreshEnabled = true
         if (root.wifiEnabled) {
-            scanWifi();
+            scanWifi()
         }
     }
 
     function stopAutoScan() {
-        root.autoScan = false;
-        root.autoRefreshEnabled = false;
+        root.autoScan = false
+        root.autoRefreshEnabled = false
     }
 
     // ===== Network Info =====
     function fetchNetworkInfo(ssid) {
-        root.networkInfoSSID = ssid;
-        root.networkInfoLoading = true;
-        root.networkInfoDetails = "Loading network information...";
-        wifiInfoFetcher.running = true;
+        root.networkInfoSSID = ssid
+        root.networkInfoLoading = true
+        root.networkInfoDetails = "Loading network information..."
+        wifiInfoFetcher.running = true
     }
 
     Process {
         id: wifiInfoFetcher
-        command: ["nmcli", "-t", "-f", "SSID,SIGNAL,SECURITY,FREQ,RATE,MODE,CHAN,WPA-FLAGS,RSN-FLAGS", "dev", "wifi", "list"]
+        command: ["nmcli", "-t", "-f", "SSID,SIGNAL,SECURITY,FREQ,RATE,MODE,CHAN,WPA-FLAGS,RSN-FLAGS,ACTIVE,BSSID", "dev", "wifi", "list"]
         running: false
 
         stdout: StdioCollector {
             onStreamFinished: {
-                let details = "";
+                let details = ""
                 if (text.trim()) {
-                    let lines = text.trim().split('\n');
+                    let lines = text.trim().split('\n')
+                    let bands = []
+                    
+                    // Collect all access points for this SSID
                     for (let line of lines) {
-                        let parts = line.split(':');
-                        if (parts.length >= 9 && parts[0] === root.networkInfoSSID) {
-                            let ssid = parts[0] || "Unknown";
-                            let signal = parts[1] || "0";
-                            let security = parts[2] || "Open";
-                            let freq = parts[3] || "Unknown";
-                            let rate = parts[4] || "Unknown";
-                            let mode = parts[5] || "Unknown";
-                            let channel = parts[6] || "Unknown";
-                            let wpaFlags = parts[7] || "";
-                            let rsnFlags = parts[8] || "";
+                        let parts = line.split(':')
+                        if (parts.length >= 11 && parts[0] === root.networkInfoSSID) {
+                            let signal = parts[1] || "0"
+                            let security = parts[2] || "Open"
+                            let freq = parts[3] || "Unknown"
+                            let rate = parts[4] || "Unknown"
+                            let channel = parts[6] || "Unknown"
+                            let isActive = parts[9] === "yes"
+                            // BSSID is the last field, find it by counting colons
+                            let colonCount = 0
+                            let bssidStart = -1
+                            for (let i = 0; i < line.length; i++) {
+                                if (line[i] === ':') {
+                                    colonCount++
+                                    if (colonCount === 10) {
+                                        bssidStart = i + 1
+                                        break
+                                    }
+                                }
+                            }
+                            let bssid = bssidStart >= 0 ? line.substring(bssidStart).replace(/\\:/g, ":") : ""
 
-                            let band = "Unknown";
-                            let freqNum = parseInt(freq);
+                            let band = "Unknown"
+                            let freqNum = parseInt(freq)
                             if (freqNum >= 2400 && freqNum <= 2500) {
-                                band = "2.4 GHz";
+                                band = "2.4 GHz"
                             } else if (freqNum >= 5000 && freqNum <= 6000) {
-                                band = "5 GHz";
+                                band = "5 GHz"
                             } else if (freqNum >= 6000) {
-                                band = "6 GHz";
+                                band = "6 GHz"
                             }
 
-                            details = "Network Name: " + ssid + "\\n";
-                            details += "Signal Strength: " + signal + "%\\n";
-                            details += "Security: " + (security === "" ? "Open" : security) + "\\n";
-                            details += "Frequency: " + freq + " MHz\\n";
-                            details += "Band: " + band + "\\n";
-                            details += "Channel: " + channel + "\\n";
-                            details += "Mode: " + mode + "\\n";
-                            details += "Max Rate: " + rate + " Mbit/s\\n";
-
-                            if (wpaFlags !== "") {
-                                details += "WPA Flags: " + wpaFlags + "\\n";
+                            bands.push({
+                                band: band,
+                                freq: freq,
+                                channel: channel,
+                                signal: signal,
+                                rate: rate,
+                                security: security,
+                                isActive: isActive,
+                                bssid: bssid
+                            })
+                        }
+                    }
+                    
+                    if (bands.length > 0) {
+                        // Sort bands: active first, then by signal strength
+                        bands.sort((a, b) => {
+                            if (a.isActive && !b.isActive) return -1
+                            if (!a.isActive && b.isActive) return 1
+                            return parseInt(b.signal) - parseInt(a.signal)
+                        })
+                        
+                        for (let i = 0; i < bands.length; i++) {
+                            let b = bands[i]
+                            if (b.isActive) {
+                                details += "● " + b.band + " (Connected) - " + b.signal + "%\\n"
+                            } else {
+                                details += "  " + b.band + " - " + b.signal + "%\\n"
                             }
-                            if (rsnFlags !== "") {
-                                details += "RSN Flags: " + rsnFlags + "\\n";
+                            details += "  Channel " + b.channel + " (" + b.freq + " MHz) • " + b.rate + " Mbit/s\\n"
+                            details += "  " + b.bssid
+                            if (i < bands.length - 1) {
+                                details += "\\n\\n"
                             }
-
-                            break;
                         }
                     }
                 }
 
                 if (details === "") {
-                    details = "Network information not found or network not available.";
+                    details = "Network information not found or network not available."
                 }
 
-                root.networkInfoDetails = details;
-                root.networkInfoLoading = false;
+                root.networkInfoDetails = details
+                root.networkInfoLoading = false
             }
         }
 
         onExited: exitCode => {
-            root.networkInfoLoading = false;
+            root.networkInfoLoading = false
             if (exitCode !== 0) {
-                root.networkInfoDetails = "Failed to fetch network information";
+                root.networkInfoDetails = "Failed to fetch network information"
             }
         }
     }
 
     function refreshNetworkStatus() {
-        refreshNetworkState();
+        refreshNetworkState()
     }
 
     function delayedRefreshNetworkStatus() {
-        refreshNetworkState();
+        refreshNetworkState()
     }
 
     function updateCurrentWifiInfo() {
-        getCurrentWifiInfo.running = true;
+        getCurrentWifiInfo.running = true
     }
 
     function enableWifiDevice() {
-        wifiDeviceEnabler.running = true;
+        wifiDeviceEnabler.running = true
     }
 
     Process {
@@ -918,25 +1008,25 @@ Singleton {
 
         onExited: exitCode => {
             if (exitCode === 0) {
-                ToastService.showInfo("WiFi enabled");
+                ToastService.showInfo("WiFi enabled")
             } else {
-                ToastService.showError("Failed to enable WiFi");
+                ToastService.showError("Failed to enable WiFi")
             }
-            refreshNetworkState();
+            refreshNetworkState()
         }
     }
 
     function connectToWifiAndSetPreference(ssid, password) {
-        connectToWifiWithPassword(ssid, password);
-        setNetworkPreference("wifi");
+        connectToWifiWithPassword(ssid, password)
+        setNetworkPreference("wifi")
     }
 
     function toggleNetworkConnection(type) {
         if (type === "ethernet") {
             if (root.networkStatus === "ethernet") {
-                ethernetDisconnector.running = true;
+                ethernetDisconnector.running = true
             } else {
-                ethernetConnector.running = true;
+                ethernetConnector.running = true
             }
         }
     }
@@ -947,7 +1037,7 @@ Singleton {
         running: false
 
         onExited: function (exitCode) {
-            refreshNetworkState();
+            refreshNetworkState()
         }
     }
 
@@ -957,14 +1047,14 @@ Singleton {
         running: false
 
         onExited: function (exitCode) {
-            refreshNetworkState();
+            refreshNetworkState()
         }
     }
 
     function getNetworkInfo(ssid) {
-        const network = root.wifiNetworks.find(n => n.ssid === ssid);
+        const network = root.wifiNetworks.find(n => n.ssid === ssid)
         if (!network)
-            return null;
+            return null
 
         return {
             "ssid": network.ssid,
@@ -973,6 +1063,6 @@ Singleton {
             "saved": network.saved,
             "connected": network.connected,
             "bssid": network.bssid
-        };
+        }
     }
 }

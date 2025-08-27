@@ -40,7 +40,9 @@ Item {
                 width: parent.width
                 sourceComponent: availableComponent
             }
+
         }
+
     }
 
     BluetoothContextMenu {
@@ -69,8 +71,10 @@ Item {
             y: bluetoothContextMenuWindow.y
             width: bluetoothContextMenuWindow.width
             height: bluetoothContextMenuWindow.height
-            onClicked: {}
+            onClicked: {
+            }
         }
+
     }
 
     Component {
@@ -79,6 +83,7 @@ Item {
         BluetoothToggle {
             width: parent.width
         }
+
     }
 
     Component {
@@ -87,6 +92,7 @@ Item {
         PairedDevicesList {
             width: parent.width
         }
+
     }
 
     Component {
@@ -95,5 +101,7 @@ Item {
         AvailableDevicesList {
             width: parent.width
         }
+
     }
+
 }

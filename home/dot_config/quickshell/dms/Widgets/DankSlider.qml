@@ -14,6 +14,7 @@ Item {
     property string unit: "%"
     property bool showValue: true
     property bool isDragging: false
+    readonly property bool containsMouse: sliderMouseArea.containsMouse
 
     signal sliderValueChanged(int newValue)
     signal sliderDragFinished(int finalValue)

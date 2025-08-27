@@ -162,7 +162,7 @@ Rectangle {
                                     "http://") || appIcon.startsWith(
                                     "https://"))
                             return appIcon
-                        return Quickshell.iconPath(appIcon, "")
+                        return Quickshell.iconPath(appIcon, true)
                     }
                     return ""
                 }
@@ -458,7 +458,7 @@ Rectangle {
                                                     "https://"))
                                             return appIcon
 
-                                        return Quickshell.iconPath(appIcon, "")
+                                        return Quickshell.iconPath(appIcon, true)
                                     }
                                     return ""
                                 }

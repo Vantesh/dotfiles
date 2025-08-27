@@ -1,4 +1,5 @@
 import Quickshell
+import Quickshell.Wayland
 import QtQuick
 import qs.Common
 import qs.Services
@@ -9,22 +10,29 @@ Rectangle {
 
     property bool compactMode: SettingsData.focusedWindowCompactMode
     property int availableWidth: 400
-    readonly property int baseWidth: contentRow.implicitWidth + Theme.spacingS * 2
+    property real widgetHeight: 30
+    readonly property real horizontalPadding: SettingsData.topBarNoBackground ? 2 : Theme.spacingS
+    readonly property int baseWidth: contentRow.implicitWidth + horizontalPadding * 2
     readonly property int maxNormalWidth: 456
     readonly property int maxCompactWidth: 288
+    readonly property Toplevel activeWindow: ToplevelManager.activeToplevel
 
-    width: compactMode ? Math.min(baseWidth, maxCompactWidth) : Math.min(baseWidth, maxNormalWidth)
-    height: 30
-    radius: Theme.cornerRadius
+    width: compactMode ? Math.min(baseWidth,
+                                  maxCompactWidth) : Math.min(baseWidth,
+                                                              maxNormalWidth)
+    height: widgetHeight
+    radius: SettingsData.topBarNoBackground ? 0 : Theme.cornerRadius
     color: {
-        if (!HyprlandService.focusedWindowTitle)
-            return "transparent";
-
-        const baseColor = mouseArea.containsMouse ? Theme.primaryHover : Theme.surfaceTextHover;
-        return Qt.rgba(baseColor.r, baseColor.g, baseColor.b, baseColor.a * Theme.widgetTransparency);
+        if (!activeWindow || !activeWindow.title)
+            return "transparent"
+        
+        if (SettingsData.topBarNoBackground) return "transparent"
+        const baseColor = mouseArea.containsMouse ? Theme.primaryHover : Theme.surfaceTextHover
+        return Qt.rgba(baseColor.r, baseColor.g, baseColor.b,
+                       baseColor.a * Theme.widgetTransparency)
     }
     clip: true
-    visible: HyprlandService.hyprAvailable && HyprlandService.focusedWindowTitle
+    visible: activeWindow && activeWindow.title
 
     Row {
         id: contentRow
@@ -36,17 +44,12 @@ Rectangle {
             id: appText
 
             text: {
-                if (!HyprlandService.focusedWindowId)
-                    return "";
+                if (!activeWindow || !activeWindow.appId)
+                    return ""
 
-                var window = HyprlandService.windows.find(w => {
-                    return w.id == HyprlandService.focusedWindowId;
-                });
-                if (!window || !window.app_id)
-                    return "";
-
-                var desktopEntry = DesktopEntries.byId(window.app_id);
-                return desktopEntry && desktopEntry.name ? desktopEntry.name : window.app_id;
+                var desktopEntry = DesktopEntries.byId(activeWindow.appId)
+                return desktopEntry
+                        && desktopEntry.name ? desktopEntry.name : activeWindow.appId
             }
             font.pixelSize: Theme.fontSizeSmall
             font.weight: Font.Medium
@@ -70,21 +73,24 @@ Rectangle {
             id: titleText
 
             text: {
-                var title = HyprlandService.focusedWindowTitle || "";
-                var appName = appText.text;
+                var title = activeWindow && activeWindow.title ? activeWindow.title : ""
+                var appName = appText.text
 
                 if (!title || !appName)
-                    return title;
+                    return title
 
                 // Remove app name from end of title if it exists there
                 if (title.endsWith(" - " + appName)) {
-                    return title.substring(0, title.length - (" - " + appName).length);
+                    return title.substring(
+                                0, title.length - (" - " + appName).length)
                 }
                 if (title.endsWith(appName)) {
-                    return title.substring(0, title.length - appName.length).replace(/ - $/, "");
+                    return title.substring(
+                                0, title.length - appName.length).replace(
+                                / - $/, "")
                 }
 
-                return title;
+                return title
             }
             font.pixelSize: Theme.fontSizeSmall
             font.weight: Font.Medium

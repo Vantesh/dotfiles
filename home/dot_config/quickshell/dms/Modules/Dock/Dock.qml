@@ -16,26 +16,28 @@ PanelWindow {
 
     property var modelData
     property var contextMenu
-    property var windowsMenu
     property bool autoHide: SettingsData.dockAutoHide
     property real backgroundTransparency: SettingsData.dockTransparency
 
-    property bool contextMenuOpen: (contextMenu && contextMenu.visible && contextMenu.screen === modelData) || (windowsMenu && windowsMenu.visible && windowsMenu.screen === modelData)
+    property bool contextMenuOpen: (contextMenu && contextMenu.visible
+                                    && contextMenu.screen === modelData)
     property bool windowIsFullscreen: {
-        if (!HyprlandService.focusedWindowId || !HyprlandService.hyprAvailable)
-            return "";
-        var focusedWindow = HyprlandService.windows.find(w => w.id === HyprlandService.focusedWindowId);
-        if (!focusedWindow)
-            return false;
-        var fullscreenApps = ["vlc", "mpv", "kodi", "steam", "lutris", "wine", "dosbox"];
-        return fullscreenApps.some(app => focusedWindow.app_id && focusedWindow.app_id.toLowerCase().includes(app));
+        if (!ToplevelManager.activeToplevel)
+            return false
+        var activeWindow = ToplevelManager.activeToplevel
+        var fullscreenApps = ["vlc", "mpv", "kodi", "steam", "lutris", "wine", "dosbox"]
+        return fullscreenApps.some(app => activeWindow.appId
+                                   && activeWindow.appId.toLowerCase(
+                                       ).includes(app))
     }
-    property bool reveal: (!autoHide || dockMouseArea.containsMouse || dockApps.requestDockShow || contextMenuOpen) && !windowIsFullscreen
+    property bool reveal: (!autoHide || dockMouseArea.containsMouse
+                           || dockApps.requestDockShow || contextMenuOpen)
+                          && !windowIsFullscreen
 
     Connections {
         target: SettingsData
         function onDockTransparencyChanged() {
-            dock.backgroundTransparency = SettingsData.dockTransparency;
+            dock.backgroundTransparency = SettingsData.dockTransparency
         }
     }
 
@@ -63,12 +65,16 @@ PanelWindow {
 
     MouseArea {
         id: dockMouseArea
-        height: dock.reveal ? 65 : 12
+        property real currentScreen: modelData ? modelData : dock.screen
+        property real screenWidth: currentScreen ? currentScreen.geometry.width : 1920
+        property real maxDockWidth: Math.min(screenWidth * 0.8, 1200)
+        
+        height: dock.reveal ? 65 : 20
+        width: dock.reveal ? Math.min(dockBackground.width + 32, maxDockWidth) : Math.min(Math.max(dockBackground.width + 64, 200), screenWidth * 0.5)
         anchors {
             bottom: parent.bottom
             horizontalCenter: parent.horizontalCenter
         }
-        implicitWidth: dock.reveal ? dockBackground.width + 32 : (dockBackground.width + 32)
         hoverEnabled: true
 
         Behavior on height {
@@ -109,7 +115,9 @@ PanelWindow {
                 anchors.topMargin: 4
                 anchors.bottomMargin: 1
 
-                color: Qt.rgba(Theme.surfaceContainer.r, Theme.surfaceContainer.g, Theme.surfaceContainer.b, backgroundTransparency)
+                color: Qt.rgba(Theme.surfaceContainer.r,
+                               Theme.surfaceContainer.g,
+                               Theme.surfaceContainer.b, backgroundTransparency)
                 radius: Theme.cornerRadius
                 border.width: 1
                 border.color: Theme.outlineMedium
@@ -117,7 +125,8 @@ PanelWindow {
 
                 Rectangle {
                     anchors.fill: parent
-                    color: Qt.rgba(Theme.surfaceTint.r, Theme.surfaceTint.g, Theme.surfaceTint.b, 0.04)
+                    color: Qt.rgba(Theme.surfaceTint.r, Theme.surfaceTint.g,
+                                   Theme.surfaceTint.b, 0.04)
                     radius: parent.radius
                 }
 
@@ -131,7 +140,6 @@ PanelWindow {
                     anchors.bottomMargin: 4
 
                     contextMenu: dock.contextMenu
-                    windowsMenu: dock.windowsMenu
                 }
             }
 
@@ -140,25 +148,27 @@ PanelWindow {
 
                 property var hoveredButton: {
                     if (!dockApps.children[0])
-                        return null;
-                    var row = dockApps.children[0];
-                    var repeater = null;
+                        return null
+                    var row = dockApps.children[0]
+                    var repeater = null
                     for (var i = 0; i < row.children.length; i++) {
-                        var child = row.children[i];
-                        if (child && typeof child.count !== "undefined" && typeof child.itemAt === "function") {
-                            repeater = child;
-                            break;
+                        var child = row.children[i]
+                        if (child && typeof child.count !== "undefined"
+                                && typeof child.itemAt === "function") {
+                            repeater = child
+                            break
                         }
                     }
                     if (!repeater || !repeater.itemAt)
-                        return null;
+                        return null
                     for (var i = 0; i < repeater.count; i++) {
-                        var item = repeater.itemAt(i);
-                        if (item && item.dockButton && item.dockButton.showTooltip) {
-                            return item.dockButton;
+                        var item = repeater.itemAt(i)
+                        if (item && item.dockButton
+                                && item.dockButton.showTooltip) {
+                            return item.dockButton
                         }
                     }
-                    return null;
+                    return null
                 }
 
                 property string tooltipText: hoveredButton ? hoveredButton.tooltipText : ""
@@ -173,7 +183,9 @@ PanelWindow {
                 border.color: Theme.outlineMedium
 
                 y: -height - 8
-                x: hoveredButton ? hoveredButton.mapToItem(dockContainer, hoveredButton.width / 2, 0).x - width / 2 : 0
+                x: hoveredButton ? hoveredButton.mapToItem(
+                                       dockContainer, hoveredButton.width / 2,
+                                       0).x - width / 2 : 0
 
                 StyledText {
                     id: tooltipLabel

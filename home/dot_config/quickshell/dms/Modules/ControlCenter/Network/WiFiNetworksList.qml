@@ -22,6 +22,16 @@ Column {
     visible: NetworkService.wifiEnabled
     spacing: Theme.spacingS
 
+    // Compute icon name from a signal percentage (0-100)
+    function iconForSignal(pct) {
+        const s = Math.max(0, Math.min(100, pct | 0))
+        if (s >= 70) return "signal_wifi_4_bar"
+        if (s >= 50) return "network_wifi_3_bar"
+        if (s >= 25) return "network_wifi_2_bar"
+        if (s >= 10) return "network_wifi_1_bar"
+        return "signal_wifi_bad"
+    }
+
     Row {
         width: parent.width
         spacing: Theme.spacingS
@@ -130,7 +140,7 @@ Column {
 
                 Rectangle {
                     width: spanningNetworksColumn.width
-                    height: 38
+                    height: 50
                     radius: Theme.cornerRadius
                     color: networkArea2.containsMouse ? Qt.rgba(
                                                             Theme.primary.r,
@@ -150,7 +160,7 @@ Column {
 
                             anchors.left: parent.left
                             anchors.verticalCenter: parent.verticalCenter
-                            name: NetworkService.wifiSignalIcon
+                            name: iconForSignal(modelData.signal)
                             size: Theme.iconSize - 2
                             color: modelData.connected ? Theme.primary : Theme.surfaceText
                         }
@@ -166,7 +176,7 @@ Column {
                             StyledText {
                                 width: parent.width
                                 text: modelData.ssid
-                                font.pixelSize: Theme.fontSizeSmall
+                                font.pixelSize: Theme.fontSizeMedium
                                 color: modelData.connected ? Theme.primary : Theme.surfaceText
                                 font.weight: modelData.connected ? Font.Medium : Font.Normal
                                 elide: Text.ElideRight

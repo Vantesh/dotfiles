@@ -6,10 +6,10 @@ import qs.Common
 import qs.Widgets
 
 LazyLoader {
-    active: SessionData.wallpaperPath !== ""
+    active: true
 
     Variants {
-        model: Quickshell.screens
+        model: SettingsData.getFilteredScreens("wallpaper")
 
         PanelWindow {
             id: wallpaperWindow
@@ -37,11 +37,11 @@ LazyLoader {
 
                 onSourceChanged: {
                     if (!source)
-                        current = null;
+                        current = null
                     else if (current === one)
-                        two.update();
+                        two.update()
                     else
-                        one.update();
+                        one.update()
                 }
 
                 Loader {
@@ -49,38 +49,9 @@ LazyLoader {
                     active: !root.source
                     asynchronous: true
 
-                    sourceComponent: Rectangle {
-                        color: Theme.surface
-
-                        Row {
-                            anchors.centerIn: parent
-                            spacing: Theme.spacingL
-
-                            DankIcon {
-                                name: "sentiment_stressed"
-                                color: Theme.surfaceVariantText
-                                size: Theme.iconSize * 5
-                                anchors.verticalCenter: parent.verticalCenter
-                            }
-
-                            Column {
-                                anchors.verticalCenter: parent.verticalCenter
-                                spacing: Theme.spacingS
-
-                                StyledText {
-                                    text: "Wallpaper missing?"
-                                    color: Theme.surfaceVariantText
-                                    font.pixelSize: Theme.fontSizeXLarge * 2
-                                    font.weight: Font.Bold
-                                }
-
-                                StyledText {
-                                    text: "Set wallpaper in Settings"
-                                    color: Theme.primary
-                                    font.pixelSize: Theme.fontSizeLarge
-                                }
-                            }
-                        }
+                    sourceComponent: DankBackdrop {
+                        screenWidth: wallpaperWindow.modelData.width
+                        screenHeight: wallpaperWindow.modelData.height
                     }
                 }
 
@@ -91,52 +62,52 @@ LazyLoader {
                 Img {
                     id: two
                 }
-            }
-        }
-    }
 
-    component Img: Image {
-        id: img
+                component Img: Image {
+                    id: img
 
-        function update(): void {
-            source = "";
-            source = root.source;
-        }
+                    function update(): void {
+                        source = ""
+                        source = root.source
+                    }
 
-        anchors.fill: parent
-        fillMode: Image.PreserveAspectCrop
-        smooth: true
-        asynchronous: true
-        cache: false
+                    anchors.fill: parent
+                    fillMode: Image.PreserveAspectCrop
+                    smooth: true
+                    asynchronous: true
+                    cache: false
 
-        opacity: 0
+                    opacity: 0
 
-        onStatusChanged: {
-            if (status === Image.Ready) {
-                root.current = this;
-                if (root.current === one && two.source) {
-                    two.source = "";
-                } else if (root.current === two && one.source) {
-                    one.source = "";
+                    onStatusChanged: {
+                        if (status === Image.Ready) {
+                            root.current = this
+                            if (root.current === one && two.source) {
+                                two.source = ""
+                            } else if (root.current === two && one.source) {
+                                one.source = ""
+                            }
+                        }
+                    }
+
+                    states: State {
+                        name: "visible"
+                        when: root.current === img
+
+                        PropertyChanges {
+                            img.opacity: 1
+                        }
+                    }
+
+                    transitions: Transition {
+                        NumberAnimation {
+                            target: img
+                            properties: "opacity"
+                            duration: Theme.mediumDuration
+                            easing.type: Easing.OutCubic
+                        }
+                    }
                 }
-            }
-        }
-
-        states: State {
-            name: "visible"
-            when: root.current === img
-
-            PropertyChanges {
-                img.opacity: 1
-            }
-        }
-
-        transitions: Transition {
-            NumberAnimation {
-                target: img
-                properties: "opacity"
-                duration: Theme.mediumDuration
-                easing.type: Easing.OutCubic
             }
         }
     }

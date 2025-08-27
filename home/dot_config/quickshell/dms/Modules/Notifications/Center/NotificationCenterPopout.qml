@@ -21,16 +21,16 @@ DankPopout {
         listView: null
         isOpen: notificationHistoryVisible
         onClose: function () {
-            notificationHistoryVisible = false;
+            notificationHistoryVisible = false
         }
     }
 
     function setTriggerPosition(x, y, width, section, screen) {
-        triggerX = x;
-        triggerY = y;
-        triggerWidth = width;
-        triggerSection = section;
-        triggerScreen = screen;
+        triggerX = x
+        triggerY = y
+        triggerWidth = width
+        triggerSection = section
+        triggerScreen = screen
     }
 
     popupWidth: 400
@@ -46,55 +46,57 @@ DankPopout {
 
     onNotificationHistoryVisibleChanged: {
         if (notificationHistoryVisible) {
-            open();
+            open()
         } else {
-            close();
+            close()
         }
     }
 
     onShouldBeVisibleChanged: {
         if (shouldBeVisible) {
-            NotificationService.onOverlayOpen();
+            NotificationService.onOverlayOpen()
             // Set up keyboard controller when content is loaded
             Qt.callLater(function () {
                 if (contentLoader.item) {
-                    contentLoader.item.externalKeyboardController = keyboardController;
+                    contentLoader.item.externalKeyboardController = keyboardController
 
                     // Find the notification list and set up the connection
-                    var notificationList = findChild(contentLoader.item, "notificationList");
-                    var notificationHeader = findChild(contentLoader.item, "notificationHeader");
+                    var notificationList = findChild(contentLoader.item,
+                                                     "notificationList")
+                    var notificationHeader = findChild(contentLoader.item,
+                                                       "notificationHeader")
 
                     if (notificationList) {
-                        keyboardController.listView = notificationList;
-                        notificationList.keyboardController = keyboardController;
+                        keyboardController.listView = notificationList
+                        notificationList.keyboardController = keyboardController
                     }
                     if (notificationHeader) {
-                        notificationHeader.keyboardController = keyboardController;
+                        notificationHeader.keyboardController = keyboardController
                     }
 
-                    keyboardController.reset();
-                    keyboardController.rebuildFlatNavigation();
+                    keyboardController.reset()
+                    keyboardController.rebuildFlatNavigation()
                 }
-            });
+            })
         } else {
-            NotificationService.onOverlayClose();
+            NotificationService.onOverlayClose()
             // Reset keyboard state when closing
-            keyboardController.keyboardNavigationActive = false;
+            keyboardController.keyboardNavigationActive = false
         }
     }
 
     function findChild(parent, objectName) {
         if (parent.objectName === objectName) {
-            return parent;
+            return parent
         }
         for (var i = 0; i < parent.children.length; i++) {
-            var child = parent.children[i];
-            var result = findChild(child, objectName);
+            var child = parent.children[i]
+            var result = findChild(child, objectName)
             if (result) {
-                return result;
+                return result
             }
         }
-        return null;
+        return null
     }
 
     content: Component {
@@ -105,34 +107,38 @@ DankPopout {
             property real cachedHeaderHeight: 32
 
             implicitHeight: {
-                let baseHeight = Theme.spacingL * 2;
-                baseHeight += cachedHeaderHeight;
-                baseHeight += (notificationSettings.expanded ? notificationSettings.contentHeight : 0);
-                baseHeight += Theme.spacingM * 2;
-                let listHeight = notificationList.listContentHeight;
+                let baseHeight = Theme.spacingL * 2
+                baseHeight += cachedHeaderHeight
+                baseHeight += (notificationSettings.expanded ? notificationSettings.contentHeight : 0)
+                baseHeight += Theme.spacingM * 2
+                let listHeight = notificationList.listContentHeight
                 if (NotificationService.groupedNotifications.length === 0)
-                    listHeight = 200;
-                baseHeight += Math.min(listHeight, 600);
-                return Math.max(300, Math.min(baseHeight, root.screen ? root.screen.height * 0.8 : Screen.height * 0.8));
+                    listHeight = 200
+                baseHeight += Math.min(listHeight, 600)
+                return Math.max(
+                            300, Math.min(
+                                baseHeight,
+                                root.screen ? root.screen.height * 0.8 : Screen.height * 0.8))
             }
 
             color: Theme.popupBackground()
             radius: Theme.cornerRadius
-            border.color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.08)
+            border.color: Qt.rgba(Theme.outline.r, Theme.outline.g,
+                                  Theme.outline.b, 0.08)
             border.width: 1
             focus: true
 
             Component.onCompleted: {
                 if (root.shouldBeVisible)
-                    forceActiveFocus();
+                    forceActiveFocus()
             }
 
             Keys.onPressed: function (event) {
                 if (event.key === Qt.Key_Escape) {
-                    root.close();
-                    event.accepted = true;
+                    root.close()
+                    event.accepted = true
                 } else if (externalKeyboardController) {
-                    externalKeyboardController.handleKey(event);
+                    externalKeyboardController.handleKey(event)
                 }
             }
 
@@ -140,10 +146,10 @@ DankPopout {
                 function onShouldBeVisibleChanged() {
                     if (root.shouldBeVisible)
                         Qt.callLater(function () {
-                            notificationContent.forceActiveFocus();
-                        });
+                            notificationContent.forceActiveFocus()
+                        })
                     else
-                        notificationContent.focus = false;
+                        notificationContent.focus = false
                 }
                 target: root
             }
@@ -176,7 +182,8 @@ DankPopout {
                         objectName: "notificationList"
 
                         width: parent.width
-                        height: parent.height - notificationContent.cachedHeaderHeight - notificationSettings.height - contentColumnInner.spacing * 2
+                        height: parent.height - notificationContent.cachedHeaderHeight
+                                - notificationSettings.height - contentColumnInner.spacing * 2
                     }
                 }
             }

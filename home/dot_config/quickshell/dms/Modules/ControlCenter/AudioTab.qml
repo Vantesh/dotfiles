@@ -23,16 +23,13 @@ Item {
             tabHeight: 40
             currentIndex: audioTab.audioSubTab
             showIcons: false
-            model: [
-                {
+            model: [{
                     "text": "Output"
-                },
-                {
+                }, {
                     "text": "Input"
-                }
-            ]
+                }]
             onTabClicked: function (index) {
-                audioTab.audioSubTab = index;
+                audioTab.audioSubTab = index
             }
         }
 

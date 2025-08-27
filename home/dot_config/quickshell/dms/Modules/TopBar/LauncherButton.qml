@@ -10,11 +10,14 @@ Item {
     property string section: "left"
     property var popupTarget: null
     property var parentScreen: null
+    property real widgetHeight: 30
+    property real barHeight: 48
+    readonly property real horizontalPadding: SettingsData.topBarNoBackground ? 0 : Math.max(Theme.spacingXS, Theme.spacingS * (widgetHeight / 30))
 
     signal clicked
 
-    width: 40
-    height: 30
+    width: Theme.iconSize + horizontalPadding * 2
+    height: widgetHeight
 
     MouseArea {
         id: launcherArea
@@ -30,7 +33,7 @@ Item {
                 var screenX = currentScreen.x || 0
                 var relativeX = globalPos.x - screenX
                 popupTarget.setTriggerPosition(
-                            relativeX, Theme.barHeight + Theme.spacingXS,
+                            relativeX, barHeight + Theme.spacingXS,
                             width, section, currentScreen)
             }
             root.clicked()
@@ -38,9 +41,10 @@ Item {
     }
 
     Rectangle {
+        id: launcherContent
         anchors.fill: parent
-        radius: Theme.cornerRadius
-        color: Qt.rgba(Theme.surfaceTextHover.r, Theme.surfaceTextHover.g,
+        radius: SettingsData.topBarNoBackground ? 0 : Theme.cornerRadius
+        color: SettingsData.topBarNoBackground ? "transparent" : Qt.rgba(Theme.surfaceTextHover.r, Theme.surfaceTextHover.g,
                        Theme.surfaceTextHover.b,
                        Theme.surfaceTextHover.a * Theme.widgetTransparency)
 

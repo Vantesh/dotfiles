@@ -10,8 +10,13 @@ import qs.Widgets
 Column {
     id: root
 
-    property real micLevel: Math.min(100, (AudioService.source && AudioService.source.audio && AudioService.source.audio.volume * 100) || 0)
-    property bool micMuted: (AudioService.source && AudioService.source.audio && AudioService.source.audio.muted) || false
+    property real micLevel: Math.min(100,
+                                     (AudioService.source
+                                      && AudioService.source.audio
+                                      && AudioService.source.audio.volume * 100)
+                                     || 0)
+    property bool micMuted: (AudioService.source && AudioService.source.audio
+                             && AudioService.source.audio.muted) || false
 
     width: parent.width
     spacing: Theme.spacingM
@@ -39,7 +44,7 @@ Column {
                 cursorShape: Qt.PointingHandCursor
                 onClicked: {
                     if (AudioService.source && AudioService.source.audio)
-                        AudioService.source.audio.muted = !AudioService.source.audio.muted;
+                        AudioService.source.audio.muted = !AudioService.source.audio.muted
                 }
             }
         }
@@ -57,7 +62,8 @@ Column {
                 width: parent.width
                 height: 8
                 radius: 4
-                color: Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g, Theme.surfaceVariant.b, 0.3)
+                color: Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g,
+                               Theme.surfaceVariant.b, 0.3)
                 anchors.verticalCenter: parent.verticalCenter
 
                 Rectangle {
@@ -86,9 +92,11 @@ Column {
                     color: Theme.primary
                     border.color: Qt.lighter(Theme.primary, 1.3)
                     border.width: 2
-                    x: Math.max(0, Math.min(parent.width - width, micSliderFill.width - width / 2))
+                    x: Math.max(0, Math.min(parent.width - width,
+                                            micSliderFill.width - width / 2))
                     anchors.verticalCenter: parent.verticalCenter
-                    scale: micMouseArea.containsMouse || micMouseArea.pressed ? 1.2 : 1
+                    scale: micMouseArea.containsMouse
+                           || micMouseArea.pressed ? 1.2 : 1
 
                     Rectangle {
                         id: micTooltip
@@ -102,7 +110,8 @@ Column {
                         anchors.bottom: parent.top
                         anchors.bottomMargin: Theme.spacingS
                         anchors.horizontalCenter: parent.horizontalCenter
-                        visible: (micMouseArea.containsMouse && !root.micMuted) || micMouseArea.isDragging
+                        visible: (micMouseArea.containsMouse && !root.micMuted)
+                                 || micMouseArea.isDragging
                         opacity: visible ? 1 : 0
 
                         StyledText {
@@ -143,35 +152,47 @@ Column {
                 cursorShape: Qt.PointingHandCursor
                 preventStealing: true
                 onPressed: mouse => {
-                    isDragging = true;
-                    let ratio = Math.max(0, Math.min(1, mouse.x / micSliderTrack.width));
-                    let newMicLevel = Math.round(ratio * 100);
-                    if (AudioService.source && AudioService.source.audio) {
-                        AudioService.source.audio.muted = false;
-                        AudioService.source.audio.volume = newMicLevel / 100;
-                    }
-                }
+                               isDragging = true
+                               let ratio = Math.max(
+                                   0, Math.min(1,
+                                               mouse.x / micSliderTrack.width))
+                               let newMicLevel = Math.round(ratio * 100)
+                               if (AudioService.source
+                                   && AudioService.source.audio) {
+                                   AudioService.source.audio.muted = false
+                                   AudioService.source.audio.volume = newMicLevel / 100
+                               }
+                           }
                 onReleased: {
-                    isDragging = false;
+                    isDragging = false
                 }
                 onPositionChanged: mouse => {
-                    if (pressed && isDragging) {
-                        let ratio = Math.max(0, Math.min(1, mouse.x / micSliderTrack.width));
-                        let newMicLevel = Math.max(0, Math.min(100, Math.round(ratio * 100)));
-                        if (AudioService.source && AudioService.source.audio) {
-                            AudioService.source.audio.muted = false;
-                            AudioService.source.audio.volume = newMicLevel / 100;
-                        }
-                    }
-                }
+                                       if (pressed && isDragging) {
+                                           let ratio = Math.max(
+                                               0, Math.min(
+                                                   1,
+                                                   mouse.x / micSliderTrack.width))
+                                           let newMicLevel = Math.max(
+                                               0, Math.min(100, Math.round(
+                                                               ratio * 100)))
+                                           if (AudioService.source
+                                               && AudioService.source.audio) {
+                                               AudioService.source.audio.muted = false
+                                               AudioService.source.audio.volume = newMicLevel / 100
+                                           }
+                                       }
+                                   }
                 onClicked: mouse => {
-                    let ratio = Math.max(0, Math.min(1, mouse.x / micSliderTrack.width));
-                    let newMicLevel = Math.round(ratio * 100);
-                    if (AudioService.source && AudioService.source.audio) {
-                        AudioService.source.audio.muted = false;
-                        AudioService.source.audio.volume = newMicLevel / 100;
-                    }
-                }
+                               let ratio = Math.max(
+                                   0, Math.min(1,
+                                               mouse.x / micSliderTrack.width))
+                               let newMicLevel = Math.round(ratio * 100)
+                               if (AudioService.source
+                                   && AudioService.source.audio) {
+                                   AudioService.source.audio.muted = false
+                                   AudioService.source.audio.volume = newMicLevel / 100
+                               }
+                           }
             }
 
             MouseArea {
@@ -185,18 +206,25 @@ Column {
                 visible: false
                 preventStealing: true
                 onPositionChanged: mouse => {
-                    if (micMouseArea.isDragging) {
-                        let globalPos = mapToItem(micSliderTrack, mouse.x, mouse.y);
-                        let ratio = Math.max(0, Math.min(1, globalPos.x / micSliderTrack.width));
-                        let newMicLevel = Math.max(0, Math.min(100, Math.round(ratio * 100)));
-                        if (AudioService.source && AudioService.source.audio) {
-                            AudioService.source.audio.muted = false;
-                            AudioService.source.audio.volume = newMicLevel / 100;
-                        }
-                    }
-                }
+                                       if (micMouseArea.isDragging) {
+                                           let globalPos = mapToItem(
+                                               micSliderTrack, mouse.x, mouse.y)
+                                           let ratio = Math.max(
+                                               0, Math.min(
+                                                   1,
+                                                   globalPos.x / micSliderTrack.width))
+                                           let newMicLevel = Math.max(
+                                               0, Math.min(100, Math.round(
+                                                               ratio * 100)))
+                                           if (AudioService.source
+                                               && AudioService.source.audio) {
+                                               AudioService.source.audio.muted = false
+                                               AudioService.source.audio.volume = newMicLevel / 100
+                                           }
+                                       }
+                                   }
                 onReleased: {
-                    micMouseArea.isDragging = false;
+                    micMouseArea.isDragging = false
                 }
             }
         }

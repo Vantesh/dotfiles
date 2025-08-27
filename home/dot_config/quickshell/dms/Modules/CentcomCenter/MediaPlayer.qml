@@ -17,20 +17,32 @@ Rectangle {
     property string lastValidArtUrl: ""
     property real currentPosition: activePlayer
                                    && activePlayer.positionSupported ? activePlayer.position : 0
+    property real displayPosition: currentPosition
 
     function ratio() {
         if (!activePlayer || activePlayer.length <= 0) {
             return 0
         }
-        let calculatedRatio = currentPosition / activePlayer.length
+        let calculatedRatio = displayPosition / activePlayer.length
         return Math.max(0, Math.min(1, calculatedRatio))
     }
 
     onActivePlayerChanged: {
         if (activePlayer && activePlayer.positionSupported) {
-            activePlayer.positionChanged()
+            currentPosition = Qt.binding(() => activePlayer.position)
         }
     }
+
+    Timer {
+        id: positionTimer
+        interval: 300
+        running: activePlayer
+                 && activePlayer.playbackState === MprisPlaybackState.Playing
+                 && !progressMouseArea.isSeeking
+        repeat: true
+        onTriggered: activePlayer && activePlayer.positionSupported && activePlayer.positionChanged()
+    }
+
     width: parent.width
     height: parent.height
     radius: Theme.cornerRadius
@@ -41,20 +53,6 @@ Rectangle {
     border.width: 1
     layer.enabled: true
 
-    Timer {
-        id: positionTimer
-
-        interval: 500
-        running: activePlayer
-                 && activePlayer.playbackState === MprisPlaybackState.Playing
-                 && !progressMouseArea.isSeeking
-        repeat: true
-        onTriggered: {
-            if (activePlayer && activePlayer.positionSupported) {
-                activePlayer.positionChanged()
-            }
-        }
-    }
 
     Timer {
         id: cleanupTimer
@@ -71,15 +69,6 @@ Rectangle {
         }
     }
 
-    Connections {
-        function onTrackChanged() {
-            if (activePlayer && activePlayer.positionSupported) {
-                activePlayer.positionChanged()
-            }
-        }
-
-        target: activePlayer
-    }
 
     Item {
         anchors.fill: parent
@@ -282,6 +271,21 @@ Rectangle {
                     id: progressMouseArea
 
                     property bool isSeeking: false
+                    property real pendingSeekPosition: -1
+
+                    Timer {
+                        id: seekDebounceTimer
+                        interval: 150
+                        repeat: false
+                        onTriggered: {
+                            if (progressMouseArea.pendingSeekPosition >= 0 && activePlayer && activePlayer.canSeek && activePlayer.length > 0) {
+                                let clampedPosition = Math.min(progressMouseArea.pendingSeekPosition, activePlayer.length * 0.99)
+                                activePlayer.position = clampedPosition
+                                progressMouseArea.pendingSeekPosition = -1
+                            }
+                        }
+                    }
+
 
                     anchors.fill: parent
                     hoverEnabled: true
@@ -297,12 +301,20 @@ Rectangle {
                                     0, Math.min(
                                         1,
                                         mouse.x / progressBarBackground.width))
-                            let seekPosition = ratio * activePlayer.length
-                            activePlayer.position = seekPosition
+                            pendingSeekPosition = ratio * activePlayer.length
+                            displayPosition = pendingSeekPosition
+                            seekDebounceTimer.restart()
                         }
                     }
                     onReleased: {
                         isSeeking = false
+                        seekDebounceTimer.stop()
+                        if (pendingSeekPosition >= 0 && activePlayer && activePlayer.canSeek && activePlayer.length > 0) {
+                            let clampedPosition = Math.min(pendingSeekPosition, activePlayer.length * 0.99)
+                            activePlayer.position = clampedPosition
+                            pendingSeekPosition = -1
+                        }
+                        displayPosition = Qt.binding(() => currentPosition)
                     }
                     onPositionChanged: function (mouse) {
                         if (pressed && isSeeking && activePlayer
@@ -312,8 +324,9 @@ Rectangle {
                                     0, Math.min(
                                         1,
                                         mouse.x / progressBarBackground.width))
-                            let seekPosition = ratio * activePlayer.length
-                            activePlayer.position = seekPosition
+                            pendingSeekPosition = ratio * activePlayer.length
+                            displayPosition = pendingSeekPosition
+                            seekDebounceTimer.restart()
                         }
                     }
                     onClicked: function (mouse) {
@@ -323,8 +336,7 @@ Rectangle {
                                     0, Math.min(
                                         1,
                                         mouse.x / progressBarBackground.width))
-                            let seekPosition = ratio * activePlayer.length
-                            activePlayer.position = seekPosition
+                            activePlayer.position = ratio * activePlayer.length
                         }
                     }
                 }
@@ -349,12 +361,20 @@ Rectangle {
                                     0, Math.min(
                                         1,
                                         globalPos.x / progressBarBackground.width))
-                            let seekPosition = ratio * activePlayer.length
-                            activePlayer.position = seekPosition
+                            progressMouseArea.pendingSeekPosition = ratio * activePlayer.length
+                            displayPosition = progressMouseArea.pendingSeekPosition
+                            seekDebounceTimer.restart()
                         }
                     }
                     onReleased: {
                         progressMouseArea.isSeeking = false
+                        seekDebounceTimer.stop()
+                        if (progressMouseArea.pendingSeekPosition >= 0 && activePlayer && activePlayer.canSeek && activePlayer.length > 0) {
+                            let clampedPosition = Math.min(progressMouseArea.pendingSeekPosition, activePlayer.length * 0.99)
+                            activePlayer.position = clampedPosition
+                            progressMouseArea.pendingSeekPosition = -1
+                        }
+                        displayPosition = Qt.binding(() => currentPosition)
                     }
                 }
             }

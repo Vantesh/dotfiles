@@ -3,26 +3,32 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import Quickshell.Widgets
+import qs.Common
 import qs.Modals
 import qs.Modules
 import qs.Modules.AppDrawer
-import qs.Modules.OSD
 import qs.Modules.CentcomCenter
 import qs.Modules.ControlCenter
 import qs.Modules.ControlCenter.Network
+import qs.Modules.Dock
 import qs.Modules.Lock
 import qs.Modules.Notifications.Center
 import qs.Modules.Notifications.Popup
+import qs.Modules.OSD
 import qs.Modules.ProcessList
 import qs.Modules.Settings
 import qs.Modules.TopBar
-import qs.Modules.Dock
 import qs.Services
 
 ShellRoot {
     id: root
 
-    WallpaperBackground {}
+    Component.onCompleted: {
+        PortalService.init()
+    }
+
+    WallpaperBackground {
+    }
 
     Lock {
         id: lock
@@ -31,152 +37,200 @@ ShellRoot {
     }
 
     Variants {
-        model: Quickshell.screens
+        model: SettingsData.getFilteredScreens("topBar")
 
         delegate: TopBar {
             modelData: item
         }
+
     }
 
     Variants {
-        model: Quickshell.screens
+        model: SettingsData.getFilteredScreens("dock")
 
         delegate: Dock {
             modelData: item
             contextMenu: dockContextMenuLoader.item ? dockContextMenuLoader.item : null
-            windowsMenu: dockWindowsMenuLoader.item ? dockWindowsMenuLoader.item : null
-
             Component.onCompleted: {
                 dockContextMenuLoader.active = true
-                dockWindowsMenuLoader.active = true
             }
         }
+
     }
 
     Loader {
         id: centcomPopoutLoader
+
         active: false
+
         sourceComponent: Component {
             CentcomPopout {
                 id: centcomPopout
             }
+
         }
+
     }
 
     LazyLoader {
         id: dockContextMenuLoader
+
         active: false
 
         DockContextMenu {
             id: dockContextMenu
         }
-    }
 
-    LazyLoader {
-        id: dockWindowsMenuLoader
-        active: false
-
-        DockWindowsMenu {
-            id: dockWindowsMenu
-        }
     }
 
     LazyLoader {
         id: notificationCenterLoader
+
         active: false
 
         NotificationCenterPopout {
             id: notificationCenter
         }
+
     }
 
     Variants {
-        model: Quickshell.screens
+        model: SettingsData.getFilteredScreens("notifications")
 
         delegate: NotificationPopupManager {
             modelData: item
         }
+
     }
 
     LazyLoader {
         id: controlCenterLoader
+
         active: false
 
         ControlCenterPopout {
             id: controlCenterPopout
 
             onPowerActionRequested: (action, title, message) => {
-                                        powerConfirmModalLoader.active = true
-                                        if (powerConfirmModalLoader.item) {
-                                            powerConfirmModalLoader.item.show(
-                                                action, title, message)
-                                        }
-                                    }
+                powerConfirmModalLoader.active = true
+                if (powerConfirmModalLoader.item) {
+                    powerConfirmModalLoader.item.confirmButtonColor = 
+                        action === "poweroff" ? Theme.error : 
+                        action === "reboot" ? Theme.warning : Theme.primary
+                    powerConfirmModalLoader.item.show(title, message, function() {
+                        switch (action) {
+                        case "logout":
+                            SessionService.logout()
+                            break
+                        case "suspend":
+                            SessionService.suspend()
+                            break
+                        case "reboot":
+                            SessionService.reboot()
+                            break
+                        case "poweroff":
+                            SessionService.poweroff()
+                            break
+                        }
+                    }, function() {})
+                }
+            }
             onLockRequested: {
                 lock.activate()
             }
         }
+
     }
 
     LazyLoader {
         id: wifiPasswordModalLoader
+
         active: false
 
         WifiPasswordModal {
             id: wifiPasswordModal
         }
+
     }
 
     LazyLoader {
         id: networkInfoModalLoader
+
         active: false
 
         NetworkInfoModal {
             id: networkInfoModal
         }
+
     }
 
     LazyLoader {
         id: batteryPopoutLoader
+
         active: false
 
         BatteryPopout {
             id: batteryPopout
         }
+
     }
 
     LazyLoader {
         id: powerMenuLoader
+
         active: false
 
         PowerMenu {
             id: powerMenu
+
             onPowerActionRequested: (action, title, message) => {
-                                        powerConfirmModalLoader.active = true
-                                        if (powerConfirmModalLoader.item) {
-                                            powerConfirmModalLoader.item.show(
-                                                action, title, message)
-                                        }
-                                    }
+                powerConfirmModalLoader.active = true
+                if (powerConfirmModalLoader.item) {
+                    powerConfirmModalLoader.item.confirmButtonColor = 
+                        action === "poweroff" ? Theme.error : 
+                        action === "reboot" ? Theme.warning : Theme.primary
+                    powerConfirmModalLoader.item.show(title, message, function() {
+                        switch (action) {
+                        case "logout":
+                            SessionService.logout()
+                            break
+                        case "suspend":
+                            SessionService.suspend()
+                            break
+                        case "reboot":
+                            SessionService.reboot()
+                            break
+                        case "poweroff":
+                            SessionService.poweroff()
+                            break
+                        }
+                    }, function() {})
+                }
+            }
         }
+
     }
 
     LazyLoader {
         id: powerConfirmModalLoader
+
         active: false
 
-        PowerConfirmModal {
+        ConfirmModal {
             id: powerConfirmModal
         }
+
     }
 
     LazyLoader {
         id: processListPopoutLoader
+
         active: false
 
         ProcessListPopout {
             id: processListPopout
         }
+
     }
 
     SettingsModal {
@@ -185,11 +239,13 @@ ShellRoot {
 
     LazyLoader {
         id: appDrawerLoader
+
         active: false
 
         AppDrawerPopout {
             id: appDrawerPopout
         }
+
     }
 
     SpotlightModal {
@@ -212,6 +268,70 @@ ShellRoot {
         ProcessListModal {
             id: processListModal
         }
+
+    }
+
+    LazyLoader {
+        id: powerMenuModalLoader
+
+        active: false
+
+        PowerMenuModal {
+            id: powerMenuModal
+
+            onPowerActionRequested: (action, title, message) => {
+                powerConfirmModalLoader.active = true
+                if (powerConfirmModalLoader.item) {
+                    powerConfirmModalLoader.item.confirmButtonColor = 
+                        action === "poweroff" ? Theme.error : 
+                        action === "reboot" ? Theme.warning : Theme.primary
+                    powerConfirmModalLoader.item.show(title, message, function() {
+                        switch (action) {
+                        case "logout":
+                            SessionService.logout()
+                            break
+                        case "suspend":
+                            SessionService.suspend()
+                            break
+                        case "reboot":
+                            SessionService.reboot()
+                            break
+                        case "poweroff":
+                            SessionService.poweroff()
+                            break
+                        }
+                    }, function() {})
+                }
+            }
+        }
+
+    }
+
+    IpcHandler {
+        function open() {
+            powerMenuModalLoader.active = true
+            if (powerMenuModalLoader.item)
+                powerMenuModalLoader.item.open()
+
+            return "POWERMENU_OPEN_SUCCESS"
+        }
+
+        function close() {
+            if (powerMenuModalLoader.item)
+                powerMenuModalLoader.item.close()
+
+            return "POWERMENU_CLOSE_SUCCESS"
+        }
+
+        function toggle() {
+            powerMenuModalLoader.active = true
+            if (powerMenuModalLoader.item)
+                powerMenuModalLoader.item.toggle()
+
+            return "POWERMENU_TOGGLE_SUCCESS"
+        }
+
+        target: "powermenu"
     }
 
     IpcHandler {
@@ -242,43 +362,49 @@ ShellRoot {
     }
 
     Variants {
-        model: Quickshell.screens
+        model: SettingsData.getFilteredScreens("toast")
 
         delegate: Toast {
             modelData: item
             visible: ToastService.toastVisible
         }
+
     }
 
     Variants {
-        model: Quickshell.screens
+        model: SettingsData.getFilteredScreens("osd")
 
         delegate: VolumeOSD {
             modelData: item
         }
+
     }
 
     Variants {
-        model: Quickshell.screens
+        model: SettingsData.getFilteredScreens("osd")
 
         delegate: MicMuteOSD {
             modelData: item
         }
+
     }
 
     Variants {
-        model: Quickshell.screens
+        model: SettingsData.getFilteredScreens("osd")
 
         delegate: BrightnessOSD {
             modelData: item
         }
+
     }
 
     Variants {
-        model: Quickshell.screens
+        model: SettingsData.getFilteredScreens("osd")
 
         delegate: IdleInhibitorOSD {
             modelData: item
         }
+
     }
+
 }

@@ -22,19 +22,26 @@ Rectangle {
     }
 
     readonly property int currentContentWidth: {
-        // AudioViz (20) + spacing + text + spacing + controls (~90) + padding
-        const baseWidth = 20 + Theme.spacingXS + 90 + Theme.spacingS * 2
-        return baseWidth + textWidth + (textWidth > 0 ? Theme.spacingXS : 0)
+        // Calculate actual content width:
+        // AudioViz (20) + spacing + [text + spacing] + controls (prev:20 + spacing + play:24 + spacing + next:20) + padding
+        const controlsWidth = 20 + Theme.spacingXS + 24 + Theme.spacingXS + 20  // ~72px total
+        const audioVizWidth = 20
+        const contentWidth = audioVizWidth + Theme.spacingXS + controlsWidth
+        return contentWidth + (textWidth > 0 ? textWidth + Theme.spacingXS : 0) + horizontalPadding * 2
     }
     property string section: "center"
     property var popupTarget: null
     property var parentScreen: null
+    property real barHeight: 48
+    property real widgetHeight: 30
+    readonly property real horizontalPadding: SettingsData.topBarNoBackground ? 0 : Math.max(Theme.spacingXS, Theme.spacingS * (widgetHeight / 30))
 
     signal clicked
 
-    height: 30
-    radius: Theme.cornerRadius
+    height: widgetHeight
+    radius: SettingsData.topBarNoBackground ? 0 : Theme.cornerRadius
     color: {
+        if (SettingsData.topBarNoBackground) return "transparent"
         const baseColor = Theme.surfaceTextHover
         return Qt.rgba(baseColor.r, baseColor.g, baseColor.b,
                        baseColor.a * Theme.widgetTransparency)
@@ -210,7 +217,7 @@ Rectangle {
                             var relativeX = globalPos.x - screenX
                             root.popupTarget.setTriggerPosition(
                                         relativeX,
-                                        Theme.barHeight + Theme.spacingXS,
+                                        barHeight + Theme.spacingXS,
                                         root.width, root.section, currentScreen)
                         }
                         root.clicked()

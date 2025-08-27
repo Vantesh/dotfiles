@@ -2,10 +2,13 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Effects
 import qs.Common
+import qs.Services
 import qs.Widgets
 
 Item {
     id: aboutTab
+
+    property bool isHyprland: CompositorService.isHyprland
 
     DankFlickable {
         anchors.fill: parent
@@ -25,8 +28,10 @@ Item {
                 width: parent.width
                 height: asciiSection.implicitHeight + Theme.spacingL * 2
                 radius: Theme.cornerRadius
-                color: Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g, Theme.surfaceVariant.b, 0.3)
-                border.color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.2)
+                color: Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g,
+                               Theme.surfaceVariant.b, 0.3)
+                border.color: Qt.rgba(Theme.outline.r, Theme.outline.g,
+                                      Theme.outline.b, 0.2)
                 border.width: 1
 
                 Column {
@@ -51,23 +56,78 @@ Item {
                         }
                     }
 
-                    Row {
+                    StyledText {
+                        text: "DankMaterialShell"
+                        font.pixelSize: Theme.fontSizeXLarge
+                        font.weight: Font.Bold
+                        color: Theme.surfaceText
+                        horizontalAlignment: Text.AlignHCenter
+                        width: parent.width
+                    }
+
+                    Item {
                         id: communityIcons
                         anchors.horizontalCenter: parent.horizontalCenter
-                        spacing: Theme.spacingL
+                        height: 24
+                        width: {
+                            if (isHyprland) {
+                                return compositorButton.width + discordButton.width + Theme.spacingM + redditButton.width + Theme.spacingM
+                            } else {
+                                return compositorButton.width + matrixButton.width + 4 + discordButton.width + Theme.spacingM + redditButton.width + Theme.spacingM
+                            }
+                        }
 
-                        // Only GitHub button remains
+                        // Compositor logo (Niri or Hyprland)
                         Item {
-                            id: githubButton
-                            width: 30
+                            id: compositorButton
+                            width: 24
                             height: 24
+                            anchors.verticalCenter: parent.verticalCenter
+                            anchors.verticalCenterOffset: -2
+                            x: 0
 
                             property bool hovered: false
-                            property string tooltipText: "Dank GitHub"
+                            property string tooltipText: isHyprland ? "Hyprland Website" : "niri GitHub"
 
                             Image {
                                 anchors.fill: parent
-                                source: Qt.resolvedUrl(".").toString().replace("file://", "").replace("/Modules/Settings/", "") + "/assets/github.svg"
+                                source: Qt.resolvedUrl(".").toString().replace(
+                                            "file://", "").replace(
+                                            "/Modules/Settings/",
+                                            "") + (isHyprland ? "/assets/hyprland.svg" : "/assets/niri.svg")
+                                sourceSize: Qt.size(24, 24)
+                                smooth: true
+                                fillMode: Image.PreserveAspectFit
+                            }
+
+                            MouseArea {
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                hoverEnabled: true
+                                onEntered: parent.hovered = true
+                                onExited: parent.hovered = false
+                                onClicked: Qt.openUrlExternally(
+                                               isHyprland ? "https://hypr.land" : "https://github.com/YaLTeR/niri")
+                            }
+                        }
+
+                        // Matrix button (only for Niri)
+                        Item {
+                            id: matrixButton
+                            width: 30
+                            height: 24
+                            x: compositorButton.x + compositorButton.width + 4
+                            visible: !isHyprland
+
+                            property bool hovered: false
+                            property string tooltipText: "niri Matrix Chat"
+
+                            Image {
+                                anchors.fill: parent
+                                source: Qt.resolvedUrl(".").toString().replace(
+                                            "file://", "").replace(
+                                            "/Modules/Settings/",
+                                            "") + "/assets/matrix-logo-white.svg"
                                 sourceSize: Qt.size(28, 18)
                                 smooth: true
                                 fillMode: Image.PreserveAspectFit
@@ -85,20 +145,90 @@ Item {
                                 hoverEnabled: true
                                 onEntered: parent.hovered = true
                                 onExited: parent.hovered = false
-                                onClicked: Qt.openUrlExternally("https://github.com/AvengeMedia/DankMaterialShell")
+                                onClicked: Qt.openUrlExternally(
+                                               "https://matrix.to/#/#niri:matrix.org")
+                            }
+                        }
+
+                        // Discord button
+                        Item {
+                            id: discordButton
+                            width: 20
+                            height: 20
+                            x: isHyprland ? compositorButton.x + compositorButton.width + Theme.spacingM : matrixButton.x + matrixButton.width + Theme.spacingM
+                            anchors.verticalCenter: parent.verticalCenter
+
+                            property bool hovered: false
+                            property string tooltipText: isHyprland ? "Hyprland Discord Server" : "niri Discord Server"
+
+                            Image {
+                                anchors.fill: parent
+                                source: Qt.resolvedUrl(".").toString().replace(
+                                            "file://", "").replace(
+                                            "/Modules/Settings/",
+                                            "") + "/assets/discord.svg"
+                                sourceSize: Qt.size(20, 20)
+                                smooth: true
+                                fillMode: Image.PreserveAspectFit
+                            }
+
+                            MouseArea {
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                hoverEnabled: true
+                                onEntered: parent.hovered = true
+                                onExited: parent.hovered = false
+                                onClicked: Qt.openUrlExternally(
+                                               isHyprland ? "https://discord.com/invite/hQ9XvMUjjr" : "https://discord.gg/vT8Sfjy7sx")
+                            }
+                        }
+
+                        // Reddit button
+                        Item {
+                            id: redditButton
+                            width: 20
+                            height: 20
+                            x: discordButton.x + discordButton.width + Theme.spacingM
+                            anchors.verticalCenter: parent.verticalCenter
+
+                            property bool hovered: false
+                            property string tooltipText: isHyprland ? "r/hyprland Subreddit" : "r/niri Subreddit"
+
+                            Image {
+                                anchors.fill: parent
+                                source: Qt.resolvedUrl(".").toString().replace(
+                                            "file://", "").replace(
+                                            "/Modules/Settings/",
+                                            "") + "/assets/reddit.svg"
+                                sourceSize: Qt.size(20, 20)
+                                smooth: true
+                                fillMode: Image.PreserveAspectFit
+                            }
+
+                            MouseArea {
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                hoverEnabled: true
+                                onEntered: parent.hovered = true
+                                onExited: parent.hovered = false
+                                onClicked: Qt.openUrlExternally(
+                                               isHyprland ? "https://reddit.com/r/hyprland" : "https://reddit.com/r/niri")
                             }
                         }
                     }
                 }
             }
 
+
             // Project Information
             StyledRect {
                 width: parent.width
                 height: projectSection.implicitHeight + Theme.spacingL * 2
                 radius: Theme.cornerRadius
-                color: Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g, Theme.surfaceVariant.b, 0.3)
-                border.color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.2)
+                color: Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g,
+                               Theme.surfaceVariant.b, 0.3)
+                border.color: Qt.rgba(Theme.outline.r, Theme.outline.g,
+                                      Theme.outline.b, 0.2)
                 border.width: 1
 
                 Column {
@@ -129,7 +259,7 @@ Item {
                     }
 
                     StyledText {
-                        text: `Dank is a modern desktop inspired by <a href="https://m3.material.io/" style="text-decoration:none; color:${Theme.primary};">MUI 3</a>.
+                        text: `DankMaterialShell is a modern desktop inspired by <a href="https://m3.material.io/" style="text-decoration:none; color:${Theme.primary};">MUI 3</a>.
                         <br /><br/>The goal is to provide a high level of functionality and customization so that it can be a suitable replacement for complete desktop environments like Gnome, KDE, or Cosmic.
                         `
                         textFormat: Text.RichText
@@ -155,8 +285,10 @@ Item {
                 width: parent.width
                 height: techSection.implicitHeight + Theme.spacingL * 2
                 radius: Theme.cornerRadius
-                color: Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g, Theme.surfaceVariant.b, 0.3)
-                border.color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.2)
+                color: Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g,
+                               Theme.surfaceVariant.b, 0.3)
+                border.color: Qt.rgba(Theme.outline.r, Theme.outline.g,
+                                      Theme.outline.b, 0.2)
                 border.width: 1
 
                 Column {
@@ -237,9 +369,33 @@ Item {
 
                         Row {
                             spacing: 4
-
+                            
                             StyledText {
-                                text: `<a href="https://hypr.land/" style="text-decoration:none; color:${Theme.primary};">Hyprland</a>`
+                                text: `<a href="https://github.com/YaLTeR/niri" style="text-decoration:none; color:${Theme.primary};">niri</a>`
+                                font.pixelSize: Theme.fontSizeMedium
+                                linkColor: Theme.primary
+                                textFormat: Text.RichText
+                                color: Theme.surfaceVariantText
+                                onLinkActivated: url => Qt.openUrlExternally(url)
+                                anchors.verticalCenter: parent.verticalCenter
+
+                                MouseArea {
+                                    anchors.fill: parent
+                                    cursorShape: parent.hoveredLink ? Qt.PointingHandCursor : Qt.ArrowCursor
+                                    acceptedButtons: Qt.NoButton
+                                    propagateComposedEvents: true
+                                }
+                            }
+                            
+                            StyledText {
+                                text: "&"
+                                font.pixelSize: Theme.fontSizeMedium
+                                color: Theme.surfaceVariantText
+                                anchors.verticalCenter: parent.verticalCenter
+                            }
+                            
+                            StyledText {
+                                text: `<a href="https://github.com/hyprwm/Hyprland" style="text-decoration:none; color:${Theme.primary};">hyprland</a>`
                                 font.pixelSize: Theme.fontSizeMedium
                                 linkColor: Theme.primary
                                 textFormat: Text.RichText
@@ -265,9 +421,9 @@ Item {
 
                         Row {
                             spacing: 4
-
+                            
                             StyledText {
-                                text: `<a href="https://github.com/AvengeMedia/DankMaterialShell" style="text-decoration:none; color:${Theme.primary};">Dank</a>`
+                                text: `<a href="https://github.com/AvengeMedia/DankMaterialShell" style="text-decoration:none; color:${Theme.primary};">DankMaterialShell</a>`
                                 font.pixelSize: Theme.fontSizeMedium
                                 color: Theme.surfaceVariantText
                                 linkColor: Theme.primary
@@ -282,9 +438,9 @@ Item {
                                     propagateComposedEvents: true
                                 }
                             }
-
+                            
                             StyledText {
-                                text: "- Support it With a Star ⭐"
+                                text: "- Support Us With a Star ⭐"
                                 font.pixelSize: Theme.fontSizeMedium
                                 color: Theme.surfaceVariantText
                                 anchors.verticalCenter: parent.verticalCenter
@@ -300,7 +456,7 @@ Item {
 
                         Row {
                             spacing: 4
-
+                            
                             StyledText {
                                 text: `<a href="https://github.com/AvengeMedia/dgop" style="text-decoration:none; color:${Theme.primary};">dgop</a>`
                                 font.pixelSize: Theme.fontSizeMedium
@@ -317,7 +473,7 @@ Item {
                                     propagateComposedEvents: true
                                 }
                             }
-
+                            
                             StyledText {
                                 text: "- Stateless System Monitoring"
                                 font.pixelSize: Theme.fontSizeMedium
@@ -328,6 +484,7 @@ Item {
                     }
                 }
             }
+
         }
     }
 
@@ -337,7 +494,14 @@ Item {
         parent: aboutTab
         z: 1000
 
-        property var hoveredButton: githubButton.hovered ? githubButton : null
+        property var hoveredButton: {
+            if (compositorButton.hovered) return compositorButton
+            if (matrixButton.visible && matrixButton.hovered) return matrixButton
+            if (discordButton.hovered) return discordButton
+            if (redditButton.hovered) return redditButton
+            return null
+        }
+
         property string tooltipText: hoveredButton ? hoveredButton.tooltipText : ""
 
         visible: hoveredButton !== null && tooltipText !== ""
@@ -350,7 +514,7 @@ Item {
         border.color: Theme.outlineMedium
 
         x: hoveredButton ? hoveredButton.mapToItem(aboutTab, hoveredButton.width / 2, 0).x - width / 2 : 0
-        y: hoveredButton ? hoveredButton.mapToItem(aboutTab, 0, -height - 4).y : 0
+        y: hoveredButton ? communityIcons.mapToItem(aboutTab, 0, 0).y - height - 8 : 0
 
         layer.enabled: true
         layer.effect: MultiEffect {

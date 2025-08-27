@@ -10,20 +10,14 @@ Text {
     color: Theme.surfaceText
     font.pixelSize: Appearance.fontSize.normal
     font.family: {
-        var requestedFont = isMonospace ? SettingsData.monoFontFamily : SettingsData.fontFamily;
-        var defaultFont = isMonospace ? SettingsData.defaultMonoFontFamily : SettingsData.defaultFontFamily;
-
-        // Ensure we never return an empty string
-        if (!requestedFont || requestedFont === "") {
-            requestedFont = defaultFont;
-        }
-
+        var requestedFont = isMonospace ? SettingsData.monoFontFamily : SettingsData.fontFamily
+        var defaultFont = isMonospace ? SettingsData.defaultMonoFontFamily : SettingsData.defaultFontFamily
         if (requestedFont === defaultFont) {
-            var availableFonts = Qt.fontFamilies();
+            var availableFonts = Qt.fontFamilies()
             if (!availableFonts.includes(requestedFont))
-                return isMonospace ? "Monospace" : "DejaVu Sans";
+                return isMonospace ? "Monospace" : "DejaVu Sans"
         }
-        return requestedFont || (isMonospace ? "Monospace" : "DejaVu Sans");
+        return requestedFont
     }
     font.weight: SettingsData.fontWeight
     wrapMode: Text.WordWrap

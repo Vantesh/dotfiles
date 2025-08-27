@@ -131,6 +131,13 @@ Item {
             "description": "Visual divider between widgets",
             "icon": "remove",
             "enabled": true
+        }, {
+            "id": "network_speed_monitor",
+            "text": "Network Speed Monitor",
+            "description": "Network download and upload speed display",
+            "icon": "network_check",
+            "warning": !DgopService.dgopAvailable ? "Requires 'dgop' tool" : undefined,
+            "enabled": DgopService.dgopAvailable
         }]
     property var defaultLeftWidgets: [{
             "id": "launcherButton",

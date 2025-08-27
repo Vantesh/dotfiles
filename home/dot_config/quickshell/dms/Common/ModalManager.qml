@@ -1,7 +1,9 @@
-import QtQuick
 pragma Singleton
 
-QtObject {
+import Quickshell
+import QtQuick
+
+Singleton {
     id: modalManager
 
     signal closeAllModalsExcept(var excludedModal)

@@ -17,9 +17,10 @@ Column {
     signal itemOrderChanged(var newOrder)
     signal addWidget(string sectionId)
     signal removeWidget(string sectionId, int widgetIndex)
-    signal spacerSizeChanged(string sectionId, string itemId, int newSize)
+    signal spacerSizeChanged(string sectionId, int widgetIndex, int newSize)
     signal compactModeChanged(string widgetId, var value)
     signal gpuSelectionChanged(string sectionId, int widgetIndex, int selectedIndex)
+    signal controlCenterSettingChanged(string sectionId, int widgetIndex, string settingName, bool value)
 
     width: parent.width
     height: implicitHeight
@@ -373,6 +374,25 @@ Column {
                         }
 
                         DankActionButton {
+                            visible: modelData.id === "controlCenterButton"
+                            buttonSize: 32
+                            iconName: "more_vert"
+                            iconSize: 18
+                            iconColor: Theme.outline
+                            onClicked: {
+                                console.log("Control Center three-dot button clicked for widget:", modelData.id)
+                                controlCenterContextMenu.widgetData = modelData
+                                controlCenterContextMenu.sectionId = root.sectionId
+                                controlCenterContextMenu.widgetIndex = index
+                                // Position relative to the action buttons row, not the specific button
+                                var parentPos = parent.mapToItem(root, 0, 0)
+                                controlCenterContextMenu.x = parentPos.x - 210 // Position to the left with margin
+                                controlCenterContextMenu.y = parentPos.y - 10 // Slightly above
+                                controlCenterContextMenu.open()
+                            }
+                        }
+
+                        DankActionButton {
                             visible: modelData.id !== "spacer"
                             buttonSize: 32
                             iconName: modelData.enabled ? "visibility" : "visibility_off"
@@ -399,7 +419,7 @@ Column {
                                     var currentSize = modelData.size || 20
                                     var newSize = Math.max(5, currentSize - 5)
                                     root.spacerSizeChanged(root.sectionId,
-                                                           modelData.id,
+                                                           index,
                                                            newSize)
                                 }
                             }
@@ -421,7 +441,7 @@ Column {
                                     var newSize = Math.min(5000,
                                                            currentSize + 5)
                                     root.spacerSizeChanged(root.sectionId,
-                                                           modelData.id,
+                                                           index,
                                                            newSize)
                                 }
                             }
@@ -535,6 +555,207 @@ Column {
                 duration: Theme.shortDuration
                 easing.type: Theme.standardEasing
             }
+        }
+    }
+
+    Popup {
+        id: controlCenterContextMenu
+
+        property var widgetData: null
+        property string sectionId: ""
+        property int widgetIndex: -1
+
+
+        width: 200
+        height: 120
+        padding: 0
+        modal: true
+        focus: true
+        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+        
+        onOpened: {
+            console.log("Control Center context menu opened")
+        }
+        
+        onClosed: {
+            console.log("Control Center context menu closed")
+        }
+
+        background: Rectangle {
+            color: Theme.popupBackground()
+            radius: Theme.cornerRadius
+            border.color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.08)
+            border.width: 1
+        }
+
+        contentItem: Item {
+
+            Column {
+                id: menuColumn
+                anchors.fill: parent
+                anchors.margins: Theme.spacingS
+                spacing: 2
+
+                Rectangle {
+                    width: parent.width
+                    height: 32
+                    radius: Theme.cornerRadius
+                    color: networkToggleArea.containsMouse ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.12) : "transparent"
+
+                    Row {
+                        anchors.left: parent.left
+                        anchors.leftMargin: Theme.spacingS
+                        anchors.verticalCenter: parent.verticalCenter
+                        spacing: Theme.spacingS
+
+                        DankIcon {
+                            name: "lan"
+                            size: 16
+                            color: Theme.surfaceText
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+
+                        StyledText {
+                            text: "Network Icon"
+                            font.pixelSize: Theme.fontSizeSmall
+                            color: Theme.surfaceText
+                            font.weight: Font.Normal
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+                    }
+
+                    DankToggle {
+                        id: networkToggle
+                        anchors.right: parent.right
+                        anchors.rightMargin: Theme.spacingS
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: 40
+                        height: 20
+                        checked: SettingsData.controlCenterShowNetworkIcon
+                        onToggled: {
+                            root.controlCenterSettingChanged(controlCenterContextMenu.sectionId, controlCenterContextMenu.widgetIndex, "showNetworkIcon", toggled)
+                        }
+                    }
+
+                    MouseArea {
+                        id: networkToggleArea
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onPressed: {
+                            networkToggle.checked = !networkToggle.checked
+                            root.controlCenterSettingChanged(controlCenterContextMenu.sectionId, controlCenterContextMenu.widgetIndex, "showNetworkIcon", networkToggle.checked)
+                        }
+                    }
+                }
+
+                Rectangle {
+                    width: parent.width
+                    height: 32
+                    radius: Theme.cornerRadius
+                    color: bluetoothToggleArea.containsMouse ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.12) : "transparent"
+
+                    Row {
+                        anchors.left: parent.left
+                        anchors.leftMargin: Theme.spacingS
+                        anchors.verticalCenter: parent.verticalCenter
+                        spacing: Theme.spacingS
+
+                        DankIcon {
+                            name: "bluetooth"
+                            size: 16
+                            color: Theme.surfaceText
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+
+                        StyledText {
+                            text: "Bluetooth Icon"
+                            font.pixelSize: Theme.fontSizeSmall
+                            color: Theme.surfaceText
+                            font.weight: Font.Normal
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+                    }
+
+                    DankToggle {
+                        id: bluetoothToggle
+                        anchors.right: parent.right
+                        anchors.rightMargin: Theme.spacingS
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: 40
+                        height: 20
+                        checked: SettingsData.controlCenterShowBluetoothIcon
+                        onToggled: {
+                            root.controlCenterSettingChanged(controlCenterContextMenu.sectionId, controlCenterContextMenu.widgetIndex, "showBluetoothIcon", toggled)
+                        }
+                    }
+
+                    MouseArea {
+                        id: bluetoothToggleArea
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onPressed: {
+                            bluetoothToggle.checked = !bluetoothToggle.checked
+                            root.controlCenterSettingChanged(controlCenterContextMenu.sectionId, controlCenterContextMenu.widgetIndex, "showBluetoothIcon", bluetoothToggle.checked)
+                        }
+                    }
+                }
+
+                Rectangle {
+                    width: parent.width
+                    height: 32
+                    radius: Theme.cornerRadius
+                    color: audioToggleArea.containsMouse ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.12) : "transparent"
+
+                    Row {
+                        anchors.left: parent.left
+                        anchors.leftMargin: Theme.spacingS
+                        anchors.verticalCenter: parent.verticalCenter
+                        spacing: Theme.spacingS
+
+                        DankIcon {
+                            name: "volume_up"
+                            size: 16
+                            color: Theme.surfaceText
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+
+                        StyledText {
+                            text: "Audio Icon"
+                            font.pixelSize: Theme.fontSizeSmall
+                            color: Theme.surfaceText
+                            font.weight: Font.Normal
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+                    }
+
+                    DankToggle {
+                        id: audioToggle
+                        anchors.right: parent.right
+                        anchors.rightMargin: Theme.spacingS
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: 40
+                        height: 20
+                        checked: SettingsData.controlCenterShowAudioIcon
+                        onToggled: {
+                            root.controlCenterSettingChanged(controlCenterContextMenu.sectionId, controlCenterContextMenu.widgetIndex, "showAudioIcon", toggled)
+                        }
+                    }
+
+                    MouseArea {
+                        id: audioToggleArea
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onPressed: {
+                            audioToggle.checked = !audioToggle.checked
+                            root.controlCenterSettingChanged(controlCenterContextMenu.sectionId, controlCenterContextMenu.widgetIndex, "showAudioIcon", audioToggle.checked)
+                        }
+                    }
+                }
+            }
+
         }
     }
 }

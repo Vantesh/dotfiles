@@ -132,6 +132,14 @@ Item {
             "description": "Visual divider between widgets",
             "icon": "remove",
             "enabled": true
+        },
+        {
+            "id": "network_speed_monitor",
+            "text": "Network Speed Monitor",
+            "description": "Network download and upload speed display",
+            "icon": "network_check",
+            "warning": !DgopService.dgopAvailable ? "Requires 'dgop' tool" : undefined,
+            "enabled": DgopService.dgopAvailable
         }]
     property var defaultLeftWidgets: [{
             "id": "launcherButton",
@@ -183,6 +191,11 @@ Item {
         if (widgetId === "gpuTemp") {
             widgetObj.selectedGpuIndex = 0
             widgetObj.pciId = ""
+        }
+        if (widgetId === "controlCenterButton") {
+            widgetObj.showNetworkIcon = true
+            widgetObj.showBluetoothIcon = true
+            widgetObj.showAudioIcon = true
         }
 
         var widgets = []
@@ -256,6 +269,11 @@ Item {
                         newWidget.pciId = widget.pciId
                     else if (widget.id === "gpuTemp")
                         newWidget.pciId = ""
+                    if (widget.id === "controlCenterButton") {
+                        newWidget.showNetworkIcon = widget.showNetworkIcon !== undefined ? widget.showNetworkIcon : true
+                        newWidget.showBluetoothIcon = widget.showBluetoothIcon !== undefined ? widget.showBluetoothIcon : true
+                        newWidget.showAudioIcon = widget.showAudioIcon !== undefined ? widget.showAudioIcon : true
+                    }
                     widgets[i] = newWidget
                 }
                 break
@@ -278,7 +296,7 @@ Item {
             SettingsData.setTopBarRightWidgets(newOrder)
     }
 
-    function handleSpacerSizeChanged(sectionId, itemId, newSize) {
+    function handleSpacerSizeChanged(sectionId, widgetIndex, newSize) {
         var widgets = []
         if (sectionId === "left")
             widgets = SettingsData.topBarLeftWidgets.slice()
@@ -286,12 +304,13 @@ Item {
             widgets = SettingsData.topBarCenterWidgets.slice()
         else if (sectionId === "right")
             widgets = SettingsData.topBarRightWidgets.slice()
-        for (var i = 0; i < widgets.length; i++) {
-            var widget = widgets[i]
+        
+        if (widgetIndex >= 0 && widgetIndex < widgets.length) {
+            var widget = widgets[widgetIndex]
             var widgetId = typeof widget === "string" ? widget : widget.id
-            if (widgetId === itemId && widgetId === "spacer") {
+            if (widgetId === "spacer") {
                 if (typeof widget === "string") {
-                    widgets[i] = {
+                    widgets[widgetIndex] = {
                         "id": widget,
                         "enabled": true,
                         "size": newSize
@@ -306,11 +325,16 @@ Item {
                         newWidget.selectedGpuIndex = widget.selectedGpuIndex
                     if (widget.pciId !== undefined)
                         newWidget.pciId = widget.pciId
-                    widgets[i] = newWidget
+                    if (widget.id === "controlCenterButton") {
+                        newWidget.showNetworkIcon = widget.showNetworkIcon !== undefined ? widget.showNetworkIcon : true
+                        newWidget.showBluetoothIcon = widget.showBluetoothIcon !== undefined ? widget.showBluetoothIcon : true
+                        newWidget.showAudioIcon = widget.showAudioIcon !== undefined ? widget.showAudioIcon : true
+                    }
+                    widgets[widgetIndex] = newWidget
                 }
-                break
             }
         }
+        
         if (sectionId === "left")
             SettingsData.setTopBarLeftWidgets(widgets)
         else if (sectionId === "center")
@@ -362,6 +386,17 @@ Item {
             SettingsData.setTopBarRightWidgets(widgets)
     }
 
+    function handleControlCenterSettingChanged(sectionId, widgetIndex, settingName, value) {
+        // Control Center settings are global, not per-widget instance
+        if (settingName === "showNetworkIcon") {
+            SettingsData.setControlCenterShowNetworkIcon(value)
+        } else if (settingName === "showBluetoothIcon") {
+            SettingsData.setControlCenterShowBluetoothIcon(value)
+        } else if (settingName === "showAudioIcon") {
+            SettingsData.setControlCenterShowAudioIcon(value)
+        }
+    }
+
     function getItemsForSection(sectionId) {
         var widgets = []
         var widgetData = []
@@ -380,6 +415,9 @@ Item {
                                === "string" ? undefined : widget.selectedGpuIndex
                                var widgetPciId = typeof widget
                                === "string" ? undefined : widget.pciId
+                               var widgetShowNetworkIcon = typeof widget === "string" ? undefined : widget.showNetworkIcon
+                               var widgetShowBluetoothIcon = typeof widget === "string" ? undefined : widget.showBluetoothIcon
+                               var widgetShowAudioIcon = typeof widget === "string" ? undefined : widget.showAudioIcon
                                var widgetDef = baseWidgetDefinitions.find(w => {
                                                                               return w.id === widgetId
                                                                           })
@@ -392,6 +430,12 @@ Item {
                                    item.selectedGpuIndex = widgetSelectedGpuIndex
                                    if (widgetPciId !== undefined)
                                    item.pciId = widgetPciId
+                                   if (widgetShowNetworkIcon !== undefined)
+                                   item.showNetworkIcon = widgetShowNetworkIcon
+                                   if (widgetShowBluetoothIcon !== undefined)
+                                   item.showBluetoothIcon = widgetShowBluetoothIcon
+                                   if (widgetShowAudioIcon !== undefined)
+                                   item.showAudioIcon = widgetShowAudioIcon
 
                                    widgets.push(item)
                                }
@@ -519,6 +563,71 @@ Item {
                 }
             }
 
+            // Manual Visibility Toggle
+            StyledRect {
+                width: parent.width
+                height: topBarVisibilitySection.implicitHeight + Theme.spacingL * 2
+                radius: Theme.cornerRadius
+                color: Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g,
+                               Theme.surfaceVariant.b, 0.3)
+                border.color: Qt.rgba(Theme.outline.r, Theme.outline.g,
+                                      Theme.outline.b, 0.2)
+                border.width: 1
+
+                Column {
+                    id: topBarVisibilitySection
+
+                    anchors.fill: parent
+                    anchors.margins: Theme.spacingL
+                    spacing: Theme.spacingM
+
+                    Row {
+                        width: parent.width
+                        spacing: Theme.spacingM
+
+                        DankIcon {
+                            name: "visibility"
+                            size: Theme.iconSize
+                            color: Theme.primary
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+
+                        Column {
+                            width: parent.width - Theme.iconSize - Theme.spacingM
+                                   - visibilityToggle.width - Theme.spacingM
+                            spacing: Theme.spacingXS
+                            anchors.verticalCenter: parent.verticalCenter
+
+                            StyledText {
+                                text: "Manual Show/Hide"
+                                font.pixelSize: Theme.fontSizeLarge
+                                font.weight: Font.Medium
+                                color: Theme.surfaceText
+                            }
+
+                            StyledText {
+                                text: "Toggle top bar visibility manually (can be controlled via IPC)"
+                                font.pixelSize: Theme.fontSizeSmall
+                                color: Theme.surfaceVariantText
+                                wrapMode: Text.WordWrap
+                                width: parent.width
+                            }
+                        }
+
+                        DankToggle {
+                            id: visibilityToggle
+
+                            anchors.verticalCenter: parent.verticalCenter
+                            checked: SettingsData.topBarVisible
+                            onToggled: toggled => {
+                                           return SettingsData.setTopBarVisible(
+                                               toggled)
+                                       }
+                        }
+                    }
+                }
+            }
+
             // Spacing
             StyledRect {
                 width: parent.width
@@ -562,7 +671,7 @@ Item {
                         spacing: Theme.spacingS
 
                         StyledText {
-                            text: "Gap Around Top Bar (0 = edge-to-edge)"
+                            text: "Top/Left/Right Gaps (0 = edge-to-edge)"
                             font.pixelSize: Theme.fontSizeSmall
                             color: Theme.surfaceText
                             font.weight: Font.Medium
@@ -583,13 +692,102 @@ Item {
                         }
                     }
 
+                    Column {
+                        width: parent.width
+                        spacing: Theme.spacingS
+
+                        StyledText {
+                            text: "Bottom Gap (Exclusive Zone)"
+                            font.pixelSize: Theme.fontSizeSmall
+                            color: Theme.surfaceText
+                            font.weight: Font.Medium
+                        }
+
+                        DankSlider {
+                            width: parent.width
+                            height: 24
+                            value: SettingsData.topBarBottomGap
+                            minimum: -100
+                            maximum: 100
+                            unit: ""
+                            showValue: true
+                            onSliderValueChanged: newValue => {
+                                                      SettingsData.setTopBarBottomGap(
+                                                          newValue)
+                                                  }
+                        }
+                    }
+
+                    Column {
+                        width: parent.width
+                        spacing: Theme.spacingS
+
+                        StyledText {
+                            text: "Size"
+                            font.pixelSize: Theme.fontSizeSmall
+                            color: Theme.surfaceText
+                            font.weight: Font.Medium
+                        }
+
+                        DankSlider {
+                            width: parent.width
+                            height: 24
+                            value: SettingsData.topBarInnerPadding
+                            minimum: 0
+                            maximum: 24
+                            unit: ""
+                            showValue: true
+                            onSliderValueChanged: newValue => {
+                                                      SettingsData.setTopBarInnerPadding(
+                                                          newValue)
+                                                  }
+                        }
+                    }
+
+                    Column {
+                        width: parent.width
+                        spacing: Theme.spacingS
+
+                        StyledText {
+                            text: "Corner Radius (0 = square corners)"
+                            font.pixelSize: Theme.fontSizeSmall
+                            color: Theme.surfaceText
+                            font.weight: Font.Medium
+                        }
+
+                        DankSlider {
+                            width: parent.width
+                            height: 24
+                            value: SettingsData.cornerRadius
+                            minimum: 0
+                            maximum: 32
+                            unit: ""
+                            showValue: true
+                            onSliderValueChanged: newValue => {
+                                                      SettingsData.setCornerRadius(
+                                                          newValue)
+                                                  }
+                        }
+                    }
+
                     DankToggle {
                         width: parent.width
                         text: "Square Corners"
-                        description: "Disable corner radius for the top bar (always square corners)"
+                        description: "Removes rounded corners from bar container."
                         checked: SettingsData.topBarSquareCorners
                         onToggled: checked => {
                                        SettingsData.setTopBarSquareCorners(
+                                           checked)
+                                   }
+                    }
+
+                    DankToggle {
+                        width: parent.width
+                        text: "No Background"
+                        description: "Remove widget backgrounds for a minimal look with tighter spacing."
+                        checked: SettingsData.topBarNoBackground
+                        onToggled: checked => {
+                                       SettingsData.setTopBarNoBackground(
                                            checked)
                                    }
                     }
@@ -760,9 +958,9 @@ Item {
                                             topBarTab.removeWidgetFromSection(
                                                 sectionId, widgetIndex)
                                         }
-                        onSpacerSizeChanged: (sectionId, itemId, newSize) => {
+                        onSpacerSizeChanged: (sectionId, widgetIndex, newSize) => {
                                                  topBarTab.handleSpacerSizeChanged(
-                                                     sectionId, itemId, newSize)
+                                                     sectionId, widgetIndex, newSize)
                                              }
                         onCompactModeChanged: (widgetId, value) => {
                                                   if (widgetId === "clock") {
@@ -779,6 +977,9 @@ Item {
                                                           value)
                                                   }
                                               }
+                        onControlCenterSettingChanged: (sectionId, widgetIndex, settingName, value) => {
+                                                           handleControlCenterSettingChanged(sectionId, widgetIndex, settingName, value)
+                                                       }
                         onGpuSelectionChanged: (sectionId, widgetIndex, selectedIndex) => {
                                                    topBarTab.handleGpuSelectionChanged(
                                                        sectionId, widgetIndex,
@@ -827,9 +1028,9 @@ Item {
                                             topBarTab.removeWidgetFromSection(
                                                 sectionId, widgetIndex)
                                         }
-                        onSpacerSizeChanged: (sectionId, itemId, newSize) => {
+                        onSpacerSizeChanged: (sectionId, widgetIndex, newSize) => {
                                                  topBarTab.handleSpacerSizeChanged(
-                                                     sectionId, itemId, newSize)
+                                                     sectionId, widgetIndex, newSize)
                                              }
                         onCompactModeChanged: (widgetId, value) => {
                                                   if (widgetId === "clock") {
@@ -846,6 +1047,9 @@ Item {
                                                           value)
                                                   }
                                               }
+                        onControlCenterSettingChanged: (sectionId, widgetIndex, settingName, value) => {
+                                                           handleControlCenterSettingChanged(sectionId, widgetIndex, settingName, value)
+                                                       }
                         onGpuSelectionChanged: (sectionId, widgetIndex, selectedIndex) => {
                                                    topBarTab.handleGpuSelectionChanged(
                                                        sectionId, widgetIndex,
@@ -894,9 +1098,9 @@ Item {
                                             topBarTab.removeWidgetFromSection(
                                                 sectionId, widgetIndex)
                                         }
-                        onSpacerSizeChanged: (sectionId, itemId, newSize) => {
+                        onSpacerSizeChanged: (sectionId, widgetIndex, newSize) => {
                                                  topBarTab.handleSpacerSizeChanged(
-                                                     sectionId, itemId, newSize)
+                                                     sectionId, widgetIndex, newSize)
                                              }
                         onCompactModeChanged: (widgetId, value) => {
                                                   if (widgetId === "clock") {
@@ -913,6 +1117,9 @@ Item {
                                                           value)
                                                   }
                                               }
+                        onControlCenterSettingChanged: (sectionId, widgetIndex, settingName, value) => {
+                                                           handleControlCenterSettingChanged(sectionId, widgetIndex, settingName, value)
+                                                       }
                         onGpuSelectionChanged: (sectionId, widgetIndex, selectedIndex) => {
                                                    topBarTab.handleGpuSelectionChanged(
                                                        sectionId, widgetIndex,

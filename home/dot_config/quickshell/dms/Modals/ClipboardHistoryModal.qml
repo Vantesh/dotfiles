@@ -12,13 +12,14 @@ DankModal {
 
     property int totalCount: 0
     property var activeTheme: Theme
-    property bool showClearConfirmation: false
     property var clipboardEntries: []
     property string searchText: ""
     property int selectedIndex: 0
     property bool keyboardNavigationActive: false
     property bool showKeyboardHints: false
     property Component clipboardContent
+    property int activeImageLoads: 0
+    readonly property int maxConcurrentLoads: 3
 
     function updateFilteredModel() {
         filteredClipboardModel.clear()
@@ -56,6 +57,7 @@ DankModal {
     function show() {
         open()
         clipboardHistoryModal.searchText = ""
+        clipboardHistoryModal.activeImageLoads = 0
 
         initializeThumbnailSystem()
         refreshClipboard()
@@ -72,6 +74,7 @@ DankModal {
     function hide() {
         close()
         clipboardHistoryModal.searchText = ""
+        clipboardHistoryModal.activeImageLoads = 0
 
         updateFilteredModel()
         keyboardController.reset()
@@ -273,99 +276,20 @@ DankModal {
         }
     }
 
-    DankModal {
+    ConfirmModal {
         id: clearConfirmDialog
-
-        visible: showClearConfirmation
-        width: 350
-        height: 150
-        onBackgroundClicked: {
-            showClearConfirmation = false
-        }
-
-        content: Component {
-            Item {
-                anchors.fill: parent
-
-                Column {
-                    anchors.centerIn: parent
-                    width: parent.width - Theme.spacingM * 2
-                    spacing: Theme.spacingM
-
-                    StyledText {
-                        text: "Clear All History?"
-                        font.pixelSize: Theme.fontSizeLarge
-                        color: Theme.surfaceText
-                        font.weight: Font.Medium
-                        anchors.horizontalCenter: parent.horizontalCenter
-                    }
-
-                    StyledText {
-                        text: "This will permanently delete all clipboard history."
-                        font.pixelSize: Theme.fontSizeMedium
-                        color: Theme.surfaceVariantText
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        wrapMode: Text.WordWrap
-                        width: parent.width
-                        horizontalAlignment: Text.AlignHCenter
-                    }
-
-                    Row {
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        spacing: Theme.spacingM
-
-                        Rectangle {
-                            width: 100
-                            height: 40
-                            radius: Theme.cornerRadius
-                            color: cancelClearButton.containsMouse ? Theme.surfaceTextPressed : Theme.surfaceVariantAlpha
-
-                            StyledText {
-                                text: "Cancel"
-                                font.pixelSize: Theme.fontSizeMedium
-                                color: Theme.surfaceText
-                                font.weight: Font.Medium
-                                anchors.centerIn: parent
-                            }
-
-                            MouseArea {
-                                id: cancelClearButton
-
-                                anchors.fill: parent
-                                hoverEnabled: true
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: showClearConfirmation = false
-                            }
-                        }
-
-                        Rectangle {
-                            width: 100
-                            height: 40
-                            radius: Theme.cornerRadius
-                            color: confirmClearButton.containsMouse ? Theme.errorPressed : Theme.error
-
-                            StyledText {
-                                text: "Clear All"
-                                font.pixelSize: Theme.fontSizeMedium
-                                color: Theme.primaryText
-                                font.weight: Font.Medium
-                                anchors.centerIn: parent
-                            }
-
-                            MouseArea {
-                                id: confirmClearButton
-
-                                anchors.fill: parent
-                                hoverEnabled: true
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: {
-                                    clearAll()
-                                    showClearConfirmation = false
-                                    hide()
-                                }
-                            }
-                        }
-                    }
+        
+        confirmButtonText: "Clear All"
+        confirmButtonColor: Theme.error
+        
+        onVisibleChanged: {
+            if (visible) {
+                clipboardHistoryModal.shouldHaveFocus = false
+            } else if (clipboardHistoryModal.shouldBeVisible) {
+                clipboardHistoryModal.shouldHaveFocus = true
+                clipboardHistoryModal.modalFocusScope.forceActiveFocus()
+                if (clipboardHistoryModal.contentLoader.item && clipboardHistoryModal.contentLoader.item.searchField) {
+                    clipboardHistoryModal.contentLoader.item.searchField.forceActiveFocus()
                 }
             }
         }
@@ -531,7 +455,15 @@ DankModal {
                             iconColor: Theme.error
                             hoverColor: Theme.errorHover
                             onClicked: {
-                                showClearConfirmation = true
+                                clearConfirmDialog.show(
+                                    "Clear All History?",
+                                    "This will permanently delete all clipboard history.",
+                                    function() {
+                                        clearAll()
+                                        hide()
+                                    },
+                                    function() {} // No action on cancel
+                                )
                             }
                         }
 
@@ -702,32 +634,115 @@ DankModal {
                                         height: entryType === "image" ? 48 : Theme.iconSize
                                         anchors.verticalCenter: parent.verticalCenter
 
-                                        CachingImage {
+                                        Image {
                                             id: thumbnailImageSource
 
                                             property string entryId: model.entry.split(
                                                                          '\t')[0]
+                                            property bool isVisible: false
+                                            property string cachedImageData: ""
+                                            property bool loadQueued: false
 
                                             anchors.fill: parent
-                                            source: entryType === "image"
-                                                    && imageLoader.imageData ? `data:image/png;base64,${imageLoader.imageData}` : ""
+                                            source: ""
                                             fillMode: Image.PreserveAspectCrop
                                             smooth: true
-                                            cache: true
+                                            cache: false // Disable Qt's cache to control it ourselves
                                             visible: false
                                             asynchronous: true
+                                            sourceSize.width: 128
+                                            sourceSize.height: 128
+                                            
+                                            onCachedImageDataChanged: {
+                                                if (cachedImageData) {
+                                                    source = ""
+                                                    source = `data:image/png;base64,${cachedImageData}`
+                                                }
+                                            }
+
+                                            function tryLoadImage() {
+                                                if (!loadQueued && entryType === "image" && !cachedImageData) {
+                                                    loadQueued = true
+                                                    if (clipboardHistoryModal.activeImageLoads < clipboardHistoryModal.maxConcurrentLoads) {
+                                                        clipboardHistoryModal.activeImageLoads++
+                                                        imageLoader.running = true
+                                                    } else {
+                                                        // Retry after delay
+                                                        retryTimer.restart()
+                                                    }
+                                                }
+                                            }
+                                            
+                                            Timer {
+                                                id: retryTimer
+                                                interval: 50
+                                                onTriggered: {
+                                                    if (thumbnailImageSource.loadQueued && !imageLoader.running) {
+                                                        if (clipboardHistoryModal.activeImageLoads < clipboardHistoryModal.maxConcurrentLoads) {
+                                                            clipboardHistoryModal.activeImageLoads++
+                                                            imageLoader.running = true
+                                                        } else {
+                                                            retryTimer.restart()
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                            
+                                            Component.onCompleted: {
+                                                if (entryType !== "image") return
+                                                
+                                                // Check if item is visible on screen initially
+                                                let itemY = index * (72 + clipboardListView.spacing)
+                                                let viewTop = clipboardListView.contentY
+                                                let viewBottom = viewTop + clipboardListView.height
+                                                isVisible = (itemY + 72 >= viewTop && itemY <= viewBottom)
+                                                
+                                                if (isVisible) {
+                                                    tryLoadImage()
+                                                }
+                                            }
+
+                                            Connections {
+                                                target: clipboardListView
+                                                function onContentYChanged() {
+                                                    if (entryType !== "image") return
+                                                    
+                                                    let itemY = index * (72 + clipboardListView.spacing)
+                                                    let viewTop = clipboardListView.contentY - 100 // Preload slightly before visible
+                                                    let viewBottom = viewTop + clipboardListView.height + 200
+                                                    let nowVisible = (itemY + 72 >= viewTop && itemY <= viewBottom)
+                                                    
+                                                    if (nowVisible && !thumbnailImageSource.isVisible) {
+                                                        thumbnailImageSource.isVisible = true
+                                                        thumbnailImageSource.tryLoadImage()
+                                                    }
+                                                }
+                                            }
 
                                             Process {
                                                 id: imageLoader
 
-                                                property string imageData: ""
+                                                running: false
 
                                                 command: ["sh", "-c", `cliphist decode ${thumbnailImageSource.entryId} | base64 -w 0`]
-                                                running: entryType === "image"
 
                                                 stdout: StdioCollector {
                                                     onStreamFinished: {
-                                                        imageLoader.imageData = text.trim()
+                                                        let imageData = text.trim()
+                                                        if (imageData && imageData.length > 0) {
+                                                            thumbnailImageSource.cachedImageData = imageData
+                                                        }
+                                                    }
+                                                }
+                                                
+                                                onExited: exitCode => {
+                                                    thumbnailImageSource.loadQueued = false
+                                                    if (clipboardHistoryModal.activeImageLoads > 0) {
+                                                        clipboardHistoryModal.activeImageLoads--
+                                                    }
+                                                    
+                                                    if (exitCode !== 0) {
+                                                        console.warn("Failed to load clipboard image:", thumbnailImageSource.entryId)
                                                     }
                                                 }
                                             }
@@ -741,6 +756,7 @@ DankModal {
                                             maskSource: clipboardCircularMask
                                             visible: entryType === "image"
                                                      && thumbnailImageSource.status === Image.Ready
+                                                     && thumbnailImageSource.source != ""
                                             maskThresholdMin: 0.5
                                             maskSpreadAtMin: 1
                                         }
@@ -764,8 +780,8 @@ DankModal {
 
                                         DankIcon {
                                             visible: !(entryType === "image"
-                                                       && thumbnailImageSource.status
-                                                       === Image.Ready)
+                                                       && thumbnailImageSource.status === Image.Ready
+                                                       && thumbnailImageSource.source != "")
                                             name: {
                                                 if (entryType === "image")
                                                     return "image"

@@ -14,7 +14,7 @@ DankOSD {
     Connections {
         target: SessionService
         function onInhibitorChanged() {
-            root.show();
+            root.show()
         }
     }
 

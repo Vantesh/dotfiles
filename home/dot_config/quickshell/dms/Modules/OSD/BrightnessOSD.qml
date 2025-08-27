@@ -24,10 +24,6 @@ DankOSD {
         }
     }
 
-    function resetHideTimer() {
-        if (root.shouldBeVisible && root.hideTimer)
-            root.hideTimer.restart()
-    }
 
     Connections {
         target: BrightnessService
@@ -92,8 +88,12 @@ DankOSD {
                     if (BrightnessService.brightnessAvailable) {
                         root.brightnessDebounceTimer.pendingValue = newValue
                         root.brightnessDebounceTimer.restart()
-                        root.resetHideTimer()
+                        resetHideTimer()
                     }
+                }
+
+                onContainsMouseChanged: {
+                    setChildHovered(containsMouse)
                 }
 
                 onSliderDragFinished: function(finalValue) {

@@ -214,14 +214,8 @@ PanelWindow {
         visible: root.visible // Only active when the modal is visible
         focus: root.visible
         Keys.onEscapePressed: event => {
-                                  console.log(
-                                      "DankModal escape pressed - shouldHaveFocus:",
-                                      shouldHaveFocus, "closeOnEscapeKey:",
-                                      root.closeOnEscapeKey, "objectName:",
-                                      root.objectName || "unnamed")
                                   if (root.closeOnEscapeKey
                                       && shouldHaveFocus) {
-                                      console.log("DankModal handling escape")
                                       root.close()
                                       event.accepted = true
                                   }

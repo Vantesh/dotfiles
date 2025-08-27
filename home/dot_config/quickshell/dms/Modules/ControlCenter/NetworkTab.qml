@@ -247,8 +247,13 @@ Item {
     MouseArea {
         anchors.fill: parent
         visible: wifiContextMenuWindow.visible
-        onClicked: {
+        propagateComposedEvents: true
+        onClicked: function(mouse) {
             wifiContextMenuWindow.hide()
+            mouse.accepted = false
+        }
+        onWheel: function(wheel) {
+            wheel.accepted = false
         }
 
         MouseArea {
@@ -256,8 +261,8 @@ Item {
             y: wifiContextMenuWindow.y
             width: wifiContextMenuWindow.width
             height: wifiContextMenuWindow.height
-            onClicked: {
-
+            onClicked: function(mouse) {
+                mouse.accepted = true
             }
         }
     }

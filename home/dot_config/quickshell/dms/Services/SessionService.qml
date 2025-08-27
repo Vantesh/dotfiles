@@ -1,18 +1,88 @@
+pragma Singleton
+pragma ComponentBehavior: Bound
+
 import QtQuick
 import Quickshell
 import Quickshell.Io
 import qs.Common
-pragma Singleton
-
-pragma ComponentBehavior
 
 Singleton {
     id: root
 
+    property bool isElogind: false
     property bool inhibitorAvailable: true
     property bool idleInhibited: false
     property string inhibitReason: "Keep system awake"
 
+    Component.onCompleted: {
+        detectElogindProcess.running = true
+    }
+
+    Process {
+        id: detectElogindProcess
+        running: false
+        command: ["sh", "-c", "ps -eo comm= | grep -Fx elogind-daemon"]
+
+        onExited: function (exitCode) {
+            console.log("SessionService: Elogind detection exited with code", exitCode)
+            isElogind = (exitCode === 0)
+        }
+    }
+
+    // ! TODO - hacky because uwsm doesnt behave as expected
+    // uwsm idk, always passes the is-active check even if it's not a session
+    // It reutrns exit code 0 when uwsm stop fails
+    // They have flaws in their system, so we need to be hacky to just try it and
+    // detect random text
+    Process {
+        id: uwsmLogout
+        command: ["uwsm", "stop"]
+        running: false
+
+        stdout: SplitParser {
+            splitMarker: "\n"
+            onRead: (data) => {
+                if (data.trim().toLowerCase().includes("not running")) {
+                    _logout()
+                }
+            }
+        }
+
+        onExited: function(exitCode) {
+            if (exitCode === 0) {
+                return
+            }
+            _logout()
+        }
+    }
+
+    function logout() {
+        uwsmLogout.running = true
+    }
+
+    function _logout() {
+        if (CompositorService.isNiri) {
+            NiriService.quit()
+            return
+        }
+
+        // Hyprland fallback
+        Hyprland.dispatch("exit")
+    }
+
+    function suspend() {
+        Quickshell.execDetached([isElogind ? "loginctl" : "systemctl", "suspend"])
+    }
+
+    function reboot() {
+        Quickshell.execDetached([isElogind ? "loginctl" : "systemctl", "reboot"])
+    }
+
+    function poweroff() {
+        Quickshell.execDetached([isElogind ? "loginctl" : "systemctl", "poweroff"])
+    }
+
+    // * Idle Inhibitor
     signal inhibitorChanged
 
     function enableIdleInhibit() {
@@ -59,7 +129,7 @@ Singleton {
                 return ["true"]
             }
 
-            return ["systemd-inhibit", "--what=idle", "--who=quickshell", "--why="
+            return [isElogind ? "elogind-inhibit" : "systemd-inhibit", "--what=idle", "--who=quickshell", "--why="
                     + inhibitReason, "--mode=block", "sleep", "infinity"]
         }
 
@@ -67,7 +137,7 @@ Singleton {
 
         onExited: function (exitCode) {
             if (idleInhibited && exitCode !== 0) {
-                console.warn("IdleInhibitorService: Inhibitor process crashed with exit code:",
+                console.warn("SessionService: Inhibitor process crashed with exit code:",
                              exitCode)
                 idleInhibited = false
                 ToastService.showWarning("Idle inhibitor failed")

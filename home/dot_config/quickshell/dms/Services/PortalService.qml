@@ -1,6 +1,5 @@
 pragma Singleton
-
-pragma ComponentBehavior
+pragma ComponentBehavior: Bound
 
 import QtQuick
 import Quickshell
@@ -14,6 +13,10 @@ Singleton {
     property string profileImage: ""
     property bool settingsPortalAvailable: false
     property int systemColorScheme: 0 // 0=default, 1=prefer-dark, 2=prefer-light
+
+    function init() {
+        // Stub just to force IPC registration
+    }
 
     function getSystemProfileImage() {
         systemProfileCheckProcess.running = true
@@ -175,6 +178,36 @@ Singleton {
                                  root.getSystemColorScheme()
                              })
             }
+        }
+    }
+
+    IpcHandler {
+        target: "profile"
+
+        function getImage(): string {
+            return root.profileImage
+        }
+
+        function setImage(path: string): string {
+            if (!path) {
+                return "ERROR: No path provided"
+            }
+
+            var absolutePath = path.startsWith(
+                        "/") ? path : StandardPaths.writableLocation(
+                                   StandardPaths.HomeLocation) + "/" + path
+
+            try {
+                root.setProfileImage(absolutePath)
+                return "SUCCESS: Profile image set to " + absolutePath
+            } catch (e) {
+                return "ERROR: Failed to set profile image: " + e.toString()
+            }
+        }
+
+        function clearImage(): string {
+            root.setProfileImage("")
+            return "SUCCESS: Profile image cleared"
         }
     }
 }

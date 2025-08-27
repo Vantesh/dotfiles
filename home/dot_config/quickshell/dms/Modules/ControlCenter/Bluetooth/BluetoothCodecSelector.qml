@@ -129,7 +129,7 @@ Rectangle {
     Rectangle {
         anchors.centerIn: parent
         width: 320
-        height: Math.min(contentColumn.implicitHeight + Theme.spacingL * 2, 450)
+        height: Math.min(contentColumn.implicitHeight + Theme.spacingL * 2, 400)
         radius: Theme.cornerRadius
         color: Theme.surfaceContainer
         border.color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.08)

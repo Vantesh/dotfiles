@@ -11,21 +11,17 @@ DankOSD {
     autoHideInterval: 3000
     enableMouseInteraction: true
 
-    function resetHideTimer() {
-        if (root.shouldBeVisible)
-            root.hideTimer.restart();
-    }
 
     Connections {
         target: AudioService
 
-        function onVolumeChangedViaIPC() {
-            root.show();
+        function onVolumeChanged() {
+            root.show()
         }
 
         function onSinkChanged() {
             if (root.shouldBeVisible)
-                root.show();
+                root.show()
         }
     }
 
@@ -61,8 +57,11 @@ DankOSD {
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
                     onClicked: {
-                        AudioService.toggleMute();
-                        root.resetHideTimer();
+                        AudioService.toggleMute()
+                        resetHideTimer()
+                    }
+                    onContainsMouseChanged: {
+                        setChildHovered(containsMouse || volumeSlider.containsMouse)
                     }
                 }
             }
@@ -82,14 +81,18 @@ DankOSD {
 
                 Component.onCompleted: {
                     if (AudioService.sink && AudioService.sink.audio)
-                        value = Math.round(AudioService.sink.audio.volume * 100);
+                        value = Math.round(AudioService.sink.audio.volume * 100)
                 }
 
-                onSliderValueChanged: function (newValue) {
+                onSliderValueChanged: function(newValue) {
                     if (AudioService.sink && AudioService.sink.audio) {
-                        AudioService.sink.audio.volume = newValue / 100;
-                        root.resetHideTimer();
+                        AudioService.sink.audio.volume = newValue / 100
+                        resetHideTimer()
                     }
+                }
+
+                onContainsMouseChanged: {
+                    setChildHovered(containsMouse || muteButton.containsMouse)
                 }
 
                 Connections {
@@ -97,7 +100,7 @@ DankOSD {
 
                     function onVolumeChanged() {
                         if (volumeSlider && !volumeSlider.pressed)
-                            volumeSlider.value = Math.round(AudioService.sink.audio.volume * 100);
+                            volumeSlider.value = Math.round(AudioService.sink.audio.volume * 100)
                     }
                 }
             }
@@ -106,9 +109,9 @@ DankOSD {
 
     onOsdShown: {
         if (AudioService.sink && AudioService.sink.audio && contentLoader.item) {
-            let slider = contentLoader.item.children[0].children[1];
+            let slider = contentLoader.item.children[0].children[1]
             if (slider)
-                slider.value = Math.round(AudioService.sink.audio.volume * 100);
+                slider.value = Math.round(AudioService.sink.audio.volume * 100)
         }
     }
 }

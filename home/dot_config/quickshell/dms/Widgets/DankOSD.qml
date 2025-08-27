@@ -35,8 +35,34 @@ PanelWindow {
     }
 
     function resetHideTimer() {
-        if (shouldBeVisible && enableMouseInteraction)
-            hideTimer.restart()
+        if (shouldBeVisible && enableMouseInteraction) {
+            // Only restart timer if we're not currently hovering
+            let isHovered = (enableMouseInteraction && mouseArea.containsMouse) || osdContainer.childHovered
+            if (!isHovered) {
+                hideTimer.restart()
+            }
+        }
+    }
+
+    function stopHideTimer() {
+        if (enableMouseInteraction)
+            hideTimer.stop()
+    }
+
+    function updateHoverState() {
+        let isHovered = (enableMouseInteraction && mouseArea.containsMouse) || osdContainer.childHovered
+        if (enableMouseInteraction) {
+            if (isHovered) {
+                stopHideTimer()
+            } else if (shouldBeVisible) {
+                resetHideTimer()
+            }
+        }
+    }
+
+    function setChildHovered(hovered) {
+        osdContainer.childHovered = hovered
+        updateHoverState()
     }
 
     screen: modelData
@@ -82,6 +108,7 @@ PanelWindow {
         id: osdContainer
 
         property bool containsMouse: enableMouseInteraction && mouseArea.containsMouse
+        property bool childHovered: false
 
         width: osdWidth
         height: osdHeight
@@ -103,6 +130,14 @@ PanelWindow {
             acceptedButtons: Qt.NoButton
             propagateComposedEvents: true
             z: -1
+
+            onContainsMouseChanged: {
+                updateHoverState()
+            }
+        }
+
+        onChildHoveredChanged: {
+            root.updateHoverState()
         }
 
         Loader {

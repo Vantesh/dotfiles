@@ -9,18 +9,21 @@ Rectangle {
 
     property var parentWindow: null
     property var parentScreen: null
+    property real widgetHeight: 30
+    readonly property real horizontalPadding: SettingsData.topBarNoBackground ? 2 : Theme.spacingS
 
     readonly property int calculatedWidth: SystemTray.items.values.length
                                            > 0 ? SystemTray.items.values.length
-                                                 * 24 + Theme.spacingS * 2 : 0
+                                                 * 24 + horizontalPadding * 2 : 0
 
     width: calculatedWidth
-    height: 30
-    radius: Theme.cornerRadius
+    height: widgetHeight
+    radius: SettingsData.topBarNoBackground ? 0 : Theme.cornerRadius
     color: {
         if (SystemTray.items.values.length === 0)
             return "transparent"
-
+        
+        if (SettingsData.topBarNoBackground) return "transparent"
         const baseColor = Theme.secondaryHover
         return Qt.rgba(baseColor.r, baseColor.g, baseColor.b,
                        baseColor.a * Theme.widgetTransparency)

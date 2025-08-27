@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import Quickshell
+import Quickshell.Wayland
 import Quickshell.Widgets
 import qs.Common
 import qs.Services
@@ -13,30 +14,41 @@ Rectangle {
     property var parentScreen
     property var hoveredItem: null
     property var topBar: null
+    property real widgetHeight: 30
+    readonly property real horizontalPadding: SettingsData.topBarNoBackground ? 2 : Theme.spacingS
     // The visual root for this window
     property Item windowRoot: (Window.window ? Window.window.contentItem : null)
-    readonly property int windowCount: HyprlandService.windows.length
+    readonly property var sortedToplevels: {
+            if (SettingsData.runningAppsCurrentWorkspace){
+                    return CompositorService.filterCurrentWorkspace(CompositorService.sortedToplevels, parentScreen.name)
+            }
+            return CompositorService.sortedToplevels
+    }
+    readonly property int windowCount: sortedToplevels.length
     readonly property int calculatedWidth: {
         if (windowCount === 0)
-            return 0;
+            return 0
         if (SettingsData.runningAppsCompactMode) {
-            return windowCount * 24 + (windowCount - 1) * Theme.spacingXS + Theme.spacingS * 2;
+            return windowCount * 24 + (windowCount - 1) * Theme.spacingXS + horizontalPadding * 2
         } else {
-            return windowCount * (24 + Theme.spacingXS + 120) + (windowCount - 1) * Theme.spacingXS + Theme.spacingS * 2;
+            return windowCount * (24 + Theme.spacingXS + 120)
+                    + (windowCount - 1) * Theme.spacingXS + horizontalPadding * 2
         }
     }
 
     width: calculatedWidth
-    height: 30
-    radius: Theme.cornerRadius
+    height: widgetHeight
+    radius: SettingsData.topBarNoBackground ? 0 : Theme.cornerRadius
     visible: windowCount > 0
     clip: false
     color: {
         if (windowCount === 0)
-            return "transparent";
-
-        const baseColor = Theme.secondaryHover;
-        return Qt.rgba(baseColor.r, baseColor.g, baseColor.b, baseColor.a * Theme.widgetTransparency);
+            return "transparent"
+        
+        if (SettingsData.topBarNoBackground) return "transparent"
+        const baseColor = Theme.secondaryHover
+        return Qt.rgba(baseColor.r, baseColor.g, baseColor.b,
+                       baseColor.a * Theme.widgetTransparency)
     }
 
     Row {
@@ -48,22 +60,23 @@ Rectangle {
         Repeater {
             id: windowRepeater
 
-            model: HyprlandService.windows
+            model: sortedToplevels
 
             delegate: Item {
                 id: delegateItem
 
-                property bool isCurrentWindow: modelData.id == String(HyprlandService.focusedWindowId)
-                property string appId: modelData.app_id || ""
+                property bool isFocused: modelData.activated
+                property string appId: modelData.appId || ""
                 property string windowTitle: modelData.title || "(Unnamed)"
-                property int windowId: modelData.id
+                property var toplevelObject: modelData
                 property string tooltipText: {
-                    var appName = "Unknown";
+                    var appName = "Unknown"
                     if (appId) {
-                        var desktopEntry = DesktopEntries.byId(appId);
-                        appName = desktopEntry && desktopEntry.name ? desktopEntry.name : appId;
+                        var desktopEntry = DesktopEntries.byId(appId)
+                        appName = desktopEntry
+                                && desktopEntry.name ? desktopEntry.name : appId
                     }
-                    return appName + (windowTitle ? " • " + windowTitle : "");
+                    return appName + (windowTitle ? " • " + windowTitle : "")
                 }
 
                 width: SettingsData.runningAppsCompactMode ? 24 : (24 + Theme.spacingXS + 120)
@@ -74,9 +87,21 @@ Rectangle {
                     radius: Theme.cornerRadius
                     color: {
                         if (isFocused)
-                            return mouseArea.containsMouse ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.3) : Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.2);
+                            return mouseArea.containsMouse ? Qt.rgba(
+                                                                 Theme.primary.r,
+                                                                 Theme.primary.g,
+                                                                 Theme.primary.b,
+                                                                 0.3) : Qt.rgba(
+                                                                 Theme.primary.r,
+                                                                 Theme.primary.g,
+                                                                 Theme.primary.b,
+                                                                 0.2)
                         else
-                            return mouseArea.containsMouse ? Qt.rgba(Theme.primaryHover.r, Theme.primaryHover.g, Theme.primaryHover.b, 0.1) : "transparent";
+                            return mouseArea.containsMouse ? Qt.rgba(
+                                                                 Theme.primaryHover.r,
+                                                                 Theme.primaryHover.g,
+                                                                 Theme.primaryHover.b,
+                                                                 0.1) : "transparent"
                     }
 
                     Behavior on color {
@@ -96,17 +121,7 @@ Rectangle {
                     anchors.verticalCenter: parent.verticalCenter
                     width: 18
                     height: 18
-                    source: {
-                        if (!appId)
-                            return "";
-
-                        var desktopEntry = DesktopEntries.byId(appId);
-                        if (desktopEntry && desktopEntry.icon) {
-                            var iconPath = Quickshell.iconPath(desktopEntry.icon, SettingsData.iconTheme === "System Default" ? "" : SettingsData.iconTheme);
-                            return iconPath;
-                        }
-                        return "";
-                    }
+                    source: Quickshell.iconPath(DesktopEntries.byId(Paths.moddedAppId(appId)).icon, true)
                     smooth: true
                     mipmap: true
                     asynchronous: true
@@ -115,19 +130,17 @@ Rectangle {
 
                 // Fallback text if no icon found
                 Text {
-                    anchors.left: parent.left
-                    anchors.leftMargin: SettingsData.runningAppsCompactMode ? (parent.width - 18) / 2 : Theme.spacingXS
-                    anchors.verticalCenter: parent.verticalCenter
+                    anchors.centerIn: parent
                     visible: !iconImg.visible
                     text: {
                         if (!appId)
-                            return "?";
+                            return "?"
 
-                        var desktopEntry = DesktopEntries.byId(appId);
+                        var desktopEntry = DesktopEntries.byId(appId)
                         if (desktopEntry && desktopEntry.name)
-                            return desktopEntry.name.charAt(0).toUpperCase();
+                            return desktopEntry.name.charAt(0).toUpperCase()
 
-                        return appId.charAt(0).toUpperCase();
+                        return appId.charAt(0).toUpperCase()
                     }
                     font.pixelSize: 10
                     color: Theme.surfaceText
@@ -157,24 +170,30 @@ Rectangle {
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
                     onClicked: {
-                        HyprlandService.focusWindow(windowId);
+                        if (toplevelObject) {
+                            toplevelObject.activate()
+                        }
                     }
                     onEntered: {
-                        root.hoveredItem = delegateItem;
-                        var globalPos = delegateItem.mapToGlobal(delegateItem.width / 2, delegateItem.height);
-                        tooltipLoader.active = true;
+                        root.hoveredItem = delegateItem
+                        var globalPos = delegateItem.mapToGlobal(
+                                    delegateItem.width / 2, delegateItem.height)
+                        tooltipLoader.active = true
                         if (tooltipLoader.item) {
-                            var tooltipY = Theme.barHeight + SettingsData.topBarSpacing + Theme.spacingXS;
-                            tooltipLoader.item.showTooltip(delegateItem.tooltipText, globalPos.x, tooltipY, root.parentScreen);
+                            var tooltipY = Theme.barHeight
+                                    + SettingsData.topBarSpacing + Theme.spacingXS
+                            tooltipLoader.item.showTooltip(
+                                        delegateItem.tooltipText, globalPos.x,
+                                        tooltipY, root.parentScreen)
                         }
                     }
                     onExited: {
                         if (root.hoveredItem === delegateItem) {
-                            root.hoveredItem = null;
+                            root.hoveredItem = null
                             if (tooltipLoader.item)
-                                tooltipLoader.item.hideTooltip();
+                                tooltipLoader.item.hideTooltip()
 
-                            tooltipLoader.active = false;
+                            tooltipLoader.active = false
                         }
                     }
                 }

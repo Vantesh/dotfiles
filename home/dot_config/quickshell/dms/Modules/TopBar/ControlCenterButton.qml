@@ -10,13 +10,23 @@ Rectangle {
     property string section: "right"
     property var popupTarget: null
     property var parentScreen: null
+    property var widgetData: null
+
+    property bool showNetworkIcon: SettingsData.controlCenterShowNetworkIcon
+    property bool showBluetoothIcon: SettingsData.controlCenterShowBluetoothIcon
+    property bool showAudioIcon: SettingsData.controlCenterShowAudioIcon
+    property real widgetHeight: 30
+    property real barHeight: 48
+    readonly property real horizontalPadding: SettingsData.topBarNoBackground ? 0 : Math.max(Theme.spacingXS, Theme.spacingS * (widgetHeight / 30))
 
     signal clicked
+    signal iconClicked(string tab)
 
-    width: Math.max(80, controlIndicators.implicitWidth + Theme.spacingS * 2)
-    height: 30
-    radius: Theme.cornerRadius
+    width: controlIndicators.implicitWidth + horizontalPadding * 2
+    height: widgetHeight
+    radius: SettingsData.topBarNoBackground ? 0 : Theme.cornerRadius
     color: {
+        if (SettingsData.topBarNoBackground) return "transparent"
         const baseColor = controlCenterArea.containsMouse
                         || root.isActive ? Theme.primaryPressed : Theme.secondaryHover
         return Qt.rgba(baseColor.r, baseColor.g, baseColor.b,
@@ -30,6 +40,7 @@ Rectangle {
         spacing: Theme.spacingXS
 
         DankIcon {
+            id: networkIcon
             name: {
                 if (NetworkService.networkStatus === "ethernet")
                     return "lan"
@@ -39,15 +50,16 @@ Rectangle {
             color: NetworkService.networkStatus
                    !== "disconnected" ? Theme.primary : Theme.outlineButton
             anchors.verticalCenter: parent.verticalCenter
-            visible: true
+            visible: root.showNetworkIcon
         }
 
         DankIcon {
+            id: bluetoothIcon
             name: "bluetooth"
             size: Theme.iconSize - 8
             color: BluetoothService.enabled ? Theme.primary : Theme.outlineButton
             anchors.verticalCenter: parent.verticalCenter
-            visible: BluetoothService.available && BluetoothService.enabled
+            visible: root.showBluetoothIcon && BluetoothService.available && BluetoothService.enabled
         }
 
         Rectangle {
@@ -55,6 +67,7 @@ Rectangle {
             height: audioIcon.implicitHeight + 4
             color: "transparent"
             anchors.verticalCenter: parent.verticalCenter
+            visible: root.showAudioIcon
 
             DankIcon {
                 id: audioIcon
@@ -72,9 +85,7 @@ Rectangle {
                     return "volume_up"
                 }
                 size: Theme.iconSize - 8
-                color: audioWheelArea.containsMouse
-                       || controlCenterArea.containsMouse
-                       || root.isActive ? Theme.primary : Theme.surfaceText
+                color: Theme.surfaceText
                 anchors.centerIn: parent
             }
 
@@ -98,6 +109,7 @@ Rectangle {
                     if (AudioService.sink && AudioService.sink.audio) {
                         AudioService.sink.audio.muted = false
                         AudioService.sink.audio.volume = newVolume / 100
+                        AudioService.volumeChanged()
                     }
                     wheelEvent.accepted = true
                 }
@@ -110,6 +122,15 @@ Rectangle {
             color: Theme.primary
             anchors.verticalCenter: parent.verticalCenter
             visible: false // TODO: Add mic detection
+        }
+
+        // Fallback settings icon when all other icons are hidden
+        DankIcon {
+            name: "settings"
+            size: Theme.iconSize - 8
+            color: controlCenterArea.containsMouse || root.isActive ? Theme.primary : Theme.surfaceText
+            anchors.verticalCenter: parent.verticalCenter
+            visible: !root.showNetworkIcon && !root.showBluetoothIcon && !root.showAudioIcon
         }
     }
 
@@ -126,10 +147,49 @@ Rectangle {
                 var screenX = currentScreen.x || 0
                 var relativeX = globalPos.x - screenX
                 popupTarget.setTriggerPosition(
-                            relativeX, Theme.barHeight + Theme.spacingXS,
+                            relativeX, barHeight + Theme.spacingXS,
                             width, section, currentScreen)
             }
-            root.clicked()
+
+            // Calculate which zone was clicked based on mouse position relative to controlIndicators
+            var indicatorsX = controlIndicators.x
+            var relativeX = mouseX - indicatorsX
+            
+            var iconSpacing = Theme.spacingXS
+            var iconSize = Theme.iconSize - 8
+            var networkWidth = networkIcon.visible ? iconSize : 0
+            var bluetoothWidth = bluetoothIcon.visible ? iconSize : 0
+            var audioWidth = audioIcon.parent.visible ? (iconSize + 4) : 0
+            
+            var currentX = 0
+            var clickedZone = ""
+            
+            // Network zone
+            if (networkIcon.visible && relativeX >= currentX && relativeX < currentX + networkWidth) {
+                clickedZone = "network"
+            }
+            if (networkIcon.visible) {
+                currentX += networkWidth + iconSpacing
+            }
+            
+            // Bluetooth zone  
+            if (bluetoothIcon.visible && relativeX >= currentX && relativeX < currentX + bluetoothWidth) {
+                clickedZone = "bluetooth"
+            }
+            if (bluetoothIcon.visible) {
+                currentX += bluetoothWidth + iconSpacing
+            }
+            
+            // Audio zone
+            if (audioIcon.parent.visible && relativeX >= currentX && relativeX < currentX + audioWidth) {
+                clickedZone = "audio"
+            }
+            
+            if (clickedZone !== "") {
+                root.iconClicked(clickedZone)
+            } else {
+                root.clicked()
+            }
         }
     }
 

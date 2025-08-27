@@ -10,24 +10,30 @@ Rectangle {
     property string section: "right"
     property var popupTarget: null
     property var parentScreen: null
+    property real widgetHeight: 30
+    readonly property real horizontalPadding: SettingsData.topBarNoBackground ? 2 : Theme.spacingS
 
     readonly property bool hasActivePrivacy: PrivacyService.anyPrivacyActive
     readonly property int activeCount: PrivacyService.microphoneActive + PrivacyService.cameraActive
                                        + PrivacyService.screensharingActive
+    readonly property real contentWidth: hasActivePrivacy ? (activeCount * 18 + (activeCount - 1) * Theme.spacingXS) : 0
 
-    width: hasActivePrivacy ? (activeCount > 1 ? 80 : 60) : 0
-    height: hasActivePrivacy ? 30 : 0
-    radius: Theme.cornerRadius
+    width: hasActivePrivacy ? (contentWidth + horizontalPadding * 2) : 0
+    height: hasActivePrivacy ? widgetHeight : 0
+    radius: SettingsData.topBarNoBackground ? 0 : Theme.cornerRadius
     visible: hasActivePrivacy
     opacity: hasActivePrivacy ? 1 : 0
     enabled: hasActivePrivacy
 
-    color: Qt.rgba(
+    color: {
+        if (SettingsData.topBarNoBackground) return "transparent"
+        return Qt.rgba(
                privacyArea.containsMouse ? Theme.errorPressed.r : Theme.errorHover.r,
                privacyArea.containsMouse ? Theme.errorPressed.g : Theme.errorHover.g,
                privacyArea.containsMouse ? Theme.errorPressed.b : Theme.errorHover.b,
                (privacyArea.containsMouse ? Theme.errorPressed.a : Theme.errorHover.a)
                * Theme.widgetTransparency)
+    }
 
     MouseArea {
         id: privacyArea

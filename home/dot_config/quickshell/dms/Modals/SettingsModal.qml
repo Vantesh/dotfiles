@@ -16,18 +16,18 @@ DankModal {
     signal closingModal
 
     function show() {
-        open();
+        open()
     }
 
     function hide() {
-        close();
+        close()
     }
 
     function toggle() {
         if (shouldBeVisible)
-            hide();
+            hide()
         else
-            show();
+            show()
     }
 
     objectName: "settingsModal"
@@ -39,21 +39,35 @@ DankModal {
 
     IpcHandler {
         function open() {
-            settingsModal.show();
-            return "SETTINGS_OPEN_SUCCESS";
+            settingsModal.show()
+            return "SETTINGS_OPEN_SUCCESS"
         }
 
         function close() {
-            settingsModal.hide();
-            return "SETTINGS_CLOSE_SUCCESS";
+            settingsModal.hide()
+            return "SETTINGS_CLOSE_SUCCESS"
         }
 
         function toggle() {
-            settingsModal.toggle();
-            return "SETTINGS_TOGGLE_SUCCESS";
+            settingsModal.toggle()
+            return "SETTINGS_TOGGLE_SUCCESS"
         }
 
         target: "settings"
+    }
+
+    IpcHandler {
+        function browse(type: string) {
+            if (type === "wallpaper") {
+                wallpaperBrowser.allowStacking = false
+                wallpaperBrowser.open()
+            } else if (type === "profile") {
+                profileBrowser.allowStacking = false
+                profileBrowser.open()
+            }
+        }
+
+        target: "file"
     }
 
     settingsContent: Component {
@@ -149,7 +163,8 @@ DankModal {
                                         height: 80
                                         anchors.verticalCenter: parent.verticalCenter
 
-                                        property bool hasImage: profileImageSource.status === Image.Ready
+                                        property bool hasImage: profileImageSource.status
+                                                                === Image.Ready
 
                                         Rectangle {
                                             anchors.fill: parent
@@ -164,10 +179,11 @@ DankModal {
                                             id: profileImageSource
                                             source: {
                                                 if (PortalService.profileImage === "")
-                                                    return "";
-                                                if (PortalService.profileImage.startsWith("/"))
-                                                    return "file://" + PortalService.profileImage;
-                                                return PortalService.profileImage;
+                                                    return ""
+                                                if (PortalService.profileImage.startsWith(
+                                                            "/"))
+                                                    return "file://" + PortalService.profileImage
+                                                return PortalService.profileImage
                                             }
                                             smooth: true
                                             asynchronous: true
@@ -222,7 +238,8 @@ DankModal {
                                             name: "warning"
                                             size: Theme.iconSizeLarge
                                             color: Theme.error
-                                            visible: PortalService.profileImage !== "" && profileImageSource.status === Image.Error
+                                            visible: PortalService.profileImage !== ""
+                                                     && profileImageSource.status === Image.Error
                                         }
 
                                         Rectangle {
@@ -239,7 +256,8 @@ DankModal {
                                                     width: 28
                                                     height: 28
                                                     radius: 14
-                                                    color: Qt.rgba(255, 255, 255, 0.9)
+                                                    color: Qt.rgba(255, 255,
+                                                                   255, 0.9)
 
                                                     DankIcon {
                                                         anchors.centerIn: parent
@@ -252,9 +270,10 @@ DankModal {
                                                         anchors.fill: parent
                                                         cursorShape: Qt.PointingHandCursor
                                                         onClicked: {
-                                                            settingsModal.allowFocusOverride = true;
-                                                            settingsModal.shouldHaveFocus = false;
-                                                            profileBrowser.open();
+                                                            settingsModal.allowFocusOverride = true
+                                                            settingsModal.shouldHaveFocus = false
+                                                            profileBrowser.open(
+                                                                        )
                                                         }
                                                     }
                                                 }
@@ -263,7 +282,8 @@ DankModal {
                                                     width: 28
                                                     height: 28
                                                     radius: 14
-                                                    color: Qt.rgba(255, 255, 255, 0.9)
+                                                    color: Qt.rgba(255, 255,
+                                                                   255, 0.9)
                                                     visible: profileImageContainer.hasImage
 
                                                     DankIcon {
@@ -277,7 +297,8 @@ DankModal {
                                                         anchors.fill: parent
                                                         cursorShape: Qt.PointingHandCursor
                                                         onClicked: {
-                                                            PortalService.setProfileImage("");
+                                                            PortalService.setProfileImage(
+                                                                        "")
                                                         }
                                                     }
                                                 }
@@ -300,7 +321,8 @@ DankModal {
                                         spacing: Theme.spacingXS
 
                                         StyledText {
-                                            text: UserInfoService.fullName || "User"
+                                            text: UserInfoService.fullName
+                                                  || "User"
                                             font.pixelSize: Theme.fontSizeLarge
                                             font.weight: Font.Medium
                                             color: Theme.surfaceText
@@ -309,7 +331,8 @@ DankModal {
                                         }
 
                                         StyledText {
-                                            text: DgopService.distribution || "Linux"
+                                            text: DgopService.distribution
+                                                  || "Linux"
                                             font.pixelSize: Theme.fontSizeMedium
                                             color: Theme.surfaceVariantText
                                             elide: Text.ElideRight
@@ -334,44 +357,37 @@ DankModal {
                             Repeater {
                                 id: sidebarRepeater
 
-                                model: [
-                                    {
+                                model: [{
                                         "text": "Personalization",
                                         "icon": "person"
-                                    },
-                                    {
+                                    }, {
                                         "text": "Time & Date",
                                         "icon": "schedule"
-                                    },
-                                    {
+                                    }, {
                                         "text": "Weather",
                                         "icon": "cloud"
-                                    },
-                                    {
+                                    }, {
                                         "text": "Top Bar",
                                         "icon": "toolbar"
-                                    },
-                                    {
+                                    }, {
                                         "text": "Widgets",
                                         "icon": "widgets"
-                                    },
-                                    {
+                                    }, {
                                         "text": "Dock",
                                         "icon": "dock_to_bottom"
-                                    },
-                                    {
+                                    }, {
+                                        "text": "Displays",
+                                        "icon": "monitor"
+                                    }, {
                                         "text": "Recent Apps",
                                         "icon": "history"
-                                    },
-                                    {
+                                    }, {
                                         "text": "Theme & Colors",
                                         "icon": "palette"
-                                    },
-                                    {
+                                    }, {
                                         "text": "About",
                                         "icon": "info"
-                                    }
-                                ]
+                                    }]
 
                                 Rectangle {
                                     property bool isActive: sidebarContainer.currentIndex === index
@@ -410,7 +426,7 @@ DankModal {
                                         hoverEnabled: true
                                         cursorShape: Qt.PointingHandCursor
                                         onClicked: {
-                                            sidebarContainer.currentIndex = index;
+                                            sidebarContainer.currentIndex = index
                                         }
                                     }
 
@@ -509,10 +525,20 @@ DankModal {
                             }
 
                             Loader {
-                                id: recentAppsLoader
+                                id: displaysLoader
 
                                 anchors.fill: parent
                                 active: sidebarContainer.currentIndex === 6
+                                visible: active
+                                asynchronous: true
+                                sourceComponent: DisplaysTab {}
+                            }
+
+                            Loader {
+                                id: recentAppsLoader
+
+                                anchors.fill: parent
+                                active: sidebarContainer.currentIndex === 7
                                 visible: active
                                 asynchronous: true
                                 sourceComponent: RecentAppsTab {}
@@ -522,7 +548,7 @@ DankModal {
                                 id: themeColorsLoader
 
                                 anchors.fill: parent
-                                active: sidebarContainer.currentIndex === 7
+                                active: sidebarContainer.currentIndex === 8
                                 visible: active
                                 asynchronous: true
                                 sourceComponent: ThemeColorsTab {}
@@ -532,7 +558,7 @@ DankModal {
                                 id: aboutLoader
 
                                 anchors.fill: parent
-                                active: sidebarContainer.currentIndex === 8
+                                active: sidebarContainer.currentIndex === 9
                                 visible: active
                                 asynchronous: true
                                 sourceComponent: AboutTab {}
@@ -540,28 +566,49 @@ DankModal {
                         }
                     }
                 }
+
             }
+
         }
     }
 
     FileBrowserModal {
         id: profileBrowser
 
+        allowStacking: true
         browserTitle: "Select Profile Image"
         browserIcon: "person"
         browserType: "profile"
         fileExtensions: ["*.jpg", "*.jpeg", "*.png", "*.bmp", "*.gif", "*.webp"]
         onFileSelected: path => {
-            PortalService.setProfileImage(path);
-            close();
-        }
+                            PortalService.setProfileImage(path)
+                            close()
+                        }
         onDialogClosed: {
             if (settingsModal) {
-                settingsModal.allowFocusOverride = false;
+                settingsModal.allowFocusOverride = false
                 settingsModal.shouldHaveFocus = Qt.binding(() => {
-                    return settingsModal.shouldBeVisible;
-                });
+                                                               return settingsModal.shouldBeVisible
+                                                           })
             }
+            allowStacking = true
+        }
+    }
+
+    FileBrowserModal {
+        id: wallpaperBrowser
+
+        allowStacking: true
+        browserTitle: "Select Wallpaper"
+        browserIcon: "wallpaper"
+        browserType: "wallpaper"
+        fileExtensions: ["*.jpg", "*.jpeg", "*.png", "*.bmp", "*.gif", "*.webp"]
+        onFileSelected: path => {
+                            SessionData.setWallpaper(path)
+                            close()
+                        }
+        onDialogClosed: {
+            allowStacking = true
         }
     }
 }

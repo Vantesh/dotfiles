@@ -15,38 +15,42 @@ Rectangle {
 
     function updateSelectedDateEvents() {
         if (CalendarService && CalendarService.khalAvailable) {
-            let events = CalendarService.getEventsForDate(selectedDate);
-            selectedDateEvents = events;
+            let events = CalendarService.getEventsForDate(selectedDate)
+            selectedDateEvents = events
         } else {
-            selectedDateEvents = [];
+            selectedDateEvents = []
         }
     }
 
     onSelectedDateEventsChanged: {
-        eventsList.model = selectedDateEvents;
+        eventsList.model = selectedDateEvents
     }
     width: parent.width
-    height: shouldShow ? (hasEvents ? Math.min(300, 80 + selectedDateEvents.length * 60) : 120) : 0
+    height: shouldShow ? (hasEvents ? Math.min(
+                                          300,
+                                          80 + selectedDateEvents.length * 60) : 120) : 0
     radius: Theme.cornerRadius
-    color: Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g, Theme.surfaceVariant.b, 0.12)
-    border.color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.08)
+    color: Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g,
+                   Theme.surfaceVariant.b, 0.12)
+    border.color: Qt.rgba(Theme.outline.r, Theme.outline.g,
+                          Theme.outline.b, 0.08)
     border.width: 1
     visible: shouldShow
     layer.enabled: true
     Component.onCompleted: {
-        updateSelectedDateEvents();
+        updateSelectedDateEvents()
     }
     onSelectedDateChanged: {
-        updateSelectedDateEvents();
+        updateSelectedDateEvents()
     }
 
     Connections {
         function onEventsByDateChanged() {
-            updateSelectedDateEvents();
+            updateSelectedDateEvents()
         }
 
         function onKhalAvailableChanged() {
-            updateSelectedDateEvents();
+            updateSelectedDateEvents()
         }
 
         target: CalendarService
@@ -70,7 +74,11 @@ Rectangle {
         }
 
         StyledText {
-            text: hasEvents ? (Qt.formatDate(selectedDate, "MMM d") + " • " + (selectedDateEvents.length === 1 ? "1 event" : selectedDateEvents.length + " events")) : Qt.formatDate(selectedDate, "MMM d")
+            text: hasEvents ? (Qt.formatDate(selectedDate, "MMM d") + " • "
+                               + (selectedDateEvents.length
+                                  === 1 ? "1 event" : selectedDateEvents.length
+                                          + " events")) : Qt.formatDate(
+                                  selectedDate, "MMM d")
             font.pixelSize: Theme.fontSizeMedium
             color: Theme.surfaceText
             font.weight: Font.Medium
@@ -86,14 +94,16 @@ Rectangle {
         DankIcon {
             name: "event_busy"
             size: Theme.iconSize + 8
-            color: Qt.rgba(Theme.surfaceText.r, Theme.surfaceText.g, Theme.surfaceText.b, 0.3)
+            color: Qt.rgba(Theme.surfaceText.r, Theme.surfaceText.g,
+                           Theme.surfaceText.b, 0.3)
             anchors.horizontalCenter: parent.horizontalCenter
         }
 
         StyledText {
             text: "No events"
             font.pixelSize: Theme.fontSizeMedium
-            color: Qt.rgba(Theme.surfaceText.r, Theme.surfaceText.g, Theme.surfaceText.b, 0.5)
+            color: Qt.rgba(Theme.surfaceText.r, Theme.surfaceText.g,
+                           Theme.surfaceText.b, 0.5)
             font.weight: Font.Normal
             anchors.horizontalCenter: parent.horizontalCenter
         }
@@ -127,24 +137,28 @@ Rectangle {
             acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
             property real momentum: 0
             onWheel: event => {
-                if (event.pixelDelta.y !== 0) {
-                    // Touchpad with pixel delta
-                    momentum = event.pixelDelta.y * 1.8;
-                } else {
-                    // Mouse wheel with angle delta
-                    momentum = (event.angleDelta.y / 120) * (60 * 2.5); // ~2.5 items per wheel step
-                }
+                         if (event.pixelDelta.y !== 0) {
+                             // Touchpad with pixel delta
+                             momentum = event.pixelDelta.y * 1.8
+                         } else {
+                             // Mouse wheel with angle delta
+                             momentum = (event.angleDelta.y / 120)
+                             * (60 * 2.5) // ~2.5 items per wheel step
+                         }
 
-                let newY = parent.contentY - momentum;
-                newY = Math.max(0, Math.min(parent.contentHeight - parent.height, newY));
-                parent.contentY = newY;
-                momentum *= 0.92; // Decay for smooth momentum
-                event.accepted = true;
-            }
+                         let newY = parent.contentY - momentum
+                         newY = Math.max(
+                             0, Math.min(parent.contentHeight - parent.height,
+                                         newY))
+                         parent.contentY = newY
+                         momentum *= 0.92 // Decay for smooth momentum
+                         event.accepted = true
+                     }
         }
 
         ScrollBar.vertical: ScrollBar {
-            policy: eventsList.contentHeight > eventsList.height ? ScrollBar.AsNeeded : ScrollBar.AlwaysOff
+            policy: eventsList.contentHeight
+                    > eventsList.height ? ScrollBar.AsNeeded : ScrollBar.AlwaysOff
         }
 
         Behavior on opacity {
@@ -160,17 +174,22 @@ Rectangle {
             radius: Theme.cornerRadius
             color: {
                 if (modelData.url && eventMouseArea.containsMouse)
-                    return Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.12);
+                    return Qt.rgba(Theme.primary.r, Theme.primary.g,
+                                   Theme.primary.b, 0.12)
                 else if (eventMouseArea.containsMouse)
-                    return Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.06);
-                return Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g, Theme.surfaceVariant.b, 0.06);
+                    return Qt.rgba(Theme.primary.r, Theme.primary.g,
+                                   Theme.primary.b, 0.06)
+                return Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g,
+                               Theme.surfaceVariant.b, 0.06)
             }
             border.color: {
                 if (modelData.url && eventMouseArea.containsMouse)
-                    return Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.3);
+                    return Qt.rgba(Theme.primary.r, Theme.primary.g,
+                                   Theme.primary.b, 0.3)
                 else if (eventMouseArea.containsMouse)
-                    return Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.15);
-                return "transparent";
+                    return Qt.rgba(Theme.primary.r, Theme.primary.g,
+                                   Theme.primary.b, 0.15)
+                return "transparent"
             }
             border.width: 1
 
@@ -220,25 +239,34 @@ Rectangle {
                         DankIcon {
                             name: "schedule"
                             size: Theme.fontSizeSmall
-                            color: Qt.rgba(Theme.surfaceText.r, Theme.surfaceText.g, Theme.surfaceText.b, 0.7)
+                            color: Qt.rgba(Theme.surfaceText.r,
+                                           Theme.surfaceText.g,
+                                           Theme.surfaceText.b, 0.7)
                             anchors.verticalCenter: parent.verticalCenter
                         }
 
                         StyledText {
                             text: {
                                 if (modelData.allDay) {
-                                    return "All day";
+                                    return "All day"
                                 } else {
-                                    let timeFormat = SettingsData.use24HourClock ? "HH:mm" : "hh:mm AP";
-                                    let startTime = Qt.formatTime(modelData.start, timeFormat);
-                                    if (modelData.start.toDateString() !== modelData.end.toDateString() || modelData.start.getTime() !== modelData.end.getTime())
-                                        return startTime + " – " + Qt.formatTime(modelData.end, timeFormat);
+                                    let timeFormat = SettingsData.use24HourClock ? "HH:mm" : "h:mm AP"
+                                    let startTime = Qt.formatTime(
+                                            modelData.start, timeFormat)
+                                    if (modelData.start.toDateString(
+                                                ) !== modelData.end.toDateString(
+                                                ) || modelData.start.getTime(
+                                                ) !== modelData.end.getTime())
+                                        return startTime + " – " + Qt.formatTime(
+                                                    modelData.end, timeFormat)
 
-                                    return startTime;
+                                    return startTime
                                 }
                             }
                             font.pixelSize: Theme.fontSizeSmall
-                            color: Qt.rgba(Theme.surfaceText.r, Theme.surfaceText.g, Theme.surfaceText.b, 0.7)
+                            color: Qt.rgba(Theme.surfaceText.r,
+                                           Theme.surfaceText.g,
+                                           Theme.surfaceText.b, 0.7)
                             font.weight: Font.Normal
                             anchors.verticalCenter: parent.verticalCenter
                         }
@@ -255,14 +283,18 @@ Rectangle {
                         DankIcon {
                             name: "location_on"
                             size: Theme.fontSizeSmall
-                            color: Qt.rgba(Theme.surfaceText.r, Theme.surfaceText.g, Theme.surfaceText.b, 0.7)
+                            color: Qt.rgba(Theme.surfaceText.r,
+                                           Theme.surfaceText.g,
+                                           Theme.surfaceText.b, 0.7)
                             anchors.verticalCenter: parent.verticalCenter
                         }
 
                         StyledText {
                             text: modelData.location
                             font.pixelSize: Theme.fontSizeSmall
-                            color: Qt.rgba(Theme.surfaceText.r, Theme.surfaceText.g, Theme.surfaceText.b, 0.7)
+                            color: Qt.rgba(Theme.surfaceText.r,
+                                           Theme.surfaceText.g,
+                                           Theme.surfaceText.b, 0.7)
                             elide: Text.ElideRight
                             anchors.verticalCenter: parent.verticalCenter
                             maximumLineCount: 1
@@ -282,7 +314,7 @@ Rectangle {
                 onClicked: {
                     if (modelData.url && modelData.url !== "") {
                         if (Qt.openUrlExternally(modelData.url) === false)
-                            console.warn("Failed to open URL: " + modelData.url);
+                            console.warn("Failed to open URL: " + modelData.url)
                     }
                 }
             }

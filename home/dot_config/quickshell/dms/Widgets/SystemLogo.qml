@@ -23,7 +23,7 @@ IconImage {
         stdout: StdioCollector {
             onStreamFinished: () => {
                                   root.source = Quickshell.iconPath(
-                                      this.text.trim())
+                                      this.text.trim(), true)
                               }
         }
     }

@@ -1,5 +1,5 @@
 pragma Singleton
-pragma ComponentBehavior
+pragma ComponentBehavior: Bound
 
 import QtCore
 import QtQuick
@@ -8,6 +8,7 @@ import Quickshell.Io
 import qs.Services
 
 Singleton {
+
     id: root
 
     property bool isLightMode: false
@@ -17,9 +18,6 @@ Singleton {
     property bool doNotDisturb: false
     property bool nightModeEnabled: false
     property int nightModeTemperature: 4500
-    property bool nightModeAutomatic: false
-    property string nightModeFromTime: "19:00"
-    property string nightModeToTime: "06:30"
     property var pinnedApps: []
     property int selectedGpuIndex: 0
     property bool nvidiaGpuTempEnabled: false
@@ -32,205 +30,211 @@ Singleton {
     property string lastBrightnessDevice: ""
 
     Component.onCompleted: {
-        loadSettings();
+        loadSettings()
     }
 
     function loadSettings() {
-        parseSettings(settingsFile.text());
+        parseSettings(settingsFile.text())
     }
 
     function parseSettings(content) {
         try {
             if (content && content.trim()) {
-                var settings = JSON.parse(content);
-                isLightMode = settings.isLightMode !== undefined ? settings.isLightMode : false;
-                wallpaperPath = settings.wallpaperPath !== undefined ? settings.wallpaperPath : "";
-                wallpaperLastPath = settings.wallpaperLastPath !== undefined ? settings.wallpaperLastPath : "";
-                profileLastPath = settings.profileLastPath !== undefined ? settings.profileLastPath : "";
-                doNotDisturb = settings.doNotDisturb !== undefined ? settings.doNotDisturb : false;
-                nightModeEnabled = settings.nightModeEnabled !== undefined ? settings.nightModeEnabled : false;
-                nightModeTemperature = settings.nightModeTemperature !== undefined ? settings.nightModeTemperature : 4500;
-                nightModeAutomatic = settings.nightModeAutomatic !== undefined ? settings.nightModeAutomatic : false;
-                nightModeFromTime = settings.nightModeFromTime !== undefined ? settings.nightModeFromTime : "19:00";
-                nightModeToTime = settings.nightModeToTime !== undefined ? settings.nightModeToTime : "06:30";
-                pinnedApps = settings.pinnedApps !== undefined ? settings.pinnedApps : [];
-                selectedGpuIndex = settings.selectedGpuIndex !== undefined ? settings.selectedGpuIndex : 0;
-                nvidiaGpuTempEnabled = settings.nvidiaGpuTempEnabled !== undefined ? settings.nvidiaGpuTempEnabled : false;
-                nonNvidiaGpuTempEnabled = settings.nonNvidiaGpuTempEnabled !== undefined ? settings.nonNvidiaGpuTempEnabled : false;
-                enabledGpuPciIds = settings.enabledGpuPciIds !== undefined ? settings.enabledGpuPciIds : [];
-                wallpaperCyclingEnabled = settings.wallpaperCyclingEnabled !== undefined ? settings.wallpaperCyclingEnabled : false;
-                wallpaperCyclingMode = settings.wallpaperCyclingMode !== undefined ? settings.wallpaperCyclingMode : "interval";
-                wallpaperCyclingInterval = settings.wallpaperCyclingInterval !== undefined ? settings.wallpaperCyclingInterval : 300;
-                wallpaperCyclingTime = settings.wallpaperCyclingTime !== undefined ? settings.wallpaperCyclingTime : "06:00";
-                lastBrightnessDevice = settings.lastBrightnessDevice !== undefined ? settings.lastBrightnessDevice : "";
+                var settings = JSON.parse(content)
+                isLightMode = settings.isLightMode !== undefined ? settings.isLightMode : false
+                wallpaperPath = settings.wallpaperPath !== undefined ? settings.wallpaperPath : ""
+                wallpaperLastPath = settings.wallpaperLastPath
+                        !== undefined ? settings.wallpaperLastPath : ""
+                profileLastPath = settings.profileLastPath
+                        !== undefined ? settings.profileLastPath : ""
+                doNotDisturb = settings.doNotDisturb !== undefined ? settings.doNotDisturb : false
+                nightModeEnabled = settings.nightModeEnabled
+                        !== undefined ? settings.nightModeEnabled : false
+                nightModeTemperature = settings.nightModeTemperature
+                        !== undefined ? settings.nightModeTemperature : 4500
+                pinnedApps = settings.pinnedApps !== undefined ? settings.pinnedApps : []
+                selectedGpuIndex = settings.selectedGpuIndex
+                        !== undefined ? settings.selectedGpuIndex : 0
+                nvidiaGpuTempEnabled = settings.nvidiaGpuTempEnabled
+                        !== undefined ? settings.nvidiaGpuTempEnabled : false
+                nonNvidiaGpuTempEnabled = settings.nonNvidiaGpuTempEnabled
+                        !== undefined ? settings.nonNvidiaGpuTempEnabled : false
+                enabledGpuPciIds = settings.enabledGpuPciIds
+                        !== undefined ? settings.enabledGpuPciIds : []
+                wallpaperCyclingEnabled = settings.wallpaperCyclingEnabled
+                        !== undefined ? settings.wallpaperCyclingEnabled : false
+                wallpaperCyclingMode = settings.wallpaperCyclingMode
+                        !== undefined ? settings.wallpaperCyclingMode : "interval"
+                wallpaperCyclingInterval = settings.wallpaperCyclingInterval
+                        !== undefined ? settings.wallpaperCyclingInterval : 300
+                wallpaperCyclingTime = settings.wallpaperCyclingTime
+                        !== undefined ? settings.wallpaperCyclingTime : "06:00"
+                lastBrightnessDevice = settings.lastBrightnessDevice
+                        !== undefined ? settings.lastBrightnessDevice : ""
             }
-        } catch (e) {}
+        } catch (e) {
+
+        }
     }
 
     function saveSettings() {
         settingsFile.setText(JSON.stringify({
-            "isLightMode": isLightMode,
-            "wallpaperPath": wallpaperPath,
-            "wallpaperLastPath": wallpaperLastPath,
-            "profileLastPath": profileLastPath,
-            "doNotDisturb": doNotDisturb,
-            "nightModeEnabled": nightModeEnabled,
-            "nightModeTemperature": nightModeTemperature,
-            "nightModeAutomatic": nightModeAutomatic,
-            "nightModeFromTime": nightModeFromTime,
-            "nightModeToTime": nightModeToTime,
-            "pinnedApps": pinnedApps,
-            "selectedGpuIndex": selectedGpuIndex,
-            "nvidiaGpuTempEnabled": nvidiaGpuTempEnabled,
-            "nonNvidiaGpuTempEnabled": nonNvidiaGpuTempEnabled,
-            "enabledGpuPciIds": enabledGpuPciIds,
-            "wallpaperCyclingEnabled": wallpaperCyclingEnabled,
-            "wallpaperCyclingMode": wallpaperCyclingMode,
-            "wallpaperCyclingInterval": wallpaperCyclingInterval,
-            "wallpaperCyclingTime": wallpaperCyclingTime,
-            "lastBrightnessDevice": lastBrightnessDevice
-        }, null, 2));
+                                                "isLightMode": isLightMode,
+                                                "wallpaperPath": wallpaperPath,
+                                                "wallpaperLastPath": wallpaperLastPath,
+                                                "profileLastPath": profileLastPath,
+                                                "doNotDisturb": doNotDisturb,
+                                                "nightModeEnabled": nightModeEnabled,
+                                                "nightModeTemperature": nightModeTemperature,
+                                                "pinnedApps": pinnedApps,
+                                                "selectedGpuIndex": selectedGpuIndex,
+                                                "nvidiaGpuTempEnabled": nvidiaGpuTempEnabled,
+                                                "nonNvidiaGpuTempEnabled": nonNvidiaGpuTempEnabled,
+                                                "enabledGpuPciIds": enabledGpuPciIds,
+                                                "wallpaperCyclingEnabled": wallpaperCyclingEnabled,
+                                                "wallpaperCyclingMode": wallpaperCyclingMode,
+                                                "wallpaperCyclingInterval": wallpaperCyclingInterval,
+                                                "wallpaperCyclingTime": wallpaperCyclingTime,
+                                                "lastBrightnessDevice": lastBrightnessDevice
+                                            }, null, 2))
     }
 
     function setLightMode(lightMode) {
-        isLightMode = lightMode;
-        saveSettings();
+        isLightMode = lightMode
+        saveSettings()
     }
 
     function setDoNotDisturb(enabled) {
-        doNotDisturb = enabled;
-        saveSettings();
+        doNotDisturb = enabled
+        saveSettings()
     }
 
     function setNightModeEnabled(enabled) {
-        nightModeEnabled = enabled;
-        saveSettings();
-    }
-
-    function setNightModeAutomatic(enabled) {
-        nightModeAutomatic = enabled;
-        saveSettings();
-    }
-
-    function setNightModeFromTime(time) {
-        nightModeFromTime = time;
-        saveSettings();
-    }
-
-    function setNightModeToTime(time) {
-        nightModeToTime = time;
-        saveSettings();
+        nightModeEnabled = enabled
+        saveSettings()
     }
 
     function setNightModeTemperature(temperature) {
-        nightModeTemperature = temperature;
-        saveSettings();
+        nightModeTemperature = temperature
+        saveSettings()
     }
 
     function setWallpaperPath(path) {
-        wallpaperPath = path;
-        saveSettings();
+        wallpaperPath = path
+        saveSettings()
     }
 
     function setWallpaper(imagePath) {
-        wallpaperPath = imagePath;
-        saveSettings();
+        console.log("SessionData.setWallpaper called with:", imagePath)
+        wallpaperPath = imagePath
+        saveSettings()
 
-        if (typeof Colors !== "undefined" && typeof SettingsData !== "undefined" && SettingsData.wallpaperDynamicTheming) {
-            Colors.extractColors();
+        if (typeof Theme !== "undefined") {
+            console.log("Theme is available, current theme:", Theme.currentTheme)
+            // Always extract colors for shell UI if dynamic theming is enabled
+            if (typeof SettingsData !== "undefined" && SettingsData.wallpaperDynamicTheming) {
+                console.log("Dynamic theming enabled, extracting colors")
+                Theme.extractColors()
+            }
+            // Always generate system themes (matugen templates) when wallpaper changes
+            console.log("Calling generateSystemThemesFromCurrentTheme")
+            Theme.generateSystemThemesFromCurrentTheme()
+        } else {
+            console.log("Theme is undefined!")
         }
     }
 
     function setWallpaperLastPath(path) {
-        wallpaperLastPath = path;
-        saveSettings();
+        wallpaperLastPath = path
+        saveSettings()
     }
 
     function setProfileLastPath(path) {
-        profileLastPath = path;
-        saveSettings();
+        profileLastPath = path
+        saveSettings()
     }
 
     function setPinnedApps(apps) {
-        pinnedApps = apps;
-        saveSettings();
+        pinnedApps = apps
+        saveSettings()
     }
 
     function addPinnedApp(appId) {
         if (!appId)
-            return;
-        var currentPinned = [...pinnedApps];
+            return
+        var currentPinned = [...pinnedApps]
         if (currentPinned.indexOf(appId) === -1) {
-            currentPinned.push(appId);
-            setPinnedApps(currentPinned);
+            currentPinned.push(appId)
+            setPinnedApps(currentPinned)
         }
     }
 
     function removePinnedApp(appId) {
         if (!appId)
-            return;
-        var currentPinned = pinnedApps.filter(id => id !== appId);
-        setPinnedApps(currentPinned);
+            return
+        var currentPinned = pinnedApps.filter(id => id !== appId)
+        setPinnedApps(currentPinned)
     }
 
     function isPinnedApp(appId) {
-        return appId && pinnedApps.indexOf(appId) !== -1;
+        return appId && pinnedApps.indexOf(appId) !== -1
     }
 
     function setSelectedGpuIndex(index) {
-        selectedGpuIndex = index;
-        saveSettings();
+        selectedGpuIndex = index
+        saveSettings()
     }
 
     function setNvidiaGpuTempEnabled(enabled) {
-        nvidiaGpuTempEnabled = enabled;
-        saveSettings();
+        nvidiaGpuTempEnabled = enabled
+        saveSettings()
     }
 
     function setNonNvidiaGpuTempEnabled(enabled) {
-        nonNvidiaGpuTempEnabled = enabled;
-        saveSettings();
+        nonNvidiaGpuTempEnabled = enabled
+        saveSettings()
     }
 
     function setEnabledGpuPciIds(pciIds) {
-        enabledGpuPciIds = pciIds;
-        saveSettings();
+        enabledGpuPciIds = pciIds
+        saveSettings()
     }
 
     function setWallpaperCyclingEnabled(enabled) {
-        wallpaperCyclingEnabled = enabled;
-        saveSettings();
+        wallpaperCyclingEnabled = enabled
+        saveSettings()
     }
 
     function setWallpaperCyclingMode(mode) {
-        wallpaperCyclingMode = mode;
-        saveSettings();
+        wallpaperCyclingMode = mode
+        saveSettings()
     }
 
     function setWallpaperCyclingInterval(interval) {
-        wallpaperCyclingInterval = interval;
-        saveSettings();
+        wallpaperCyclingInterval = interval
+        saveSettings()
     }
 
     function setWallpaperCyclingTime(time) {
-        wallpaperCyclingTime = time;
-        saveSettings();
+        wallpaperCyclingTime = time
+        saveSettings()
     }
 
     function setLastBrightnessDevice(device) {
-        lastBrightnessDevice = device;
-        saveSettings();
+        lastBrightnessDevice = device
+        saveSettings()
     }
 
     FileView {
         id: settingsFile
 
-        path: StandardPaths.writableLocation(StandardPaths.GenericStateLocation) + "/Dank/session.json"
+        path: StandardPaths.writableLocation(
+                  StandardPaths.GenericStateLocation) + "/DankMaterialShell/session.json"
         blockLoading: true
         blockWrites: true
         watchChanges: true
         onLoaded: {
-            parseSettings(settingsFile.text());
+            parseSettings(settingsFile.text())
         }
         onLoadFailed: error => {}
     }
@@ -239,76 +243,55 @@ Singleton {
         target: "wallpaper"
 
         function get(): string {
-            return root.wallpaperPath || "";
+            return root.wallpaperPath || ""
         }
 
         function set(path: string): string {
             if (!path) {
-                return "ERROR: No path provided";
+                return "ERROR: No path provided"
             }
 
-            var absolutePath = path.startsWith("/") ? path : StandardPaths.writableLocation(StandardPaths.HomeLocation) + "/" + path;
+            var absolutePath = path.startsWith(
+                        "/") ? path : StandardPaths.writableLocation(
+                                   StandardPaths.HomeLocation) + "/" + path
 
             try {
-                root.setWallpaper(absolutePath);
-                return "SUCCESS: Wallpaper set to " + absolutePath;
+                root.setWallpaper(absolutePath)
+                return "SUCCESS: Wallpaper set to " + absolutePath
             } catch (e) {
-                return "ERROR: Failed to set wallpaper: " + e.toString();
+                return "ERROR: Failed to set wallpaper: " + e.toString()
             }
         }
 
         function clear(): string {
-            root.setWallpaper("");
-            return "SUCCESS: Wallpaper cleared";
+            root.setWallpaper("")
+            return "SUCCESS: Wallpaper cleared"
         }
 
         function next(): string {
             if (!root.wallpaperPath) {
-                return "ERROR: No wallpaper set";
+                return "ERROR: No wallpaper set"
             }
 
             try {
-                WallpaperCyclingService.cycleNextManually();
-                return "SUCCESS: Cycling to next wallpaper";
+                WallpaperCyclingService.cycleNextManually()
+                return "SUCCESS: Cycling to next wallpaper"
             } catch (e) {
-                return "ERROR: Failed to cycle wallpaper: " + e.toString();
+                return "ERROR: Failed to cycle wallpaper: " + e.toString()
             }
         }
 
         function prev(): string {
             if (!root.wallpaperPath) {
-                return "ERROR: No wallpaper set";
+                return "ERROR: No wallpaper set"
             }
 
             try {
-                WallpaperCyclingService.cyclePrevManually();
-                return "SUCCESS: Cycling to previous wallpaper";
+                WallpaperCyclingService.cyclePrevManually()
+                return "SUCCESS: Cycling to previous wallpaper"
             } catch (e) {
-                return "ERROR: Failed to cycle wallpaper: " + e.toString();
+                return "ERROR: Failed to cycle wallpaper: " + e.toString()
             }
-        }
-    }
-
-    IpcHandler {
-        target: "theme"
-
-        function toggle(): string {
-            root.setLightMode(!root.isLightMode);
-            return root.isLightMode ? "light" : "dark";
-        }
-
-        function light(): string {
-            root.setLightMode(true);
-            return "light";
-        }
-
-        function dark(): string {
-            root.setLightMode(false);
-            return "dark";
-        }
-
-        function getMode(): string {
-            return root.isLightMode ? "light" : "dark";
         }
     }
 }

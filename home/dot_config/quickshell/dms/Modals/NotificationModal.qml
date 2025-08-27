@@ -16,13 +16,16 @@ DankModal {
     height: 700
     visible: false
     onBackgroundClicked: hide()
-    onDialogClosed: {
-        notificationModalOpen = false;
-        modalKeyboardController.reset();
+    onShouldBeVisibleChanged: (shouldBeVisible) => {
+        if (!shouldBeVisible) {
+            notificationModalOpen = false
+            modalKeyboardController.reset()
+            NotificationService.onOverlayClose()
+        }
     }
 
     modalFocusScope.Keys.onPressed: function (event) {
-        modalKeyboardController.handleKey(event);
+        modalKeyboardController.handleKey(event)
     }
 
     NotificationKeyboardController {
@@ -30,7 +33,7 @@ DankModal {
         listView: null
         isOpen: notificationModal.notificationModalOpen
         onClose: function () {
-            notificationModal.hide();
+            notificationModal.hide()
         }
     }
 
@@ -38,45 +41,45 @@ DankModal {
     property var notificationListRef: null
 
     function show() {
-        notificationModalOpen = true;
-        NotificationService.onOverlayOpen();
-        open();
-        modalKeyboardController.reset();
+        notificationModalOpen = true
+        NotificationService.onOverlayOpen()
+        open()
+        modalKeyboardController.reset()
 
         if (modalKeyboardController && notificationListRef) {
-            modalKeyboardController.listView = notificationListRef;
-            modalKeyboardController.rebuildFlatNavigation();
+            modalKeyboardController.listView = notificationListRef
+            modalKeyboardController.rebuildFlatNavigation()
         }
     }
 
     function hide() {
-        notificationModalOpen = false;
-        NotificationService.onOverlayClose();
-        close();
-        modalKeyboardController.reset();
+        notificationModalOpen = false
+        NotificationService.onOverlayClose()
+        close()
+        modalKeyboardController.reset()
     }
 
     function toggle() {
         if (shouldBeVisible)
-            hide();
+            hide()
         else
-            show();
+            show()
     }
 
     IpcHandler {
         function open() {
-            notificationModal.show();
-            return "NOTIFICATION_MODAL_OPEN_SUCCESS";
+            notificationModal.show()
+            return "NOTIFICATION_MODAL_OPEN_SUCCESS"
         }
 
         function close() {
-            notificationModal.hide();
-            return "NOTIFICATION_MODAL_CLOSE_SUCCESS";
+            notificationModal.hide()
+            return "NOTIFICATION_MODAL_CLOSE_SUCCESS"
         }
 
         function toggle() {
-            notificationModal.toggle();
-            return "NOTIFICATION_MODAL_TOGGLE_SUCCESS";
+            notificationModal.toggle()
+            return "NOTIFICATION_MODAL_TOGGLE_SUCCESS"
         }
 
         target: "notifications"
@@ -111,10 +114,10 @@ DankModal {
                     keyboardController: modalKeyboardController
 
                     Component.onCompleted: {
-                        notificationModal.notificationListRef = notificationList;
+                        notificationModal.notificationListRef = notificationList
                         if (modalKeyboardController) {
-                            modalKeyboardController.listView = notificationList;
-                            modalKeyboardController.rebuildFlatNavigation();
+                            modalKeyboardController.listView = notificationList
+                            modalKeyboardController.rebuildFlatNavigation()
                         }
                     }
                 }

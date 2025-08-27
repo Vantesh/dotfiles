@@ -1,384 +1,110 @@
 pragma Singleton
-pragma ComponentBehavior
+pragma ComponentBehavior: Bound
 
+import QtCore
 import QtQuick
 import Quickshell
 import Quickshell.Io
 import Quickshell.Services.UPower
+import qs.Services
+import "StockThemes.js" as StockThemes
 
 Singleton {
     id: root
 
-    property var themes: [
-        {
-            "name": "Blue",
-            "primary": "#42a5f5",
-            "primaryText": "#ffffff",
-            "primaryContainer": "#1976d2",
-            "secondary": "#8ab4f8",
-            "surface": "#1a1c1e",
-            "surfaceText": "#e3e8ef",
-            "surfaceVariant": "#44464f",
-            "surfaceVariantText": "#c4c7c5",
-            "surfaceTint": "#8ab4f8",
-            "background": "#1a1c1e",
-            "backgroundText": "#e3e8ef",
-            "outline": "#8e918f",
-            "surfaceContainer": "#1e2023",
-            "surfaceContainerHigh": "#292b2f"
-        },
-        {
-            "name": "Deep Blue",
-            "primary": "#0061a4",
-            "primaryText": "#ffffff",
-            "primaryContainer": "#004881",
-            "secondary": "#42a5f5",
-            "surface": "#1a1c1e",
-            "surfaceText": "#e3e8ef",
-            "surfaceVariant": "#44464f",
-            "surfaceVariantText": "#c4c7c5",
-            "surfaceTint": "#8ab4f8",
-            "background": "#1a1c1e",
-            "backgroundText": "#e3e8ef",
-            "outline": "#8e918f",
-            "surfaceContainer": "#1e2023",
-            "surfaceContainerHigh": "#292b2f"
-        },
-        {
-            "name": "Purple",
-            "primary": "#D0BCFF",
-            "primaryText": "#381E72",
-            "primaryContainer": "#4F378B",
-            "secondary": "#CCC2DC",
-            "surface": "#10121E",
-            "surfaceText": "#E6E0E9",
-            "surfaceVariant": "#49454F",
-            "surfaceVariantText": "#CAC4D0",
-            "surfaceTint": "#D0BCFF",
-            "background": "#10121E",
-            "backgroundText": "#E6E0E9",
-            "outline": "#938F99",
-            "surfaceContainer": "#1D1B20",
-            "surfaceContainerHigh": "#2B2930"
-        },
-        {
-            "name": "Green",
-            "primary": "#4caf50",
-            "primaryText": "#ffffff",
-            "primaryContainer": "#388e3c",
-            "secondary": "#81c995",
-            "surface": "#0f1411",
-            "surfaceText": "#e1f5e3",
-            "surfaceVariant": "#404943",
-            "surfaceVariantText": "#c1cbc4",
-            "surfaceTint": "#81c995",
-            "background": "#0f1411",
-            "backgroundText": "#e1f5e3",
-            "outline": "#8b938c",
-            "surfaceContainer": "#1a1f1b",
-            "surfaceContainerHigh": "#252a26"
-        },
-        {
-            "name": "Orange",
-            "primary": "#ff6d00",
-            "primaryText": "#ffffff",
-            "primaryContainer": "#e65100",
-            "secondary": "#ffb74d",
-            "surface": "#1c1410",
-            "surfaceText": "#f5f1ea",
-            "surfaceVariant": "#4a453a",
-            "surfaceVariantText": "#cbc5b8",
-            "surfaceTint": "#ffb74d",
-            "background": "#1c1410",
-            "backgroundText": "#f5f1ea",
-            "outline": "#958f84",
-            "surfaceContainer": "#211e17",
-            "surfaceContainerHigh": "#2c291f"
-        },
-        {
-            "name": "Red",
-            "primary": "#f44336",
-            "primaryText": "#ffffff",
-            "primaryContainer": "#d32f2f",
-            "secondary": "#f28b82",
-            "surface": "#1c1011",
-            "surfaceText": "#f5e8ea",
-            "surfaceVariant": "#4a3f41",
-            "surfaceVariantText": "#cbc2c4",
-            "surfaceTint": "#f28b82",
-            "background": "#1c1011",
-            "backgroundText": "#f5e8ea",
-            "outline": "#958b8d",
-            "surfaceContainer": "#211b1c",
-            "surfaceContainerHigh": "#2c2426"
-        },
-        {
-            "name": "Cyan",
-            "primary": "#00bcd4",
-            "primaryText": "#ffffff",
-            "primaryContainer": "#0097a7",
-            "secondary": "#4dd0e1",
-            "surface": "#0f1617",
-            "surfaceText": "#e8f4f5",
-            "surfaceVariant": "#3f474a",
-            "surfaceVariantText": "#c2c9cb",
-            "surfaceTint": "#4dd0e1",
-            "background": "#0f1617",
-            "backgroundText": "#e8f4f5",
-            "outline": "#8c9194",
-            "surfaceContainer": "#1a1f20",
-            "surfaceContainerHigh": "#252b2c"
-        },
-        {
-            "name": "Pink",
-            "primary": "#e91e63",
-            "primaryText": "#ffffff",
-            "primaryContainer": "#c2185b",
-            "secondary": "#f8bbd9",
-            "surface": "#1a1014",
-            "surfaceText": "#f3e8ee",
-            "surfaceVariant": "#483f45",
-            "surfaceVariantText": "#c9c2c7",
-            "surfaceTint": "#f8bbd9",
-            "background": "#1a1014",
-            "backgroundText": "#f3e8ee",
-            "outline": "#938a90",
-            "surfaceContainer": "#1f1b1e",
-            "surfaceContainerHigh": "#2a2428"
-        },
-        {
-            "name": "Amber",
-            "primary": "#ffc107",
-            "primaryText": "#000000",
-            "primaryContainer": "#ff8f00",
-            "secondary": "#ffd54f",
-            "surface": "#1a1710",
-            "surfaceText": "#f3f0e8",
-            "surfaceVariant": "#49453a",
-            "surfaceVariantText": "#cac5b8",
-            "surfaceTint": "#ffd54f",
-            "background": "#1a1710",
-            "backgroundText": "#f3f0e8",
-            "outline": "#949084",
-            "surfaceContainer": "#1f1e17",
-            "surfaceContainerHigh": "#2a281f"
-        },
-        {
-            "name": "Coral",
-            "primary": "#ffb4ab",
-            "primaryText": "#5f1412",
-            "primaryContainer": "#8c1d18",
-            "secondary": "#f9dedc",
-            "surface": "#1a1110",
-            "surfaceText": "#f1e8e7",
-            "surfaceVariant": "#4a4142",
-            "surfaceVariantText": "#cdc2c1",
-            "surfaceTint": "#ffb4ab",
-            "background": "#1a1110",
-            "backgroundText": "#f1e8e7",
-            "outline": "#968b8a",
-            "surfaceContainer": "#201a19",
-            "surfaceContainerHigh": "#2b2221"
-        }
-    ]
-    property var lightThemes: [
-        {
-            "name": "Blue Light",
-            "primary": "#1976d2",
-            "primaryText": "#ffffff",
-            "primaryContainer": "#e3f2fd",
-            "secondary": "#42a5f5",
-            "surface": "#fefefe",
-            "surfaceText": "#1a1c1e",
-            "surfaceVariant": "#e7e0ec",
-            "surfaceVariantText": "#49454f",
-            "surfaceTint": "#1976d2",
-            "background": "#fefefe",
-            "backgroundText": "#1a1c1e",
-            "outline": "#79747e",
-            "surfaceContainer": "#f3f3f3",
-            "surfaceContainerHigh": "#ececec"
-        },
-        {
-            "name": "Deep Blue Light",
-            "primary": "#0061a4",
-            "primaryText": "#ffffff",
-            "primaryContainer": "#cfe5ff",
-            "secondary": "#1976d2",
-            "surface": "#fefefe",
-            "surfaceText": "#1a1c1e",
-            "surfaceVariant": "#e7e0ec",
-            "surfaceVariantText": "#49454f",
-            "surfaceTint": "#0061a4",
-            "background": "#fefefe",
-            "backgroundText": "#1a1c1e",
-            "outline": "#79747e",
-            "surfaceContainer": "#f3f3f3",
-            "surfaceContainerHigh": "#ececec"
-        },
-        {
-            "name": "Purple Light",
-            "primary": "#6750A4",
-            "primaryText": "#ffffff",
-            "primaryContainer": "#EADDFF",
-            "secondary": "#625B71",
-            "surface": "#FFFBFE",
-            "surfaceText": "#1C1B1F",
-            "surfaceVariant": "#E7E0EC",
-            "surfaceVariantText": "#49454F",
-            "surfaceTint": "#6750A4",
-            "background": "#FFFBFE",
-            "backgroundText": "#1C1B1F",
-            "outline": "#79747E",
-            "surfaceContainer": "#F3EDF7",
-            "surfaceContainerHigh": "#ECE6F0"
-        },
-        {
-            "name": "Green Light",
-            "primary": "#2e7d32",
-            "primaryText": "#ffffff",
-            "primaryContainer": "#e8f5e8",
-            "secondary": "#4caf50",
-            "surface": "#fefefe",
-            "surfaceText": "#1a1c1e",
-            "surfaceVariant": "#e7e0ec",
-            "surfaceVariantText": "#49454f",
-            "surfaceTint": "#2e7d32",
-            "background": "#fefefe",
-            "backgroundText": "#1a1c1e",
-            "outline": "#79747e",
-            "surfaceContainer": "#f3f3f3",
-            "surfaceContainerHigh": "#ececec"
-        },
-        {
-            "name": "Orange Light",
-            "primary": "#e65100",
-            "primaryText": "#ffffff",
-            "primaryContainer": "#ffecb3",
-            "secondary": "#ff9800",
-            "surface": "#fefefe",
-            "surfaceText": "#1a1c1e",
-            "surfaceVariant": "#e7e0ec",
-            "surfaceVariantText": "#49454f",
-            "surfaceTint": "#e65100",
-            "background": "#fefefe",
-            "backgroundText": "#1a1c1e",
-            "outline": "#79747e",
-            "surfaceContainer": "#f3f3f3",
-            "surfaceContainerHigh": "#ececec"
-        },
-        {
-            "name": "Red Light",
-            "primary": "#d32f2f",
-            "primaryText": "#ffffff",
-            "primaryContainer": "#ffebee",
-            "secondary": "#f44336",
-            "surface": "#fefefe",
-            "surfaceText": "#1a1c1e",
-            "surfaceVariant": "#e7e0ec",
-            "surfaceVariantText": "#49454f",
-            "surfaceTint": "#d32f2f",
-            "background": "#fefefe",
-            "backgroundText": "#1a1c1e",
-            "outline": "#79747e",
-            "surfaceContainer": "#f3f3f3",
-            "surfaceContainerHigh": "#ececec"
-        },
-        {
-            "name": "Cyan Light",
-            "primary": "#0097a7",
-            "primaryText": "#ffffff",
-            "primaryContainer": "#e0f2f1",
-            "secondary": "#00bcd4",
-            "surface": "#fefefe",
-            "surfaceText": "#1a1c1e",
-            "surfaceVariant": "#e7e0ec",
-            "surfaceVariantText": "#49454f",
-            "surfaceTint": "#0097a7",
-            "background": "#fefefe",
-            "backgroundText": "#1a1c1e",
-            "outline": "#79747e",
-            "surfaceContainer": "#f3f3f3",
-            "surfaceContainerHigh": "#ececec"
-        },
-        {
-            "name": "Pink Light",
-            "primary": "#c2185b",
-            "primaryText": "#ffffff",
-            "primaryContainer": "#fce4ec",
-            "secondary": "#e91e63",
-            "surface": "#fefefe",
-            "surfaceText": "#1a1c1e",
-            "surfaceVariant": "#e7e0ec",
-            "surfaceVariantText": "#49454f",
-            "surfaceTint": "#c2185b",
-            "background": "#fefefe",
-            "backgroundText": "#1a1c1e",
-            "outline": "#79747e",
-            "surfaceContainer": "#f3f3f3",
-            "surfaceContainerHigh": "#ececec"
-        },
-        {
-            "name": "Amber Light",
-            "primary": "#ff8f00",
-            "primaryText": "#000000",
-            "primaryContainer": "#fff8e1",
-            "secondary": "#ffc107",
-            "surface": "#fefefe",
-            "surfaceText": "#1a1c1e",
-            "surfaceVariant": "#e7e0ec",
-            "surfaceVariantText": "#49454f",
-            "surfaceTint": "#ff8f00",
-            "background": "#fefefe",
-            "backgroundText": "#1a1c1e",
-            "outline": "#79747e",
-            "surfaceContainer": "#f3f3f3",
-            "surfaceContainerHigh": "#ececec"
-        },
-        {
-            "name": "Coral Light",
-            "primary": "#8c1d18",
-            "primaryText": "#ffffff",
-            "primaryContainer": "#ffdad6",
-            "secondary": "#ff5449",
-            "surface": "#fefefe",
-            "surfaceText": "#1a1c1e",
-            "surfaceVariant": "#e7e0ec",
-            "surfaceVariantText": "#49454f",
-            "surfaceTint": "#8c1d18",
-            "background": "#fefefe",
-            "backgroundText": "#1a1c1e",
-            "outline": "#79747e",
-            "surfaceContainer": "#f3f3f3",
-            "surfaceContainerHigh": "#ececec"
-        }
-    ]
-    property int currentThemeIndex: 0
-    property bool isDynamicTheme: false
+    property string currentTheme: "blue"
     property bool isLightMode: false
-    property color primary: isDynamicTheme ? Colors.accentHi : getCurrentTheme().primary
-    property color primaryText: isDynamicTheme ? Colors.primaryText : getCurrentTheme().primaryText
-    property color primaryContainer: isDynamicTheme ? Colors.primaryContainer : getCurrentTheme().primaryContainer
-    property color secondary: isDynamicTheme ? Colors.accentLo : getCurrentTheme().secondary
-    property color surface: isDynamicTheme ? Colors.surface : getCurrentTheme().surface
-    property color surfaceText: isDynamicTheme ? Colors.surfaceText : getCurrentTheme().surfaceText
-    property color surfaceVariant: isDynamicTheme ? Colors.surfaceVariant : getCurrentTheme().surfaceVariant
-    property color surfaceVariantText: isDynamicTheme ? Colors.surfaceVariantText : getCurrentTheme().surfaceVariantText
-    property color surfaceTint: isDynamicTheme ? Colors.surfaceTint : getCurrentTheme().surfaceTint
-    property color background: isDynamicTheme ? Colors.bg : getCurrentTheme().background
-    property color backgroundText: isDynamicTheme ? Colors.surfaceText : getCurrentTheme().backgroundText
-    property color outline: isDynamicTheme ? Colors.outline : getCurrentTheme().outline
-    property color surfaceContainer: isDynamicTheme ? Colors.surfaceContainer : getCurrentTheme().surfaceContainer
-    property color surfaceContainerHigh: isDynamicTheme ? Colors.surfaceContainerHigh : getCurrentTheme().surfaceContainerHigh
-    property color archBlue: "#1793D1"
-    property color success: "#4CAF50"
-    property color warning: "#FF9800"
-    property color info: "#2196F3"
-    property color error: "#F2B8B5"
+    
+    readonly property string dynamic: "dynamic"
 
-    // Temperature-specific colors
-    property color tempWarning: "#ff9933" // Balanced orange for warm temperatures
-    property color tempDanger: "#ff5555" // Balanced red for dangerous temperatures
+    readonly property string homeDir: {
+        const url = StandardPaths.writableLocation(StandardPaths.HomeLocation).toString()
+        return url.startsWith("file://") ? url.substring(7) : url
+    }
+    readonly property string configDir: {
+        const url = StandardPaths.writableLocation(StandardPaths.ConfigLocation).toString()
+        return url.startsWith("file://") ? url.substring(7) : url
+    }
+    readonly property string shellDir: Qt.resolvedUrl(".").toString().replace("file://", "").replace("/Common/", "")
+    readonly property string wallpaperPath: typeof SessionData !== "undefined" ? SessionData.wallpaperPath : ""
+    
+    property bool matugenAvailable: false
+    property bool gtkThemingEnabled: typeof SettingsData !== "undefined" ? SettingsData.gtkAvailable : false
+    property bool qtThemingEnabled: typeof SettingsData !== "undefined" ? (SettingsData.qt5ctAvailable || SettingsData.qt6ctAvailable) : false
+    property var workerRunning: false
+    property var matugenColors: ({})
+    property bool extractionRequested: false
+    property int colorUpdateTrigger: 0
+    property var customThemeData: null
+    
+    readonly property string stateDir: {
+        const cacheHome = StandardPaths.writableLocation(StandardPaths.CacheLocation).toString()
+        const path = cacheHome.startsWith("file://") ? cacheHome.substring(7) : cacheHome
+        return path + "/dankshell"
+    }
+
+    function getMatugenColor(path, fallback) {
+        colorUpdateTrigger
+        const colorMode = (typeof SessionData !== "undefined" && SessionData.isLightMode) ? "light" : "dark"
+        let cur = matugenColors && matugenColors.colors && matugenColors.colors[colorMode]
+        for (const part of path.split(".")) {
+            if (!cur || typeof cur !== "object" || !(part in cur))
+                return fallback
+            cur = cur[part]
+        }
+        return cur || fallback
+    }
+
+    readonly property var currentThemeData: {
+        if (currentTheme === "custom") {
+            return customThemeData || StockThemes.getThemeByName("blue", isLightMode)
+        } else if (currentTheme === dynamic) {
+            return {
+                primary: getMatugenColor("primary", "#42a5f5"),
+                primaryText: getMatugenColor("on_primary", "#ffffff"),
+                primaryContainer: getMatugenColor("primary_container", "#1976d2"),
+                secondary: getMatugenColor("secondary", "#8ab4f8"),
+                surface: getMatugenColor("surface", "#1a1c1e"),
+                surfaceText: getMatugenColor("on_background", "#e3e8ef"),
+                surfaceVariant: getMatugenColor("surface_variant", "#44464f"),
+                surfaceVariantText: getMatugenColor("on_surface_variant", "#c4c7c5"),
+                surfaceTint: getMatugenColor("surface_tint", "#8ab4f8"),
+                background: getMatugenColor("background", "#1a1c1e"),
+                backgroundText: getMatugenColor("on_background", "#e3e8ef"),
+                outline: getMatugenColor("outline", "#8e918f"),
+                surfaceContainer: getMatugenColor("surface_container", "#1e2023"),
+                surfaceContainerHigh: getMatugenColor("surface_container_high", "#292b2f"),
+                error: "#F2B8B5",
+                warning: "#FF9800",
+                info: "#2196F3",
+                success: "#4CAF50"
+            }
+        } else {
+            return StockThemes.getThemeByName(currentTheme, isLightMode)
+        }
+    }
+
+    property color primary: currentThemeData.primary
+    property color primaryText: currentThemeData.primaryText
+    property color primaryContainer: currentThemeData.primaryContainer
+    property color secondary: currentThemeData.secondary
+    property color surface: currentThemeData.surface
+    property color surfaceText: currentThemeData.surfaceText
+    property color surfaceVariant: currentThemeData.surfaceVariant
+    property color surfaceVariantText: currentThemeData.surfaceVariantText
+    property color surfaceTint: currentThemeData.surfaceTint
+    property color background: currentThemeData.background
+    property color backgroundText: currentThemeData.backgroundText
+    property color outline: currentThemeData.outline
+    property color surfaceContainer: currentThemeData.surfaceContainer
+    property color surfaceContainerHigh: currentThemeData.surfaceContainerHigh
+
+    property color error: currentThemeData.error || "#F2B8B5"
+    property color warning: currentThemeData.warning || "#FF9800"
+    property color info: currentThemeData.info || "#2196F3"
+    property color tempWarning: "#ff9933"
+    property color tempDanger: "#ff5555"
+    property color success: currentThemeData.success || "#4CAF50"
 
     property color primaryHover: Qt.rgba(primary.r, primary.g, primary.b, 0.12)
     property color primaryHoverLight: Qt.rgba(primary.r, primary.g, primary.b, 0.08)
@@ -394,33 +120,27 @@ Singleton {
     property color surfaceLight: Qt.rgba(surfaceVariant.r, surfaceVariant.g, surfaceVariant.b, 0.1)
     property color surfaceVariantAlpha: Qt.rgba(surfaceVariant.r, surfaceVariant.g, surfaceVariant.b, 0.2)
     property color surfaceTextHover: Qt.rgba(surfaceText.r, surfaceText.g, surfaceText.b, 0.08)
-    property color surfaceTextPressed: Qt.rgba(surfaceText.r, surfaceText.g, surfaceText.b, 0.12)
     property color surfaceTextAlpha: Qt.rgba(surfaceText.r, surfaceText.g, surfaceText.b, 0.3)
     property color surfaceTextLight: Qt.rgba(surfaceText.r, surfaceText.g, surfaceText.b, 0.06)
     property color surfaceTextMedium: Qt.rgba(surfaceText.r, surfaceText.g, surfaceText.b, 0.7)
 
+    property color outlineButton: Qt.rgba(outline.r, outline.g, outline.b, 0.5)
     property color outlineLight: Qt.rgba(outline.r, outline.g, outline.b, 0.05)
     property color outlineMedium: Qt.rgba(outline.r, outline.g, outline.b, 0.08)
     property color outlineStrong: Qt.rgba(outline.r, outline.g, outline.b, 0.12)
-    property color outlineSelected: Qt.rgba(outline.r, outline.g, outline.b, 0.2)
-    property color outlineHeavy: Qt.rgba(outline.r, outline.g, outline.b, 0.3)
-    property color outlineButton: Qt.rgba(outline.r, outline.g, outline.b, 0.5)
 
     property color errorHover: Qt.rgba(error.r, error.g, error.b, 0.12)
-    property color errorPressed: Qt.rgba(error.r, error.g, error.b, 0.9)
 
-    property color warningHover: Qt.rgba(warning.r, warning.g, warning.b, 0.12)
-
-    property color shadowLight: Qt.rgba(0, 0, 0, 0.05)
     property color shadowMedium: Qt.rgba(0, 0, 0, 0.08)
-    property color shadowDark: Qt.rgba(0, 0, 0, 0.1)
     property color shadowStrong: Qt.rgba(0, 0, 0, 0.3)
+
     property int shortDuration: 150
     property int mediumDuration: 300
     property int longDuration: 500
     property int extraLongDuration: 1000
     property int standardEasing: Easing.OutCubic
     property int emphasizedEasing: Easing.OutQuart
+
     property real cornerRadius: typeof SettingsData !== "undefined" ? SettingsData.cornerRadius : 12
     property real spacingXS: 4
     property real spacingS: 8
@@ -435,201 +155,583 @@ Singleton {
     property real iconSize: 24
     property real iconSizeSmall: 16
     property real iconSizeLarge: 32
-    property real opacityDisabled: 0.38
-    property real opacityMedium: 0.6
-    property real opacityHigh: 0.87
-    property real opacityFull: 1
+
     property real panelTransparency: 0.85
-    property real widgetTransparency: 0.85
-    property real popupTransparency: 0.92
+    property real widgetTransparency: typeof SettingsData !== "undefined" && SettingsData.topBarWidgetTransparency !== undefined ? SettingsData.topBarWidgetTransparency : 0.85
+    property real popupTransparency: typeof SettingsData !== "undefined" && SettingsData.popupTransparency !== undefined ? SettingsData.popupTransparency : 0.92
 
-    function onColorsUpdated() {
-        if (isDynamicTheme) {
-            currentThemeIndex = 10;
-            isDynamicTheme = true;
-            if (typeof SettingsData !== "undefined")
-                SettingsData.setTheme(currentThemeIndex, isDynamicTheme);
-        }
-    }
-
-    function switchTheme(themeIndex, isDynamic = false, savePrefs = true) {
-        if (isDynamic && themeIndex === 10) {
-            isDynamicTheme = true;
-            if (typeof Colors !== "undefined") {
-                Colors.extractColors();
+    function switchTheme(themeName, savePrefs = true) {
+        if (themeName === dynamic) {
+            currentTheme = dynamic
+            extractColors()
+        } else if (themeName === "custom") {
+            currentTheme = "custom"
+            if (typeof SettingsData !== "undefined" && SettingsData.customThemeFile) {
+                loadCustomThemeFromFile(SettingsData.customThemeFile)
             }
-        } else if (themeIndex >= 0 && themeIndex < themes.length) {
-            currentThemeIndex = themeIndex;
-            isDynamicTheme = false;
+        } else {
+            currentTheme = themeName
         }
         if (savePrefs && typeof SettingsData !== "undefined")
-            SettingsData.setTheme(currentThemeIndex, isDynamicTheme);
+            SettingsData.setTheme(currentTheme)
+        
+        generateSystemThemesFromCurrentTheme()
+    }
+
+    function setLightMode(light, savePrefs = true) {
+        isLightMode = light
+        if (savePrefs && typeof SessionData !== "undefined")
+            SessionData.setLightMode(isLightMode)
+            PortalService.setLightMode(isLightMode)
+        generateSystemThemesFromCurrentTheme()
     }
 
     function toggleLightMode(savePrefs = true) {
-        isLightMode = !isLightMode;
-        if (savePrefs && typeof SessionData !== "undefined")
-            SessionData.setLightMode(isLightMode);
+        setLightMode(!isLightMode, savePrefs)
+    }
+    
+    function forceGenerateSystemThemes() {
+        if (!matugenAvailable) {
+            if (typeof ToastService !== "undefined") {
+                ToastService.showWarning("matugen not available - cannot generate system themes")
+            }
+            return
+        }
+        generateSystemThemesFromCurrentTheme()
     }
 
-    function getCurrentThemeArray() {
-        return isLightMode ? lightThemes : themes;
+    function getAvailableThemes() {
+        return StockThemes.getAllThemeNames()
     }
 
-    function getCurrentTheme() {
-        var themeArray = getCurrentThemeArray();
-        return currentThemeIndex < themeArray.length ? themeArray[currentThemeIndex] : themeArray[0];
+    function getThemeDisplayName(themeName) {
+        const themeData = StockThemes.getThemeByName(themeName, isLightMode)
+        return themeData.name
     }
 
-    function getPopupBackgroundAlpha() {
-        return popupTransparency;
+    function getThemeColors(themeName) {
+        if (themeName === "custom" && customThemeData) {
+            return customThemeData
+        }
+        return StockThemes.getThemeByName(themeName, isLightMode)
     }
 
-    function getContentBackgroundAlpha() {
-        return popupTransparency;
+    function loadCustomTheme(themeData) {
+        if (themeData.dark || themeData.light) {
+            const colorMode = (typeof SessionData !== "undefined" && SessionData.isLightMode) ? "light" : "dark"
+            const selectedTheme = themeData[colorMode] || themeData.dark || themeData.light
+            customThemeData = selectedTheme
+        } else {
+            customThemeData = themeData
+        }
+        
+        generateSystemThemesFromCurrentTheme()
     }
+
+    function loadCustomThemeFromFile(filePath) {
+        customThemeFileView.path = filePath
+    }
+
+    property alias availableThemeNames: root._availableThemeNames
+    readonly property var _availableThemeNames: StockThemes.getAllThemeNames()
+    property string currentThemeName: currentTheme
+
 
     function popupBackground() {
-        return Qt.rgba(surfaceContainer.r, surfaceContainer.g, surfaceContainer.b, popupTransparency);
+        return Qt.rgba(surfaceContainer.r, surfaceContainer.g, surfaceContainer.b, popupTransparency)
     }
 
     function contentBackground() {
-        return Qt.rgba(surfaceContainer.r, surfaceContainer.g, surfaceContainer.b, popupTransparency);
+        return Qt.rgba(surfaceContainer.r, surfaceContainer.g, surfaceContainer.b, popupTransparency)
     }
 
     function panelBackground() {
-        return Qt.rgba(surfaceContainer.r, surfaceContainer.g, surfaceContainer.b, panelTransparency);
+        return Qt.rgba(surfaceContainer.r, surfaceContainer.g, surfaceContainer.b, panelTransparency)
     }
 
     function widgetBackground() {
-        return Qt.rgba(surfaceContainer.r, surfaceContainer.g, surfaceContainer.b, widgetTransparency);
+        return Qt.rgba(surfaceContainer.r, surfaceContainer.g, surfaceContainer.b, widgetTransparency)
+    }
+
+    function getPopupBackgroundAlpha() {
+        return popupTransparency
+    }
+
+    function getContentBackgroundAlpha() {
+        return popupTransparency
+    }
+
+    function isColorDark(c) {
+        return (0.299 * c.r + 0.587 * c.g + 0.114 * c.b) < 0.5
     }
 
     function getBatteryIcon(level, isCharging, batteryAvailable) {
         if (!batteryAvailable)
-            return _getBatteryPowerProfileIcon();
+            return _getBatteryPowerProfileIcon()
 
         if (isCharging) {
-            if (level >= 90)
-                return "battery_charging_full";
-
-            if (level >= 80)
-                return "battery_charging_90";
-
-            if (level >= 60)
-                return "battery_charging_80";
-
-            if (level >= 50)
-                return "battery_charging_60";
-
-            if (level >= 30)
-                return "battery_charging_50";
-
-            if (level >= 20)
-                return "battery_charging_30";
-
-            return "battery_charging_20";
+            if (level >= 90) return "battery_charging_full"
+            if (level >= 80) return "battery_charging_90"
+            if (level >= 60) return "battery_charging_80"
+            if (level >= 50) return "battery_charging_60"
+            if (level >= 30) return "battery_charging_50"
+            if (level >= 20) return "battery_charging_30"
+            return "battery_charging_20"
         } else {
-            if (level >= 95)
-                return "battery_full";
-
-            if (level >= 85)
-                return "battery_6_bar";
-
-            if (level >= 70)
-                return "battery_5_bar";
-
-            if (level >= 55)
-                return "battery_4_bar";
-
-            if (level >= 40)
-                return "battery_3_bar";
-
-            if (level >= 25)
-                return "battery_2_bar";
-
-            if (level >= 10)
-                return "battery_1_bar";
-
-            return "battery_alert";
+            if (level >= 95) return "battery_full"
+            if (level >= 85) return "battery_6_bar"
+            if (level >= 70) return "battery_5_bar"
+            if (level >= 55) return "battery_4_bar"
+            if (level >= 40) return "battery_3_bar"
+            if (level >= 25) return "battery_2_bar"
+            if (level >= 10) return "battery_1_bar"
+            return "battery_alert"
         }
     }
 
     function _getBatteryPowerProfileIcon() {
         if (typeof PowerProfiles === "undefined")
-            return "balance";
+            return "balance"
 
         switch (PowerProfiles.profile) {
         case PowerProfile.PowerSaver:
-            return "energy_savings_leaf";
+            return "energy_savings_leaf"
         case PowerProfile.Performance:
-            return "rocket_launch";
+            return "rocket_launch"
         default:
-            return "balance";
+            return "balance"
         }
     }
 
     function getPowerProfileIcon(profile) {
         switch (profile) {
         case PowerProfile.PowerSaver:
-            return "battery_saver";
+            return "battery_saver"
         case PowerProfile.Balanced:
-            return "battery_std";
+            return "battery_std"
         case PowerProfile.Performance:
-            return "flash_on";
+            return "flash_on"
         default:
-            return "settings";
+            return "settings"
         }
     }
 
     function getPowerProfileLabel(profile) {
         switch (profile) {
         case PowerProfile.PowerSaver:
-            return "Power Saver";
+            return "Power Saver"
         case PowerProfile.Balanced:
-            return "Balanced";
+            return "Balanced"
         case PowerProfile.Performance:
-            return "Performance";
+            return "Performance"
         default:
-            return profile.charAt(0).toUpperCase() + profile.slice(1);
+            return profile.charAt(0).toUpperCase() + profile.slice(1)
         }
     }
 
     function getPowerProfileDescription(profile) {
         switch (profile) {
         case PowerProfile.PowerSaver:
-            return "Extend battery life";
+            return "Extend battery life"
         case PowerProfile.Balanced:
-            return "Balance power and performance";
+            return "Balance power and performance"
         case PowerProfile.Performance:
-            return "Prioritize performance";
+            return "Prioritize performance"
         default:
-            return "Custom power profile";
+            return "Custom power profile"
         }
     }
 
+    function extractColors() {
+        extractionRequested = true
+        if (matugenAvailable)
+            fileChecker.running = true
+        else
+            matugenCheck.running = true
+    }
+
+    function onLightModeChanged() {
+        if (matugenColors && Object.keys(matugenColors).length > 0) {
+            colorUpdateTrigger++
+        }
+        
+        if (currentTheme === "custom" && customThemeFileView.path) {
+            customThemeFileView.reload()
+        }
+        
+        generateSystemThemesFromCurrentTheme()
+    }
+
+    function setDesiredTheme(kind, value, isLight, iconTheme) {
+        if (!matugenAvailable) {
+            console.warn("matugen not available - cannot set system theme")
+            return
+        }
+        
+        const desired = {
+            "kind": kind,
+            "value": value,
+            "mode": isLight ? "light" : "dark",
+            "iconTheme": iconTheme || "System Default"
+        }
+        
+        const json = JSON.stringify(desired)
+        const desiredPath = stateDir + "/matugen.desired.json"
+        
+        Quickshell.execDetached([
+            "sh", "-c", 
+            `mkdir -p '${stateDir}' && cat > '${desiredPath}' << 'EOF'\n${json}\nEOF`
+        ])
+        workerRunning = true
+        systemThemeGenerator.command = [shellDir + "/scripts/matugen-worker.sh", stateDir, shellDir, "--run"]
+        systemThemeGenerator.running = true
+    }
+    
+    function generateSystemThemesFromCurrentTheme() {
+        if (!matugenAvailable)
+            return
+
+        const isLight = (typeof SessionData !== "undefined" && SessionData.isLightMode)
+        const iconTheme = (typeof SettingsData !== "undefined" && SettingsData.iconTheme) ? SettingsData.iconTheme : "System Default"
+        
+        if (currentTheme === dynamic) {
+            if (!wallpaperPath) {
+                return
+            }
+            setDesiredTheme("image", wallpaperPath, isLight, iconTheme)
+        } else {
+            let primaryColor
+            if (currentTheme === "custom") {
+                if (!customThemeData || !customThemeData.primary) {
+                    console.warn("Custom theme data not available for system theme generation")
+                    return
+                }
+                primaryColor = customThemeData.primary
+            } else {
+                primaryColor = currentThemeData.primary
+            }
+            
+            if (!primaryColor) {
+                console.warn("No primary color available for theme:", currentTheme)
+                return
+            }
+            setDesiredTheme("hex", primaryColor, isLight, iconTheme)
+        }
+    }
+
+    function applyGtkColors() {
+        if (!matugenAvailable) {
+            if (typeof ToastService !== "undefined") {
+                ToastService.showError("matugen not available - cannot apply GTK colors")
+            }
+            return
+        }
+
+        const isLight = (typeof SessionData !== "undefined" && SessionData.isLightMode) ? "true" : "false"
+        gtkApplier.command = [shellDir + "/scripts/gtk.sh", configDir, isLight, shellDir]
+        gtkApplier.running = true
+    }
+
+    function applyQtColors() {
+        if (!matugenAvailable) {
+            if (typeof ToastService !== "undefined") {
+                ToastService.showError("matugen not available - cannot apply Qt colors")
+            }
+            return
+        }
+
+        qtApplier.command = [shellDir + "/scripts/qt.sh", configDir]
+        qtApplier.running = true
+    }
+
+
+    function extractJsonFromText(text) {
+        if (!text) return null
+
+        const start = text.search(/[{\[]/)
+        if (start === -1) return null
+
+        const open = text[start]
+        const pairs = { "{": '}', "[": ']' }
+        const close = pairs[open]
+        if (!close) return null
+
+        let inString = false
+        let escape = false
+        const stack = [open]
+
+        for (var i = start + 1; i < text.length; i++) {
+            const ch = text[i]
+
+            if (inString) {
+                if (escape) {
+                    escape = false
+                } else if (ch === '\\') {
+                    escape = true
+                } else if (ch === '"') {
+                    inString = false
+                }
+                continue
+            }
+
+            if (ch === '"') {
+                inString = true
+                continue
+            }
+            if (ch === '{' || ch === '[') {
+                stack.push(ch)
+                continue
+            }
+            if (ch === '}' || ch === ']') {
+                const last = stack.pop()
+                if (!last || pairs[last] !== ch) {
+                    return null
+                }
+                if (stack.length === 0) {
+                    return text.slice(start, i + 1)
+                }
+            }
+        }
+        return null
+    }
+
+    Process {
+        id: matugenCheck
+        command: ["which", "matugen"]
+        onExited: code => {
+            matugenAvailable = (code === 0)
+            if (!matugenAvailable) {
+                if (typeof ToastService !== "undefined") {
+                    ToastService.wallpaperErrorStatus = "matugen_missing"
+                    ToastService.showWarning("matugen not found - dynamic theming disabled")
+                }
+                return
+            }
+            if (extractionRequested) {
+                fileChecker.running = true
+            }
+            
+            
+            const isLight = (typeof SessionData !== "undefined" && SessionData.isLightMode)
+            const iconTheme = (typeof SettingsData !== "undefined" && SettingsData.iconTheme) ? SettingsData.iconTheme : "System Default"
+            
+            if (currentTheme === dynamic) {
+                if (wallpaperPath) {
+                    // Clear cache on startup to force regeneration
+                    Quickshell.execDetached(["rm", "-f", stateDir + "/matugen.key"])
+                    setDesiredTheme("image", wallpaperPath, isLight, iconTheme)
+                } else {
+                }
+            } else {
+                let primaryColor
+                if (currentTheme === "custom") {
+                    if (customThemeData && customThemeData.primary) {
+                        primaryColor = customThemeData.primary
+                    }
+                } else {
+                    primaryColor = currentThemeData.primary
+                }
+                
+                if (primaryColor) {
+                    // Clear cache on startup to force regeneration
+                    Quickshell.execDetached(["rm", "-f", stateDir + "/matugen.key"])
+                    setDesiredTheme("hex", primaryColor, isLight, iconTheme)
+                } else {
+                }
+            }
+        }
+    }
+
+    Process {
+        id: fileChecker
+        command: ["test", "-r", wallpaperPath]
+        onExited: code => {
+            if (code === 0) {
+                matugenProcess.running = true
+            }
+        }
+    }
+
+    Process {
+        id: matugenProcess
+        command: ["matugen", "image", wallpaperPath, "--json", "hex"]
+
+        stdout: StdioCollector {
+            id: matugenCollector
+            onStreamFinished: {
+                if (!matugenCollector.text) {
+                    if (typeof ToastService !== "undefined") {
+                        ToastService.wallpaperErrorStatus = "error"
+                        ToastService.showError("Wallpaper Processing Failed: Empty JSON extracted from matugen output.")
+                    }
+                    return
+                }
+                const extractedJson = extractJsonFromText(matugenCollector.text)
+                if (!extractedJson) {
+                    if (typeof ToastService !== "undefined") {
+                        ToastService.wallpaperErrorStatus = "error"
+                        ToastService.showError("Wallpaper Processing Failed: Invalid JSON extracted from matugen output.")
+                    }
+                    console.log("Raw matugen output:", matugenCollector.text)
+                    return
+                }
+                try {
+                    root.matugenColors = JSON.parse(extractedJson)
+                    root.colorUpdateTrigger++
+                    if (typeof ToastService !== "undefined") {
+                        ToastService.clearWallpaperError()
+                    }
+                } catch (e) {
+                    if (typeof ToastService !== "undefined") {
+                        ToastService.wallpaperErrorStatus = "error"
+                        ToastService.showError("Wallpaper processing failed (JSON parse error after extraction)")
+                    }
+                }
+            }
+        }
+
+        onExited: code => {
+            if (code !== 0) {
+                if (typeof ToastService !== "undefined") {
+                    ToastService.wallpaperErrorStatus = "error"
+                    ToastService.showError("Matugen command failed with exit code " + code)
+                }
+            }
+        }
+    }
+
+    Process {
+        id: ensureStateDir
+    }
+    
+    
+    Process {
+        id: systemThemeGenerator
+        running: false
+
+        onExited: exitCode => {
+            workerRunning = false
+            
+            if (exitCode === 2) {
+                // Exit code 2 means wallpaper/color not found - this is expected on first run
+                console.log("Theme worker: wallpaper/color not found, skipping theme generation")
+            } else if (exitCode !== 0) {
+                if (typeof ToastService !== "undefined") {
+                    ToastService.showError("Theme worker failed (" + exitCode + ")")
+                }
+                console.warn("Theme worker failed with exit code:", exitCode)
+            }
+        }
+    }
+
+    Process {
+        id: gtkApplier
+        running: false
+
+        stdout: StdioCollector {
+            id: gtkStdout
+        }
+
+        stderr: StdioCollector {
+            id: gtkStderr
+        }
+
+        onExited: exitCode => {
+            if (exitCode === 0) {
+                if (typeof ToastService !== "undefined") {
+                    ToastService.showInfo("GTK colors applied successfully")
+                }
+            } else {
+                if (typeof ToastService !== "undefined") {
+                    ToastService.showError("Failed to apply GTK colors: " + gtkStderr.text)
+                }
+            }
+        }
+    }
+
+    Process {
+        id: qtApplier
+        running: false
+
+        stdout: StdioCollector {
+            id: qtStdout
+        }
+
+        stderr: StdioCollector {
+            id: qtStderr
+        }
+
+        onExited: exitCode => {
+            if (exitCode === 0) {
+                if (typeof ToastService !== "undefined") {
+                    ToastService.showInfo("Qt colors applied successfully")
+                }
+            } else {
+                if (typeof ToastService !== "undefined") {
+                    ToastService.showError("Failed to apply Qt colors: " + qtStderr.text)
+                }
+            }
+        }
+    }
+
+
+
+
+
     Component.onCompleted: {
-        if (typeof Colors !== "undefined")
-            Colors.colorsUpdated.connect(root.onColorsUpdated);
+        matugenCheck.running = true
+        if (typeof SessionData !== "undefined")
+            SessionData.isLightModeChanged.connect(root.onLightModeChanged)
+    }
 
-        if (typeof SettingsData !== "undefined") {
-            if (SettingsData.popupTransparency !== undefined)
-                root.popupTransparency = SettingsData.popupTransparency;
+    FileView {
+        id: customThemeFileView
+        watchChanges: currentTheme === "custom"
 
-            if (SettingsData.topBarWidgetTransparency !== undefined)
-                root.widgetTransparency = SettingsData.topBarWidgetTransparency;
+        function parseAndLoadTheme() {
+            try {
+                var themeData = JSON.parse(customThemeFileView.text())
+                loadCustomTheme(themeData)
+            } catch (e) {
+                ToastService.showError("Invalid JSON format: " + e.message)
+            }
+        }
+        
+        onLoaded: {
+            parseAndLoadTheme()
+        }
 
-            if (SettingsData.popupTransparencyChanged)
-                SettingsData.popupTransparencyChanged.connect(function () {
-                    if (typeof SettingsData !== "undefined" && SettingsData.popupTransparency !== undefined)
-                        root.popupTransparency = SettingsData.popupTransparency;
-                });
+        onFileChanged: {
+            customThemeFileView.reload()
+        }
 
-            if (SettingsData.topBarWidgetTransparencyChanged)
-                SettingsData.topBarWidgetTransparencyChanged.connect(function () {
-                    if (typeof SettingsData !== "undefined" && SettingsData.topBarWidgetTransparency !== undefined)
-                        root.widgetTransparency = SettingsData.topBarWidgetTransparency;
-                });
+        onLoadFailed: function(error) {
+            if (typeof ToastService !== "undefined") {
+                ToastService.showError("Failed to read theme file: " + error)
+            }
+        }
+    }
+
+    IpcHandler {
+        target: "theme"
+
+        function toggle(): string {
+            root.toggleLightMode()
+            return root.isLightMode ? "light" : "dark"
+        }
+
+        function light(): string {
+            root.setLightMode(true)
+            return "light"
+        }
+
+        function dark(): string {
+            root.setLightMode(false)
+            return "dark"
+        }
+
+        function getMode(): string {
+            return root.isLightMode ? "light" : "dark"
         }
     }
 }

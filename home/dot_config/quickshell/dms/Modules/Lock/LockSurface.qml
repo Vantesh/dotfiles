@@ -15,12 +15,12 @@ WlSessionLockSurface {
     readonly property bool locked: lock && !lock.locked
 
     function unlock(): void {
-        lock.locked = false;
+        lock.locked = false
     }
 
     color: "transparent"
 
-    PowerConfirmModal {
+    ConfirmModal {
         id: powerConfirmModal
     }
 
@@ -33,7 +33,7 @@ WlSessionLockSurface {
             onUnlockRequested: root.unlock()
             onPasswordBufferChanged: {
                 if (root.sharedPasswordBuffer !== passwordBuffer) {
-                    root.passwordChanged(passwordBuffer);
+                    root.passwordChanged(passwordBuffer)
                 }
             }
         }

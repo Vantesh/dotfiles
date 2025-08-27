@@ -20,19 +20,28 @@ DankPopout {
     property var triggerScreen: null
 
     function setTriggerPosition(x, y, width, section, screen) {
-        triggerX = x;
-        triggerY = y;
-        triggerWidth = width;
-        triggerSection = section;
-        triggerScreen = screen;
+        triggerX = x
+        triggerY = y
+        triggerWidth = width
+        triggerSection = section
+        triggerScreen = screen
+    }
+
+    function openWithTab(tab) {
+        if (shouldBeVisible) {
+            close()
+        } else {
+            currentTab = tab
+            open()
+        }
     }
 
     signal powerActionRequested(string action, string title, string message)
     signal lockRequested
 
-    popupWidth: 520
-    popupHeight: contentLoader.item ? contentLoader.item.implicitHeight : (powerOptionsExpanded ? Math.max(Screen.height * 0.55, 800) : Math.max(Screen.height * 0.5, 750))
-    triggerX: Screen.width - 520 - Theme.spacingL
+    popupWidth: 550
+    popupHeight: contentLoader.item ? contentLoader.item.implicitHeight : 600
+    triggerX: Screen.width - 600 - Theme.spacingL
     triggerY: Theme.barHeight - 4 + SettingsData.topBarSpacing + Theme.spacingXS
     triggerWidth: 80
     positioning: "center"
@@ -43,13 +52,14 @@ DankPopout {
 
     onShouldBeVisibleChanged: {
         if (shouldBeVisible) {
-            NetworkService.autoRefreshEnabled = NetworkService.wifiEnabled;
+            NetworkService.autoRefreshEnabled = NetworkService.wifiEnabled
             if (UserInfoService)
-                UserInfoService.getUptime();
+                UserInfoService.getUptime()
         } else {
-            NetworkService.autoRefreshEnabled = false;
-            if (BluetoothService.adapter && BluetoothService.adapter.discovering)
-                BluetoothService.adapter.discovering = false;
+            NetworkService.autoRefreshEnabled = false
+            if (BluetoothService.adapter
+                    && BluetoothService.adapter.discovering)
+                BluetoothService.adapter.discovering = false
         }
     }
 
@@ -58,17 +68,22 @@ DankPopout {
             id: controlContent
 
             implicitHeight: {
-                let baseHeight = Theme.spacingL * 2;
-                baseHeight += 90; // user header
-                baseHeight += (powerOptionsExpanded ? 60 : 0) + Theme.spacingL; // power options
-                baseHeight += 52 + Theme.spacingL; // tab bar
-                baseHeight += 500; // tab content area - increased significantly
-                return baseHeight;
+                let baseHeight = Theme.spacingL * 2
+                baseHeight += 90 // user header
+                baseHeight += (powerOptionsExpanded ? 60 : 0) + Theme.spacingL // power options
+                baseHeight += 52 + Theme.spacingL // tab bar
+                
+                // Use actual tab content height without adding extra
+                let tabHeight = tabContentLoader.item ? tabContentLoader.item.implicitHeight + Theme.spacingS * 2 : 400
+                baseHeight += Math.min(Math.max(tabHeight, 300), 500)
+                
+                return baseHeight
             }
 
             color: Theme.popupBackground()
             radius: Theme.cornerRadius
-            border.color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.08)
+            border.color: Qt.rgba(Theme.outline.r, Theme.outline.g,
+                                  Theme.outline.b, 0.08)
             border.width: 1
             antialiasing: true
             smooth: true
@@ -76,15 +91,15 @@ DankPopout {
 
             Component.onCompleted: {
                 if (root.shouldBeVisible)
-                    forceActiveFocus();
+                    forceActiveFocus()
             }
 
             Keys.onPressed: function (event) {
                 if (event.key === Qt.Key_Escape) {
-                    root.close();
-                    event.accepted = true;
+                    root.close()
+                    event.accepted = true
                 } else {
-                    event.accepted = false;
+                    event.accepted = false
                 }
             }
 
@@ -92,8 +107,8 @@ DankPopout {
                 function onShouldBeVisibleChanged() {
                     if (root.shouldBeVisible)
                         Qt.callLater(function () {
-                            controlContent.forceActiveFocus();
-                        });
+                            controlContent.forceActiveFocus()
+                        })
                 }
                 target: root
             }
@@ -111,8 +126,12 @@ DankPopout {
                         width: parent.width
                         height: 90
                         radius: Theme.cornerRadius
-                        color: Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g, Theme.surfaceVariant.b, Theme.getContentBackgroundAlpha() * 0.4)
-                        border.color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.08)
+                        color: Qt.rgba(Theme.surfaceVariant.r,
+                                       Theme.surfaceVariant.g,
+                                       Theme.surfaceVariant.b,
+                                       Theme.getContentBackgroundAlpha() * 0.4)
+                        border.color: Qt.rgba(Theme.outline.r, Theme.outline.g,
+                                              Theme.outline.b, 0.08)
                         border.width: 1
 
                         Row {
@@ -144,12 +163,13 @@ DankPopout {
 
                                     source: {
                                         if (PortalService.profileImage === "")
-                                            return "";
+                                            return ""
 
-                                        if (PortalService.profileImage.startsWith("/"))
-                                            return "file://" + PortalService.profileImage;
+                                        if (PortalService.profileImage.startsWith(
+                                                    "/"))
+                                            return "file://" + PortalService.profileImage
 
-                                        return PortalService.profileImage;
+                                        return PortalService.profileImage
                                     }
                                     smooth: true
                                     asynchronous: true
@@ -205,7 +225,8 @@ DankPopout {
                                     name: "warning"
                                     size: Theme.iconSize + 8
                                     color: Theme.primaryText
-                                    visible: PortalService.profileImage !== "" && profileImageLoader.status === Image.Error
+                                    visible: PortalService.profileImage !== ""
+                                             && profileImageLoader.status === Image.Error
                                 }
                             }
 
@@ -214,14 +235,16 @@ DankPopout {
                                 spacing: Theme.spacingXS
 
                                 StyledText {
-                                    text: UserInfoService.fullName || UserInfoService.username || "User"
+                                    text: UserInfoService.fullName
+                                          || UserInfoService.username || "User"
                                     font.pixelSize: Theme.fontSizeLarge
                                     color: Theme.surfaceText
                                     font.weight: Font.Medium
                                 }
 
                                 StyledText {
-                                    text: "Uptime: " + (UserInfoService.uptime || "Unknown")
+                                    text: "Uptime: " + (UserInfoService.uptime
+                                                        || "Unknown")
                                     font.pixelSize: Theme.fontSizeSmall
                                     color: Theme.surfaceVariantText
                                     font.weight: Font.Normal
@@ -240,11 +263,17 @@ DankPopout {
                                 iconName: "lock"
                                 iconSize: Theme.iconSize - 2
                                 iconColor: Theme.surfaceText
-                                backgroundColor: Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g, Theme.surfaceVariant.b, 0.5)
-                                hoverColor: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.12)
+                                backgroundColor: Qt.rgba(
+                                                     Theme.surfaceVariant.r,
+                                                     Theme.surfaceVariant.g,
+                                                     Theme.surfaceVariant.b,
+                                                     0.5)
+                                hoverColor: Qt.rgba(Theme.primary.r,
+                                                    Theme.primary.g,
+                                                    Theme.primary.b, 0.12)
                                 onClicked: {
-                                    root.close();
-                                    root.lockRequested();
+                                    root.close()
+                                    root.lockRequested()
                                 }
                             }
 
@@ -252,7 +281,16 @@ DankPopout {
                                 width: 40
                                 height: 40
                                 radius: 20
-                                color: powerButton.containsMouse || root.powerOptionsExpanded ? Qt.rgba(Theme.error.r, Theme.error.g, Theme.error.b, 0.12) : Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g, Theme.surfaceVariant.b, 0.5)
+                                color: powerButton.containsMouse
+                                       || root.powerOptionsExpanded ? Qt.rgba(
+                                                                          Theme.error.r,
+                                                                          Theme.error.g,
+                                                                          Theme.error.b,
+                                                                          0.12) : Qt.rgba(
+                                                                          Theme.surfaceVariant.r,
+                                                                          Theme.surfaceVariant.g,
+                                                                          Theme.surfaceVariant.b,
+                                                                          0.5)
 
                                 Rectangle {
                                     anchors.centerIn: parent
@@ -268,7 +306,8 @@ DankPopout {
                                         anchors.centerIn: parent
                                         name: root.powerOptionsExpanded ? "expand_less" : "power_settings_new"
                                         size: Theme.iconSize - 2
-                                        color: powerButton.containsMouse || root.powerOptionsExpanded ? Theme.error : Theme.surfaceText
+                                        color: powerButton.containsMouse
+                                               || root.powerOptionsExpanded ? Theme.error : Theme.surfaceText
 
                                         Behavior on name {
                                             SequentialAnimation {
@@ -304,7 +343,7 @@ DankPopout {
                                     hoverEnabled: true
                                     cursorShape: Qt.PointingHandCursor
                                     onPressed: {
-                                        root.powerOptionsExpanded = !root.powerOptionsExpanded;
+                                        root.powerOptionsExpanded = !root.powerOptionsExpanded
                                     }
                                 }
 
@@ -321,11 +360,17 @@ DankPopout {
                                 iconName: "settings"
                                 iconSize: Theme.iconSize - 2
                                 iconColor: Theme.surfaceText
-                                backgroundColor: Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g, Theme.surfaceVariant.b, 0.5)
-                                hoverColor: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.12)
+                                backgroundColor: Qt.rgba(
+                                                     Theme.surfaceVariant.r,
+                                                     Theme.surfaceVariant.g,
+                                                     Theme.surfaceVariant.b,
+                                                     0.5)
+                                hoverColor: Qt.rgba(Theme.primary.r,
+                                                    Theme.primary.g,
+                                                    Theme.primary.b, 0.12)
                                 onClicked: {
-                                    root.close();
-                                    settingsModal.show();
+                                    root.close()
+                                    settingsModal.show()
                                 }
                             }
                         }
@@ -335,8 +380,12 @@ DankPopout {
                         width: parent.width
                         height: root.powerOptionsExpanded ? 60 : 0
                         radius: Theme.cornerRadius
-                        color: Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g, Theme.surfaceVariant.b, Theme.getContentBackgroundAlpha() * 0.4)
-                        border.color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.08)
+                        color: Qt.rgba(Theme.surfaceVariant.r,
+                                       Theme.surfaceVariant.g,
+                                       Theme.surfaceVariant.b,
+                                       Theme.getContentBackgroundAlpha() * 0.4)
+                        border.color: Qt.rgba(Theme.outline.r, Theme.outline.g,
+                                              Theme.outline.b, 0.08)
                         border.width: root.powerOptionsExpanded ? 1 : 0
                         opacity: root.powerOptionsExpanded ? 1 : 0
                         clip: true
@@ -350,7 +399,15 @@ DankPopout {
                                 width: 100
                                 height: 34
                                 radius: Theme.cornerRadius
-                                color: logoutButton.containsMouse ? Qt.rgba(Theme.warning.r, Theme.warning.g, Theme.warning.b, 0.12) : Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g, Theme.surfaceVariant.b, 0.5)
+                                color: logoutButton.containsMouse ? Qt.rgba(
+                                                                        Theme.warning.r,
+                                                                        Theme.warning.g,
+                                                                        Theme.warning.b,
+                                                                        0.12) : Qt.rgba(
+                                                                        Theme.surfaceVariant.r,
+                                                                        Theme.surfaceVariant.g,
+                                                                        Theme.surfaceVariant.b,
+                                                                        0.5)
 
                                 Row {
                                     anchors.centerIn: parent
@@ -379,9 +436,11 @@ DankPopout {
                                     hoverEnabled: true
                                     cursorShape: Qt.PointingHandCursor
                                     onPressed: {
-                                        root.powerOptionsExpanded = false;
-                                        root.close();
-                                        root.powerActionRequested("logout", "Logout", "Are you sure you want to logout?");
+                                        root.powerOptionsExpanded = false
+                                        root.close()
+                                        root.powerActionRequested(
+                                                    "logout", "Logout",
+                                                    "Are you sure you want to logout?")
                                     }
                                 }
 
@@ -397,7 +456,15 @@ DankPopout {
                                 width: 100
                                 height: 34
                                 radius: Theme.cornerRadius
-                                color: rebootButton.containsMouse ? Qt.rgba(Theme.warning.r, Theme.warning.g, Theme.warning.b, 0.12) : Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g, Theme.surfaceVariant.b, 0.5)
+                                color: rebootButton.containsMouse ? Qt.rgba(
+                                                                        Theme.warning.r,
+                                                                        Theme.warning.g,
+                                                                        Theme.warning.b,
+                                                                        0.12) : Qt.rgba(
+                                                                        Theme.surfaceVariant.r,
+                                                                        Theme.surfaceVariant.g,
+                                                                        Theme.surfaceVariant.b,
+                                                                        0.5)
 
                                 Row {
                                     anchors.centerIn: parent
@@ -426,9 +493,11 @@ DankPopout {
                                     hoverEnabled: true
                                     cursorShape: Qt.PointingHandCursor
                                     onPressed: {
-                                        root.powerOptionsExpanded = false;
-                                        root.close();
-                                        root.powerActionRequested("reboot", "Restart", "Are you sure you want to restart?");
+                                        root.powerOptionsExpanded = false
+                                        root.close()
+                                        root.powerActionRequested(
+                                                    "reboot", "Restart",
+                                                    "Are you sure you want to restart?")
                                     }
                                 }
 
@@ -444,7 +513,15 @@ DankPopout {
                                 width: 100
                                 height: 34
                                 radius: Theme.cornerRadius
-                                color: suspendButton.containsMouse ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.12) : Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g, Theme.surfaceVariant.b, 0.5)
+                                color: suspendButton.containsMouse ? Qt.rgba(
+                                                                         Theme.primary.r,
+                                                                         Theme.primary.g,
+                                                                         Theme.primary.b,
+                                                                         0.12) : Qt.rgba(
+                                                                         Theme.surfaceVariant.r,
+                                                                         Theme.surfaceVariant.g,
+                                                                         Theme.surfaceVariant.b,
+                                                                         0.5)
 
                                 Row {
                                     anchors.centerIn: parent
@@ -473,9 +550,11 @@ DankPopout {
                                     hoverEnabled: true
                                     cursorShape: Qt.PointingHandCursor
                                     onPressed: {
-                                        root.powerOptionsExpanded = false;
-                                        root.close();
-                                        root.powerActionRequested("suspend", "Suspend", "Are you sure you want to suspend?");
+                                        root.powerOptionsExpanded = false
+                                        root.close()
+                                        root.powerActionRequested(
+                                                    "suspend", "Suspend",
+                                                    "Are you sure you want to suspend?")
                                     }
                                 }
 
@@ -491,7 +570,15 @@ DankPopout {
                                 width: 100
                                 height: 34
                                 radius: Theme.cornerRadius
-                                color: shutdownButton.containsMouse ? Qt.rgba(Theme.error.r, Theme.error.g, Theme.error.b, 0.12) : Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g, Theme.surfaceVariant.b, 0.5)
+                                color: shutdownButton.containsMouse ? Qt.rgba(
+                                                                          Theme.error.r,
+                                                                          Theme.error.g,
+                                                                          Theme.error.b,
+                                                                          0.12) : Qt.rgba(
+                                                                          Theme.surfaceVariant.r,
+                                                                          Theme.surfaceVariant.g,
+                                                                          Theme.surfaceVariant.b,
+                                                                          0.5)
 
                                 Row {
                                     anchors.centerIn: parent
@@ -520,9 +607,11 @@ DankPopout {
                                     hoverEnabled: true
                                     cursorShape: Qt.PointingHandCursor
                                     onPressed: {
-                                        root.powerOptionsExpanded = false;
-                                        root.close();
-                                        root.powerActionRequested("poweroff", "Shutdown", "Are you sure you want to shutdown?");
+                                        root.powerOptionsExpanded = false
+                                        root.close()
+                                        root.powerActionRequested(
+                                                    "poweroff", "Shutdown",
+                                                    "Are you sure you want to shutdown?")
                                     }
                                 }
 
@@ -554,8 +643,11 @@ DankPopout {
                         width: parent.width
                         height: tabBar.height + Theme.spacingM * 2
                         radius: Theme.cornerRadius
-                        color: Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g, Theme.surfaceVariant.b, 0.15)
-                        border.color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.06)
+                        color: Qt.rgba(Theme.surfaceVariant.r,
+                                       Theme.surfaceVariant.g,
+                                       Theme.surfaceVariant.b, 0.15)
+                        border.color: Qt.rgba(Theme.outline.r, Theme.outline.g,
+                                              Theme.outline.b, 0.06)
                         border.width: 1
 
                         DankTabBar {
@@ -565,104 +657,121 @@ DankPopout {
                             width: parent.width - Theme.spacingM * 2
                             tabHeight: 40
                             currentIndex: {
-                                let tabs = ["network", "audio"];
+                                let tabs = ["network", "audio"]
                                 if (BluetoothService.available)
-                                    tabs.push("bluetooth");
+                                    tabs.push("bluetooth")
 
-                                tabs.push("display");
-                                return tabs.indexOf(root.currentTab);
+                                tabs.push("display")
+                                return tabs.indexOf(root.currentTab)
                             }
                             model: {
-                                let tabs = [
-                                    {
-                                        "text": "Network",
-                                        "icon": "wifi",
-                                        "id": "network"
-                                    }
-                                ];
+                                let tabs = [{
+                                                "text": "Network",
+                                                "icon": "wifi",
+                                                "id": "network"
+                                            }]
                                 tabs.push({
-                                    "text": "Audio",
-                                    "icon": "volume_up",
-                                    "id": "audio"
-                                });
+                                              "text": "Audio",
+                                              "icon": "volume_up",
+                                              "id": "audio"
+                                          })
                                 if (BluetoothService.available)
                                     tabs.push({
-                                        "text": "Bluetooth",
-                                        "icon": "bluetooth",
-                                        "id": "bluetooth"
-                                    });
+                                                  "text": "Bluetooth",
+                                                  "icon": "bluetooth",
+                                                  "id": "bluetooth"
+                                              })
 
                                 tabs.push({
-                                    "text": "Display",
-                                    "icon": "brightness_6",
-                                    "id": "display"
-                                });
-                                return tabs;
+                                              "text": "Display",
+                                              "icon": "brightness_6",
+                                              "id": "display"
+                                          })
+                                return tabs
                             }
                             onTabClicked: function (index) {
-                                let tabs = ["network", "audio"];
+                                let tabs = ["network", "audio"]
                                 if (BluetoothService.available)
-                                    tabs.push("bluetooth");
+                                    tabs.push("bluetooth")
 
-                                tabs.push("display");
-                                root.currentTab = tabs[index];
+                                tabs.push("display")
+                                root.currentTab = tabs[index]
                             }
                         }
                     }
                 }
 
                 Rectangle {
+                    id: tabContentContainer
                     width: parent.width
                     Layout.fillHeight: true
                     radius: Theme.cornerRadius
-                    color: Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g, Theme.surfaceVariant.b, 0.1)
-                    border.color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.05)
+                    color: Qt.rgba(Theme.surfaceVariant.r,
+                                   Theme.surfaceVariant.g,
+                                   Theme.surfaceVariant.b, 0.1)
+                    border.color: Qt.rgba(Theme.outline.r, Theme.outline.g,
+                                          Theme.outline.b, 0.05)
                     border.width: 1
 
                     Loader {
+                        id: tabContentLoader
                         anchors.fill: parent
                         anchors.margins: Theme.spacingS
-                        active: root.currentTab === "network"
                         asynchronous: true
-                        sourceComponent: Component {
-                            NetworkTab {}
+                        sourceComponent: {
+                            switch (root.currentTab) {
+                            case "network":
+                                return networkTabComponent
+                            case "audio":
+                                return audioTabComponent
+                            case "bluetooth":
+                                return BluetoothService.available ? bluetoothTabComponent : null
+                            case "display":
+                                return displayTabComponent
+                            default:
+                                return networkTabComponent
+                            }
                         }
                     }
 
-                    Loader {
-                        anchors.fill: parent
-                        anchors.margins: Theme.spacingS
-                        active: root.currentTab === "audio"
-                        asynchronous: true
-                        sourceComponent: Component {
-                            AudioTab {}
+                    Component {
+                        id: networkTabComponent
+                        NetworkTab {
+                            implicitHeight: 550
                         }
                     }
 
-                    Loader {
-                        anchors.fill: parent
-                        anchors.margins: Theme.spacingS
-                        active: BluetoothService.available && root.currentTab === "bluetooth"
-                        asynchronous: true
-                        sourceComponent: Component {
-                            BluetoothTab {}
+                    Component {
+                        id: audioTabComponent
+                        AudioTab {
+                            implicitHeight: 350
                         }
                     }
 
-                    Loader {
-                        anchors.fill: parent
-                        anchors.margins: Theme.spacingS
-                        active: root.currentTab === "display"
-                        asynchronous: true
-                        sourceComponent: Component {
-                            DisplayTab {}
+                    Component {
+                        id: bluetoothTabComponent
+                        BluetoothTab {
+                            implicitHeight: 400
                         }
                     }
 
-                    Behavior on height {
-                        NumberAnimation {
-                            duration: Theme.shortDuration
-                            easing.type: Theme.standardEasing
+                    Component {
+                        id: displayTabComponent
+                        DisplayTab {
+                            implicitHeight: {
+                                let height = Theme.spacingL
+                                
+                                if (BrightnessService.brightnessAvailable) {
+                                    height += 80
+                                    if (BrightnessService.devices.length > 1) {
+                                        height += 40
+                                    }
+                                }
+                                
+                                height += 120
+                                
+                                return Math.max(height, 200)
+                            }
                         }
                     }
                 }
@@ -670,8 +779,8 @@ DankPopout {
 
             Behavior on implicitHeight {
                 NumberAnimation {
-                    duration: Theme.shortDuration
-                    easing.type: Theme.standardEasing
+                    duration: 75
+                    easing.type: Easing.OutQuad
                 }
             }
         }
