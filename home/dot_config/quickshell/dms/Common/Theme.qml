@@ -14,7 +14,7 @@ Singleton {
 
     property string currentTheme: "blue"
     property bool isLightMode: false
-    
+
     readonly property string dynamic: "dynamic"
 
     readonly property string homeDir: {
@@ -27,7 +27,7 @@ Singleton {
     }
     readonly property string shellDir: Qt.resolvedUrl(".").toString().replace("file://", "").replace("/Common/", "")
     readonly property string wallpaperPath: typeof SessionData !== "undefined" ? SessionData.wallpaperPath : ""
-    
+
     property bool matugenAvailable: false
     property bool gtkThemingEnabled: typeof SettingsData !== "undefined" ? SettingsData.gtkAvailable : false
     property bool qtThemingEnabled: typeof SettingsData !== "undefined" ? (SettingsData.qt5ctAvailable || SettingsData.qt6ctAvailable) : false
@@ -36,7 +36,7 @@ Singleton {
     property bool extractionRequested: false
     property int colorUpdateTrigger: 0
     property var customThemeData: null
-    
+
     readonly property string stateDir: {
         const cacheHome = StandardPaths.writableLocation(StandardPaths.CacheLocation).toString()
         const path = cacheHome.startsWith("file://") ? cacheHome.substring(7) : cacheHome
@@ -174,7 +174,7 @@ Singleton {
         }
         if (savePrefs && typeof SettingsData !== "undefined")
             SettingsData.setTheme(currentTheme)
-        
+
         generateSystemThemesFromCurrentTheme()
     }
 
@@ -189,7 +189,7 @@ Singleton {
     function toggleLightMode(savePrefs = true) {
         setLightMode(!isLightMode, savePrefs)
     }
-    
+
     function forceGenerateSystemThemes() {
         if (!matugenAvailable) {
             if (typeof ToastService !== "undefined") {
@@ -224,7 +224,7 @@ Singleton {
         } else {
             customThemeData = themeData
         }
-        
+
         generateSystemThemesFromCurrentTheme()
     }
 
@@ -354,11 +354,11 @@ Singleton {
         if (matugenColors && Object.keys(matugenColors).length > 0) {
             colorUpdateTrigger++
         }
-        
+
         if (currentTheme === "custom" && customThemeFileView.path) {
             customThemeFileView.reload()
         }
-        
+
         generateSystemThemesFromCurrentTheme()
     }
 
@@ -367,33 +367,33 @@ Singleton {
             console.warn("matugen not available - cannot set system theme")
             return
         }
-        
+
         const desired = {
             "kind": kind,
             "value": value,
             "mode": isLight ? "light" : "dark",
             "iconTheme": iconTheme || "System Default"
         }
-        
+
         const json = JSON.stringify(desired)
         const desiredPath = stateDir + "/matugen.desired.json"
-        
+
         Quickshell.execDetached([
-            "sh", "-c", 
+            "sh", "-c",
             `mkdir -p '${stateDir}' && cat > '${desiredPath}' << 'EOF'\n${json}\nEOF`
         ])
         workerRunning = true
-        systemThemeGenerator.command = [shellDir + "/scripts/matugen-worker.sh", stateDir, shellDir, "--run"]
+        systemThemeGenerator.command = [shellDir + "/scripts/matugen-worker.sh"]
         systemThemeGenerator.running = true
     }
-    
+
     function generateSystemThemesFromCurrentTheme() {
         if (!matugenAvailable)
             return
 
         const isLight = (typeof SessionData !== "undefined" && SessionData.isLightMode)
         const iconTheme = (typeof SettingsData !== "undefined" && SettingsData.iconTheme) ? SettingsData.iconTheme : "System Default"
-        
+
         if (currentTheme === dynamic) {
             if (!wallpaperPath) {
                 return
@@ -410,7 +410,7 @@ Singleton {
             } else {
                 primaryColor = currentThemeData.primary
             }
-            
+
             if (!primaryColor) {
                 console.warn("No primary color available for theme:", currentTheme)
                 return
@@ -419,30 +419,6 @@ Singleton {
         }
     }
 
-    function applyGtkColors() {
-        if (!matugenAvailable) {
-            if (typeof ToastService !== "undefined") {
-                ToastService.showError("matugen not available - cannot apply GTK colors")
-            }
-            return
-        }
-
-        const isLight = (typeof SessionData !== "undefined" && SessionData.isLightMode) ? "true" : "false"
-        gtkApplier.command = [shellDir + "/scripts/gtk.sh", configDir, isLight, shellDir]
-        gtkApplier.running = true
-    }
-
-    function applyQtColors() {
-        if (!matugenAvailable) {
-            if (typeof ToastService !== "undefined") {
-                ToastService.showError("matugen not available - cannot apply Qt colors")
-            }
-            return
-        }
-
-        qtApplier.command = [shellDir + "/scripts/qt.sh", configDir]
-        qtApplier.running = true
-    }
 
 
     function extractJsonFromText(text) {
@@ -510,11 +486,11 @@ Singleton {
             if (extractionRequested) {
                 fileChecker.running = true
             }
-            
-            
+
+
             const isLight = (typeof SessionData !== "undefined" && SessionData.isLightMode)
             const iconTheme = (typeof SettingsData !== "undefined" && SettingsData.iconTheme) ? SettingsData.iconTheme : "System Default"
-            
+
             if (currentTheme === dynamic) {
                 if (wallpaperPath) {
                     // Clear cache on startup to force regeneration
@@ -531,7 +507,7 @@ Singleton {
                 } else {
                     primaryColor = currentThemeData.primary
                 }
-                
+
                 if (primaryColor) {
                     // Clear cache on startup to force regeneration
                     Quickshell.execDetached(["rm", "-f", stateDir + "/matugen.key"])
@@ -603,15 +579,14 @@ Singleton {
     Process {
         id: ensureStateDir
     }
-    
-    
+
+
     Process {
         id: systemThemeGenerator
         running: false
 
         onExited: exitCode => {
             workerRunning = false
-            
             if (exitCode === 2) {
                 // Exit code 2 means wallpaper/color not found - this is expected on first run
                 console.log("Theme worker: wallpaper/color not found, skipping theme generation")
@@ -624,55 +599,7 @@ Singleton {
         }
     }
 
-    Process {
-        id: gtkApplier
-        running: false
 
-        stdout: StdioCollector {
-            id: gtkStdout
-        }
-
-        stderr: StdioCollector {
-            id: gtkStderr
-        }
-
-        onExited: exitCode => {
-            if (exitCode === 0) {
-                if (typeof ToastService !== "undefined") {
-                    ToastService.showInfo("GTK colors applied successfully")
-                }
-            } else {
-                if (typeof ToastService !== "undefined") {
-                    ToastService.showError("Failed to apply GTK colors: " + gtkStderr.text)
-                }
-            }
-        }
-    }
-
-    Process {
-        id: qtApplier
-        running: false
-
-        stdout: StdioCollector {
-            id: qtStdout
-        }
-
-        stderr: StdioCollector {
-            id: qtStderr
-        }
-
-        onExited: exitCode => {
-            if (exitCode === 0) {
-                if (typeof ToastService !== "undefined") {
-                    ToastService.showInfo("Qt colors applied successfully")
-                }
-            } else {
-                if (typeof ToastService !== "undefined") {
-                    ToastService.showError("Failed to apply Qt colors: " + qtStderr.text)
-                }
-            }
-        }
-    }
 
 
 
@@ -696,7 +623,7 @@ Singleton {
                 ToastService.showError("Invalid JSON format: " + e.message)
             }
         }
-        
+
         onLoaded: {
             parseAndLoadTheme()
         }
@@ -735,3 +662,6 @@ Singleton {
         }
     }
 }
+
+
+

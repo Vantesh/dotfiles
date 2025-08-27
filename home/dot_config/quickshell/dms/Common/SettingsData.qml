@@ -121,7 +121,7 @@ Singleton {
         leftWidgetsModel.append(dummyItem)
         centerWidgetsModel.append(dummyItem)
         rightWidgetsModel.append(dummyItem)
-        
+
         updateListModel(leftWidgetsModel, topBarLeftWidgets)
         updateListModel(centerWidgetsModel, topBarCenterWidgets)
         updateListModel(rightWidgetsModel, topBarRightWidgets)
@@ -203,11 +203,11 @@ Singleton {
                 showBattery = settings.showBattery !== undefined ? settings.showBattery : true
                 showControlCenterButton = settings.showControlCenterButton
                         !== undefined ? settings.showControlCenterButton : true
-                controlCenterShowNetworkIcon = settings.controlCenterShowNetworkIcon 
+                controlCenterShowNetworkIcon = settings.controlCenterShowNetworkIcon
                         !== undefined ? settings.controlCenterShowNetworkIcon : true
-                controlCenterShowBluetoothIcon = settings.controlCenterShowBluetoothIcon 
+                controlCenterShowBluetoothIcon = settings.controlCenterShowBluetoothIcon
                         !== undefined ? settings.controlCenterShowBluetoothIcon : true
-                controlCenterShowAudioIcon = settings.controlCenterShowAudioIcon 
+                controlCenterShowAudioIcon = settings.controlCenterShowAudioIcon
                         !== undefined ? settings.controlCenterShowAudioIcon : true
                 showWorkspaceIndex = settings.showWorkspaceIndex
                         !== undefined ? settings.showWorkspaceIndex : false
@@ -771,7 +771,7 @@ Singleton {
         updateQtIconTheme(themeName)
         saveSettings()
         if (typeof Theme !== "undefined" && Theme.currentTheme === Theme.dynamic)
-            Theme.generateSystemThemes()
+            Theme.generateSystemThemesFromCurrentTheme()
     }
 
     function updateGtkIconTheme(themeName) {

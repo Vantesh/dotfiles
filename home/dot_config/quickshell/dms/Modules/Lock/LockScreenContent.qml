@@ -35,6 +35,18 @@ Item {
         WeatherService.removeRef()
     }
 
+    // Backdrop for when no wallpaper is set
+    Loader {
+        anchors.fill: parent
+        active: !SessionData.wallpaperPath
+        asynchronous: true
+
+        sourceComponent: DankBackdrop {
+            screenWidth: parent.width
+            screenHeight: parent.height
+        }
+    }
+
     Image {
         id: wallpaperBackground
 
