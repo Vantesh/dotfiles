@@ -13,6 +13,7 @@ Item {
     id: bluetoothTab
 
     property alias bluetoothContextMenuWindow: bluetoothContextMenuWindow
+    property alias contentHeight: mainColumn.height
 
     DankFlickable {
         anchors.fill: parent

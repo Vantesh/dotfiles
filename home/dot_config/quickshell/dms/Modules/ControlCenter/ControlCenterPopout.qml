@@ -72,11 +72,11 @@ DankPopout {
                 baseHeight += 90 // user header
                 baseHeight += (powerOptionsExpanded ? 60 : 0) + Theme.spacingL // power options
                 baseHeight += 52 + Theme.spacingL // tab bar
-                
+
                 // Use actual tab content height without adding extra
                 let tabHeight = tabContentLoader.item ? tabContentLoader.item.implicitHeight + Theme.spacingS * 2 : 400
                 baseHeight += Math.min(Math.max(tabHeight, 300), 500)
-                
+
                 return baseHeight
             }
 
@@ -751,7 +751,7 @@ DankPopout {
                     Component {
                         id: bluetoothTabComponent
                         BluetoothTab {
-                            implicitHeight: 400
+                            implicitHeight: Math.max(300, contentHeight + Theme.spacingL)
                         }
                     }
 
@@ -760,16 +760,16 @@ DankPopout {
                         DisplayTab {
                             implicitHeight: {
                                 let height = Theme.spacingL
-                                
+
                                 if (BrightnessService.brightnessAvailable) {
                                     height += 80
                                     if (BrightnessService.devices.length > 1) {
                                         height += 40
                                     }
                                 }
-                                
+
                                 height += 120
-                                
+
                                 return Math.max(height, 200)
                             }
                         }

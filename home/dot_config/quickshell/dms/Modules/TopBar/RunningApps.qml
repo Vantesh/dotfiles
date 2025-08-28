@@ -44,7 +44,7 @@ Rectangle {
     color: {
         if (windowCount === 0)
             return "transparent"
-        
+
         if (SettingsData.topBarNoBackground) return "transparent"
         const baseColor = Theme.secondaryHover
         return Qt.rgba(baseColor.r, baseColor.g, baseColor.b,
@@ -121,7 +121,7 @@ Rectangle {
                     anchors.verticalCenter: parent.verticalCenter
                     width: 18
                     height: 18
-                    source: Quickshell.iconPath(DesktopEntries.byId(Paths.moddedAppId(appId)).icon, true)
+                    source: Quickshell.iconPath(DesktopEntries.byId(Paths.moddedAppId(appId))?.icon, true)
                     smooth: true
                     mipmap: true
                     asynchronous: true

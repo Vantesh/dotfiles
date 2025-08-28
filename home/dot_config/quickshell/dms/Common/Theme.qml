@@ -134,6 +134,7 @@ Singleton {
     property color shadowMedium: Qt.rgba(0, 0, 0, 0.08)
     property color shadowStrong: Qt.rgba(0, 0, 0, 0.3)
 
+    property int shorterDuration: 100
     property int shortDuration: 150
     property int mediumDuration: 300
     property int longDuration: 500

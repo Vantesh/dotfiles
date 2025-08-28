@@ -20,7 +20,7 @@ PanelWindow {
     property bool closeOnEscapeKey: true
     property bool closeOnBackgroundClick: true
     property string animationType: "scale"
-    property int animationDuration: Theme.mediumDuration
+    property int animationDuration: Theme.shorterDuration
     property var animationEasing: Theme.emphasizedEasing
     property color backgroundColor: Theme.surfaceContainer
     property color borderColor: Theme.outlineMedium

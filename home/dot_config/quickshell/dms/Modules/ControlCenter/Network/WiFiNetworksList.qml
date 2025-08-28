@@ -37,6 +37,7 @@ Column {
         spacing: Theme.spacingS
 
         StyledText {
+            id: availableNetworksText
             text: "Available Networks"
             font.pixelSize: Theme.fontSizeMedium
             color: Theme.surfaceText
@@ -45,11 +46,12 @@ Column {
         }
 
         Item {
-            width: parent.width - 170
+            width: parent.width - availableNetworksText.width - refreshButtonContainer.width - parent.spacing * 2
             height: 1
         }
 
         Rectangle {
+            id: refreshButtonContainer
             width: 28
             height: 28
             radius: 14

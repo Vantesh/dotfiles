@@ -24,6 +24,7 @@ Column {
         font.weight: Font.Medium
     }
 
+
     Repeater {
         model: Pipewire.nodes.values.filter(node => {
             return  node.audio && node.isSink && !node.isStream
@@ -42,6 +43,8 @@ Column {
             Row {
                 anchors.left: parent.left
                 anchors.leftMargin: Theme.spacingM
+                anchors.right: parent.right
+                anchors.rightMargin: Theme.spacingM
                 anchors.verticalCenter: parent.verticalCenter
                 spacing: Theme.spacingM
 
@@ -62,17 +65,22 @@ Column {
                 }
 
                 Column {
+                    width: parent.width - parent.spacing - Theme.iconSize
                     spacing: 2
                     anchors.verticalCenter: parent.verticalCenter
 
                     StyledText {
+                        width: parent.width
                         text: AudioService.displayName(modelData)
                         font.pixelSize: Theme.fontSizeMedium
                         color: modelData === AudioService.sink ? Theme.primary : Theme.surfaceText
                         font.weight: modelData === AudioService.sink ? Font.Medium : Font.Normal
+                        elide: Text.ElideRight
+                        wrapMode: Text.NoWrap
                     }
 
                     StyledText {
+                        width: parent.width
                         text: {
                             if (AudioService.subtitle(modelData.name)
                                     && AudioService.subtitle(
@@ -87,6 +95,8 @@ Column {
                                        Theme.surfaceText.g,
                                        Theme.surfaceText.b, 0.7)
                         visible: text !== ""
+                        elide: Text.ElideRight
+                        wrapMode: Text.NoWrap
                     }
                 }
             }
