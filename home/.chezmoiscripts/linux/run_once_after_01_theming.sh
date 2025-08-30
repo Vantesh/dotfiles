@@ -8,6 +8,11 @@ common_init
 readonly GRUB_THEME_URL="https://github.com/semimqmo/sekiro_grub_theme"
 readonly QUIET_FLAGS_HOOKS="quiet splash loglevel=3 systemd.show_status=auto rd.udev.log_level=3 vt.global_cursor_default=0"
 
+# Track whether we changed system-level configuration that requires regenerating initramfs
+config_changed=false
+mkinitcpio_conf="/etc/mkinitcpio.conf"
+limine_conf="/boot/limine.conf"
+
 # ===================================================================================
 # BOOTLOADER THEME
 # ===================================================================================
@@ -38,10 +43,9 @@ if [[ $(detect_bootloader) == "limine" ]] && ! grep -q "CachyOS" /etc/os-release
   print_box "smslant" "Limine"
   print_step "Setting up Limine theme"
 
-  limine_conf="/boot/limine.conf"
   THEME_BLOCK=$(
     cat <<'EOF'
-# catppuccin mocha theme for limine
+# Catppuccin Mocha Theme
 timeout: 1
 default_entry: 2
 interface_branding:
@@ -51,45 +55,23 @@ term_background: 1e1e2e
 term_foreground: cdd6f4
 term_background_bright: 1e1e2e
 term_foreground_bright: cdd6f4
+
 EOF
   )
 
-  if grep -iq "term_palette=" "$limine_conf"; then
-    print_warning "Limine theme settings already exist."
-  else
+  if ! grep -q "Catppuccin Mocha Theme" "$limine_conf"; then
     if create_backup "$limine_conf"; then
-      sudo sed -i -E \
-        -e '/^\s*#*\s*(timeout|default_entry|interface_branding|term_palette|term_palette_bright|term_background|term_foreground|term_background_bright|term_foreground_bright)\s*[:=].*/Id' \
-        -e '/^\s*#*\s*catppuccin mocha theme for limine/Id' \
-        "$limine_conf"
-
-      # Create a temporary file to safely store the new content
-      temp_file=$(mktemp)
-
-      # Use awk to generate the new content and save it to the temp file
-      awk -v block="$THEME_BLOCK" '
-        BEGIN { inserted=0 }
-        {
-          if (!inserted && $0 ~ /^\/\+Arch Linux/) {
-            print "";
-            print block;
-            print "";
-            inserted=1
-          }
-          print
-        }
-      ' "$limine_conf" >"$temp_file"
-
-      # If awk succeeded, write the new content to the original file.
-      if [[ -s "$temp_file" ]]; then
-        sudo cat "$temp_file" | sudo tee "$limine_conf" >/dev/null
-        rm "$temp_file"
-        print_info "Limine theme has been added successfully."
+      if printf "%s\n" "$THEME_BLOCK" | sudo tee "$limine_conf" >/dev/null; then
+        print_info "Limine theme has been written to $limine_conf."
+        config_changed=true
       else
-        print_error "Failed to generate new limine.conf. No changes made."
-        rm "$temp_file"
+        print_error "Failed to write $limine_conf."
       fi
+    else
+      print_error "Failed to create backup of $limine_conf. Aborting limine theme write."
     fi
+  else
+    print_warning "Limine theme already configured, skipping"
   fi
 fi
 
@@ -98,9 +80,6 @@ fi
 #===================================================================================
 print_box "smslant" "Plymouth"
 print_step "Setting up Plymouth"
-
-mkinitcpio_conf="/etc/mkinitcpio.conf"
-config_changed=false
 
 print_info "Checking mkinitcpio hooks for plymouth..."
 
@@ -118,31 +97,45 @@ fi
 
 # --- Update Kernel Parameters for a quiet boot experience ---
 case "$(detect_bootloader)" in
-  grub)
-    update_grub_cmdline "${QUIET_FLAGS_HOOKS}" || {
-      print_error "Failed to update GRUB kernel command line for Plymouth"
-    }
-    ;;
-  limine)
-    # Ensure the Limine default drop-in exists once, sourced from /proc/cmdline
-    if [[ ! -f /etc/limine-entry-tool.d/01-default.conf ]]; then
-      if [[ -r /proc/cmdline ]]; then
-        update_limine_cmdline "01-default.conf" "$(cat /proc/cmdline)"
-      else
-        print_error "/proc/cmdline not readable; cannot create default Limine drop-in"
-      fi
+grub)
+  update_grub_cmdline "${QUIET_FLAGS_HOOKS}" || {
+    print_error "Failed to update GRUB kernel command line for Plymouth"
+  }
+  ;;
+limine)
+  # Ensure the Limine default drop-in exists once, sourced from /proc/cmdline
+  if [[ ! -f /etc/limine-entry-tool.d/01-default.conf ]]; then
+    if [[ -r /proc/cmdline ]]; then
+      update_limine_cmdline "01-default.conf" "$(cat /proc/cmdline)"
+    else
+      print_error "/proc/cmdline not readable; cannot create default Limine drop-in"
     fi
-    # Add quiet flags into a dedicated drop-in
-    update_limine_cmdline "20-quiet-boot.conf" "${QUIET_FLAGS_HOOKS}" || {
-      print_error "Failed to write Limine drop-in for Plymouth"
-    }
-    ;;
-  *)
-    print_warning "Unsupported bootloader, skipping kernel parameter update."
-    ;;
+  fi
+  # Add quiet flags into a dedicated drop-in
+  update_limine_cmdline "20-quiet-boot.conf" "${QUIET_FLAGS_HOOKS}" || {
+    print_error "Failed to write Limine drop-in for Plymouth"
+  }
+  ;;
+*)
+  print_warning "Unsupported bootloader, skipping kernel parameter update."
+  ;;
 esac
 
-# --- Regenerate Initramfs only if we changed the hooks ---
+if [ ! -f /etc/systemd/system/plymouth-quit.service.d/wait-for-graphical.conf ]; then
+  # Make plymouth remain until graphical.target
+  write_system_config "/etc/systemd/system/plymouth-quit.service.d/wait-for-graphical.conf" "wait-for-graphical.conf" <<EOF
+[Unit]
+After=multi-user.target
+EOF
+fi
+
+# Mask plymouth-quit-wait.service only if not already masked
+if ! systemctl is-enabled plymouth-quit-wait.service | grep -q masked; then
+  sudo systemctl mask plymouth-quit-wait.service
+  sudo systemctl daemon-reload
+fi
+
+# --- Regenerate Initramfs only if configuration changed ---
 if [[ "$config_changed" == true ]]; then
   print_info "Configuration changed, regenerating initramfs..."
   regenerate_initramfs
@@ -204,6 +197,6 @@ toolbutton_style=4
 underline_shortcut=1
 wheel_scroll_lines=3
 EOF
-print_info "$version config configured successfully"
+    print_info "$version config configured successfully"
   fi
 done
