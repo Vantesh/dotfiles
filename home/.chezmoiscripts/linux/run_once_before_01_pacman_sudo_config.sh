@@ -90,7 +90,7 @@ EOF
 
 declare -A faillock_config=(
   [deny]="20"
-  [unlock_time]="300"
+  [unlock_time]="120"
   [fail_interval]="900"
 )
 

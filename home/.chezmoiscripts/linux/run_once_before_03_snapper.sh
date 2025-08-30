@@ -31,6 +31,9 @@ if is_btrfs && confirm "Set up Snapper?"; then
       limine-mkinitcpio-hook
       limine-snapper-sync
     )
+    snapper_services+=(
+      limine-snapper-sync.service
+    )
 
   elif [[ "$(detect_bootloader)" == "grub" ]]; then
     snapper_deps+=(
@@ -75,6 +78,7 @@ if is_btrfs && confirm "Set up Snapper?"; then
       ["TERMINAL_ARG"]="-e"
       ["SNAPSHOT_FORMAT_CHOICE"]=0
       ["QUIET_MODE"]="yes"
+      ["ENABLE_LIMINE_FALLBACK"]="yes"
     )
 
     if [[ -f /etc/kernel/cmdline ]]; then
