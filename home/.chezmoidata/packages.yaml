@@ -41,7 +41,7 @@ packageGroups:
     - qt6-positioning
     - qt6-5compat
     - gammastep
-    - libfido2
+    - geoclue
     - wmctrl
     - btop
     - reflector
@@ -120,7 +120,6 @@ packageGroups:
     nvidia:
       - libva-nvidia-driver
       - nvidia-utils
-      - nvidia-dkms
       - nvidia-settings
       - nvidia-prime
       - opencl-nvidia

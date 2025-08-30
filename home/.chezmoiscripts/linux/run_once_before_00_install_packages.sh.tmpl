@@ -46,15 +46,28 @@ gpu_info=$(lspci -nn | grep -Ei "VGA compatible controller|3D controller|Display
 
 # NVIDIA
 if [[ $gpu_info == *"NVIDIA Corporation"* ]]; then
+  # Determine recommended NVIDIA driver package based on GPU generation.
+  # pick nvidia-open-dkms for RTX 20xx/30xx/40xx or GTX 16xx, otherwise fall back to nvidia-dkms.
+  if echo "${gpu_info}" | grep -q -E "RTX [2-9][0-9]|GTX 16"; then
+    NVIDIA_DRIVER_PACKAGE="nvidia-open-dkms"
+  else
+    NVIDIA_DRIVER_PACKAGE="nvidia-dkms"
+  fi
+
   drivers+=(
     {{- range .packageGroups.drivers.nvidia }}
     "{{ . }}"
     {{- end }}
   )
-  # Skip nvidia-dkms on CachyOS (prebuilt repos provide modules). Detect via kernel suffix or os-release.
+
+  # Add the chosen NVIDIA DKMS package.
+  drivers+=("$NVIDIA_DRIVER_PACKAGE")
+
+  # On CachyOS remove any DKMS packages (both open and vendor DKMS), since
+  # prebuilt modules are provided by the distribution.
   if [[ "$kernel_version" == *"-cachyos"* ]] || grep -qi 'cachyos' /etc/os-release 2>/dev/null; then
     for i in "${!drivers[@]}"; do
-      if [[ ${drivers[i]} == "nvidia-dkms" ]]; then
+      if [[ ${drivers[i]} == "nvidia-dkms" ]] || [[ ${drivers[i]} == "nvidia-open-dkms" ]]; then
         unset 'drivers[i]'
       fi
     done
