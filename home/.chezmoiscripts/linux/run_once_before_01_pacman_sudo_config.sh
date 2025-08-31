@@ -40,15 +40,11 @@ if create_backup "$pacman_conf"; then
 fi
 
 paccache_config="/etc/conf.d/pacman-contrib"
-if update_config "$paccache_config" "PACCACHE_ARGS" "'-k1'"; then
+if update_config "$paccache_config" "PACCACHE_ARGS" "'-k2'"; then
   print_info "Updated paccache configuration"
-  enable_service "paccache.timer" "system"
 else
   print_warning "Failed to update paccache configuration"
 fi
-
-# mirrorlist
-enable_service "reflector.timer" "system"
 
 write_system_config "/etc/pacman.d/hooks/00-paccache.hook" "Paccache hook" <<EOF
 [Trigger]
@@ -61,7 +57,7 @@ Target = *
 [Action]
 Description = Cleaning pacman cache...
 When = PostTransaction
-Exec = /usr/bin/paccache -rk1
+Exec = /usr/bin/paccache -rk2
 Depends = pacman-contrib
 EOF
 write_system_config "/etc/pacman.d/hooks/01-paccache-uninstalled.hook" "Paccache uninstalled hook" <<EOF

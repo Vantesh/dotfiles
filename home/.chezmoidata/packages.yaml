@@ -14,6 +14,7 @@ packageGroups:
     - brightnessctl
     - playerctl
     - nautilus
+    - gvfs-mtp
     - ly
     - kitty
     - rofimoji
@@ -60,10 +61,8 @@ packageGroups:
     - ripgrep
     - imagemagick
     - chafa
-    - python-opencv
     - clipse
     - clipse-gui
-    - grimblast
     - matugen-bin
     - app2unit-git
     - quickshell-git

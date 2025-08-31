@@ -23,6 +23,9 @@ readonly SYSTEM_SERVICES=(
   bluetooth.service
   udisks2.service
   ufw.service
+  reflector.timer
+  pacman-filesdb-refresh.timer
+  paccache.timer
 )
 
 # Enable services by scope
@@ -42,20 +45,21 @@ done
 # Enable ufw
 print_step "Enabling UFW (Uncomplicated Firewall)"
 if sudo ufw enable >/dev/null 2>&1; then
-  print_info "UFW enabled successfully"
-  # Allow ports for LocalSend
-  if sudo ufw allow 53317/udp >/dev/null 2>&1 && sudo ufw allow 53317/tcp >/dev/null 2>&1; then
-    print_info "Allowed ports for LocalSend"
-  else
-    print_warning "Failed to allow ports for LocalSend"
-  fi
+  print_info "UFW enabled"
 
-  if sudo ufw allow 22/tcp >/dev/null 2>&1; then
-    print_info "Allowed SSH port 22"
-  else
-    print_warning "Failed to allow SSH port 22"
-  fi
+  ports=("53317/udp" "53317/tcp" "22/tcp")
+  failed=()
+  for port in "${ports[@]}"; do
+    if sudo ufw allow "$port" >/dev/null 2>&1; then
+      print_info "Allowed $port"
+    else
+      failed+=("$port")
+    fi
+  done
 
+  if ((${#failed[@]})); then
+    print_warning "Failed to allow: ${failed[*]}"
+  fi
 else
   print_warning "Failed to enable UFW"
 fi

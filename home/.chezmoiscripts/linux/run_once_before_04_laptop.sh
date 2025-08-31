@@ -244,10 +244,17 @@ EOF
 
   # nvidia services
   if [[ $gpu_info == *"NVIDIA Corporation"* ]]; then
-    enable_service "nvidia-suspend-then-hibernate.service" "system"
-    enable_service "nvidia-hibernate.service" "system"
-    enable_service "nvidia-suspend.service" "system"
-    enable_service "nvidia-resume.service" "system"
+    services=(
+      nvidia-suspend-then-hibernate.service
+      nvidia-hibernate.service
+      nvidia-suspend.service
+      nvidia-resume.service
+    )
+    for svc in "${services[@]}"; do
+      if ! sudo systemctl --quiet is-enabled "$svc"; then
+        enable_service "$svc" "system"
+      fi
+    done
 
     write_system_config "/etc/tmpfiles.d/nvidia_pm.conf" "nvidia power management config" <<'EOF'
 # /etc/tmpfiles.d/nvidia_pm.conf# /etc/tmpfiles.d/nvidia_pm.conf
