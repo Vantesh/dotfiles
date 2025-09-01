@@ -132,10 +132,4 @@ if is_btrfs && confirm "Set up Snapper?"; then
     print_error "Failed to update Snapper configuration."
   fi
 
-  # updatedb
-  write_system_config "/etc/updatedb.conf" "Updatedb configuration" <<EOF
-PRUNENAMES = ".git .hg .svn .snapshots"
-PRUNEPATHS = "/afs /media /mnt /net /sfs /tmp /udev /var/cache /var/lib/pacman/local /var/lock /var/run /var/spool /var/tmp"
-EOF
-
 fi

@@ -70,3 +70,11 @@ if systemctl is-active --quiet systemd-networkd-wait-online.service; then
   sudo systemctl disable systemd-networkd-wait-online.service
   sudo systemctl mask systemd-networkd-wait-online.service
 fi
+
+# updatedb
+print_info "Running updatedb to update file database..."
+if sudo updatedb; then
+  print_info "updatedb completed successfully."
+else
+  print_warning "updatedb encountered issues."
+fi
