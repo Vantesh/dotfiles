@@ -20,6 +20,7 @@ readonly USER_SERVICES=(
 )
 
 readonly SYSTEM_SERVICES=(
+  NetworkManager
   bluetooth.service
   udisks2.service
   ufw.service
@@ -62,4 +63,10 @@ if sudo ufw enable >/dev/null 2>&1; then
   fi
 else
   print_warning "Failed to enable UFW"
+fi
+
+# Prevent systemd-networkd-wait-online timeout on boot
+if systemctl is-active --quiet systemd-networkd-wait-online.service; then
+  sudo systemctl disable systemd-networkd-wait-online.service
+  sudo systemctl mask systemd-networkd-wait-online.service
 fi

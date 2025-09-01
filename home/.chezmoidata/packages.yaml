@@ -12,6 +12,7 @@ packageGroups:
     - imv
     - libcanberra
     - brightnessctl
+    - networkmanager-iwd
     - playerctl
     - nautilus
     - gvfs-mtp
@@ -106,7 +107,6 @@ packageGroups:
   drivers:
     base:
       - mesa-utils
-      - wireless-regdb
       - libva-utils
       - vulkan-tools
       - vulkan-headers
