@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
- # setup XDG before running packages install script to avoid messy home dir on first launch
+# setup XDG before running packages install script to avoid messy home dir on first launch
 
- # Currently only .dotnet fails to respect XDG_CONFIG_HOME
+# Currently only .dotnet fails to respect XDG_CONFIG_HOME
 
 # =============================================================================
 # XDG BASE DIRECTORY
@@ -18,11 +18,6 @@ if [[ -z "$XDG_CACHE_HOME" ]]; then
 fi
 if [[ -z "$XDG_STATE_HOME" ]]; then
   export XDG_STATE_HOME="$HOME/.local/state"
-fi
-if [[ -z "$XDG_RUNTIME_DIR" ]]; then
-  export XDG_RUNTIME_DIR="$HOME/.local/run"
-  mkdir -p "$XDG_RUNTIME_DIR"
-  chmod 700 "$XDG_RUNTIME_DIR"
 fi
 
 if [[ -z "$GOPATH" ]]; then
@@ -50,7 +45,7 @@ if [[ ! -d "${HOME}/.config/maven" ]]; then
   mkdir -p "${HOME}/.config/maven"
 fi
 
-cat <<'EOF' > "${HOME}/.config/maven/settings.xml"
+cat <<'EOF' >"${HOME}/.config/maven/settings.xml"
 <settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
   xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0
@@ -58,7 +53,6 @@ cat <<'EOF' > "${HOME}/.config/maven/settings.xml"
   <localRepository>${env.XDG_CACHE_HOME}/maven/repository</localRepository>
 </settings>
 EOF
-
 
 export CONAN_USER_HOME="$XDG_CONFIG_HOME"
 export GOPATH="$XDG_DATA_HOME/go"
