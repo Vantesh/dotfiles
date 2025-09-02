@@ -132,4 +132,25 @@ if is_btrfs && confirm "Set up Snapper?"; then
     print_error "Failed to update Snapper configuration."
   fi
 
+  case "$(detect_bootloader)" in
+  grub) overlay_hook="grub-btrfs-overlayfs" ;;
+  limine) overlay_hook="btrfs-overlayfs" ;;
+  esac
+
+  if [[ -n $overlay_hook ]]; then
+    hooks=$(sed -nE 's/^[[:space:]]*HOOKS=\((.*)\)[[:space:]]*$/\1/p' /etc/mkinitcpio.conf | head -n1)
+    if [[ -n $hooks && $hooks != *" systemd "* ]]; then
+      new_hooks=$(sed -E "s/(^| )${overlay_hook//-/\\-}( |$)/ /g" <<<"$hooks" | xargs)
+      new_hooks=$(xargs <<<"$new_hooks $overlay_hook")
+      if [[ $new_hooks != "$hooks" ]]; then
+        if sudo sed -i -E "s|^[[:space:]]*HOOKS=\(.*\)|HOOKS=($new_hooks)|" /etc/mkinitcpio.conf; then
+          print_info "Updated mkinitcpio HOOKS (added $overlay_hook)"
+          regenerate_initramfs
+        else
+          print_error "Failed to update mkinitcpio HOOKS"
+        fi
+      fi
+    fi
+  fi
+
 fi

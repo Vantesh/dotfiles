@@ -43,7 +43,6 @@ readonly SWAP_SUBVOL="@swap"
 readonly SWAP_MOUNT_POINT="/swap"
 readonly SWAP_FILE_PATH="/swap/swapfile"
 readonly MKINIT_CONF="/etc/mkinitcpio.conf"
-readonly HOOKS="base systemd autodetect microcode modconf kms keyboard sd-vconsole block filesystems"
 
 gpu_info=$(lspci -nn | grep -Ei "VGA compatible controller|3D controller|Display controller")
 
@@ -204,12 +203,17 @@ if is_btrfs && is_laptop && confirm "Set up hibernation?"; then
   fi
 
   setup_hibernation
-
-  if sudo sed -i -E "s/^HOOKS=(.*)/HOOKS=(${HOOKS})/" "$MKINIT_CONF"; then
-    print_info "Updated mkinitcpio hooks"
-    regenerate_initramfs
-  else
-    print_error "Failed to update mkinitcpio hooks"
+  hooks=$(sed -nE 's/^[[:space:]]*HOOKS=\((.*)\)[[:space:]]*$/\1/p' "$MKINIT_CONF" | head -n1)
+  if [[ -n $hooks && $hooks != *" systemd "* ]]; then
+    new_hooks=$(sed -E 's/(^| )resume( |$)/ /g; s/(^| )filesystems( |$)/\1filesystems resume\2/' <<<"$hooks" | xargs)
+    if [[ $new_hooks != "$hooks" ]]; then
+      if sudo sed -i -E "s|^[[:space:]]*HOOKS=\(.*\)|HOOKS=($new_hooks)|" "$MKINIT_CONF"; then
+        print_info "Updated mkinitcpio HOOKS (added resume hook)"
+        regenerate_initramfs
+      else
+        print_error "Failed to update mkinitcpio HOOKS"
+      fi
+    fi
   fi
 
   write_system_config "/etc/systemd/sleep.conf.d/hibernation.conf" "systemd sleep config" <<'EOF'
