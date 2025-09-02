@@ -12,6 +12,8 @@ packageGroups:
     - imv
     - libcanberra
     - brightnessctl
+    - ddcutil
+    - khal
     - networkmanager-iwd
     - playerctl
     - nautilus

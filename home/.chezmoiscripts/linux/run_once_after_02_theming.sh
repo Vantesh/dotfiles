@@ -84,10 +84,19 @@ print_step "Setting up Plymouth"
 print_info "Checking mkinitcpio hooks for plymouth..."
 
 if ! sudo grep -qE '^\s*HOOKS=.*\bplymouth\b' "$mkinitcpio_conf"; then
-  print_info "Adding 'plymouth' hook to $mkinitcpio_conf..."
-  # This sed command safely inserts 'plymouth' before 'filesystems'
-  if sudo sed -i '/^HOOKS=/ s/filesystems/plymouth filesystems/' "$mkinitcpio_conf"; then
-    config_changed=true
+  # Add plymouth to HOOKS array after 'base systemd' or 'base udev'
+  if grep "^HOOKS=" "$mkinitcpio_conf" | grep -q "base systemd"; then
+    if sudo sed -i '/^HOOKS=/s/base systemd/base systemd plymouth/' "$mkinitcpio_conf"; then
+      config_changed=true
+    else
+      print_error "Failed to add plymouth after 'base systemd'."
+    fi
+  elif grep "^HOOKS=" "$mkinitcpio_conf" | grep -q "base udev"; then
+    if sudo sed -i '/^HOOKS=/s/base udev/base udev plymouth/' "$mkinitcpio_conf"; then
+      config_changed=true
+    else
+      print_error "Failed to add plymouth after 'base udev'."
+    fi
   else
     print_error "Failed to add plymouth hook."
   fi

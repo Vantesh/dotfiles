@@ -83,6 +83,9 @@ print_step "Setting up sudoers configuration"
 write_system_config "/etc/sudoers.d/timeout" "Sudo timeout configuration" <<EOF
 Defaults passwd_timeout=0
 EOF
+write_system_config "/etc/sudoers.d/passwd_tries" "Sudo password tries configuration" <<EOF
+Defaults passwd_tries=10
+EOF
 
 declare -A faillock_config=(
   [deny]="20"
