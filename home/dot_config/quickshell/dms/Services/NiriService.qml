@@ -26,6 +26,10 @@ Singleton {
     // Overview state
     property bool inOverview: false
 
+    // Keyboard layout state
+    property int currentKeyboardLayoutIndex: 0
+    property var keyboardLayoutNames: []
+
     // Internal state (not exposed to external components)
     property string configValidationOutput: ""
     property bool hasInitialConnection: false
@@ -191,6 +195,10 @@ Singleton {
             handleOverviewChanged(event.OverviewOpenedOrClosed)
         } else if (event.ConfigLoaded) {
             handleConfigLoaded(event.ConfigLoaded)
+        } else if (event.KeyboardLayoutsChanged) {
+            handleKeyboardLayoutsChanged(event.KeyboardLayoutsChanged)
+        } else if (event.KeyboardLayoutSwitched) {
+            handleKeyboardLayoutSwitched(event.KeyboardLayoutSwitched)
         }
     }
 
@@ -373,6 +381,15 @@ Singleton {
         }
     }
 
+    function handleKeyboardLayoutsChanged(data) {
+        keyboardLayoutNames = data.keyboard_layouts.names
+        currentKeyboardLayoutIndex = data.keyboard_layouts.current_idx
+    }
+
+    function handleKeyboardLayoutSwitched(data) {
+        currentKeyboardLayoutIndex = data.idx
+    }
+
     Process {
         id: validateProcess
         command: ["niri", "validate"]
@@ -441,7 +458,25 @@ Singleton {
         return 1
     }
 
+    function getCurrentKeyboardLayoutName() {
+        if (currentKeyboardLayoutIndex >= 0
+                && currentKeyboardLayoutIndex < keyboardLayoutNames.length) {
+            return keyboardLayoutNames[currentKeyboardLayoutIndex]
+        }
 
+        return ""
+    }
+
+
+    function cycleKeyboardLayout() {
+        return send({
+                        "Action": {
+                            "SwitchLayout": {
+                                "layout": "Next"
+                            }
+                        }
+                    })
+    }
 
     function quit() {
         return send({

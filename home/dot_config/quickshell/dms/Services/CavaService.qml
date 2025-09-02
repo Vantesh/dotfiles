@@ -11,7 +11,6 @@ Singleton {
     property list<int> values: Array(6)
     property int refCount: 0
     property bool cavaAvailable: false
-    property string monitorSource: AudioService.sink && AudioService.sink.name ? AudioService.sink.name + ".monitor" : ""
 
     Process {
         id: cavaCheck
@@ -31,9 +30,7 @@ Singleton {
         id: cavaProcess
 
         running: root.cavaAvailable && root.refCount > 0
-        command: ["sh", "-c", root.monitorSource 
-            ? `printf '[general]\\nmode=normal\\nframerate=25\\nautosens=0\\nsensitivity=30\\nbars=6\\nlower_cutoff_freq=50\\nhigher_cutoff_freq=12000\\n[input]\\nmethod=pulse\\nsource=${root.monitorSource}\\n[output]\\nmethod=raw\\nraw_target=/dev/stdout\\ndata_format=ascii\\nchannels=mono\\nmono_option=average\\n[smoothing]\\nnoise_reduction=35\\nintegral=90\\ngravity=95\\nignore=2\\nmonstercat=1.5' | cava -p /dev/stdin`
-            : `printf '[general]\\nmode=normal\\nframerate=25\\nautosens=0\\nsensitivity=30\\nbars=6\\nlower_cutoff_freq=50\\nhigher_cutoff_freq=12000\\n[output]\\nmethod=raw\\nraw_target=/dev/stdout\\ndata_format=ascii\\nchannels=mono\\nmono_option=average\\n[smoothing]\\nnoise_reduction=35\\nintegral=90\\ngravity=95\\nignore=2\\nmonstercat=1.5' | cava -p /dev/stdin`]
+        command: ["sh", "-c", `printf '[general]\\nmode=normal\\nframerate=25\\nautosens=0\\nsensitivity=30\\nbars=6\\nlower_cutoff_freq=50\\nhigher_cutoff_freq=12000\\n[output]\\nmethod=raw\\nraw_target=/dev/stdout\\ndata_format=ascii\\nchannels=mono\\nmono_option=average\\n[smoothing]\\nnoise_reduction=35\\nintegral=90\\ngravity=95\\nignore=2\\nmonstercat=1.5' | cava -p /dev/stdin`]
 
         onRunningChanged: {
             if (!running) {

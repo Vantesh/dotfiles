@@ -13,7 +13,7 @@ DankModal {
     property string confirmMessage: ""
     property string confirmButtonText: "Confirm"
     property string cancelButtonText: "Cancel"
-    property color confirmButtonColor: Theme.error
+    property color confirmButtonColor: Theme.primary
     property var onConfirm: function() {}
     property var onCancel: function() {}
     
@@ -25,7 +25,7 @@ DankModal {
         confirmMessage = message || ""
         confirmButtonText = "Confirm"
         cancelButtonText = "Cancel"
-        confirmButtonColor = Theme.error
+        confirmButtonColor = Theme.primary
         onConfirm = onConfirmCallback || function() {}
         onCancel = onCancelCallback || function() {}
         selectedButton = -1
@@ -38,7 +38,7 @@ DankModal {
         confirmMessage = options.message || ""
         confirmButtonText = options.confirmText || "Confirm"
         cancelButtonText = options.cancelText || "Cancel"
-        confirmButtonColor = options.confirmColor || Theme.error
+        confirmButtonColor = options.confirmColor || Theme.primary
         onConfirm = options.onConfirm || function() {}
         onCancel = options.onCancel || function() {}
         selectedButton = -1

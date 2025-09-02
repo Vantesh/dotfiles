@@ -65,9 +65,6 @@ Rectangle {
                 if (process && process.cpu > 80)
                     return Theme.error
 
-                if (process && process.cpu > 50)
-                    return Theme.warning
-
                 return Theme.surfaceText
             }
             opacity: 0.8
@@ -99,10 +96,6 @@ Rectangle {
                     return Qt.rgba(Theme.error.r, Theme.error.g,
                                    Theme.error.b, 0.12)
 
-                if (process && process.cpu > 50)
-                    return Qt.rgba(Theme.warning.r, Theme.warning.g,
-                                   Theme.warning.b, 0.12)
-
                 return Qt.rgba(Theme.surfaceText.r, Theme.surfaceText.g,
                                Theme.surfaceText.b, 0.08)
             }
@@ -118,9 +111,6 @@ Rectangle {
                 color: {
                     if (process && process.cpu > 80)
                         return Theme.error
-
-                    if (process && process.cpu > 50)
-                        return Theme.warning
 
                     return Theme.surfaceText
                 }
@@ -139,10 +129,6 @@ Rectangle {
                     return Qt.rgba(Theme.error.r, Theme.error.g,
                                    Theme.error.b, 0.12)
 
-                if (process && process.memoryKB > 512 * 1024)
-                    return Qt.rgba(Theme.warning.r, Theme.warning.g,
-                                   Theme.warning.b, 0.12)
-
                 return Qt.rgba(Theme.surfaceText.r, Theme.surfaceText.g,
                                Theme.surfaceText.b, 0.08)
             }
@@ -159,9 +145,6 @@ Rectangle {
                 color: {
                     if (process && process.memoryKB > 1024 * 1024)
                         return Theme.error
-
-                    if (process && process.memoryKB > 512 * 1024)
-                        return Theme.warning
 
                     return Theme.surfaceText
                 }

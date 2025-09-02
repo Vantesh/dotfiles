@@ -210,7 +210,7 @@ Row {
                     font.pixelSize: Theme.fontSizeMedium
                     font.family: SettingsData.monoFontFamily
                     font.weight: Font.Medium
-                    color: DgopService.usedSwapKB > 0 ? Theme.warning : Theme.surfaceText
+                    color: Theme.surfaceText
                     anchors.verticalCenter: parent.verticalCenter
                     visible: DgopService.totalSwapKB > 0
                 }

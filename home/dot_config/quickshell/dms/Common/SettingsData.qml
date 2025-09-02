@@ -77,8 +77,6 @@ Singleton {
     property string fontFamily: "Inter Variable"
     property string monoFontFamily: "Fira Code"
     property int fontWeight: Font.Normal
-    property bool gtkThemingEnabled: false
-    property bool qtThemingEnabled: false
     property bool showDock: false
     property bool dockAutoHide: false
     property real cornerRadius: 12
@@ -276,10 +274,7 @@ Singleton {
                 monoFontFamily = settings.monoFontFamily
                         !== undefined ? settings.monoFontFamily : defaultMonoFontFamily
                 fontWeight = settings.fontWeight !== undefined ? settings.fontWeight : Font.Normal
-                gtkThemingEnabled = settings.gtkThemingEnabled
-                        !== undefined ? settings.gtkThemingEnabled : false
-                qtThemingEnabled = settings.qtThemingEnabled
-                        !== undefined ? settings.qtThemingEnabled : false
+
                 showDock = settings.showDock !== undefined ? settings.showDock : false
                 dockAutoHide = settings.dockAutoHide !== undefined ? settings.dockAutoHide : false
                 cornerRadius = settings.cornerRadius !== undefined ? settings.cornerRadius : 12
@@ -377,8 +372,6 @@ Singleton {
                                                 "fontFamily": fontFamily,
                                                 "monoFontFamily": monoFontFamily,
                                                 "fontWeight": fontWeight,
-                                                "gtkThemingEnabled": gtkThemingEnabled,
-                                                "qtThemingEnabled": qtThemingEnabled,
                                                 "showDock": showDock,
                                                 "dockAutoHide": dockAutoHide,
                                                 "cornerRadius": cornerRadius,
@@ -771,7 +764,7 @@ Singleton {
         updateQtIconTheme(themeName)
         saveSettings()
         if (typeof Theme !== "undefined" && Theme.currentTheme === Theme.dynamic)
-            Theme.generateSystemThemesFromCurrentTheme()
+            Theme.generateSystemThemes()
     }
 
     function updateGtkIconTheme(themeName) {
@@ -852,21 +845,7 @@ Singleton {
         saveSettings()
     }
 
-    function setGtkThemingEnabled(enabled) {
-        gtkThemingEnabled = enabled
-        saveSettings()
-        if (enabled && typeof Theme !== "undefined") {
-            Theme.generateSystemThemesFromCurrentTheme()
-        }
-    }
 
-    function setQtThemingEnabled(enabled) {
-        qtThemingEnabled = enabled
-        saveSettings()
-        if (enabled && typeof Theme !== "undefined") {
-            Theme.generateSystemThemesFromCurrentTheme()
-        }
-    }
 
     function setShowDock(enabled) {
         showDock = enabled
@@ -1002,6 +981,8 @@ Singleton {
         }
     }
 
+    property bool hasTriedDefaultSettings: false
+
     FileView {
         id: settingsFile
 
@@ -1012,10 +993,15 @@ Singleton {
         watchChanges: true
         onLoaded: {
             parseSettings(settingsFile.text())
+            hasTriedDefaultSettings = false
         }
         onLoadFailed: error => {
-                          // Check if default-settings.json exists and copy it
-                          defaultSettingsCheckProcess.running = true
+                          if (!hasTriedDefaultSettings) {
+                              hasTriedDefaultSettings = true
+                              defaultSettingsCheckProcess.running = true
+                          } else {
+                              applyStoredTheme()
+                          }
                       }
     }
 

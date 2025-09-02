@@ -32,6 +32,7 @@ Singleton {
     property int wifiSignalStrength: 0
     property var wifiNetworks: []
     property var savedConnections: []
+    property var ssidToConnectionName: {}
     property var wifiSignalIcon: {
         if (!wifiConnected || networkStatus !== "wifi") {
             return "signal_wifi_off"
@@ -611,26 +612,33 @@ Singleton {
 
     Process {
         id: getSavedConnections
-        command: ["nmcli", "-t", "-f", "NAME,TYPE", "connection", "show"]
+        command: ["bash", "-c", "nmcli -t -f NAME,TYPE connection show | grep ':802-11-wireless$' | cut -d: -f1 | while read name; do ssid=$(nmcli -g 802-11-wireless.ssid connection show \"$name\"); echo \"$ssid:$name\"; done"]
         running: false
 
         stdout: StdioCollector {
             onStreamFinished: {
                 let saved = []
+                let mapping = {}
                 const lines = text.trim().split('\n')
 
                 for (const line of lines) {
-                    const parts = line.split(':')
-                    if (parts.length >= 2 && parts[1] === "802-11-wireless") {
-                        saved.push({
-                                       "ssid": parts[0],
-                                       "saved": true
-                                   })
+                    const parts = line.trim().split(':')
+                    if (parts.length >= 2) {
+                        const ssid = parts[0]
+                        const connectionName = parts[1]
+                        if (ssid && ssid.length > 0 && connectionName && connectionName.length > 0) {
+                            saved.push({
+                                           "ssid": ssid,
+                                           "saved": true
+                                       })
+                            mapping[ssid] = connectionName
+                        }
                     }
                 }
 
                 root.savedConnections = saved
                 root.savedWifiNetworks = saved
+                root.ssidToConnectionName = mapping
 
                 let updated = [...root.wifiNetworks]
                 for (let network of updated) {
@@ -650,7 +658,11 @@ Singleton {
         root.connectionError = ""
         root.connectionStatus = "connecting"
 
-        if (password) {
+        // For saved networks without password, try connection up first
+        if (!password && root.ssidToConnectionName[ssid]) {
+            const connectionName = root.ssidToConnectionName[ssid]
+            wifiConnector.command = ["nmcli", "connection", "up", connectionName]
+        } else if (password) {
             wifiConnector.command = ["nmcli", "dev", "wifi", "connect", ssid, "password", password]
         } else {
             wifiConnector.command = ["nmcli", "dev", "wifi", "connect", ssid]
@@ -751,7 +763,8 @@ Singleton {
 
     function forgetWifiNetwork(ssid) {
         root.forgetSSID = ssid
-        networkForgetter.command = ["nmcli", "connection", "delete", ssid]
+        const connectionName = root.ssidToConnectionName[ssid] || ssid
+        networkForgetter.command = ["nmcli", "connection", "delete", connectionName]
         networkForgetter.running = true
     }
 

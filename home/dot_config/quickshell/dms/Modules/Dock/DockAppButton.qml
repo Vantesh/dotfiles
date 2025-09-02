@@ -40,7 +40,7 @@ Item {
 
         // For window type, show app name + window title
         if (appData.type === "window" && showWindowTitle) {
-            var desktopEntry = DesktopEntries.byId(appData.appId)
+            var desktopEntry = DesktopEntries.heuristicLookup(appData.appId)
             var appName = desktopEntry
                     && desktopEntry.name ? desktopEntry.name : appData.appId
             return appName + (windowTitle ? " • " + windowTitle : "")
@@ -49,7 +49,7 @@ Item {
         if (!appData.appId)
             return ""
 
-        var desktopEntry = DesktopEntries.byId(appData.appId)
+        var desktopEntry = DesktopEntries.heuristicLookup(appData.appId)
         return desktopEntry
                 && desktopEntry.name ? desktopEntry.name : appData.appId
     }
@@ -224,7 +224,7 @@ Item {
                            if (appData.type === "pinned") {
                                // Launch the pinned app
                                if (appData && appData.appId) {
-                                   var desktopEntry = DesktopEntries.byId(
+                                   var desktopEntry = DesktopEntries.heuristicLookup(
                                        appData.appId)
                                    if (desktopEntry)
                                    AppUsageHistoryData.addAppUsage({
@@ -248,7 +248,7 @@ Item {
                            }
                        } else if (mouse.button === Qt.MiddleButton) {
                            if (appData && appData.appId) {
-                               var desktopEntry = DesktopEntries.byId(
+                               var desktopEntry = DesktopEntries.heuristicLookup(
                                    appData.appId)
                                if (desktopEntry)
                                AppUsageHistoryData.addAppUsage({
@@ -279,7 +279,7 @@ Item {
         implicitSize: 40
         source: {
             if (appData.appId === "__SEPARATOR__") return ""
-            var desktopEntry = DesktopEntries.byId(Paths.moddedAppId(appData.appId))
+            var desktopEntry = DesktopEntries.heuristicLookup(Paths.moddedAppId(appData.appId))
             return desktopEntry && desktopEntry.icon ? Quickshell.iconPath(desktopEntry.icon, true) : ""
         }
         mipmap: true
@@ -304,7 +304,7 @@ Item {
                 if (!appData || !appData.appId)
                     return "?"
 
-                var desktopEntry = DesktopEntries.byId(appData.appId)
+                var desktopEntry = DesktopEntries.heuristicLookup(appData.appId)
                 if (desktopEntry && desktopEntry.name)
                     return desktopEntry.name.charAt(0).toUpperCase()
 

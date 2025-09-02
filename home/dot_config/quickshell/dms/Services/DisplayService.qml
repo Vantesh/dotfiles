@@ -32,7 +32,18 @@ Singleton {
     signal brightnessChanged
     signal deviceSwitched
 
-    property bool nightModeActive: false
+    property bool nightModeActive: nightModeEnabled
+
+    // Night Mode Properties
+    property bool nightModeEnabled: false
+    property bool automationAvailable: false
+    property bool geoclueAvailable: false
+    property bool isAutomaticNightTime: false
+
+    function buildGammastepCommand(gammastepArgs) {
+        const commandStr = "pkill gammastep; " + ["gammastep"].concat(gammastepArgs).join(" ")
+        return ["sh", "-c", commandStr]
+    }
 
     function setBrightnessInternal(percentage, device) {
         const clampedValue = Math.max(1, Math.min(100, percentage))
@@ -213,52 +224,208 @@ Singleton {
         ddcInitialBrightnessProcess.running = true
     }
 
+    // Night Mode Functions - Simplified
     function enableNightMode() {
-        if (nightModeActive)
+        if (!automationAvailable) {
+            gammaStepTestProcess.running = true
             return
+        }
 
-        // Test if gammastep exists before enabling
-        gammaStepTestProcess.running = true
-    }
-
-    function updateNightModeTemperature(temperature) {
-        SessionData.setNightModeTemperature(temperature)
-
-        // If night mode is active, restart it with new temperature
-        if (nightModeActive) {
-            // Temporarily disable and re-enable to restart with new temp
-            nightModeActive = false
-            Qt.callLater(() => {
-                             if (SessionData.nightModeEnabled) {
-                                 nightModeActive = true
-                             }
-                         })
+        nightModeEnabled = true
+        SessionData.setNightModeEnabled(true)
+        
+        // Apply immediately or start automation
+        if (SessionData.nightModeAutoEnabled) {
+            startAutomation()
+        } else {
+            applyNightModeDirectly()
         }
     }
 
     function disableNightMode() {
-        nightModeActive = false
+        nightModeEnabled = false
         SessionData.setNightModeEnabled(false)
-
-        // Also kill any stray gammastep processes
-        Quickshell.execDetached(["pkill", "gammastep"])
+        stopAutomation()
+        // Nuclear approach - kill ALL gammastep processes multiple times
+        Quickshell.execDetached(["pkill", "-f", "gammastep"])
+        Quickshell.execDetached(["pkill", "-9", "gammastep"])
+        Quickshell.execDetached(["killall", "gammastep"])
+        // Also stop all related processes
+        gammaStepProcess.running = false
+        automationProcess.running = false
+        gammaStepTestProcess.running = false
     }
 
     function toggleNightMode() {
-        if (nightModeActive) {
+        if (nightModeEnabled) {
             disableNightMode()
         } else {
             enableNightMode()
         }
     }
 
+    function applyNightModeDirectly() {
+        const temperature = SessionData.nightModeTemperature || 4500
+        gammaStepProcess.command = buildGammastepCommand([
+            "-m", "wayland", 
+            "-O", String(temperature)
+        ])
+        gammaStepProcess.running = true
+    }
+
+    function resetToNormalMode() {
+        // Just kill gammastep to return to normal display temperature
+        Quickshell.execDetached(["pkill", "gammastep"])
+    }
+
+    function startAutomation() {
+        if (!automationAvailable) return
+
+        const mode = SessionData.nightModeAutoMode || "time"
+        
+        switch (mode) {
+            case "time":
+                startTimeBasedMode()
+                break
+            case "location":
+                startLocationBasedMode()
+                break
+        }
+    }
+
+    function stopAutomation() {
+        automationProcess.running = false
+        gammaStepProcess.running = false
+        isAutomaticNightTime = false
+        // Nuclear approach - kill ALL gammastep processes multiple times
+        Quickshell.execDetached(["pkill", "-f", "gammastep"])
+        Quickshell.execDetached(["pkill", "-9", "gammastep"])
+        Quickshell.execDetached(["killall", "gammastep"])
+    }
+
+    function startTimeBasedMode() {
+        checkTimeBasedMode()
+    }
+
+    function startLocationBasedMode() {
+        const temperature = SessionData.nightModeTemperature || 4500
+        const dayTemp = 6500
+        
+        if (SessionData.latitude !== 0.0 && SessionData.longitude !== 0.0) {
+            automationProcess.command = buildGammastepCommand([
+                "-m", "wayland",
+                "-l", `${SessionData.latitude.toFixed(6)}:${SessionData.longitude.toFixed(6)}`,
+                "-t", `${dayTemp}:${temperature}`,
+                "-v"
+            ])
+            automationProcess.running = true
+            return
+        }
+        
+        if (SessionData.nightModeLocationProvider === "geoclue2") {
+            automationProcess.command = buildGammastepCommand([
+                "-m", "wayland",
+                "-l", "geoclue2",
+                "-t", `${dayTemp}:${temperature}`,
+                "-v"
+            ])
+            automationProcess.running = true
+            return
+        }
+        
+        console.warn("DisplayService: Location mode selected but no coordinates or geoclue provider set")
+    }
+
+    function checkTimeBasedMode() {
+        if (!nightModeEnabled || !SessionData.nightModeAutoEnabled || SessionData.nightModeAutoMode !== "time") {
+            return
+        }
+
+        const currentTime = systemClock.hours * 60 + systemClock.minutes
+
+        const startMinutes = SessionData.nightModeStartHour * 60 + SessionData.nightModeStartMinute
+        const endMinutes = SessionData.nightModeEndHour * 60 + SessionData.nightModeEndMinute
+
+        let shouldBeNight = false
+        
+        if (startMinutes > endMinutes) {
+            shouldBeNight = (currentTime >= startMinutes) || (currentTime < endMinutes)
+        } else {
+            shouldBeNight = (currentTime >= startMinutes) && (currentTime < endMinutes)
+        }
+
+        if (shouldBeNight !== isAutomaticNightTime) {
+            isAutomaticNightTime = shouldBeNight
+            
+            if (shouldBeNight) {
+                applyNightModeDirectly()
+            } else {
+                resetToNormalMode()
+            }
+        }
+    }
+
+    function detectLocationProviders() {
+        geoclueDetectionProcess.running = true
+    }
+
+    function setNightModeAutomationMode(mode) {
+        SessionData.setNightModeAutoMode(mode)
+    }
+
+    function evaluateNightMode() {        
+        // Always stop all processes first to clean slate
+        stopAutomation()
+        
+        if (!nightModeEnabled) {
+            return
+        }
+        
+        if (SessionData.nightModeAutoEnabled) {
+            restartTimer.nextAction = "automation"
+            restartTimer.start()
+        } else {
+            restartTimer.nextAction = "direct"
+            restartTimer.start()
+        }
+    }
+
+    function checkNightModeAvailability() {
+        gammastepAvailabilityProcess.running = true
+    }
+
+    Timer {
+        id: restartTimer
+        property string nextAction: ""
+        interval: 100
+        repeat: false
+        
+        onTriggered: {
+            if (nextAction === "automation") {
+                startAutomation()
+            } else if (nextAction === "direct") {
+                applyNightModeDirectly()
+            }
+            nextAction = ""
+        }
+    }
+
     Component.onCompleted: {
         ddcDetectionProcess.running = true
         refreshDevices()
+        checkNightModeAvailability()
 
-        // Check if night mode was enabled on startup
-        if (SessionData.nightModeEnabled) {
-            enableNightMode()
+        // Initialize night mode state from session
+        nightModeEnabled = SessionData.nightModeEnabled
+    }
+
+    SystemClock {
+        id: systemClock
+        precision: SystemClock.Minutes
+        onDateChanged: {
+            if (nightModeEnabled && SessionData.nightModeAutoEnabled && SessionData.nightModeAutoMode === "time") {
+                checkTimeBasedMode()
+            }
         }
     }
 
@@ -271,10 +438,9 @@ Singleton {
         onExited: function (exitCode) {
             ddcAvailable = (exitCode === 0)
             if (ddcAvailable) {
-                console.log("BrightnessService: ddcutil detected")
                 ddcDisplayDetectionProcess.running = true
             } else {
-                console.log("BrightnessService: ddcutil not available")
+                console.log("DisplayService: ddcutil not available")
             }
         }
     }
@@ -288,7 +454,6 @@ Singleton {
         stdout: StdioCollector {
             onStreamFinished: {
                 if (!text.trim()) {
-                    console.log("BrightnessService: No DDC displays found")
                     ddcDevices = []
                     return
                 }
@@ -311,7 +476,7 @@ Singleton {
                     }
 
                     ddcDevices = newDdcDevices
-                    console.log("BrightnessService: Found", ddcDevices.length,
+                    console.log("DisplayService: Found", ddcDevices.length,
                                 "DDC displays")
 
                     // Queue initial brightness readings for DDC devices
@@ -339,7 +504,7 @@ Singleton {
                         }
                     }
                 } catch (error) {
-                    console.warn("BrightnessService: Failed to parse DDC devices:",
+                    console.warn("DisplayService: Failed to parse DDC devices:",
                                  error)
                     ddcDevices = []
                 }
@@ -348,7 +513,7 @@ Singleton {
 
         onExited: function (exitCode) {
             if (exitCode !== 0) {
-                console.warn("BrightnessService: Failed to detect DDC displays:",
+                console.warn("DisplayService: Failed to detect DDC displays:",
                              exitCode)
                 ddcDevices = []
             }
@@ -361,7 +526,7 @@ Singleton {
         command: ["brightnessctl", "-m", "-l"]
         onExited: function (exitCode) {
             if (exitCode !== 0) {
-                console.warn("BrightnessService: Failed to list devices:",
+                console.warn("DisplayService: Failed to list devices:",
                              exitCode)
                 brightnessAvailable = false
             }
@@ -370,7 +535,7 @@ Singleton {
         stdout: StdioCollector {
             onStreamFinished: {
                 if (!text.trim()) {
-                    console.warn("BrightnessService: No devices found")
+                    console.warn("DisplayService: No devices found")
                     return
                 }
                 const lines = text.trim().split("\n")
@@ -386,27 +551,11 @@ Singleton {
                                             "max": parseInt(parts[4])
                                         })
                 }
-                // Store brightnessctl devices separately, will be combined with DDC
-                const brightnessCtlDevices = newDevices
-                devices = brightnessCtlDevices
-
-                // If we have DDC devices, combine them
-                if (ddcDevices.length > 0) {
-                    refreshDevicesInternal()
-                } else if (devices.length > 0 && !currentDevice) {
-                    // Try to restore last selected device, fallback to first device
-                    const lastDevice = SessionData.lastBrightnessDevice || ""
-                    const deviceExists = devices.some(
-                                           d => d.name === lastDevice)
-                    if (deviceExists) {
-                        setCurrentDevice(lastDevice, false)
-                    } else {
-                        const nonKbdDevice = devices.find(
-                                               d => !d.name.includes("kbd"))
-                                           || devices[0]
-                        setCurrentDevice(nonKbdDevice.name, false)
-                    }
-                }
+                // Store brightnessctl devices separately
+                devices = newDevices
+                
+                // Always refresh to combine with DDC devices and set up device selection
+                refreshDevicesInternal()
             }
         }
     }
@@ -417,7 +566,7 @@ Singleton {
         running: false
         onExited: function (exitCode) {
             if (exitCode !== 0)
-                console.warn("BrightnessService: Failed to set brightness:",
+                console.warn("DisplayService: Failed to set brightness:",
                              exitCode)
         }
     }
@@ -429,7 +578,7 @@ Singleton {
         onExited: function (exitCode) {
             if (exitCode !== 0)
                 console.warn(
-                            "BrightnessService: Failed to set DDC brightness:",
+                            "DisplayService: Failed to set DDC brightness:",
                             exitCode)
         }
     }
@@ -440,7 +589,7 @@ Singleton {
         running: false
         onExited: function (exitCode) {
             if (exitCode !== 0)
-                console.warn("BrightnessService: Failed to get initial DDC brightness:",
+                console.warn("DisplayService: Failed to get initial DDC brightness:",
                              exitCode)
 
             processNextDdcInit()
@@ -470,7 +619,7 @@ Singleton {
                         delete newPending[deviceName]
                         ddcPendingInit = newPending
 
-                        console.log("BrightnessService: Initial DDC Device",
+                        console.log("DisplayService: Initial DDC Device",
                                     deviceName, "brightness:", brightness + "%")
                     }
                 }
@@ -484,7 +633,7 @@ Singleton {
         running: false
         onExited: function (exitCode) {
             if (exitCode !== 0)
-                console.warn("BrightnessService: Failed to get brightness:",
+                console.warn("DisplayService: Failed to get brightness:",
                              exitCode)
         }
 
@@ -508,7 +657,7 @@ Singleton {
                     }
 
                     brightnessInitialized = true
-                    console.log("BrightnessService: Device", currentDevice,
+                    console.log("DisplayService: Device", currentDevice,
                                 "brightness:", brightness + "%")
                     brightnessChanged()
                 }
@@ -523,7 +672,7 @@ Singleton {
         onExited: function (exitCode) {
             if (exitCode !== 0)
                 console.warn(
-                            "BrightnessService: Failed to get DDC brightness:",
+                            "DisplayService: Failed to get DDC brightness:",
                             exitCode)
         }
 
@@ -548,7 +697,7 @@ Singleton {
                     }
 
                     brightnessInitialized = true
-                    console.log("BrightnessService: DDC Device", currentDevice,
+                    console.log("DisplayService: DDC Device", currentDevice,
                                 "brightness:", brightness + "%")
                     brightnessChanged()
                 }
@@ -557,44 +706,105 @@ Singleton {
     }
 
     Process {
-        id: gammaStepTestProcess
+        id: gammastepAvailabilityProcess
+        command: ["which", "gammastep"]
+        running: false
+        
+        onExited: function(exitCode) {
+            automationAvailable = (exitCode === 0)
+            if (automationAvailable) {
+                detectLocationProviders()
+                
+                // If night mode should be enabled on startup
+                if (nightModeEnabled && SessionData.nightModeAutoEnabled) {
+                    startAutomation()
+                } else if (nightModeEnabled) {
+                    applyNightModeDirectly()
+                }
+            } else {
+                console.log("DisplayService: gammastep not available")
+            }
+        }
+    }
 
+    Process {
+        id: geoclueDetectionProcess
+        command: ["sh", "-c", "busctl --system list | grep -qF org.freedesktop.GeoClue2"]
+        running: false
+
+        onExited: function (exitCode) {
+            geoclueAvailable = (exitCode === 0)
+            console.log("DisplayService: geoclue available:", geoclueAvailable)
+        }
+    }
+
+    Process {
+        id: gammaStepTestProcess
         command: ["which", "gammastep"]
         running: false
 
         onExited: function (exitCode) {
             if (exitCode === 0) {
-                // gammastep exists, enable night mode
-                nightModeActive = true
+                automationAvailable = true
+                nightModeEnabled = true
                 SessionData.setNightModeEnabled(true)
+                
+                if (SessionData.nightModeAutoEnabled) {
+                    startAutomation()
+                } else {
+                    applyNightModeDirectly()
+                }
             } else {
-                // gammastep not found
-                console.warn("BrightnessService: gammastep not found")
-                ToastService.showWarning(
-                            "Night mode failed: gammastep not found")
+                console.warn("DisplayService: gammastep not found")
+                ToastService.showWarning("Night mode failed: gammastep not found")
             }
         }
     }
 
     Process {
         id: gammaStepProcess
-
-        command: {
-            const temperature = SessionData.nightModeTemperature || 4500
-            return ["gammastep", "-m", "wayland", "-O", String(temperature)]
-        }
-        running: nightModeActive
+        running: false
 
         onExited: function (exitCode) {
-            // If process exits with non-zero code while we think it should be running
-            if (nightModeActive && exitCode !== 0) {
-                console.warn("BrightnessService: Night mode process crashed with exit code:",
-                             exitCode)
-                nightModeActive = false
-                SessionData.setNightModeEnabled(false)
-                ToastService.showWarning("Night mode failed: process crashed")
+            if (nightModeEnabled && exitCode !== 0 && exitCode !== 15) {
+                console.warn("DisplayService: Night mode process failed:", exitCode)
             }
         }
+    }
+
+    Process {
+        id: automationProcess
+        running: false
+        property string processType: "automation"
+
+        onExited: function (exitCode) {
+            if (nightModeEnabled && SessionData.nightModeAutoEnabled && exitCode !== 0 && exitCode !== 15) {
+                console.warn("DisplayService: Night mode automation failed:", exitCode)
+                // Location mode failed
+                console.warn("DisplayService: Location-based night mode failed")
+            }
+        }
+    }
+
+    // Session Data Connections
+    Connections {
+        target: SessionData
+        
+        function onNightModeEnabledChanged() {
+            nightModeEnabled = SessionData.nightModeEnabled
+            evaluateNightMode()
+        }
+        
+        function onNightModeAutoEnabledChanged() { evaluateNightMode() }
+        function onNightModeAutoModeChanged() { evaluateNightMode() }
+        function onNightModeStartHourChanged() { evaluateNightMode() }
+        function onNightModeStartMinuteChanged() { evaluateNightMode() }
+        function onNightModeEndHourChanged() { evaluateNightMode() }
+        function onNightModeEndMinuteChanged() { evaluateNightMode() }
+        function onNightModeTemperatureChanged() { evaluateNightMode() }
+        function onLatitudeChanged() { evaluateNightMode() }
+        function onLongitudeChanged() { evaluateNightMode() }
+        function onNightModeLocationProviderChanged() { evaluateNightMode() }
     }
 
     // IPC Handler for external control
@@ -695,9 +905,9 @@ Singleton {
             if (!root.brightnessAvailable)
                 return "No brightness devices available"
 
-            let result = "Available devices:\n"
+            let result = "Available devices:\\n"
             for (const device of root.devices) {
-                result += device.name + " (" + device.class + ")\n"
+                result += device.name + " (" + device.class + ")\\n"
             }
             return result
         }
@@ -709,7 +919,7 @@ Singleton {
     IpcHandler {
         function toggle(): string {
             root.toggleNightMode()
-            return root.nightModeActive ? "Night mode enabled" : "Night mode disabled"
+            return root.nightModeEnabled ? "Night mode enabled" : "Night mode disabled"
         }
 
         function enable(): string {
@@ -723,7 +933,7 @@ Singleton {
         }
 
         function status(): string {
-            return root.nightModeActive ? "Night mode is enabled" : "Night mode is disabled"
+            return root.nightModeEnabled ? "Night mode is enabled" : "Night mode is disabled"
         }
 
         function temperature(value: string): string {
@@ -746,12 +956,13 @@ Singleton {
 
             SessionData.setNightModeTemperature(rounded)
 
-            // If night mode is active, restart it with new temperature
-            if (root.nightModeActive) {
-                root.nightModeActive = false
-                Qt.callLater(() => {
-                                 root.nightModeActive = true
-                             })
+            // Restart night mode with new temperature if active
+            if (root.nightModeEnabled) {
+                if (SessionData.nightModeAutoEnabled) {
+                    root.startAutomation()
+                } else {
+                    root.applyNightModeDirectly()
+                }
             }
 
             if (rounded !== temp) {

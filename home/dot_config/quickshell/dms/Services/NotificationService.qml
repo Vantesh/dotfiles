@@ -327,7 +327,7 @@ Singleton {
         readonly property string appIcon: notification.appIcon
         readonly property string appName: {
             if (notification.appName == "") {
-                const entry = DesktopEntries.byId(notification.desktopEntry)
+                const entry = DesktopEntries.heuristicLookup(notification.desktopEntry)
                 if (entry && entry.name) {
                     return entry.name.toLowerCase()
                 }

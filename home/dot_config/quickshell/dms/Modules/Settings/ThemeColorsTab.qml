@@ -625,6 +625,7 @@ Item {
                             maximum: 100
                             unit: ""
                             showValue: true
+                            wheelEnabled: false
                             onSliderValueChanged: newValue => {
                                                       SettingsData.setTopBarTransparency(
                                                           newValue / 100)
@@ -652,6 +653,7 @@ Item {
                             maximum: 100
                             unit: ""
                             showValue: true
+                            wheelEnabled: false
                             onSliderValueChanged: newValue => {
                                                       SettingsData.setTopBarWidgetTransparency(
                                                           newValue / 100)
@@ -679,6 +681,7 @@ Item {
                             maximum: 100
                             unit: ""
                             showValue: true
+                            wheelEnabled: false
                             onSliderValueChanged: newValue => {
                                                       SettingsData.setPopupTransparency(
                                                           newValue / 100)
@@ -776,6 +779,7 @@ Item {
                     }
                 }
             }
+
 
         }
     }

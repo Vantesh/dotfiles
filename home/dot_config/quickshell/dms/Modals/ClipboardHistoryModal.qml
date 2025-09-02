@@ -280,7 +280,7 @@ DankModal {
         id: clearConfirmDialog
         
         confirmButtonText: "Clear All"
-        confirmButtonColor: Theme.error
+        confirmButtonColor: Theme.primary
         
         onVisibleChanged: {
             if (visible) {
@@ -452,8 +452,8 @@ DankModal {
                         DankActionButton {
                             iconName: "delete_sweep"
                             iconSize: Theme.iconSize
-                            iconColor: Theme.error
-                            hoverColor: Theme.errorHover
+                            iconColor: Theme.surfaceText
+                            hoverColor: Theme.surfaceHover
                             onClicked: {
                                 clearConfirmDialog.show(
                                     "Clear All History?",
@@ -471,7 +471,7 @@ DankModal {
                             iconName: "close"
                             iconSize: Theme.iconSize - 4
                             iconColor: Theme.surfaceText
-                            hoverColor: Theme.errorHover
+                            hoverColor: Theme.surfaceHover
                             onClicked: hide()
                         }
                     }
@@ -841,8 +841,8 @@ DankModal {
                                 anchors.verticalCenter: parent.verticalCenter
                                 iconName: "close"
                                 iconSize: Theme.iconSize - 6
-                                iconColor: Theme.error
-                                hoverColor: Theme.errorHover
+                                iconColor: Theme.surfaceText
+                                hoverColor: Theme.surfaceHover
                                 onClicked: {
                                     deleteEntry(model.entry)
                                 }

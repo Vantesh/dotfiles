@@ -29,8 +29,6 @@ Singleton {
     readonly property string wallpaperPath: typeof SessionData !== "undefined" ? SessionData.wallpaperPath : ""
 
     property bool matugenAvailable: false
-    property bool gtkThemingEnabled: typeof SettingsData !== "undefined" ? SettingsData.gtkAvailable : false
-    property bool qtThemingEnabled: typeof SettingsData !== "undefined" ? (SettingsData.qt5ctAvailable || SettingsData.qt6ctAvailable) : false
     property var workerRunning: false
     property var matugenColors: ({})
     property bool extractionRequested: false
@@ -181,10 +179,16 @@ Singleton {
 
     function setLightMode(light, savePrefs = true) {
         isLightMode = light
-        if (savePrefs && typeof SessionData !== "undefined")
+        // If we update SessionData, it will emit isLightModeChanged which calls
+        // onLightModeChanged() that already triggers theme generation. To avoid
+        // double invocations, only generate immediately when we are NOT
+        // updating SessionData.
+        if (savePrefs && typeof SessionData !== "undefined") {
             SessionData.setLightMode(isLightMode)
-            PortalService.setLightMode(isLightMode)
-        generateSystemThemesFromCurrentTheme()
+        } else {
+            generateSystemThemesFromCurrentTheme()
+        }
+        PortalService.setLightMode(isLightMode)
     }
 
     function toggleLightMode(savePrefs = true) {
@@ -384,7 +388,7 @@ Singleton {
             `mkdir -p '${stateDir}' && cat > '${desiredPath}' << 'EOF'\n${json}\nEOF`
         ])
         workerRunning = true
-        systemThemeGenerator.command = [shellDir + "/scripts/matugen-worker.sh"]
+        systemThemeGenerator.command = [shellDir + "/scripts/matugen-worker.sh", stateDir, shellDir, "--run"]
         systemThemeGenerator.running = true
     }
 
@@ -419,6 +423,7 @@ Singleton {
             setDesiredTheme("hex", primaryColor, isLight, iconTheme)
         }
     }
+
 
 
 
@@ -588,6 +593,7 @@ Singleton {
 
         onExited: exitCode => {
             workerRunning = false
+
             if (exitCode === 2) {
                 // Exit code 2 means wallpaper/color not found - this is expected on first run
                 console.log("Theme worker: wallpaper/color not found, skipping theme generation")
@@ -663,6 +669,3 @@ Singleton {
         }
     }
 }
-
-
-

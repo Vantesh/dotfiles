@@ -204,6 +204,7 @@ Item {
                         maximum: 100
                         unit: "%"
                         showValue: true
+                        wheelEnabled: false
                         onSliderValueChanged: newValue => {
                                                   SettingsData.setDockTransparency(
                                                       newValue / 100)

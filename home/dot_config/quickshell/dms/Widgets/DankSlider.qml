@@ -14,6 +14,7 @@ Item {
     property string unit: "%"
     property bool showValue: true
     property bool isDragging: false
+    property bool wheelEnabled: true
     readonly property bool containsMouse: sliderMouseArea.containsMouse
 
     signal sliderValueChanged(int newValue)
@@ -51,8 +52,9 @@ Item {
             StyledRect {
                 id: sliderFill
 
-                width: parent.width * ((slider.value - slider.minimum)
-                                       / (slider.maximum - slider.minimum))
+                width: (parent.width - sliderHandle.width) * (
+                    (slider.value - slider.minimum) / (slider.maximum - slider.minimum)
+                ) + sliderHandle.width
                 height: parent.height
                 radius: parent.radius
                 color: slider.enabled ? Theme.primary : Theme.surfaceVariantText
@@ -77,8 +79,7 @@ Item {
                                                    Theme.surfaceVariantText,
                                                    1.3)
                 border.width: 2
-                x: Math.max(0, Math.min(parent.width - width,
-                                        sliderFill.width - width / 2))
+                x: sliderFill.width - width
                 anchors.verticalCenter: parent.verticalCenter
                 scale: sliderMouseArea.containsMouse
                        || sliderMouseArea.pressed ? 1.2 : 1
@@ -146,6 +147,8 @@ Item {
                     id: sliderMouseArea
 
                     property bool isDragging: false
+                    property real scrollAccumulator: 0
+                    property real touchpadThreshold: 20
 
                     anchors.fill: parent
                     anchors.topMargin: -10
@@ -154,12 +157,61 @@ Item {
                     cursorShape: slider.enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
                     enabled: slider.enabled
                     preventStealing: true
+                    acceptedButtons: Qt.LeftButton
+                    onWheel: (wheelEvent) => {
+                        if (!slider.enabled || !slider.wheelEnabled) {
+                            wheelEvent.accepted = false
+                            return
+                        }
+                        
+                        const deltaY = wheelEvent.angleDelta.y
+                        const isMouseWheel = Math.abs(deltaY) >= 120
+                            && (Math.abs(deltaY) % 120) === 0
+                        
+                        let currentValue = slider.value
+                        
+                        if (isMouseWheel) {
+                            // Direct mouse wheel action - 5% steps
+                            let step = Math.max(1, (slider.maximum - slider.minimum) / 20)
+                            let newValue
+                            if (deltaY > 0)
+                                newValue = Math.min(slider.maximum, currentValue + step)
+                            else
+                                newValue = Math.max(slider.minimum, currentValue - step)
+                            newValue = Math.round(newValue)
+                            if (newValue !== slider.value) {
+                                slider.value = newValue
+                                slider.sliderValueChanged(newValue)
+                            }
+                        } else {
+                            // Touchpad - accumulate then apply 1% steps
+                            scrollAccumulator += deltaY
+                            
+                            if (Math.abs(scrollAccumulator) >= touchpadThreshold) {
+                                let step = Math.max(0.5, (slider.maximum - slider.minimum) / 100)
+                                let newValue
+                                if (scrollAccumulator > 0)
+                                    newValue = Math.min(slider.maximum, currentValue + step)
+                                else
+                                    newValue = Math.max(slider.minimum, currentValue - step)
+                                newValue = Math.round(newValue)
+                                if (newValue !== slider.value) {
+                                    slider.value = newValue
+                                    slider.sliderValueChanged(newValue)
+                                }
+                                scrollAccumulator = 0
+                            }
+                        }
+                        wheelEvent.accepted = true
+                    }
                     onPressed: mouse => {
                                    if (slider.enabled) {
                                        slider.isDragging = true
                                        sliderMouseArea.isDragging = true
                                        let ratio = Math.max(
-                                           0, Math.min(1, mouse.x / width))
+                                           0, Math.min(1, (
+                                               mouse.x - sliderHandle.width / 2) / (
+                                                   width - sliderHandle.width)))
                                        let newValue = Math.round(
                                            slider.minimum + ratio
                                            * (slider.maximum - slider.minimum))
@@ -178,8 +230,9 @@ Item {
                                            if (pressed && slider.isDragging
                                                && slider.enabled) {
                                                let ratio = Math.max(
-                                                   0, Math.min(1,
-                                                               mouse.x / width))
+                                                   0, Math.min(1, (
+                                                       mouse.x - sliderHandle.width / 2) / (
+                                                           width - sliderHandle.width)))
                                                let newValue = Math.round(
                                                    slider.minimum + ratio
                                                    * (slider.maximum - slider.minimum))
@@ -191,7 +244,9 @@ Item {
                     onClicked: mouse => {
                                    if (slider.enabled && !slider.isDragging) {
                                        let ratio = Math.max(
-                                           0, Math.min(1, mouse.x / width))
+                                           0, Math.min(1, (
+                                               mouse.x - sliderHandle.width / 2) / (
+                                                   width - sliderHandle.width)))
                                        let newValue = Math.round(
                                            slider.minimum + ratio
                                            * (slider.maximum - slider.minimum))

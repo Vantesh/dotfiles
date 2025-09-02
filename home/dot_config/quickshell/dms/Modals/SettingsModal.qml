@@ -233,14 +233,6 @@ DankModal {
                                             }
                                         }
 
-                                        DankIcon {
-                                            anchors.centerIn: parent
-                                            name: "warning"
-                                            size: Theme.iconSizeLarge
-                                            color: Theme.error
-                                            visible: PortalService.profileImage !== ""
-                                                     && profileImageSource.status === Image.Error
-                                        }
 
                                         Rectangle {
                                             anchors.fill: parent

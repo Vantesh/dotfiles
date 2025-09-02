@@ -44,11 +44,99 @@ Rectangle {
     color: {
         if (windowCount === 0)
             return "transparent"
-
+        
         if (SettingsData.topBarNoBackground) return "transparent"
         const baseColor = Theme.secondaryHover
         return Qt.rgba(baseColor.r, baseColor.g, baseColor.b,
                        baseColor.a * Theme.widgetTransparency)
+    }
+
+    MouseArea {
+        anchors.fill: parent
+        hoverEnabled: true
+        acceptedButtons: Qt.NoButton
+        
+        property real scrollAccumulator: 0
+        property real touchpadThreshold: 500
+        
+        onWheel: (wheel) => {
+            const deltaY = wheel.angleDelta.y
+            const isMouseWheel = Math.abs(deltaY) >= 120
+                && (Math.abs(deltaY) % 120) === 0
+            
+            var windows = root.sortedToplevels;
+            if (windows.length < 2) {
+                return;
+            }
+            
+            if (isMouseWheel) {
+                // Direct mouse wheel action
+                var currentIndex = -1;
+                for (var i = 0; i < windows.length; i++) {
+                    if (windows[i].activated) {
+                        currentIndex = i;
+                        break;
+                    }
+                }
+
+                var nextIndex;
+                if (deltaY < 0) {
+                    if (currentIndex === -1) {
+                        nextIndex = 0;
+                    } else {
+                        nextIndex = (currentIndex + 1) % windows.length;
+                    }
+                } else {
+                    if (currentIndex === -1) {
+                        nextIndex = windows.length - 1;
+                    } else {
+                        nextIndex = (currentIndex - 1 + windows.length) % windows.length;
+                    }
+                }
+
+                var nextWindow = windows[nextIndex];
+                if (nextWindow) {
+                    nextWindow.activate();
+                }
+            } else {
+                // Touchpad - accumulate small deltas
+                scrollAccumulator += deltaY
+                
+                if (Math.abs(scrollAccumulator) >= touchpadThreshold) {
+                    var currentIndex = -1;
+                    for (var i = 0; i < windows.length; i++) {
+                        if (windows[i].activated) {
+                            currentIndex = i;
+                            break;
+                        }
+                    }
+
+                    var nextIndex;
+                    if (scrollAccumulator < 0) {
+                        if (currentIndex === -1) {
+                            nextIndex = 0;
+                        } else {
+                            nextIndex = (currentIndex + 1) % windows.length;
+                        }
+                    } else {
+                        if (currentIndex === -1) {
+                            nextIndex = windows.length - 1;
+                        } else {
+                            nextIndex = (currentIndex - 1 + windows.length) % windows.length;
+                        }
+                    }
+
+                    var nextWindow = windows[nextIndex];
+                    if (nextWindow) {
+                        nextWindow.activate();
+                    }
+                    
+                    scrollAccumulator = 0
+                }
+            }
+            
+            wheel.accepted = true
+        }
     }
 
     Row {
@@ -72,7 +160,7 @@ Rectangle {
                 property string tooltipText: {
                     var appName = "Unknown"
                     if (appId) {
-                        var desktopEntry = DesktopEntries.byId(appId)
+                        var desktopEntry = DesktopEntries.heuristicLookup(appId)
                         appName = desktopEntry
                                 && desktopEntry.name ? desktopEntry.name : appId
                     }
@@ -115,13 +203,12 @@ Rectangle {
                 // App icon
                 IconImage {
                     id: iconImg
-
                     anchors.left: parent.left
                     anchors.leftMargin: SettingsData.runningAppsCompactMode ? (parent.width - 18) / 2 : Theme.spacingXS
                     anchors.verticalCenter: parent.verticalCenter
                     width: 18
                     height: 18
-                    source: Quickshell.iconPath(DesktopEntries.byId(Paths.moddedAppId(appId))?.icon, true)
+                    source: Quickshell.iconPath(DesktopEntries.heuristicLookup(Paths.moddedAppId(appId))?.icon, true)
                     smooth: true
                     mipmap: true
                     asynchronous: true
@@ -136,7 +223,7 @@ Rectangle {
                         if (!appId)
                             return "?"
 
-                        var desktopEntry = DesktopEntries.byId(appId)
+                        var desktopEntry = DesktopEntries.heuristicLookup(appId)
                         if (desktopEntry && desktopEntry.name)
                             return desktopEntry.name.charAt(0).toUpperCase()
 
@@ -169,9 +256,27 @@ Rectangle {
                     anchors.fill: parent
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
-                    onClicked: {
-                        if (toplevelObject) {
-                            toplevelObject.activate()
+                    acceptedButtons: Qt.LeftButton | Qt.RightButton
+                    onClicked: (mouse) => {
+                        if (mouse.button === Qt.LeftButton) {
+                            if (toplevelObject) {
+                                toplevelObject.activate()
+                            }
+                        } else if (mouse.button === Qt.RightButton) {
+                            if (tooltipLoader.item)
+                                tooltipLoader.item.hideTooltip()
+                            tooltipLoader.active = false
+                            
+                            windowContextMenuLoader.active = true
+                            if (windowContextMenuLoader.item) {
+                                windowContextMenuLoader.item.currentWindow = toplevelObject
+                                var globalPos = delegateItem.mapToGlobal(delegateItem.width / 2, 0)
+                                var screenX = root.parentScreen ? root.parentScreen.x : 0
+                                var screenY = root.parentScreen ? root.parentScreen.y : 0
+                                var relativeX = globalPos.x - screenX
+                                var yPos = Theme.barHeight + SettingsData.topBarSpacing - 7
+                                windowContextMenuLoader.item.showAt(relativeX, yPos)
+                            }
                         }
                     }
                     onEntered: {
@@ -207,5 +312,94 @@ Rectangle {
         active: false
 
         sourceComponent: RunningAppsTooltip {}
+    }
+    
+    Loader {
+        id: windowContextMenuLoader
+        active: false
+        sourceComponent: PanelWindow {
+            id: contextMenuWindow
+            
+            property var currentWindow: null
+            property bool isVisible: false
+            property point anchorPos: Qt.point(0, 0)
+            
+            function showAt(x, y) {
+                screen = root.parentScreen
+                anchorPos = Qt.point(x, y)
+                isVisible = true
+                visible = true
+            }
+            
+            function close() {
+                isVisible = false
+                visible = false
+                windowContextMenuLoader.active = false
+            }
+            
+            implicitWidth: 100
+            implicitHeight: 40
+            visible: false
+            color: "transparent"
+            
+            WlrLayershell.layer: WlrLayershell.Overlay
+            WlrLayershell.exclusiveZone: -1
+            WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
+            
+            anchors {
+                top: true
+                left: true
+                right: true
+                bottom: true
+            }
+            
+            MouseArea {
+                anchors.fill: parent
+                onClicked: contextMenuWindow.close()
+            }
+            
+            Rectangle {
+                x: {
+                    var left = 10
+                    var right = contextMenuWindow.width - width - 10
+                    var want = contextMenuWindow.anchorPos.x - width / 2
+                    return Math.max(left, Math.min(right, want))
+                }
+                y: contextMenuWindow.anchorPos.y
+                width: 100
+                height: 32
+                color: Theme.popupBackground()
+                radius: Theme.cornerRadius
+                border.width: 1
+                border.color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.12)
+                
+                Rectangle {
+                    anchors.fill: parent
+                    radius: parent.radius
+                    color: closeMouseArea.containsMouse ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.08) : "transparent"
+                }
+                
+                StyledText {
+                    anchors.centerIn: parent
+                    text: "Close"
+                    font.pixelSize: Theme.fontSizeSmall
+                    color: Theme.surfaceText
+                    font.weight: Font.Normal
+                }
+                
+                MouseArea {
+                    id: closeMouseArea
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: {
+                        if (contextMenuWindow.currentWindow) {
+                            contextMenuWindow.currentWindow.close()
+                        }
+                        contextMenuWindow.close()
+                    }
+                }
+            }
+        }
     }
 }

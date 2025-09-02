@@ -6,7 +6,7 @@ import qs.Common
 import qs.Services
 import qs.Widgets
 
-Rectangle {
+Item {
     id: root
 
     property var device: null
@@ -15,7 +15,8 @@ Rectangle {
     property var availableCodecs: []
     property string currentCodec: ""
     property bool isLoading: false
-    property bool parsingTargetCard: false
+
+    signal codecSelected(string deviceAddress, string codecName)
 
     function show(bluetoothDevice) {
         device = bluetoothDevice;
@@ -39,75 +40,68 @@ Rectangle {
 
     function queryCodecs() {
         if (!device)
-            return ;
+            return;
 
-        codecQueryProcess.cardName = BluetoothService.getCardName(device);
-        codecQueryProcess.running = true;
+        BluetoothService.getAvailableCodecs(device, function(codecs, current) {
+            availableCodecs = codecs;
+            currentCodec = current;
+            isLoading = false;
+        });
     }
 
     function selectCodec(profileName) {
         if (!device || isLoading)
-            return ;
+            return;
+
+        let selectedCodec = availableCodecs.find(c => c.profile === profileName);
+        if (selectedCodec && device) {
+            BluetoothService.updateDeviceCodec(device.address, selectedCodec.name);
+            codecSelected(device.address, selectedCodec.name);
+        }
 
         isLoading = true;
-        codecSwitchProcess.cardName = BluetoothService.getCardName(device);
-        codecSwitchProcess.profile = profileName;
-        codecSwitchProcess.running = true;
-    }
-
-    function parseCodecLine(line) {
-        if (!codecQueryProcess.cardName)
-            return ;
-
-        if (line.includes(`Name: ${codecQueryProcess.cardName}`)) {
-            parsingTargetCard = true;
-            return ;
-        }
-        if (parsingTargetCard && line.startsWith("Name: ") && !line.includes(codecQueryProcess.cardName)) {
-            parsingTargetCard = false;
-            return ;
-        }
-        if (parsingTargetCard) {
-            if (line.startsWith("Active Profile:")) {
-                let profile = line.split(": ")[1] || "";
-                let activeCodec = availableCodecs.find((c) => {
-                    return c.profile === profile;
-                });
-                if (activeCodec)
-                    currentCodec = activeCodec.name;
-
-                return ;
+        BluetoothService.switchCodec(device, profileName, function(success, message) {
+            isLoading = false;
+            if (success) {
+                ToastService.showToast(message, ToastService.levelInfo);
+                Qt.callLater(root.hide);
+            } else {
+                ToastService.showToast(message, ToastService.levelError);
             }
-            if (line.includes("codec") && line.includes("available: yes")) {
-                let parts = line.split(": ");
-                if (parts.length >= 2) {
-                    let profile = parts[0].trim();
-                    let description = parts[1];
-                    let codecMatch = description.match(/codec ([^\)\s]+)/i);
-                    let codecName = codecMatch ? codecMatch[1].toUpperCase() : "UNKNOWN";
-                    let codecInfo = BluetoothService.getCodecInfo(codecName);
-                    if (codecInfo && !availableCodecs.some((c) => {
-                        return c.profile === profile;
-                    })) {
-                        let newCodecs = availableCodecs.slice();
-                        newCodecs.push({
-                            "name": codecInfo.name,
-                            "profile": profile,
-                            "description": codecInfo.description,
-                            "qualityColor": codecInfo.qualityColor
-                        });
-                        availableCodecs = newCodecs;
-                    }
-                }
-            }
-        }
+        });
     }
 
     visible: false
     anchors.fill: parent
-    color: "transparent"
     z: 2000
-    opacity: modalVisible ? 1 : 0
+
+    MouseArea {
+        id: modalBlocker
+        anchors.fill: parent
+        visible: modalVisible
+        enabled: modalVisible
+        hoverEnabled: true
+        preventStealing: true
+        propagateComposedEvents: false
+        
+        onClicked: root.hide()
+        onWheel: (wheel) => { wheel.accepted = true }
+        onPositionChanged: (mouse) => { mouse.accepted = true }
+    }
+    
+    Rectangle {
+        id: modalBackground
+        anchors.fill: parent
+        color: Qt.rgba(0, 0, 0, 0.5)
+        opacity: modalVisible ? 1 : 0
+
+        Behavior on opacity {
+            NumberAnimation {
+                duration: Theme.mediumDuration
+                easing.type: Theme.emphasizedEasing
+            }
+        }
+    }
 
     FocusScope {
         id: focusScope
@@ -116,20 +110,17 @@ Rectangle {
         focus: root.visible
         enabled: root.visible
 
-        MouseArea {
-            anchors.fill: parent
-            onClicked: root.hide()
-            onWheel: (wheel) => {
-                return wheel.accepted = true;
-            }
+        Keys.onEscapePressed: {
+            root.hide()
+            event.accepted = true
         }
-
     }
 
     Rectangle {
+        id: modalContent
         anchors.centerIn: parent
         width: 320
-        height: Math.min(contentColumn.implicitHeight + Theme.spacingL * 2, 400)
+        height: contentColumn.implicitHeight + Theme.spacingL * 2
         radius: Theme.cornerRadius
         color: Theme.surfaceContainer
         border.color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.08)
@@ -139,8 +130,12 @@ Rectangle {
 
         MouseArea {
             anchors.fill: parent
-            onClicked: {
-            }
+            hoverEnabled: true
+            preventStealing: true
+            propagateComposedEvents: false
+            onClicked: (mouse) => { mouse.accepted = true }
+            onWheel: (wheel) => { wheel.accepted = true }
+            onPositionChanged: (mouse) => { mouse.accepted = true }
         }
 
         Column {
@@ -309,55 +304,4 @@ Rectangle {
         }
 
     }
-
-    Process {
-        id: codecQueryProcess
-
-        property string cardName: ""
-
-        command: ["pactl", "list", "cards"]
-        onExited: function(exitCode, exitStatus) {
-            isLoading = false;
-            if (exitCode !== 0)
-                console.warn("Failed to query codecs:", exitCode);
-
-        }
-
-        stdout: SplitParser {
-            splitMarker: "\n"
-            onRead: (data) => {
-                return parseCodecLine(data.trim());
-            }
-        }
-
-    }
-
-    Process {
-        id: codecSwitchProcess
-
-        property string cardName: ""
-        property string profile: ""
-
-        command: ["pactl", "set-card-profile", cardName, profile]
-        onExited: function(exitCode, exitStatus) {
-            isLoading = false;
-            if (exitCode === 0) {
-                queryCodecs();
-                ToastService.showToast("Codec switched successfully", ToastService.levelInfo);
-                Qt.callLater(root.hide);
-            } else {
-                ToastService.showToast("Failed to switch codec", ToastService.levelError);
-                console.warn("Failed to switch codec:", exitCode);
-            }
-        }
-    }
-
-    Behavior on opacity {
-        NumberAnimation {
-            duration: Theme.mediumDuration
-            easing.type: Theme.emphasizedEasing
-        }
-
-    }
-
 }

@@ -4,7 +4,7 @@
   "topBarTransparency": 0.9,
   "topBarWidgetTransparency": 0.9,
   "popupTransparency": 0.9,
-  "dockTransparency": 1,
+  "dockTransparency": 0.72,
   "use24HourClock": true,
   "useFahrenheit": false,
   "nightModeEnabled": false,
@@ -39,34 +39,30 @@
   "focusedWindowCompactMode": true,
   "runningAppsCompactMode": true,
   "runningAppsCurrentWorkspace": true,
-  "clockDateFormat": "ddd d",
-  "lockDateFormat": "dddd, MMMM d",
+  "clockDateFormat": "ddd dd",
+  "lockDateFormat": "dddd, MMMM dd",
   "mediaSize": 1,
   "topBarLeftWidgets": [
     "launcherButton",
     "workspaceSwitcher",
-    "focusedWindow",
+    "focusedWindow"
+  ],
+  "topBarCenterWidgets": [
+    "music",
+    "clock",
+    "weather",
     {
       "id": "privacyIndicator",
       "enabled": true
     }
   ],
-  "topBarCenterWidgets": [
-    "music",
-    "clock",
-    "weather"
-  ],
   "topBarRightWidgets": [
     {
-      "id": "systemTray",
-      "enabled": true
-    },
-    {
-      "id": "cpuUsage",
-      "enabled": true
-    },
-    {
       "id": "memUsage",
+      "enabled": true
+    },
+    {
+      "id": "systemTray",
       "enabled": true
     },
     {
@@ -94,8 +90,6 @@
   "fontFamily": "SF Pro Text",
   "monoFontFamily": "JetBrainsMono Nerd Font Mono",
   "fontWeight": 400,
-  "gtkThemingEnabled": false,
-  "qtThemingEnabled": false,
   "showDock": false,
   "dockAutoHide": false,
   "cornerRadius": 10,

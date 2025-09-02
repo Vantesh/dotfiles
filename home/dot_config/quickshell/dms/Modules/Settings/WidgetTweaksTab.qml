@@ -127,6 +127,7 @@ Item {
                                            SettingsData.osLogoBrightness * 100)
                                 unit: "%"
                                 showValue: true
+                                wheelEnabled: false
                                 onSliderValueChanged: newValue => {
                                                           SettingsData.setOSLogoBrightness(
                                                               newValue / 100)
@@ -154,6 +155,7 @@ Item {
                                            SettingsData.osLogoContrast * 100)
                                 unit: "%"
                                 showValue: true
+                                wheelEnabled: false
                                 onSliderValueChanged: newValue => {
                                                           SettingsData.setOSLogoContrast(
                                                               newValue / 100)

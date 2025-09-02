@@ -115,6 +115,12 @@ Item {
             "icon": "battery_std",
             "enabled": true
         }, {
+            "id": "vpn",
+            "text": "VPN",
+            "description": "VPN status and quick connect",
+            "icon": "vpn_lock",
+            "enabled": true
+        }, {
             "id": "idleInhibitor",
             "text": "Idle Inhibitor",
             "description": "Prevent screen timeout",
@@ -140,6 +146,17 @@ Item {
             "icon": "network_check",
             "warning": !DgopService.dgopAvailable ? "Requires 'dgop' tool" : undefined,
             "enabled": DgopService.dgopAvailable
+        }, {
+            "id": "keyboard_layout_name",
+            "text": "Keyboard Layout Name",
+            "description": "Displays the active keyboard layout and allows switching",
+            "icon": "keyboard",
+        }, {
+            "id": "notepadButton",
+            "text": "Notepad",
+            "description": "Quick access to notepad",
+            "icon": "assignment",
+            "enabled": true
         }]
     property var defaultLeftWidgets: [{
             "id": "launcherButton",
@@ -685,6 +702,7 @@ Item {
                             maximum: 32
                             unit: ""
                             showValue: true
+                            wheelEnabled: false
                             onSliderValueChanged: newValue => {
                                                       SettingsData.setTopBarSpacing(
                                                           newValue)
@@ -711,6 +729,7 @@ Item {
                             maximum: 100
                             unit: ""
                             showValue: true
+                            wheelEnabled: false
                             onSliderValueChanged: newValue => {
                                                       SettingsData.setTopBarBottomGap(
                                                           newValue)
@@ -737,6 +756,7 @@ Item {
                             maximum: 24
                             unit: ""
                             showValue: true
+                            wheelEnabled: false
                             onSliderValueChanged: newValue => {
                                                       SettingsData.setTopBarInnerPadding(
                                                           newValue)
@@ -763,6 +783,7 @@ Item {
                             maximum: 32
                             unit: ""
                             showValue: true
+                            wheelEnabled: false
                             onSliderValueChanged: newValue => {
                                                       SettingsData.setCornerRadius(
                                                           newValue)

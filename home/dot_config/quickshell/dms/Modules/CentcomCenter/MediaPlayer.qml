@@ -128,17 +128,28 @@ Rectangle {
                             source: activePlayer && activePlayer.trackArtUrl
                                     || lastValidArtUrl || ""
                             onSourceChanged: {
-                                if (activePlayer && activePlayer.trackArtUrl)
+                                if (activePlayer && activePlayer.trackArtUrl
+                                        && albumArt.status !== Image.Error)
                                     lastValidArtUrl = activePlayer.trackArtUrl
                             }
                             fillMode: Image.PreserveAspectCrop
                             smooth: true
                             cache: true
+                            asynchronous: true
+                            onStatusChanged: {
+                                if (status === Image.Error) {
+                                    console.warn("Failed to load album art:", source)
+                                    source = ""
+                                    if (activePlayer && activePlayer.trackArtUrl === source) {
+                                        lastValidArtUrl = ""
+                                    }
+                                }
+                            }
                         }
 
                         Rectangle {
                             anchors.fill: parent
-                            visible: albumArt.status !== Image.Ready
+                            visible: albumArt.status !== Image.Ready || !albumArt.source
                             color: "transparent"
 
                             DankIcon {

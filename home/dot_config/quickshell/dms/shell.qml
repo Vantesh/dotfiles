@@ -9,7 +9,6 @@ import qs.Modules
 import qs.Modules.AppDrawer
 import qs.Modules.CentcomCenter
 import qs.Modules.ControlCenter
-import qs.Modules.ControlCenter.Network
 import qs.Modules.Dock
 import qs.Modules.Lock
 import qs.Modules.Notifications.Center
@@ -25,6 +24,8 @@ ShellRoot {
 
     Component.onCompleted: {
         PortalService.init()
+        // Initialize DisplayService night mode functionality
+        DisplayService.nightModeEnabled
     }
 
     WallpaperBackground {
@@ -176,6 +177,17 @@ ShellRoot {
     }
 
     LazyLoader {
+        id: vpnPopoutLoader
+
+        active: false
+
+        VpnPopout {
+            id: vpnPopout
+        }
+
+    }
+
+    LazyLoader {
         id: powerMenuLoader
 
         active: false
@@ -272,6 +284,16 @@ ShellRoot {
     }
 
     LazyLoader {
+        id: notepadModalLoader
+
+        active: false
+
+        NotepadModal {
+            id: notepadModal
+        }
+    }
+
+    LazyLoader {
         id: powerMenuModalLoader
 
         active: false
@@ -359,6 +381,33 @@ ShellRoot {
         }
 
         target: "processlist"
+    }
+
+    IpcHandler {
+        function open() {
+            notepadModalLoader.active = true
+            if (notepadModalLoader.item)
+                notepadModalLoader.item.show()
+
+            return "NOTEPAD_OPEN_SUCCESS"
+        }
+
+        function close() {
+            if (notepadModalLoader.item)
+                notepadModalLoader.item.hide()
+
+            return "NOTEPAD_CLOSE_SUCCESS"
+        }
+
+        function toggle() {
+            notepadModalLoader.active = true
+            if (notepadModalLoader.item)
+                notepadModalLoader.item.toggle()
+
+            return "NOTEPAD_TOGGLE_SUCCESS"
+        }
+
+        target: "notepad"
     }
 
     Variants {

@@ -10,6 +10,7 @@ import qs.Common
 Singleton {
     id: root
 
+    property bool hasUwsm: false
     property bool isElogind: false
     property bool inhibitorAvailable: true
     property bool idleInhibited: false
@@ -20,9 +21,19 @@ Singleton {
     }
 
     Process {
+        id: detectUwsmProcess
+        running: false
+        command: ["which", "uwsm"]
+
+        onExited: function (exitCode) {
+            hasUwsm = (exitCode === 0)
+        }
+    }
+
+    Process {
         id: detectElogindProcess
         running: false
-        command: ["sh", "-c", "ps -eo comm= | grep -Fx elogind-daemon"]
+        command: ["sh", "-c", "ps -eo comm= | grep -E '^(elogind|elogind-daemon)$'"]
 
         onExited: function (exitCode) {
             console.log("SessionService: Elogind detection exited with code", exitCode)
@@ -58,7 +69,9 @@ Singleton {
     }
 
     function logout() {
-        uwsmLogout.running = true
+        if (hasUwsm)
+            uwsmLogout.running = true
+        _logout()
     }
 
     function _logout() {

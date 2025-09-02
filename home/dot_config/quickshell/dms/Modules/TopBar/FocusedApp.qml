@@ -47,7 +47,7 @@ Rectangle {
                 if (!activeWindow || !activeWindow.appId)
                     return ""
 
-                var desktopEntry = DesktopEntries.byId(activeWindow.appId)
+                var desktopEntry = DesktopEntries.heuristicLookup(activeWindow.appId)
                 return desktopEntry
                         && desktopEntry.name ? desktopEntry.name : activeWindow.appId
             }

@@ -108,6 +108,12 @@ Item {
             "icon": "notifications",
             "enabled": true
         }, {
+            "id": "notepadButton",
+            "text": "Notepad",
+            "description": "Quick access to notepad",
+            "icon": "assignment",
+            "enabled": true
+        }, {
             "id": "battery",
             "text": "Battery",
             "description": "Battery level and power management",
@@ -138,6 +144,11 @@ Item {
             "icon": "network_check",
             "warning": !DgopService.dgopAvailable ? "Requires 'dgop' tool" : undefined,
             "enabled": DgopService.dgopAvailable
+        }, {
+            "id": "keyboard_layout_name",
+            "text": "Keyboard Layout Name",
+            "description": "Displays the active keyboard layout and allows switching",
+            "icon": "keyboard",
         }]
     property var defaultLeftWidgets: [{
             "id": "launcherButton",
@@ -414,9 +425,9 @@ Item {
             SettingsData.setTopBarCenterWidgets(defaultCenterWidgets)
 
         if (!SettingsData.topBarRightWidgets)
-            SettingsData.setTopBarRightWidgets(
-                        defaultRightWidgets)["left""center""right"].forEach(
-                        sectionId => {
+            SettingsData.setTopBarRightWidgets(defaultRightWidgets)
+
+        ["left", "center", "right"].forEach(sectionId => {
                             var widgets = []
                             if (sectionId === "left")
                             widgets = SettingsData.topBarLeftWidgets.slice()

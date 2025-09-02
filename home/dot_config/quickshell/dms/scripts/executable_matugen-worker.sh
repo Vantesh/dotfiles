@@ -1,8 +1,43 @@
 #!/usr/bin/env bash
+set -euo pipefail
 
-# Get mode and wallpaper from QuickShell IPC
-mode=$(qs -c dms ipc call theme getMode)
-wallpaper=$(qs -c dms ipc call wallpaper get)
+if [ $# -lt 3 ]; then
+  echo "Usage: $0 STATE_DIR SHELL_DIR --run" >&2
+  exit 1
+fi
+
+STATE_DIR="$1"
+SHELL_DIR="$2"
+
+if [ ! -d "$STATE_DIR" ]; then
+  echo "Error: STATE_DIR '$STATE_DIR' does not exist" >&2
+  exit 1
+fi
+
+if [ ! -d "$SHELL_DIR" ]; then
+  echo "Error: SHELL_DIR '$SHELL_DIR' does not exist" >&2
+  exit 1
+fi
+
+shift 2 # Remove STATE_DIR and SHELL_DIR from arguments
+
+if [[ "${1:-}" != "--run" ]]; then
+  echo "usage: $0 STATE_DIR SHELL_DIR --run" >&2
+  exit 1
+fi
+
+DESIRED_JSON="$STATE_DIR/matugen.desired.json"
+mode=$(jq -r '.mode // empty' "$DESIRED_JSON")
+kind=$(jq -r '.kind // empty' "$DESIRED_JSON")
+value=$(jq -r '.value // empty' "$DESIRED_JSON")
+
+# Map JSON -> expected variables for downstream tools
+if [[ "$kind" == "image" ]]; then
+  wallpaper="$value"
+else
+  # Not an image request; treat as not-found for this worker
+  wallpaper=""
+fi
 
 # Ensure local bin is in PATH for walset to be found
 export PATH="$HOME/.local/bin:$PATH"

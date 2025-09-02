@@ -337,6 +337,12 @@ PanelWindow {
                             return true
                         case "network_speed_monitor":
                             return DgopService.dgopAvailable
+                        case "keyboard_layout_name":
+                            return true
+                        case "vpn":
+                            return true
+                        case "notepadButton":
+                            return true
                         default:
                             return false
                         }
@@ -386,6 +392,12 @@ PanelWindow {
                             return separatorComponent
                         case "network_speed_monitor":
                             return networkComponent
+                        case "keyboard_layout_name":
+                            return keyboardLayoutNameComponent
+                        case "vpn":
+                            return vpnComponent
+                        case "notepadButton":
+                            return notepadButtonComponent
                         default:
                             return null
                         }
@@ -1019,6 +1031,35 @@ PanelWindow {
                     }
 
                     Component {
+                        id: vpnComponent
+
+                        Vpn {
+                            widgetHeight: root.widgetHeight
+                            barHeight: root.effectiveBarHeight
+                            section: {
+                                if (parent && parent.parent === leftSection)
+                                    return "left"
+                                if (parent && parent.parent === rightSection)
+                                    return "right"
+                                if (parent && parent.parent === centerSection)
+                                    return "center"
+                                return "right"
+                            }
+                            popupTarget: {
+                                vpnPopoutLoader.active = true
+                                return vpnPopoutLoader.item
+                            }
+                            parentScreen: root.screen
+                            onToggleVpnPopup: {
+                                vpnPopoutLoader.active = true
+                                if (vpnPopoutLoader.item) {
+                                    vpnPopoutLoader.item.toggle()
+                                }
+                            }
+                        }
+                    }
+
+                    Component {
                         id: controlCenterButtonComponent
 
                         ControlCenterButton {
@@ -1049,15 +1090,6 @@ PanelWindow {
                                         if (NetworkService.wifiEnabled)
                                             NetworkService.scanWifi()
                                     }
-                                }
-                            }
-                            onIconClicked: (tab) => {
-                                controlCenterLoader.active = true
-                                if (controlCenterLoader.item) {
-                                    controlCenterLoader.item.triggerScreen = root.screen
-                                    controlCenterLoader.item.openWithTab(tab)
-                                    if (NetworkService.wifiEnabled)
-                                        NetworkService.scanWifi()
                                 }
                             }
                         }
@@ -1116,6 +1148,42 @@ PanelWindow {
                             height: root.widgetHeight * 0.67
                             color: Theme.outline
                             opacity: 0.3
+                        }
+                    }
+
+                    Component {
+                        id: keyboardLayoutNameComponent
+
+                        KeyboardLayoutName {}
+                    }
+
+                    Component {
+                        id: notepadButtonComponent
+
+                        NotepadButton {
+                            isActive: notepadModalLoader.item ? notepadModalLoader.item.visible : false
+                            widgetHeight: root.widgetHeight
+                            barHeight: root.effectiveBarHeight
+                            section: {
+                                if (parent && parent.parent === leftSection)
+                                    return "left"
+                                if (parent && parent.parent === rightSection)
+                                    return "right"
+                                if (parent && parent.parent === centerSection)
+                                    return "center"
+                                return "right"
+                            }
+                            popupTarget: {
+                                notepadModalLoader.active = true
+                                return notepadModalLoader.item
+                            }
+                            parentScreen: root.screen
+                            onClicked: {
+                                notepadModalLoader.active = true
+                                if (notepadModalLoader.item) {
+                                    notepadModalLoader.item.toggle()
+                                }
+                            }
                         }
                     }
                 }

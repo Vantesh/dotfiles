@@ -49,6 +49,7 @@ Rectangle {
         }
     }
 
+
     Column {
         anchors.left: parent.left
         anchors.right: dropdown.left
@@ -77,7 +78,7 @@ Rectangle {
     Rectangle {
         id: dropdown
 
-        width: 180
+        width: root.width <= 60 ? root.width : 180
         height: 36
         anchors.right: parent.right
         anchors.rightMargin: Theme.spacingM
@@ -123,16 +124,18 @@ Rectangle {
                 }
                 size: 18
                 color: Theme.surfaceVariantText
-                visible: name !== ""
+                visible: name !== "" && root.width > 60
             }
 
             StyledText {
                 text: root.currentValue
                 font.pixelSize: Theme.fontSizeMedium
                 color: Theme.surfaceText
-                width: dropdown.width - contentRow.x - expandIcon.width
-                       - Theme.spacingM - Theme.spacingS
-                elide: Text.ElideRight
+                width: root.width <= 60 ? 
+                       (dropdown.width - expandIcon.width - Theme.spacingS * 2) :
+                       (dropdown.width - contentRow.x - expandIcon.width - Theme.spacingM - Theme.spacingS)
+                elide: root.width <= 60 ? Text.ElideNone : Text.ElideRight
+                horizontalAlignment: root.width <= 60 ? Text.AlignHCenter : Text.AlignLeft
             }
         }
 
