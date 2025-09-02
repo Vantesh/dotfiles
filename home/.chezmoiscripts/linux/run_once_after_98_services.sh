@@ -43,14 +43,13 @@ for scope in user system; do
   done
 done
 
-# Enable ufw
 print_step "Enabling UFW (Uncomplicated Firewall)"
+
 if sudo ufw enable >/dev/null 2>&1; then
   print_info "UFW enabled"
 
-  ports=("53317/udp" "53317/tcp" "22/tcp")
   failed=()
-  for port in "${ports[@]}"; do
+  for port in 53317/udp 53317/tcp 443/tcp 80/tcp; do
     if sudo ufw allow "$port" >/dev/null 2>&1; then
       print_info "Allowed $port"
     else
@@ -58,8 +57,26 @@ if sudo ufw enable >/dev/null 2>&1; then
     fi
   done
 
+  if sudo ufw limit 22/tcp >/dev/null 2>&1; then
+    print_info "Limited SSH (22/tcp)"
+  else
+    failed+=("22/tcp")
+  fi
+
+  if sudo ufw default deny incoming >/dev/null 2>&1; then
+    print_info "Default: deny incoming"
+  else
+    print_warning "Failed to set deny incoming"
+  fi
+
+  if sudo ufw default allow outgoing >/dev/null 2>&1; then
+    print_info "Default: allow outgoing"
+  else
+    print_warning "Failed to set allow outgoing"
+  fi
+
   if ((${#failed[@]})); then
-    print_warning "Failed to allow: ${failed[*]}"
+    print_warning "Failed rules: ${failed[*]}"
   fi
 else
   print_warning "Failed to enable UFW"
