@@ -42,15 +42,17 @@ fi
 # generate github and gitlab known hosts
 if ! grep -q "github.com" "${HOME}/.ssh/known_hosts"; then
   print_info "Adding GitHub to SSH known_hosts"
-  ssh-keyscan github.com >> "${HOME}/.ssh/known_hosts" 2>/dev/null
+  ssh-keyscan github.com >>"${HOME}/.ssh/known_hosts" 2>/dev/null
 fi
 
 if ! grep -q "gitlab.com" "${HOME}/.ssh/known_hosts"; then
   print_info "Adding GitLab to SSH known_hosts"
-  ssh-keyscan gitlab.com >> "${HOME}/.ssh/known_hosts" 2>/dev/null
+  ssh-keyscan gitlab.com >>"${HOME}/.ssh/known_hosts" 2>/dev/null
 fi
 
-
+# set time to 24-hour format ( i prefer ZA coz it gives ddd dd MMM YYYY HH:MM:SS TZ format: Fri 05 Sep 2025 16:20:00 UTC)
+# use en_US.UTF-8 for AM/PM format
+sudo localectl set-locale LC_TIME=en_ZA.UTF-8
 # ===============================================================================
 # FSTAB
 # ===============================================================================
