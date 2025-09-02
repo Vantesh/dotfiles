@@ -13,6 +13,7 @@ if [[ ! -f "$SENTINEL_NEW" ]]; then
 
     if command -v qs >/dev/null 2>&1; then
         WALLPAPER_DIR="$HOME/Pictures/Wallpapers"
+        PROFILE_IMAGE="$HOME/.config/hypr/hyprlock/icon.png"
 
         if [[ ! -d "$WALLPAPER_DIR" ]] || ! find "$WALLPAPER_DIR" -type f -print -quit | grep -q .; then
             if command -v notify-send >/dev/null 2>&1; then
@@ -24,6 +25,7 @@ if [[ ! -f "$SENTINEL_NEW" ]]; then
 
         RANDOM_WALLPAPER=$(find "$WALLPAPER_DIR" -type f | shuf -n 1)
         qs -c dms ipc call wallpaper set "$RANDOM_WALLPAPER" >/dev/null 2>&1 &
+        qs -c dms ipc call profile setImage "$PROFILE_IMAGE" >/dev/null 2>&1 &
         sleep 1
 
         # Remove nvim cache folder created by matugen to prevent Nvim issues on first launch
@@ -35,6 +37,6 @@ if [[ ! -f "$SENTINEL_NEW" ]]; then
 
     # Create the new sentinel to mark first-setup completion
     [[ ! -d "$STATE_DIR" ]] && mkdir -p "$STATE_DIR"
-    printf "# DO NOT DELETE THIS FILE\n# This file indicates the first setup has been completed.\n" > "$SENTINEL_NEW"
-    notify-send --icon=dialog-information "Hyprland" "First setup completed. Run nvim before changing wallpaper again."
+    printf "# DO NOT DELETE THIS FILE\n# This file indicates the first setup has been completed.\n" >"$SENTINEL_NEW"
+    notify-send --icon=nwg-look "Welcome" "First setup completed successfully! Enjoy your Hyprland experience."
 fi
