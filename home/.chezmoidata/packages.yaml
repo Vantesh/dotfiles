@@ -99,7 +99,7 @@ packageGroups:
     - qbittorrent
     - mpv
     - neovim
-    - spotify-launcher
+    - spotify
     - spicetify-cli
     - git-delta
     - localsend

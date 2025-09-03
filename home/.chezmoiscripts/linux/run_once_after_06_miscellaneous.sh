@@ -53,6 +53,33 @@ fi
 # set time to 24-hour format ( i prefer ZA coz it gives ddd dd MMM YYYY HH:MM:SS TZ format: Fri 05 Sep 2025 16:20:00 UTC)
 # use en_US.UTF-8 for AM/PM format
 sudo localectl set-locale LC_TIME=en_ZA.UTF-8
+
+# setup spicetify
+if command -v spotify >/dev/null 2>&1; then
+  print_info "Setting up spicetify permissions"
+  sudo chmod a+wr /opt/spotify
+  sudo chmod a+wr /opt/spotify/Apps -R
+
+  if command -v spicetify >/dev/null 2>&1; then
+    print_info "Applying spicetify theme"
+    if spicetify backup apply >/dev/null 2>&1; then
+      print_info "Spicetify theme applied successfully"
+    else
+      print_warning "Failed to apply spicetify theme"
+    fi
+  fi
+fi
+
+# install yazi plugins
+if command -v yazi >/dev/null 2>&1; then
+  print_info "Installing Yazi plugins"
+  if ya pkg install >/dev/null 2>&1; then
+    print_info "Yazi plugins installed successfully"
+  else
+    print_warning "Failed to install Yazi plugins"
+  fi
+fi
+
 # ===============================================================================
 # FSTAB
 # ===============================================================================
