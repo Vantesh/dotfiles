@@ -4,20 +4,36 @@ set -euo pipefail
 # =============================================================================
 # Step 1: Read requested hex color from wal's folder-color.txt
 # =============================================================================
-if [[ -f "$HOME/.cache/wal/folder-color.txt" ]]; then
-  requested_hex=$(<"$HOME/.cache/wal/folder-color.txt")
+readonly FOLDER_HEX_FILE="$HOME/.cache/wal/folder-color.txt"
+readonly CACHE_DIR="$HOME/.cache/wal"
+readonly CACHE_NEAREST_FILE="$CACHE_DIR/folder-color.nearest"
+
+if [[ -f "$FOLDER_HEX_FILE" ]]; then
+  requested_hex=$(<"$FOLDER_HEX_FILE")
 else
-  echo "Error: $HOME/.cache/wal/folder-color.txt not found" >&2
+  echo "Error: $FOLDER_HEX_FILE not found" >&2
   exit 1
 fi
 
 # =============================================================================
 # Step 2: Call Python for the complex color math
 # =============================================================================
-nearest_color=$(python3 -c "
+nearest_color=$(
+  python3 - "$requested_hex" "$CACHE_NEAREST_FILE" <<'PYCODE'
 import sys, colorsys, math
 
-hex_color = sys.argv[1]
+hex_color = sys.argv[1].strip()
+cache_path = sys.argv[2]
+
+# Try cache first to avoid repeated computation/IO
+try:
+  with open(cache_path, 'r', encoding='utf-8') as fh:
+    cached_hex, cached_name = fh.read().split("\n", 1)
+    if cached_hex.strip().lower() == hex_color.lower():
+      print(cached_name.strip())
+      raise SystemExit(0)
+except Exception:
+  pass
 
 # Tela color definitions (name, hex)
 tela_colors = {
@@ -63,7 +79,15 @@ for name, tela_hex in tela_colors.items():
         nearest_color = name
 
 print(nearest_color)
-" "$requested_hex")
+try:
+  from pathlib import Path
+  Path(cache_path).parent.mkdir(parents=True, exist_ok=True)
+  with open(cache_path, 'w', encoding='utf-8') as fh:
+    fh.write(f"{hex_color}\n{nearest_color}\n")
+except Exception:
+  pass
+PYCODE
+)
 
 # =============================================================================
 # Step 3: Switch to matched Tela circle theme
@@ -80,8 +104,12 @@ else
   icon_name="Tela-circle-$nearest_color-$variant"
 fi
 
-echo "Info: Switching icon theme to: $icon_name"
-gsettings set org.gnome.desktop.interface icon-theme "$icon_name"
+current_icon=$(gsettings get org.gnome.desktop.interface icon-theme 2>/dev/null || echo "'__none__'")
+current_icon=${current_icon//\'/}
+if [[ "$current_icon" != "$icon_name" ]]; then
+  echo "Info: Switching icon theme to: $icon_name"
+  gsettings set org.gnome.desktop.interface icon-theme "$icon_name"
+fi
 
 # =============================================================================
 # Step 4: Also set Qt icon theme
@@ -92,10 +120,13 @@ qt6ct_conf="$HOME/.config/qt6ct/qt6ct.conf"
 for conf in "$qt5ct_conf" "$qt6ct_conf"; do
   if [[ -f "$conf" ]]; then
     if grep -q '^icon_theme=' "$conf"; then
-      sed -i "s/^icon_theme=.*/icon_theme=$icon_name/" "$conf"
+      if ! grep -q "^icon_theme=$icon_name$" "$conf"; then
+        sed -i "s/^icon_theme=.*/icon_theme=$icon_name/" "$conf"
+        echo "Info: Updated Qt icon theme in $conf"
+      fi
     else
       echo "icon_theme=$icon_name" >>"$conf"
+      echo "Info: Added icon_theme to $conf"
     fi
-    echo "Info: Updated Qt icon theme in $conf"
   fi
 done

@@ -121,17 +121,16 @@ main() {
 
   # Skip if already applied
   if [[ -f "$CURRENT_FILE" ]]; then
-    readarray -t __cur <"$CURRENT_FILE"
-    if [[ "${__cur[0]:-}" == "$wallpaper" &&
-      "${__cur[1]:-}" == "$MATUGEN_SCHEME" &&
-      "${__cur[2]:-}" == "$MODE" ]]; then
+    mapfile -t __cur <"$CURRENT_FILE" || true
+    if [[ "${__cur[0]:-}" == "$wallpaper" && "${__cur[1]:-}" == "$MATUGEN_SCHEME" && "${__cur[2]:-}" == "$MODE" ]]; then
       log_info "Selection unchanged; skipping."
       exit 0
     fi
   fi
+
   write_current "$wallpaper" "$MATUGEN_SCHEME" "$MODE"
 
-  matugen image "$wallpaper" --type "$MATUGEN_SCHEME" --mode "$MODE" ${JSON_ARG:+$JSON_ARG "$JSON_VALUE"} || {
+  matugen image "$wallpaper" --type "$MATUGEN_SCHEME" --mode "$MODE" ${JSON_ARG:+$JSON_ARG "$JSON_VALUE"} >/dev/null || {
     log_error "Matugen failed to apply theme"
     exit 1
   }
@@ -139,8 +138,8 @@ main() {
   hyprctl reload &>/dev/null || true
 
   # Run update scripts
-  update_script "gtk"
   update_script "terminal" &
+  update_script "gtk" &
   update_script "folders" &
   update_script "hyprlock_icon" &
   update_script "services" &

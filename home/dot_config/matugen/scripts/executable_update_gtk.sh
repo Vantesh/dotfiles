@@ -15,10 +15,20 @@ for file in "${files[@]}"; do
   mkdir -p "${file%/*}"
   if [[ -L $file ]]; then
     rm -f "$file"
-    echo "$line" >"$file"
+    printf '%s\n' "$line" >"$file"
   else
-    grep -Fxq "$line" "$file" 2>/dev/null || echo "$line" >"$file"
+    if [[ -f "$file" ]]; then
+      if ! grep -Fxq "$line" "$file" 2>/dev/null; then
+        printf '%s\n' "$line" >"$file"
+      fi
+    else
+      printf '%s\n' "$line" >"$file"
+    fi
   fi
 done
 
-gsettings set org.gnome.desktop.interface color-scheme "prefer-$mode"
+current_scheme=$(gsettings get org.gnome.desktop.interface color-scheme 2>/dev/null || echo "'prefer-dark'")
+current_scheme=${current_scheme//\'/}
+if [[ "$current_scheme" != "prefer-$mode" ]]; then
+  gsettings set org.gnome.desktop.interface color-scheme "prefer-$mode"
+fi

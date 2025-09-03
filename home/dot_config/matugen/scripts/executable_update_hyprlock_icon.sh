@@ -7,11 +7,12 @@ readonly HYPRLOCK_SVG="$HOME/.cache/wal/icon.svg"
 
 # Hyprlock icon
 if [[ -f "$HYPRLOCK_SVG" ]]; then
-  if command -v magick &>/dev/null; then
-    magick -background none "$HYPRLOCK_SVG" "$HYPRLOCK_PNG" &>/dev/null &
-  elif command -v convert &>/dev/null; then
-    convert -background none "$HYPRLOCK_SVG" "$HYPRLOCK_PNG" &>/dev/null &
-  else
-    log_error "ImageMagick not found, skipping hyprlock icon"
+  # Convert only if PNG missing or older than SVG to avoid extra work
+  if [[ ! -f "$HYPRLOCK_PNG" || "$HYPRLOCK_SVG" -nt "$HYPRLOCK_PNG" ]]; then
+    if command -v magick &>/dev/null; then
+      magick -background none "$HYPRLOCK_SVG" "$HYPRLOCK_PNG" &>/dev/null &
+    elif command -v convert &>/dev/null; then
+      convert -background none "$HYPRLOCK_SVG" "$HYPRLOCK_PNG" &>/dev/null &
+    fi
   fi
 fi
