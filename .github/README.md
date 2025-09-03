@@ -17,7 +17,7 @@ https://github.com/user-attachments/assets/bd263e88-f2b6-477a-97dc-e8c1afa23669
 ## Requirements
 
 - **Fresh arch installation** - The script is designed for a fresh minimal Arch Linux installation.
-- (Other arch based distros or existing setups may work but may require manual adjustments)
+- (Other arch based distros or existing arch setups may work but may require manual adjustments)
 
 ## Installation
 
@@ -70,14 +70,6 @@ Super is the **Windows** key
 - **Laptop Tweaks** - Applies laptop-specific optimizations if detected
 
 </details>
-
-### Post Installation
-
-After running the script, you may need to:
-
-- **Hyprland:** Reload Hyprland with `hyprctl reload` if theme doesnt autoreload.
-- **Yazi:** Run `ya pkg install` to install any missing plugins.
-- **Neovim:** Remove the `~/.local/share/nvim` directory then run `nvim` to install plugins.
 
 ## Credits
 
