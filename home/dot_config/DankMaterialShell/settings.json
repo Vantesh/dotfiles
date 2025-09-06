@@ -1,9 +1,9 @@
 {
   "currentThemeName": "dynamic",
   "customThemeFile": "",
-  "topBarTransparency": 0.9,
-  "topBarWidgetTransparency": 0.9,
-  "popupTransparency": 0.9,
+  "topBarTransparency": 0.8,
+  "topBarWidgetTransparency": 0.8,
+  "popupTransparency": 0.8,
   "dockTransparency": 0.72,
   "use24HourClock": true,
   "useFahrenheit": false,
@@ -34,17 +34,23 @@
   "controlCenterShowAudioIcon": true,
   "showWorkspaceIndex": true,
   "showWorkspacePadding": false,
+  "showWorkspaceApps": false,
+  "maxWorkspaceIcons": 3,
+  "workspacesPerMonitor": true,
   "workspaceNameIcons": {},
   "clockCompactMode": false,
   "focusedWindowCompactMode": true,
   "runningAppsCompactMode": true,
   "runningAppsCurrentWorkspace": true,
   "clockDateFormat": "ddd dd",
-  "lockDateFormat": "dddd, MMMM dd",
+  "lockDateFormat": "",
   "mediaSize": 1,
   "topBarLeftWidgets": [
     "launcherButton",
-    "workspaceSwitcher",
+    {
+      "id": "workspaceSwitcher",
+      "enabled": true
+    },
     "focusedWindow"
   ],
   "topBarCenterWidgets": [
@@ -91,7 +97,7 @@
   "monoFontFamily": "JetBrainsMono Nerd Font Mono",
   "fontWeight": 400,
   "showDock": false,
-  "dockAutoHide": false,
+  "dockAutoHide": true,
   "cornerRadius": 10,
   "notificationOverlayEnabled": false,
   "topBarAutoHide": false,
