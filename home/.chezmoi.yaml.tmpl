@@ -7,7 +7,7 @@
 {{- $macOSHyprWhiteIconsUrl := gitHubLatestReleaseAssetURL "driedpampas/macOS-hyprcursor" "macOS.Hyprcursor.SVG.White.tar.gz" | quote }}
 
 {{- $adw_version := (gitHubLatestRelease "lassekongo83/adw-gtk3").TagName | toString -}}
-{{- $adwGTKThemeUrl := gitHubLatestReleaseAssetURL "lassekongo83/adw-gtk3" (printf "adw-gtk3%s.tar.gz" $adw_version) | quote -}}
+{{- $adwGTKThemeUrl := gitHubLatestReleaseAssetURL "lassekongo83/adw-gtk3" (printf "adw-gtk3%s.tar.xz" $adw_version) | quote -}}
 
 {{- if ne .chezmoi.username "vantesh" }}
 {{- $git_username := promptString "Enter your Git username:" }}
