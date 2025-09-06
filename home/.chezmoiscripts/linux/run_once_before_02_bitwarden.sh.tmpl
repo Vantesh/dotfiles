@@ -17,8 +17,6 @@ install_package "rbw"
 # LOGIN
 # ==========================================================================
 
-
-
 validate_email() {
   local email="$1"
   [[ "$email" =~ ^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$ ]]
@@ -36,6 +34,13 @@ get_bitwarden_email() {
     fi
   done
 }
+
+# fix for brave browser
+if [ ! -d "$HOME/.config/google-chrome" ]; then
+  mkdir -p "$HOME/.config/google-chrome"
+  ln -s "$HOME/.config/brave-software/Brave-Browser/NativeMessagingHosts/com.8bitwarden.browser.json" "$HOME/.config/google-chrome/NativeMessagingHosts/com.8bitwarden.browser.json"
+  print_info "Created directory: $HOME/.config/google-chrome"
+fi
 
 if ! rbw login >/dev/null 2>&1; then
   print_step "Logging in to Bitwarden"
