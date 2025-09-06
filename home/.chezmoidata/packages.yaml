@@ -1,7 +1,6 @@
 packageGroups:
   core:
     - hyprland
-    - hyprlock
     - hypridle
     - hyprpicker
     - hyprshot
