@@ -7,14 +7,15 @@ Rectangle {
     id: root
 
     radius: Theme.cornerRadius
-    color: Qt.rgba(Theme.surfaceContainer.r, Theme.surfaceContainer.g,
-                   Theme.surfaceContainer.b, 0.4)
-    border.color: Qt.rgba(Theme.outline.r, Theme.outline.g,
-                          Theme.outline.b, 0.08)
+    color: Qt.rgba(Theme.surfaceContainer.r, Theme.surfaceContainer.g, Theme.surfaceContainer.b, 0.4)
+    border.color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.08)
     border.width: 1
 
-    Ref {
-        service: DgopService
+    Component.onCompleted: {
+        DgopService.addRef(["system", "hardware"])
+    }
+    Component.onDestruction: {
+        DgopService.removeRef(["system", "hardware"])
     }
 
     Column {
@@ -48,8 +49,7 @@ Rectangle {
                 StyledText {
                     text: DgopService.distribution + " • " + DgopService.architecture
                     font.pixelSize: Theme.fontSizeSmall
-                    color: Qt.rgba(Theme.surfaceText.r, Theme.surfaceText.g,
-                                   Theme.surfaceText.b, 0.7)
+                    color: Qt.rgba(Theme.surfaceText.r, Theme.surfaceText.g, Theme.surfaceText.b, 0.7)
                     width: parent.width
                     elide: Text.ElideRight
                 }
@@ -59,8 +59,7 @@ Rectangle {
         Rectangle {
             width: parent.width
             height: 1
-            color: Qt.rgba(Theme.outline.r, Theme.outline.g,
-                           Theme.outline.b, 0.1)
+            color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.1)
         }
 
         Column {
@@ -86,8 +85,7 @@ Rectangle {
             StyledText {
                 text: DgopService.processCount + " proc, " + DgopService.threadCount + " threads"
                 font.pixelSize: Theme.fontSizeSmall
-                color: Qt.rgba(Theme.surfaceText.r, Theme.surfaceText.g,
-                               Theme.surfaceText.b, 0.8)
+                color: Qt.rgba(Theme.surfaceText.r, Theme.surfaceText.g, Theme.surfaceText.b, 0.8)
                 width: parent.width
                 elide: Text.ElideRight
             }
@@ -95,43 +93,36 @@ Rectangle {
     }
 
     function formatUptime(uptime) {
-        if (!uptime)
+        if (!uptime) {
             return "0m"
+        }
 
-        // Parse the uptime string - handle formats like "1 week, 4 days, 3:45" or "4 days, 3:45" or "3:45"
-        var uptimeStr = uptime.toString().trim()
-
-        // Check for weeks and days - need to add them together
-        var weekMatch = uptimeStr.match(/(\d+)\s+weeks?/)
-        var dayMatch = uptimeStr.match(/(\d+)\s+days?/)
+        const uptimeStr = uptime.toString().trim()
+        const weekMatch = uptimeStr.match(/(\d+)\s+weeks?/)
+        const dayMatch = uptimeStr.match(/(\d+)\s+days?/)
 
         if (weekMatch) {
-            var weeks = parseInt(weekMatch[1])
-            var totalDays = weeks * 7
+            const weeks = parseInt(weekMatch[1])
+            let totalDays = weeks * 7
             if (dayMatch) {
-                var days = parseInt(dayMatch[1])
+                const days = parseInt(dayMatch[1])
                 totalDays += days
             }
             return totalDays + "d"
-        } else if (dayMatch) {
-            var days = parseInt(dayMatch[1])
+        }
+
+        if (dayMatch) {
+            const days = parseInt(dayMatch[1])
             return days + "d"
         }
 
-        // If it's just hours:minutes, show the largest unit
-        var timeMatch = uptimeStr.match(/(\d+):(\d+)/)
+        const timeMatch = uptimeStr.match(/(\d+):(\d+)/)
         if (timeMatch) {
-            var hours = parseInt(timeMatch[1])
-            var minutes = parseInt(timeMatch[2])
-            if (hours > 0) {
-                return hours + "h"
-            } else {
-                return minutes + "m"
-            }
+            const hours = parseInt(timeMatch[1])
+            const minutes = parseInt(timeMatch[2])
+            return hours > 0 ? hours + "h" : minutes + "m"
         }
 
-        // Fallback - return as is but truncated
-        return uptimeStr.length > 8 ? uptimeStr.substring(0,
-                                                          8) + "…" : uptimeStr
+        return uptimeStr.length > 8 ? uptimeStr.substring(0, 8) + "…" : uptimeStr
     }
 }

@@ -93,8 +93,6 @@ Item {
                             iconName: "delete_sweep"
                             iconSize: Theme.iconSize - 2
                             iconColor: Theme.error
-                            hoverColor: Qt.rgba(Theme.error.r, Theme.error.g,
-                                                Theme.error.b, 0.12)
                             anchors.verticalCenter: parent.verticalCenter
                             onClicked: {
                                 AppUsageHistoryData.appUsageRanking = {}
@@ -218,9 +216,6 @@ Item {
                                     iconName: "close"
                                     iconSize: 16
                                     iconColor: Theme.error
-                                    hoverColor: Qt.rgba(Theme.error.r,
-                                                        Theme.error.g,
-                                                        Theme.error.b, 0.12)
                                     onClicked: {
                                         var currentRanking = Object.assign(
                                                     {},

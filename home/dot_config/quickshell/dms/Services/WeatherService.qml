@@ -1,4 +1,5 @@
 pragma Singleton
+
 pragma ComponentBehavior: Bound
 
 import QtQuick
@@ -34,7 +35,6 @@ Singleton {
     property int minFetchInterval: 30000 // 30 seconds minimum between fetches
     property int persistentRetryCount: 0 // Track persistent retry attempts for backoff
 
-    // Weather icon mapping (based on wttr.in weather codes)
     property var weatherIcons: ({
                                     "113": "clear_day",
                                     "116": "partly_cloudy_day",
@@ -105,9 +105,7 @@ Singleton {
     function addRef() {
         refCount++
 
-        if (refCount === 1 && !weather.available
-                && SettingsData.weatherEnabled) {
-            // Start fetching when first consumer appears and weather is enabled
+        if (refCount === 1 && !weather.available && SettingsData.weatherEnabled) {
             fetchWeather()
         }
     }
@@ -117,7 +115,6 @@ Singleton {
     }
 
     function fetchWeather() {
-        // Only fetch if someone is consuming the data and weather is enabled
         if (root.refCount === 0 || !SettingsData.weatherEnabled) {
             return
         }
@@ -127,7 +124,6 @@ Singleton {
             return
         }
 
-        // Check if we've fetched recently to prevent spam
         const now = Date.now()
         if (now - root.lastFetchTime < root.minFetchInterval) {
             console.log("Weather fetch throttled, too soon since last fetch")
@@ -137,9 +133,7 @@ Singleton {
         console.log("Fetching weather from:", getWeatherUrl())
         root.lastFetchTime = now
         root.weather.loading = true
-        weatherFetcher.command
-                = ["bash", "-c", `curl -s --connect-timeout 10 --max-time 30 '${getWeatherUrl(
-                       )}'`]
+        weatherFetcher.command = ["bash", "-c", `curl -s --connect-timeout 10 --max-time 30 '${getWeatherUrl()}'`]
         weatherFetcher.running = true
     }
 
@@ -151,12 +145,10 @@ Singleton {
 
     function handleWeatherSuccess() {
         root.retryAttempts = 0
-        root.persistentRetryCount = 0 // Reset persistent retry count on success
-        // Stop any persistent retry timer if running
+        root.persistentRetryCount = 0
         if (persistentRetryTimer.running) {
             persistentRetryTimer.stop()
         }
-        // Don't restart the timer - let it continue its normal interval
         if (updateTimer.interval !== root.updateInterval) {
             updateTimer.interval = root.updateInterval
         }
@@ -165,18 +157,14 @@ Singleton {
     function handleWeatherFailure() {
         root.retryAttempts++
         if (root.retryAttempts < root.maxRetryAttempts) {
-            console.log(`Weather fetch failed, retrying in ${root.retryDelay
-                        / 1000}s (attempt ${root.retryAttempts}/${root.maxRetryAttempts})`)
+            console.log(`Weather fetch failed, retrying in ${root.retryDelay / 1000}s (attempt ${root.retryAttempts}/${root.maxRetryAttempts})`)
             retryTimer.start()
         } else {
             console.warn("Weather fetch failed after maximum retry attempts, will keep trying...")
             root.weather.available = false
             root.weather.loading = false
-            // Reset retry count but keep trying with exponential backoff
             root.retryAttempts = 0
-            // Use exponential backoff: 1min, 2min, 4min, then cap at 5min
-            const backoffDelay = Math.min(60000 * Math.pow(
-                                              2, persistentRetryCount), 300000)
+            const backoffDelay = Math.min(60000 * Math.pow(2, persistentRetryCount), 300000)
             persistentRetryCount++
             console.log(`Scheduling persistent retry in ${backoffDelay / 1000}s`)
             persistentRetryTimer.interval = backoffDelay
@@ -186,8 +174,7 @@ Singleton {
 
     Process {
         id: weatherFetcher
-        command: ["bash", "-c", `curl -s --connect-timeout 10 --max-time 30 '${root.getWeatherUrl(
-                )}'`]
+        command: ["bash", "-c", `curl -s --connect-timeout 10 --max-time 30 '${root.getWeatherUrl()}'`]
         running: false
 
         stdout: StdioCollector {
@@ -206,8 +193,7 @@ Singleton {
                     const location = data.nearest_area[0] || {}
                     const astronomy = data.weather[0]?.astronomy[0] || {}
 
-                    if (!Object.keys(current).length || !Object.keys(
-                            location).length) {
+                    if (!Object.keys(current).length || !Object.keys(location).length) {
                         throw new Error("Required fields missing")
                     }
 
@@ -226,8 +212,7 @@ Singleton {
                         "pressure": Number(current.pressure) || 0
                     }
 
-                    console.log("Weather updated:", root.weather.city,
-                                `${root.weather.temp}°C`)
+                    console.log("Weather updated:", root.weather.city, `${root.weather.temp}°C`)
 
                     root.handleWeatherSuccess()
                 } catch (e) {
@@ -268,7 +253,7 @@ Singleton {
 
     Timer {
         id: persistentRetryTimer
-        interval: 60000 // Will be dynamically set
+        interval: 60000
         running: false
         repeat: false
         onTriggered: {
@@ -279,8 +264,7 @@ Singleton {
 
     Component.onCompleted: {
         SettingsData.weatherCoordinatesChanged.connect(() => {
-                                                           console.log(
-                                                               "Weather location changed, force refreshing weather")
+                                                           console.log("Weather location changed, force refreshing weather")
                                                            root.weather = {
                                                                "available": false,
                                                                "loading": true,
@@ -300,16 +284,13 @@ Singleton {
                                                        })
 
         SettingsData.weatherLocationChanged.connect(() => {
-                                                        console.log(
-                                                            "Weather location display name changed")
-                                                        const currentWeather = Object.assign(
-                                                            {}, root.weather)
+                                                        console.log("Weather location display name changed")
+                                                        const currentWeather = Object.assign({}, root.weather)
                                                         root.weather = currentWeather
                                                     })
 
         SettingsData.useAutoLocationChanged.connect(() => {
-                                                        console.log(
-                                                            "Auto location setting changed, force refreshing weather")
+                                                        console.log("Auto location setting changed, force refreshing weather")
                                                         root.weather = {
                                                             "available": false,
                                                             "loading": true,
@@ -329,16 +310,10 @@ Singleton {
                                                     })
 
         SettingsData.weatherEnabledChanged.connect(() => {
-                                                       console.log(
-                                                           "Weather enabled setting changed:",
-                                                           SettingsData.weatherEnabled)
-                                                       if (SettingsData.weatherEnabled
-                                                           && root.refCount > 0
-                                                           && !root.weather.available) {
-                                                           // Start fetching when weather is re-enabled
+                                                       console.log("Weather enabled setting changed:", SettingsData.weatherEnabled)
+                                                       if (SettingsData.weatherEnabled && root.refCount > 0 && !root.weather.available) {
                                                            root.forceRefresh()
                                                        } else if (!SettingsData.weatherEnabled) {
-                                                           // Stop all timers when weather is disabled
                                                            updateTimer.stop()
                                                            retryTimer.stop()
                                                            persistentRetryTimer.stop()

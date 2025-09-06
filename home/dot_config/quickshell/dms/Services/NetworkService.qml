@@ -1,4 +1,5 @@
 pragma Singleton
+
 pragma ComponentBehavior: Bound
 
 import QtQuick
@@ -9,35 +10,32 @@ import qs.Common
 Singleton {
     id: root
 
-    // Core network state
     property int refCount: 0
-    property string networkStatus: "disconnected" // "ethernet", "wifi", "disconnected"
-    property string primaryConnection: "" // Active connection UUID
+    property string networkStatus: "disconnected"
+    property string primaryConnection: ""
 
-    // Ethernet properties
     property string ethernetIP: ""
     property string ethernetInterface: ""
     property bool ethernetConnected: false
     property string ethernetConnectionUuid: ""
 
-    // WiFi properties
     property string wifiIP: ""
     property string wifiInterface: ""
     property bool wifiConnected: false
     property bool wifiEnabled: true
     property string wifiConnectionUuid: ""
 
-    // WiFi details
     property string currentWifiSSID: ""
     property int wifiSignalStrength: 0
     property var wifiNetworks: []
     property var savedConnections: []
-    property var ssidToConnectionName: {}
+    property var ssidToConnectionName: {
+
+    }
     property var wifiSignalIcon: {
         if (!wifiConnected || networkStatus !== "wifi") {
             return "signal_wifi_off"
         }
-        // Use nmcli signal strength percentage
         if (wifiSignalStrength >= 70) {
             return "signal_wifi_4_bar"
         }
@@ -53,17 +51,14 @@ Singleton {
         return "signal_wifi_bad"
     }
 
-    // Connection management
     property string userPreference: "auto" // "auto", "wifi", "ethernet"
     property bool isConnecting: false
     property string connectingSSID: ""
     property string connectionError: ""
 
-    // Scanning
     property bool isScanning: false
     property bool autoScan: false
 
-    // Legacy compatibility properties
     property bool wifiAvailable: true
     property bool wifiToggling: false
     property bool changingPreference: false
@@ -76,7 +71,6 @@ Singleton {
     property string wifiPassword: ""
     property string forgetSSID: ""
 
-    // Network info properties
     property string networkInfoSSID: ""
     property string networkInfoDetails: ""
     property bool networkInfoLoading: false
@@ -84,15 +78,13 @@ Singleton {
     signal networksUpdated
     signal connectionChanged
 
-    // Helper: split nmcli -t output respecting escaped colons (\:)
     function splitNmcliFields(line) {
-        let parts = []
+        const parts = []
         let cur = ""
         let escape = false
-        for (let i = 0; i < line.length; i++) {
+        for (var i = 0; i < line.length; i++) {
             const ch = line[i]
             if (escape) {
-                // Keep literal for escaped colon and other sequences
                 cur += ch
                 escape = false
             } else if (ch === '\\') {
@@ -140,11 +132,7 @@ Singleton {
         stdout: SplitParser {
             splitMarker: "\n"
             onRead: line => {
-                if (line.includes("StateChanged") || line.includes(
-                        "PrimaryConnectionChanged") || line.includes(
-                        "WirelessEnabled") || line.includes(
-                        "ActiveConnection") || line.includes(
-                        "PropertiesChanged")) {
+                if (line.includes("StateChanged") || line.includes("PrimaryConnectionChanged") || line.includes("WirelessEnabled") || line.includes("ActiveConnection") || line.includes("PropertiesChanged")) {
                     refreshNetworkState()
                 }
             }
@@ -316,8 +304,9 @@ Singleton {
         stdout: StdioCollector {
             onStreamFinished: {
                 const match = text.match(/inet (\d+\.\d+\.\d+\.\d+)/)
-                if (match)
-                root.ethernetIP = match[1]
+                if (match) {
+                    root.ethernetIP = match[1]
+                }
             }
         }
     }
@@ -415,22 +404,21 @@ Singleton {
         stdout: StdioCollector {
             onStreamFinished: {
                 const match = text.match(/inet (\d+\.\d+\.\d+\.\d+)/)
-                if (match)
-                root.wifiIP = match[1]
+                if (match) {
+                    root.wifiIP = match[1]
+                }
             }
         }
     }
 
     Process {
         id: getCurrentWifiInfo
-        // Prefer IN-USE,SIGNAL,SSID, but we'll also parse legacy ACTIVE format
         command: root.wifiInterface ? ["nmcli", "-t", "-f", "IN-USE,SIGNAL,SSID", "device", "wifi", "list", "ifname", root.wifiInterface] : []
         running: false
 
         stdout: SplitParser {
             splitMarker: "\n"
             onRead: line => {
-                // IN-USE format: "*:SIGNAL:SSID"
                 if (line.startsWith("*:")) {
                     const rest = line.substring(2)
                     const parts = root.splitNmcliFields(rest)
@@ -455,7 +443,6 @@ Singleton {
         }
     }
 
-
     function updateActiveConnections() {
         getActiveConnections.running = true
     }
@@ -475,11 +462,9 @@ Singleton {
                         const type = parts[1]
                         const device = parts[2]
                         const state = parts[3]
-                        if (type === "802-3-ethernet"
-                            && state === "activated") {
+                        if (type === "802-3-ethernet" && state === "activated") {
                             root.ethernetConnectionUuid = uuid
-                        } else if (type === "802-11-wireless"
-                                   && state === "activated") {
+                        } else if (type === "802-11-wireless" && state === "activated") {
                             root.wifiConnectionUuid = uuid
                         }
                     }
@@ -514,8 +499,9 @@ Singleton {
             onStreamFinished: {
                 if (!root.currentWifiSSID) {
                     const name = text.trim()
-                    if (name)
-                    root.currentWifiSSID = name
+                    if (name) {
+                        root.currentWifiSSID = name
+                    }
                 }
             }
         }
@@ -539,8 +525,9 @@ Singleton {
     }
 
     function scanWifi() {
-        if (root.isScanning || !root.wifiEnabled)
+        if (root.isScanning || !root.wifiEnabled) {
             return
+        }
 
         root.isScanning = true
         requestWifiScan.running = true
@@ -578,7 +565,7 @@ Singleton {
 
         stdout: StdioCollector {
             onStreamFinished: {
-                let networks = []
+                const networks = []
                 const lines = text.trim().split('\n')
                 const seen = new Set()
 
@@ -596,7 +583,7 @@ Singleton {
                                               "secured": parts[2] !== "",
                                               "bssid": parts[3],
                                               "connected": ssid === root.currentWifiSSID,
-                                              "saved": false // Will be updated by saved connections check
+                                              "saved": false
                                           })
                         }
                     }
@@ -617,8 +604,8 @@ Singleton {
 
         stdout: StdioCollector {
             onStreamFinished: {
-                let saved = []
-                let mapping = {}
+                const saved = []
+                const mapping = {}
                 const lines = text.trim().split('\n')
 
                 for (const line of lines) {
@@ -640,8 +627,8 @@ Singleton {
                 root.savedWifiNetworks = saved
                 root.ssidToConnectionName = mapping
 
-                let updated = [...root.wifiNetworks]
-                for (let network of updated) {
+                const updated = [...root.wifiNetworks]
+                for (const network of updated) {
                     network.saved = saved.some(s => s.ssid === network.ssid)
                 }
                 root.wifiNetworks = updated
@@ -650,15 +637,15 @@ Singleton {
     }
 
     function connectToWifi(ssid, password = "") {
-        if (root.isConnecting)
+        if (root.isConnecting) {
             return
+        }
 
         root.isConnecting = true
         root.connectingSSID = ssid
         root.connectionError = ""
         root.connectionStatus = "connecting"
 
-        // For saved networks without password, try connection up first
         if (!password && root.ssidToConnectionName[ssid]) {
             const connectionName = root.ssidToConnectionName[ssid]
             wifiConnector.command = ["nmcli", "connection", "up", connectionName]
@@ -668,10 +655,6 @@ Singleton {
             wifiConnector.command = ["nmcli", "dev", "wifi", "connect", ssid]
         }
         wifiConnector.running = true
-    }
-
-    function connectToWifiWithPassword(ssid, password) {
-        connectToWifi(ssid, password)
     }
 
     Process {
@@ -688,8 +671,7 @@ Singleton {
                     root.connectionError = ""
                     root.connectionStatus = "connected"
 
-                    if (root.userPreference === "wifi"
-                        || root.userPreference === "auto") {
+                    if (root.userPreference === "wifi" || root.userPreference === "auto") {
                         setConnectionPriority("wifi")
                     }
                 }
@@ -701,8 +683,7 @@ Singleton {
                 root.connectionError = text
                 root.lastConnectionError = text
                 if (!wifiConnector.connectionSucceeded && text.trim() !== "") {
-                    if (text.includes("password") || text.includes(
-                            "authentication")) {
+                    if (text.includes("password") || text.includes("authentication")) {
                         root.connectionStatus = "invalid_password"
                         root.passwordDialogShouldReopen = true
                     } else {
@@ -715,7 +696,6 @@ Singleton {
         onExited: exitCode => {
             if (exitCode === 0 || wifiConnector.connectionSucceeded) {
                 if (!wifiConnector.connectionSucceeded) {
-                    // Command succeeded but we didn't see "successfully" - still mark as success
                     ToastService.showInfo(`Connected to ${root.connectingSSID}`)
                     root.connectionStatus = "connected"
                 }
@@ -724,11 +704,9 @@ Singleton {
                     root.connectionStatus = "failed"
                 }
                 if (root.connectionStatus === "invalid_password") {
-                    ToastService.showError(
-                        `Invalid password for ${root.connectingSSID}`)
+                    ToastService.showError(`Invalid password for ${root.connectingSSID}`)
                 } else {
-                    ToastService.showError(
-                        `Failed to connect to ${root.connectingSSID}`)
+                    ToastService.showError(`Failed to connect to ${root.connectingSSID}`)
                 }
             }
 
@@ -740,8 +718,9 @@ Singleton {
     }
 
     function disconnectWifi() {
-        if (!root.wifiInterface)
+        if (!root.wifiInterface) {
             return
+        }
 
         wifiDisconnector.command = ["nmcli", "dev", "disconnect", root.wifiInterface]
         wifiDisconnector.running = true
@@ -776,13 +755,11 @@ Singleton {
             if (exitCode === 0) {
                 ToastService.showInfo(`Forgot network ${root.forgetSSID}`)
 
-                root.savedConnections = root.savedConnections.filter(
-                    s => s.ssid !== root.forgetSSID)
-                root.savedWifiNetworks = root.savedWifiNetworks.filter(
-                    s => s.ssid !== root.forgetSSID)
+                root.savedConnections = root.savedConnections.filter(s => s.ssid !== root.forgetSSID)
+                root.savedWifiNetworks = root.savedWifiNetworks.filter(s => s.ssid !== root.forgetSSID)
 
-                let updated = [...root.wifiNetworks]
-                for (let network of updated) {
+                const updated = [...root.wifiNetworks]
+                for (const network of updated) {
                     if (network.ssid === root.forgetSSID) {
                         network.saved = false
                         if (network.connected) {
@@ -800,8 +777,9 @@ Singleton {
     }
 
     function toggleWifiRadio() {
-        if (root.wifiToggling)
+        if (root.wifiToggling) {
             return
+        }
 
         root.wifiToggling = true
         const targetState = root.wifiEnabled ? "off" : "on"
@@ -819,15 +797,12 @@ Singleton {
         onExited: exitCode => {
             root.wifiToggling = false
             if (exitCode === 0) {
-                // Don't manually toggle wifiEnabled - let DBus monitoring handle it
-                ToastService.showInfo(
-                    targetState === "on" ? "WiFi enabled" : "WiFi disabled")
+                ToastService.showInfo(targetState === "on" ? "WiFi enabled" : "WiFi disabled")
             }
             refreshNetworkState()
         }
     }
 
-    // ===== Network Preference Management =====
     function setNetworkPreference(preference) {
         root.userPreference = preference
         root.changingPreference = true
@@ -839,7 +814,6 @@ Singleton {
         } else if (preference === "ethernet") {
             setConnectionPriority("ethernet")
         }
-        // "auto" uses default NetworkManager behavior
     }
 
     function setConnectionPriority(type) {
@@ -865,9 +839,7 @@ Singleton {
 
     Process {
         id: restartConnections
-        command: ["bash", "-c", "nmcli -t -f UUID,TYPE connection show --active | "
-            + "grep -E '802-11-wireless|802-3-ethernet' | cut -d: -f1 | "
-            + "xargs -I {} sh -c 'nmcli connection down {} && nmcli connection up {}'"]
+        command: ["bash", "-c", "nmcli -t -f UUID,TYPE connection show --active | " + "grep -E '802-11-wireless|802-3-ethernet' | cut -d: -f1 | " + "xargs -I {} sh -c 'nmcli connection down {} && nmcli connection up {}'"]
         running: false
 
         onExited: {
@@ -890,7 +862,6 @@ Singleton {
         root.autoRefreshEnabled = false
     }
 
-    // ===== Network Info =====
     function fetchNetworkInfo(ssid) {
         root.networkInfoSSID = ssid
         root.networkInfoLoading = true
@@ -907,23 +878,21 @@ Singleton {
             onStreamFinished: {
                 let details = ""
                 if (text.trim()) {
-                    let lines = text.trim().split('\n')
-                    let bands = []
-                    
-                    // Collect all access points for this SSID
-                    for (let line of lines) {
-                        let parts = line.split(':')
+                    const lines = text.trim().split('\n')
+                    const bands = []
+
+                    for (const line of lines) {
+                        const parts = line.split(':')
                         if (parts.length >= 11 && parts[0] === root.networkInfoSSID) {
-                            let signal = parts[1] || "0"
-                            let security = parts[2] || "Open"
-                            let freq = parts[3] || "Unknown"
-                            let rate = parts[4] || "Unknown"
-                            let channel = parts[6] || "Unknown"
-                            let isActive = parts[9] === "yes"
-                            // BSSID is the last field, find it by counting colons
+                            const signal = parts[1] || "0"
+                            const security = parts[2] || "Open"
+                            const freq = parts[3] || "Unknown"
+                            const rate = parts[4] || "Unknown"
+                            const channel = parts[6] || "Unknown"
+                            const isActive = parts[9] === "yes"
                             let colonCount = 0
                             let bssidStart = -1
-                            for (let i = 0; i < line.length; i++) {
+                            for (var i = 0; i < line.length; i++) {
                                 if (line[i] === ':') {
                                     colonCount++
                                     if (colonCount === 10) {
@@ -932,10 +901,10 @@ Singleton {
                                     }
                                 }
                             }
-                            let bssid = bssidStart >= 0 ? line.substring(bssidStart).replace(/\\:/g, ":") : ""
+                            const bssid = bssidStart >= 0 ? line.substring(bssidStart).replace(/\\:/g, ":") : ""
 
                             let band = "Unknown"
-                            let freqNum = parseInt(freq)
+                            const freqNum = parseInt(freq)
                             if (freqNum >= 2400 && freqNum <= 2500) {
                                 band = "2.4 GHz"
                             } else if (freqNum >= 5000 && freqNum <= 6000) {
@@ -945,28 +914,31 @@ Singleton {
                             }
 
                             bands.push({
-                                band: band,
-                                freq: freq,
-                                channel: channel,
-                                signal: signal,
-                                rate: rate,
-                                security: security,
-                                isActive: isActive,
-                                bssid: bssid
-                            })
+                                           "band": band,
+                                           "freq": freq,
+                                           "channel": channel,
+                                           "signal": signal,
+                                           "rate": rate,
+                                           "security": security,
+                                           "isActive": isActive,
+                                           "bssid": bssid
+                                       })
                         }
                     }
-                    
+
                     if (bands.length > 0) {
-                        // Sort bands: active first, then by signal strength
                         bands.sort((a, b) => {
-                            if (a.isActive && !b.isActive) return -1
-                            if (!a.isActive && b.isActive) return 1
-                            return parseInt(b.signal) - parseInt(a.signal)
-                        })
-                        
-                        for (let i = 0; i < bands.length; i++) {
-                            let b = bands[i]
+                                       if (a.isActive && !b.isActive) {
+                                           return -1
+                                       }
+                                       if (!a.isActive && b.isActive) {
+                                           return 1
+                                       }
+                                       return parseInt(b.signal) - parseInt(a.signal)
+                                   })
+
+                        for (var i = 0; i < bands.length; i++) {
+                            const b = bands[i]
                             if (b.isActive) {
                                 details += "● " + b.band + " (Connected) - " + b.signal + "%\\n"
                             } else {
@@ -998,18 +970,6 @@ Singleton {
         }
     }
 
-    function refreshNetworkStatus() {
-        refreshNetworkState()
-    }
-
-    function delayedRefreshNetworkStatus() {
-        refreshNetworkState()
-    }
-
-    function updateCurrentWifiInfo() {
-        getCurrentWifiInfo.running = true
-    }
-
     function enableWifiDevice() {
         wifiDeviceEnabler.running = true
     }
@@ -1030,7 +990,7 @@ Singleton {
     }
 
     function connectToWifiAndSetPreference(ssid, password) {
-        connectToWifiWithPassword(ssid, password)
+        connectToWifi(ssid, password)
         setNetworkPreference("wifi")
     }
 
@@ -1066,8 +1026,9 @@ Singleton {
 
     function getNetworkInfo(ssid) {
         const network = root.wifiNetworks.find(n => n.ssid === ssid)
-        if (!network)
+        if (!network) {
             return null
+        }
 
         return {
             "ssid": network.ssid,

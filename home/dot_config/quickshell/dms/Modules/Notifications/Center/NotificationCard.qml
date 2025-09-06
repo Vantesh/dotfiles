@@ -11,13 +11,11 @@ Rectangle {
     id: root
 
     property var notificationGroup
-    property bool expanded: NotificationService.expandedGroups[notificationGroup?.key]
-                            || false
-    property bool descriptionExpanded: NotificationService.expandedMessages[notificationGroup?.latestNotification?.notification?.id + "_desc"]
-                                       || false
+    property bool expanded: (NotificationService.expandedGroups[notificationGroup && notificationGroup.key] || false)
+    property bool descriptionExpanded: (NotificationService.expandedMessages[(notificationGroup && notificationGroup.latestNotification && notificationGroup.latestNotification.notification
+                                                                              && notificationGroup.latestNotification.notification.id) ? (notificationGroup.latestNotification.notification.id + "_desc") : ""] || false)
     property bool userInitiatedExpansion: false
 
-    // Selection properties for keyboard navigation
     property bool isGroupSelected: false
     property int selectedNotificationIndex: -1
     property bool keyboardNavigationActive: false
@@ -29,8 +27,7 @@ Rectangle {
         }
         const baseHeight = 116
         if (descriptionExpanded) {
-            return baseHeight + descriptionText.contentHeight
-                    - (descriptionText.font.pixelSize * 1.2 * 2)
+            return baseHeight + descriptionText.contentHeight - (descriptionText.font.pixelSize * 1.2 * 2)
         }
         return baseHeight
     }
@@ -51,50 +48,33 @@ Rectangle {
     }
 
     color: {
-        // Keyboard selection highlighting for groups (both collapsed and expanded)
         if (isGroupSelected && keyboardNavigationActive) {
-            return Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g,
-                           Theme.surfaceVariant.b, 0.2)
+            return Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g, Theme.surfaceVariant.b, 0.2)
         }
-        // Very subtle group highlighting when navigating within expanded group
-        if (keyboardNavigationActive && expanded
-                && selectedNotificationIndex >= 0) {
-            return Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g,
-                           Theme.surfaceVariant.b, 0.12)
+        if (keyboardNavigationActive && expanded && selectedNotificationIndex >= 0) {
+            return Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g, Theme.surfaceVariant.b, 0.12)
         }
-        return Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g,
-                       Theme.surfaceVariant.b, 0.1)
+        return Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g, Theme.surfaceVariant.b, 0.1)
     }
     border.color: {
-        // Keyboard selection highlighting for groups (both collapsed and expanded)
         if (isGroupSelected && keyboardNavigationActive) {
-            return Qt.rgba(Theme.primary.r, Theme.primary.g,
-                           Theme.primary.b, 0.5)
+            return Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.5)
         }
-        // Subtle group border when navigating within expanded group
-        if (keyboardNavigationActive && expanded
-                && selectedNotificationIndex >= 0) {
-            return Qt.rgba(Theme.primary.r, Theme.primary.g,
-                           Theme.primary.b, 0.2)
+        if (keyboardNavigationActive && expanded && selectedNotificationIndex >= 0) {
+            return Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.2)
         }
-        // Critical notification styling
         if (notificationGroup?.latestNotification?.urgency === NotificationUrgency.Critical) {
-            return Qt.rgba(Theme.primary.r, Theme.primary.g,
-                           Theme.primary.b, 0.3)
+            return Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.3)
         }
         return Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.05)
     }
     border.width: {
-        // Keyboard selection highlighting for groups (both collapsed and expanded)
         if (isGroupSelected && keyboardNavigationActive) {
             return 1.5
         }
-        // Subtle group border when navigating within expanded group
-        if (keyboardNavigationActive && expanded
-                && selectedNotificationIndex >= 0) {
+        if (keyboardNavigationActive && expanded && selectedNotificationIndex >= 0) {
             return 1
         }
-        // Critical notification styling
         if (notificationGroup?.latestNotification?.urgency === NotificationUrgency.Critical) {
             return 2
         }
@@ -142,8 +122,7 @@ Rectangle {
             width: 55
             height: 55
             radius: 27.5
-            color: Qt.rgba(Theme.primary.r, Theme.primary.g,
-                           Theme.primary.b, 0.1)
+            color: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.1)
             border.color: "transparent"
             border.width: 0
             anchors.left: parent.left
@@ -158,9 +137,7 @@ Rectangle {
                         return notificationGroup.latestNotification.cleanImage
                     if (notificationGroup?.latestNotification?.appIcon) {
                         const appIcon = notificationGroup.latestNotification.appIcon
-                        if (appIcon.startsWith("file://") || appIcon.startsWith(
-                                    "http://") || appIcon.startsWith(
-                                    "https://"))
+                        if (appIcon.startsWith("file://") || appIcon.startsWith("http://") || appIcon.startsWith("https://"))
                             return appIcon
                         return Quickshell.iconPath(appIcon, true)
                     }
@@ -171,9 +148,7 @@ Rectangle {
 
             StyledText {
                 anchors.centerIn: parent
-                visible: !parent.hasNotificationImage
-                         && (!notificationGroup?.latestNotification?.appIcon
-                             || notificationGroup.latestNotification.appIcon === "")
+                visible: !parent.hasNotificationImage && (!notificationGroup?.latestNotification?.appIcon || notificationGroup.latestNotification.appIcon === "")
                 text: {
                     const appName = notificationGroup?.appName || "?"
                     return appName.charAt(0).toUpperCase()
@@ -196,9 +171,7 @@ Rectangle {
 
                 StyledText {
                     anchors.centerIn: parent
-                    text: (notificationGroup?.count
-                           || 0) > 99 ? "99+" : (notificationGroup?.count
-                                                 || 0).toString()
+                    text: (notificationGroup?.count || 0) > 99 ? "99+" : (notificationGroup?.count || 0).toString()
                     color: Theme.primaryText
                     font.pixelSize: 9
                     font.weight: Font.Bold
@@ -231,13 +204,9 @@ Rectangle {
                     StyledText {
                         width: parent.width
                         text: {
-                            const timeStr = notificationGroup?.latestNotification?.timeStr
-                                          || ""
-                            if (timeStr.length > 0)
-                                return (notificationGroup?.appName
-                                        || "") + " • " + timeStr
-                            else
-                                return notificationGroup?.appName || ""
+                            const timeStr = (notificationGroup && notificationGroup.latestNotification && notificationGroup.latestNotification.timeStr) || ""
+                            const appName = (notificationGroup && notificationGroup.appName) || ""
+                            return timeStr.length > 0 ? `${appName} • ${timeStr}` : appName
                         }
                         color: Theme.surfaceVariantText
                         font.pixelSize: Theme.fontSizeSmall
@@ -247,8 +216,7 @@ Rectangle {
                     }
 
                     StyledText {
-                        text: notificationGroup?.latestNotification?.summary
-                              || ""
+                        text: (notificationGroup && notificationGroup.latestNotification && notificationGroup.latestNotification.summary) || ""
                         color: Theme.surfaceText
                         font.pixelSize: Theme.fontSizeMedium
                         font.weight: Font.Medium
@@ -260,8 +228,7 @@ Rectangle {
 
                     StyledText {
                         id: descriptionText
-                        property string fullText: notificationGroup?.latestNotification?.htmlBody
-                                                  || ""
+                        property string fullText: (notificationGroup && notificationGroup.latestNotification && notificationGroup.latestNotification.htmlBody) || ""
                         property bool hasMoreText: truncated
 
                         text: fullText
@@ -280,12 +247,10 @@ Rectangle {
                             cursorShape: parent.hoveredLink ? Qt.PointingHandCursor : (parent.hasMoreText || descriptionExpanded) ? Qt.PointingHandCursor : Qt.ArrowCursor
 
                             onClicked: mouse => {
-                                           if (!parent.hoveredLink
-                                               && (parent.hasMoreText
-                                                   || descriptionExpanded)) {
-                                               const messageId = notificationGroup?.latestNotification?.notification?.id + "_desc"
-                                               NotificationService.toggleMessageExpansion(
-                                                   messageId)
+                                           if (!parent.hoveredLink && (parent.hasMoreText || descriptionExpanded)) {
+                                               const messageId = (notificationGroup && notificationGroup.latestNotification && notificationGroup.latestNotification.notification
+                                                                  && notificationGroup.latestNotification.notification.id) ? (notificationGroup.latestNotification.notification.id + "_desc") : ""
+                                               NotificationService.toggleMessageExpansion(messageId)
                                            }
                                        }
 
@@ -350,9 +315,7 @@ Rectangle {
 
                     StyledText {
                         anchors.centerIn: parent
-                        text: (notificationGroup?.count
-                               || 0) > 99 ? "99+" : (notificationGroup?.count
-                                                     || 0).toString()
+                        text: (notificationGroup?.count || 0) > 99 ? "99+" : (notificationGroup?.count || 0).toString()
                         color: Theme.primaryText
                         font.pixelSize: 9
                         font.weight: Font.Bold
@@ -371,8 +334,7 @@ Rectangle {
                 delegate: Rectangle {
                     required property var modelData
                     required property int index
-                    readonly property bool messageExpanded: NotificationService.expandedMessages[modelData?.notification?.id]
-                                                            || false
+                    readonly property bool messageExpanded: NotificationService.expandedMessages[modelData?.notification?.id] || false
                     readonly property bool isSelected: root.selectedNotificationIndex === index
 
                     width: parent.width
@@ -388,17 +350,8 @@ Rectangle {
                         return baseHeight
                     }
                     radius: Theme.cornerRadius
-                    color: isSelected ? Qt.rgba(Theme.surfaceVariant.r,
-                                                Theme.surfaceVariant.g,
-                                                Theme.surfaceVariant.b,
-                                                0.25) : "transparent"
-                    border.color: isSelected ? Qt.rgba(Theme.primary.r,
-                                                       Theme.primary.g,
-                                                       Theme.primary.b,
-                                                       0.4) : Qt.rgba(
-                                                   Theme.outline.r,
-                                                   Theme.outline.g,
-                                                   Theme.outline.b, 0.05)
+                    color: isSelected ? Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g, Theme.surfaceVariant.b, 0.25) : "transparent"
+                    border.color: isSelected ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.4) : Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.05)
                     border.width: isSelected ? 1 : 1
 
                     Behavior on color {
@@ -427,8 +380,7 @@ Rectangle {
                         Rectangle {
                             id: messageIcon
 
-                            readonly property bool hasNotificationImage: modelData?.image
-                                                                         && modelData.image !== ""
+                            readonly property bool hasNotificationImage: modelData?.image && modelData.image !== ""
 
                             width: 32
                             height: 32
@@ -436,11 +388,8 @@ Rectangle {
                             anchors.left: parent.left
                             anchors.top: parent.top
                             anchors.topMargin: 32
-                            color: Qt.rgba(Theme.primary.r, Theme.primary.g,
-                                           Theme.primary.b, 0.1)
-                            border.color: Qt.rgba(Theme.primary.r,
-                                                  Theme.primary.g,
-                                                  Theme.primary.b, 0.2)
+                            color: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.1)
+                            border.color: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.2)
                             border.width: 1
 
                             IconImage {
@@ -452,10 +401,7 @@ Rectangle {
 
                                     if (modelData?.appIcon) {
                                         const appIcon = modelData.appIcon
-                                        if (appIcon.startsWith("file://")
-                                                || appIcon.startsWith("http://")
-                                                || appIcon.startsWith(
-                                                    "https://"))
+                                        if (appIcon.startsWith("file://") || appIcon.startsWith("http://") || appIcon.startsWith("https://"))
                                             return appIcon
 
                                         return Quickshell.iconPath(appIcon, true)
@@ -467,9 +413,7 @@ Rectangle {
 
                             StyledText {
                                 anchors.centerIn: parent
-                                visible: !parent.hasNotificationImage
-                                         && (!modelData?.appIcon
-                                             || modelData.appIcon === "")
+                                visible: !parent.hasNotificationImage && (!modelData?.appIcon || modelData.appIcon === "")
                                 text: {
                                     const appName = modelData?.appName || "?"
                                     return appName.charAt(0).toUpperCase()
@@ -531,19 +475,14 @@ Rectangle {
                                     wrapMode: Text.WordWrap
                                     visible: text.length > 0
                                     linkColor: Theme.primary
-                                    onLinkActivated: link => Qt.openUrlExternally(
-                                                         link)
+                                    onLinkActivated: link => Qt.openUrlExternally(link)
                                     MouseArea {
                                         anchors.fill: parent
                                         cursorShape: parent.hoveredLink ? Qt.PointingHandCursor : (bodyText.hasMoreText || messageExpanded) ? Qt.PointingHandCursor : Qt.ArrowCursor
 
                                         onClicked: mouse => {
-                                                       if (!parent.hoveredLink
-                                                           && (bodyText.hasMoreText
-                                                               || messageExpanded)) {
-                                                           NotificationService.toggleMessageExpansion(
-                                                               modelData?.notification?.id
-                                                               || "")
+                                                       if (!parent.hoveredLink && (bodyText.hasMoreText || messageExpanded)) {
+                                                           NotificationService.toggleMessageExpansion(modelData?.notification?.id || "")
                                                        }
                                                    }
 
@@ -580,26 +519,16 @@ Rectangle {
                                         Rectangle {
                                             property bool isHovered: false
 
-                                            width: Math.max(
-                                                       actionText.implicitWidth + 12,
-                                                       50)
+                                            width: Math.max(actionText.implicitWidth + 12, 50)
                                             height: 24
                                             radius: 4
-                                            color: isHovered ? Qt.rgba(
-                                                                   Theme.primary.r,
-                                                                   Theme.primary.g,
-                                                                   Theme.primary.b,
-                                                                   0.1) : "transparent"
+                                            color: isHovered ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.1) : "transparent"
 
                                             StyledText {
                                                 id: actionText
                                                 text: {
-                                                    const baseText = modelData.text
-                                                                   || "View"
-                                                    if (keyboardNavigationActive
-                                                            && (isGroupSelected
-                                                                || selectedNotificationIndex
-                                                                >= 0)) {
+                                                    const baseText = modelData.text || "View"
+                                                    if (keyboardNavigationActive && (isGroupSelected || selectedNotificationIndex >= 0)) {
                                                         return `${baseText} (${index + 1})`
                                                     }
                                                     return baseText
@@ -618,8 +547,7 @@ Rectangle {
                                                 onEntered: parent.isHovered = true
                                                 onExited: parent.isHovered = false
                                                 onClicked: {
-                                                    if (modelData
-                                                            && modelData.invoke) {
+                                                    if (modelData && modelData.invoke) {
                                                         modelData.invoke()
                                                     }
                                                 }
@@ -630,16 +558,10 @@ Rectangle {
                                     Rectangle {
                                         property bool isHovered: false
 
-                                        width: Math.max(
-                                                   clearText.implicitWidth + 12,
-                                                   50)
+                                        width: Math.max(clearText.implicitWidth + 12, 50)
                                         height: 24
                                         radius: 4
-                                        color: isHovered ? Qt.rgba(
-                                                               Theme.primary.r,
-                                                               Theme.primary.g,
-                                                               Theme.primary.b,
-                                                               0.1) : "transparent"
+                                        color: isHovered ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.1) : "transparent"
 
                                         StyledText {
                                             id: clearText
@@ -656,8 +578,7 @@ Rectangle {
                                             cursorShape: Qt.PointingHandCursor
                                             onEntered: parent.isHovered = true
                                             onExited: parent.isHovered = false
-                                            onClicked: NotificationService.dismissNotification(
-                                                           modelData)
+                                            onClicked: NotificationService.dismissNotification(modelData)
                                         }
                                     }
                                 }
@@ -686,8 +607,7 @@ Rectangle {
                 width: Math.max(actionText.implicitWidth + 12, 50)
                 height: 24
                 radius: 4
-                color: isHovered ? Qt.rgba(Theme.primary.r, Theme.primary.g,
-                                           Theme.primary.b, 0.1) : "transparent"
+                color: isHovered ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.1) : "transparent"
 
                 StyledText {
                     id: actionText
@@ -734,8 +654,7 @@ Rectangle {
         width: clearText.width + 16
         height: clearText.height + 8
         radius: 6
-        color: isHovered ? Qt.rgba(Theme.primary.r, Theme.primary.g,
-                                   Theme.primary.b, 0.1) : "transparent"
+        color: isHovered ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.1) : "transparent"
 
         StyledText {
             id: clearText
@@ -752,19 +671,16 @@ Rectangle {
             cursorShape: Qt.PointingHandCursor
             onEntered: clearButton.isHovered = true
             onExited: clearButton.isHovered = false
-            onClicked: NotificationService.dismissGroup(
-                           notificationGroup?.key || "")
+            onClicked: NotificationService.dismissGroup(notificationGroup?.key || "")
         }
     }
 
     MouseArea {
         anchors.fill: parent
-        visible: !expanded && (notificationGroup?.count || 0) > 1
-                 && !descriptionExpanded
+        visible: !expanded && (notificationGroup?.count || 0) > 1 && !descriptionExpanded
         onClicked: {
             root.userInitiatedExpansion = true
-            NotificationService.toggleGroupExpansion(
-                        notificationGroup?.key || "")
+            NotificationService.toggleGroupExpansion(notificationGroup?.key || "")
         }
         z: -1
     }
@@ -787,8 +703,7 @@ Rectangle {
             buttonSize: 28
             onClicked: {
                 root.userInitiatedExpansion = true
-                NotificationService.toggleGroupExpansion(
-                            notificationGroup?.key || "")
+                NotificationService.toggleGroupExpansion(notificationGroup?.key || "")
             }
         }
 
@@ -798,8 +713,7 @@ Rectangle {
             iconName: "close"
             iconSize: 18
             buttonSize: 28
-            onClicked: NotificationService.dismissGroup(
-                           notificationGroup?.key || "")
+            onClicked: NotificationService.dismissGroup(notificationGroup?.key || "")
         }
     }
 

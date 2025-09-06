@@ -13,8 +13,7 @@ PanelWindow {
 
     required property var notificationData
     required property string notificationId
-    readonly property bool hasValidData: notificationData
-                                         && notificationData.notification
+    readonly property bool hasValidData: notificationData && notificationData.notification
     property int screenY: 0
     property bool exiting: false
     property bool _isDestroying: false
@@ -24,20 +23,20 @@ PanelWindow {
     signal exitFinished
 
     function startExit() {
-        if (exiting || _isDestroying)
+        if (exiting || _isDestroying) {
             return
-
+        }
         exiting = true
         exitAnim.restart()
         exitWatchdog.restart()
         if (NotificationService.removeFromVisibleNotifications)
-            NotificationService.removeFromVisibleNotifications(
-                        win.notificationData)
+            NotificationService.removeFromVisibleNotifications(win.notificationData)
     }
 
     function forceExit() {
-        if (_isDestroying)
+        if (_isDestroying) {
             return
+        }
         _isDestroying = true
         exiting = true
         visible = false
@@ -46,8 +45,9 @@ PanelWindow {
     }
 
     function finalizeExit(reason) {
-        if (_finalized)
+        if (_finalized) {
             return
+        }
 
         _finalized = true
         _isDestroying = true
@@ -64,8 +64,7 @@ PanelWindow {
 
         SettingsData.notificationOverlayEnabled
 
-        const shouldUseOverlay = (SettingsData.notificationOverlayEnabled)
-                               || (notificationData.urgency === NotificationUrgency.Critical)
+        const shouldUseOverlay = (SettingsData.notificationOverlayEnabled) || (notificationData.urgency === NotificationUrgency.Critical)
 
         return shouldUseOverlay ? WlrLayershell.Overlay : WlrLayershell.Top
     }
@@ -77,38 +76,33 @@ PanelWindow {
     onScreenYChanged: margins.top = Theme.barHeight - 4 + SettingsData.topBarSpacing + 4 + screenY
     onHasValidDataChanged: {
         if (!hasValidData && !exiting && !_isDestroying) {
-
             forceExit()
         }
     }
     Component.onCompleted: {
         if (hasValidData) {
-            Qt.callLater(() => {
-                             return enterX.restart()
-                         })
+            Qt.callLater(() => enterX.restart())
         } else {
-
             forceExit()
         }
     }
     onNotificationDataChanged: {
         if (!_isDestroying) {
             wrapperConn.target = win.notificationData || null
-            notificationConn.target = (win.notificationData
-                                       && win.notificationData.notification
-                                       && win.notificationData.notification.Retainable)
-                    || null
+            notificationConn.target = (win.notificationData && win.notificationData.notification && win.notificationData.notification.Retainable) || null
         }
     }
     onEntered: {
-        if (!_isDestroying)
+        if (!_isDestroying) {
             enterDelay.start()
+        }
     }
     Component.onDestruction: {
         _isDestroying = true
         exitWatchdog.stop()
-        if (notificationData && notificationData.timer)
+        if (notificationData && notificationData.timer) {
             notificationData.timer.stop()
+        }
     }
 
     anchors {
@@ -136,18 +130,8 @@ PanelWindow {
             anchors.margins: 4
             radius: Theme.cornerRadius
             color: Theme.popupBackground()
-            border.color: notificationData && notificationData.urgency
-                          === NotificationUrgency.Critical ? Qt.rgba(
-                                                                 Theme.primary.r,
-                                                                 Theme.primary.g,
-                                                                 Theme.primary.b,
-                                                                 0.3) : Qt.rgba(
-                                                                 Theme.outline.r,
-                                                                 Theme.outline.g,
-                                                                 Theme.outline.b,
-                                                                 0.08)
-            border.width: notificationData
-                          && notificationData.urgency === NotificationUrgency.Critical ? 2 : 1
+            border.color: notificationData && notificationData.urgency === NotificationUrgency.Critical ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.3) : Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.08)
+            border.width: notificationData && notificationData.urgency === NotificationUrgency.Critical ? 2 : 1
             clip: true
 
             Rectangle {
@@ -179,8 +163,7 @@ PanelWindow {
 
                 anchors.fill: parent
                 color: "transparent"
-                border.color: Qt.rgba(Theme.outline.r, Theme.outline.g,
-                                      Theme.outline.b, 0.12)
+                border.color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.12)
                 border.width: 1
                 radius: parent.radius
                 z: -1
@@ -189,8 +172,7 @@ PanelWindow {
             Rectangle {
                 anchors.fill: parent
                 radius: parent.radius
-                visible: notificationData
-                         && notificationData.urgency === NotificationUrgency.Critical
+                visible: notificationData && notificationData.urgency === NotificationUrgency.Critical
                 opacity: 1
 
                 gradient: Gradient {
@@ -227,15 +209,12 @@ PanelWindow {
                 Rectangle {
                     id: iconContainer
 
-                    readonly property bool hasNotificationImage: notificationData
-                                                                 && notificationData.image
-                                                                 && notificationData.image !== ""
+                    readonly property bool hasNotificationImage: notificationData && notificationData.image && notificationData.image !== ""
 
                     width: 55
                     height: 55
                     radius: 27.5
-                    color: Qt.rgba(Theme.primary.r, Theme.primary.g,
-                                   Theme.primary.b, 0.1)
+                    color: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.1)
                     border.color: "transparent"
                     border.width: 0
                     anchors.left: parent.left
@@ -256,9 +235,7 @@ PanelWindow {
 
                             if (notificationData.appIcon) {
                                 const appIcon = notificationData.appIcon
-                                if (appIcon.startsWith("file://")
-                                        || appIcon.startsWith("http://")
-                                        || appIcon.startsWith("https://"))
+                                if (appIcon.startsWith("file://") || appIcon.startsWith("http://") || appIcon.startsWith("https://"))
                                     return appIcon
 
                                 return Quickshell.iconPath(appIcon, true)
@@ -270,13 +247,9 @@ PanelWindow {
 
                     StyledText {
                         anchors.centerIn: parent
-                        visible: !parent.hasNotificationImage
-                                 && (!notificationData
-                                     || !notificationData.appIcon
-                                     || notificationData.appIcon === "")
+                        visible: !parent.hasNotificationImage && (!notificationData || !notificationData.appIcon || notificationData.appIcon === "")
                         text: {
-                            const appName = notificationData
-                                          && notificationData.appName ? notificationData.appName : "?"
+                            const appName = notificationData && notificationData.appName ? notificationData.appName : "?"
                             return appName.charAt(0).toUpperCase()
                         }
                         font.pixelSize: 20
@@ -313,10 +286,8 @@ PanelWindow {
                                     if (!notificationData)
                                         return ""
 
-                                    const appName = notificationData.appName
-                                                  || ""
-                                    const timeStr = notificationData.timeStr
-                                                  || ""
+                                    const appName = notificationData.appName || ""
+                                    const timeStr = notificationData.timeStr || ""
                                     if (timeStr.length > 0)
                                         return appName + " • " + timeStr
                                     else
@@ -330,8 +301,7 @@ PanelWindow {
                             }
 
                             StyledText {
-                                text: notificationData ? (notificationData.summary
-                                                          || "") : ""
+                                text: notificationData ? (notificationData.summary || "") : ""
                                 color: Theme.surfaceText
                                 font.pixelSize: Theme.fontSizeMedium
                                 font.weight: Font.Medium
@@ -342,8 +312,7 @@ PanelWindow {
                             }
 
                             StyledText {
-                                text: notificationData ? (notificationData.htmlBody
-                                                          || "") : ""
+                                text: notificationData ? (notificationData.htmlBody || "") : ""
                                 color: Theme.surfaceVariantText
                                 font.pixelSize: Theme.fontSizeSmall
                                 width: parent.width
@@ -353,8 +322,7 @@ PanelWindow {
                                 visible: text.length > 0
                                 linkColor: Theme.primary
                                 onLinkActivated: link => {
-                                                     return Qt.openUrlExternally(
-                                                         link)
+                                                     return Qt.openUrlExternally(link)
                                                  }
 
                                 MouseArea {
@@ -394,8 +362,7 @@ PanelWindow {
                 z: 20
 
                 Repeater {
-                    model: notificationData ? (notificationData.actions
-                                               || []) : []
+                    model: notificationData ? (notificationData.actions || []) : []
 
                     Rectangle {
                         property bool isHovered: false
@@ -403,10 +370,7 @@ PanelWindow {
                         width: Math.max(actionText.implicitWidth + 12, 50)
                         height: 24
                         radius: 4
-                        color: isHovered ? Qt.rgba(Theme.primary.r,
-                                                   Theme.primary.g,
-                                                   Theme.primary.b,
-                                                   0.1) : "transparent"
+                        color: isHovered ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.1) : "transparent"
 
                         StyledText {
                             id: actionText
@@ -450,8 +414,7 @@ PanelWindow {
                 width: Math.max(clearText.implicitWidth + 12, 50)
                 height: 24
                 radius: 4
-                color: isHovered ? Qt.rgba(Theme.primary.r, Theme.primary.g,
-                                           Theme.primary.b, 0.1) : "transparent"
+                color: isHovered ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.1) : "transparent"
                 z: 20
 
                 StyledText {
@@ -473,8 +436,7 @@ PanelWindow {
                     onExited: clearButton.isHovered = false
                     onClicked: {
                         if (notificationData && !win.exiting)
-                            NotificationService.dismissNotification(
-                                        notificationData)
+                            NotificationService.dismissNotification(notificationData)
                     }
                 }
             }
@@ -492,8 +454,7 @@ PanelWindow {
                         notificationData.timer.stop()
                 }
                 onExited: {
-                    if (notificationData && notificationData.popup
-                            && notificationData.timer)
+                    if (notificationData && notificationData.popup && notificationData.timer)
                         notificationData.timer.restart()
                 }
                 onClicked: {
@@ -587,8 +548,7 @@ PanelWindow {
                 forceExit()
         }
 
-        target: (win.notificationData && win.notificationData.notification
-                 && win.notificationData.notification.Retainable) || null
+        target: (win.notificationData && win.notificationData.notification && win.notificationData.notification.Retainable) || null
         ignoreUnknownSignals: true
         enabled: !win._isDestroying
     }
@@ -599,8 +559,7 @@ PanelWindow {
         interval: 160
         repeat: false
         onTriggered: {
-            if (notificationData && notificationData.timer && !exiting
-                    && !_isDestroying)
+            if (notificationData && notificationData.timer && !exiting && !_isDestroying)
                 notificationData.timer.start()
         }
     }

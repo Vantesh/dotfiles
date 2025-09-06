@@ -13,26 +13,23 @@ PanelWindow {
     WlrLayershell.layer: WlrLayershell.Top
     WlrLayershell.exclusiveZone: -1
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
+    WlrLayershell.namespace: "quickshell:dock"
 
     property var modelData
     property var contextMenu
     property bool autoHide: SettingsData.dockAutoHide
     property real backgroundTransparency: SettingsData.dockTransparency
 
-    property bool contextMenuOpen: (contextMenu && contextMenu.visible
-                                    && contextMenu.screen === modelData)
+    property bool contextMenuOpen: (contextMenu && contextMenu.visible && contextMenu.screen === modelData)
     property bool windowIsFullscreen: {
-        if (!ToplevelManager.activeToplevel)
+        if (!ToplevelManager.activeToplevel) {
             return false
-        var activeWindow = ToplevelManager.activeToplevel
-        var fullscreenApps = ["vlc", "mpv", "kodi", "steam", "lutris", "wine", "dosbox"]
-        return fullscreenApps.some(app => activeWindow.appId
-                                   && activeWindow.appId.toLowerCase(
-                                       ).includes(app))
+        }
+        const activeWindow = ToplevelManager.activeToplevel
+        const fullscreenApps = ["vlc", "mpv", "kodi", "steam", "lutris", "wine", "dosbox"]
+        return fullscreenApps.some(app => activeWindow.appId && activeWindow.appId.toLowerCase().includes(app))
     }
-    property bool reveal: (!autoHide || dockMouseArea.containsMouse
-                           || dockApps.requestDockShow || contextMenuOpen)
-                          && !windowIsFullscreen
+    property bool reveal: (!autoHide || dockMouseArea.containsMouse || dockApps.requestDockShow || contextMenuOpen) && !windowIsFullscreen
 
     Connections {
         target: SettingsData
@@ -68,7 +65,7 @@ PanelWindow {
         property real currentScreen: modelData ? modelData : dock.screen
         property real screenWidth: currentScreen ? currentScreen.geometry.width : 1920
         property real maxDockWidth: Math.min(screenWidth * 0.8, 1200)
-        
+
         height: dock.reveal ? 65 : 20
         width: dock.reveal ? Math.min(dockBackground.width + 32, maxDockWidth) : Math.min(Math.max(dockBackground.width + 64, 200), screenWidth * 0.5)
         anchors {
@@ -115,9 +112,7 @@ PanelWindow {
                 anchors.topMargin: 4
                 anchors.bottomMargin: 1
 
-                color: Qt.rgba(Theme.surfaceContainer.r,
-                               Theme.surfaceContainer.g,
-                               Theme.surfaceContainer.b, backgroundTransparency)
+                color: Qt.rgba(Theme.surfaceContainer.r, Theme.surfaceContainer.g, Theme.surfaceContainer.b, backgroundTransparency)
                 radius: Theme.cornerRadius
                 border.width: 1
                 border.color: Theme.outlineMedium
@@ -125,8 +120,7 @@ PanelWindow {
 
                 Rectangle {
                     anchors.fill: parent
-                    color: Qt.rgba(Theme.surfaceTint.r, Theme.surfaceTint.g,
-                                   Theme.surfaceTint.b, 0.04)
+                    color: Qt.rgba(Theme.surfaceTint.r, Theme.surfaceTint.g, Theme.surfaceTint.b, 0.04)
                     radius: parent.radius
                 }
 
@@ -147,24 +141,24 @@ PanelWindow {
                 id: appTooltip
 
                 property var hoveredButton: {
-                    if (!dockApps.children[0])
+                    if (!dockApps.children[0]) {
                         return null
-                    var row = dockApps.children[0]
-                    var repeater = null
+                    }
+                    const row = dockApps.children[0]
+                    let repeater = null
                     for (var i = 0; i < row.children.length; i++) {
-                        var child = row.children[i]
-                        if (child && typeof child.count !== "undefined"
-                                && typeof child.itemAt === "function") {
+                        const child = row.children[i]
+                        if (child && typeof child.count !== "undefined" && typeof child.itemAt === "function") {
                             repeater = child
                             break
                         }
                     }
-                    if (!repeater || !repeater.itemAt)
+                    if (!repeater || !repeater.itemAt) {
                         return null
+                    }
                     for (var i = 0; i < repeater.count; i++) {
-                        var item = repeater.itemAt(i)
-                        if (item && item.dockButton
-                                && item.dockButton.showTooltip) {
+                        const item = repeater.itemAt(i)
+                        if (item && item.dockButton && item.dockButton.showTooltip) {
                             return item.dockButton
                         }
                     }
@@ -183,9 +177,7 @@ PanelWindow {
                 border.color: Theme.outlineMedium
 
                 y: -height - 8
-                x: hoveredButton ? hoveredButton.mapToItem(
-                                       dockContainer, hoveredButton.width / 2,
-                                       0).x - width / 2 : 0
+                x: hoveredButton ? hoveredButton.mapToItem(dockContainer, hoveredButton.width / 2, 0).x - width / 2 : 0
 
                 StyledText {
                     id: tooltipLabel

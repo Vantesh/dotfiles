@@ -42,10 +42,14 @@ Singleton {
                 updateCyclingState()
             }
         }
+
+        function onPerMonitorWallpaperChanged() {
+            updateCyclingState()
+        }
     }
 
     function updateCyclingState() {
-        if (SessionData.wallpaperCyclingEnabled && SessionData.wallpaperPath) {
+        if (SessionData.wallpaperCyclingEnabled && SessionData.wallpaperPath && !SessionData.perMonitorWallpaper) {
             startCycling()
         } else {
             stopCycling()
@@ -68,23 +72,25 @@ Singleton {
         cyclingActive = false
     }
 
-    function cycleToNextWallpaper() {
-        if (!SessionData.wallpaperPath)
-            return
+    function cycleToNextWallpaper(screenName, wallpaperPath) {
+        const currentWallpaper = wallpaperPath || SessionData.wallpaperPath
+        if (!currentWallpaper) return
 
-        const wallpaperDir = SessionData.wallpaperPath.substring(
-                               0, SessionData.wallpaperPath.lastIndexOf('/'))
+        const wallpaperDir = currentWallpaper.substring(0, currentWallpaper.lastIndexOf('/'))
         cyclingProcess.command = ["sh", "-c", `ls -1 "${wallpaperDir}"/*.jpg "${wallpaperDir}"/*.jpeg "${wallpaperDir}"/*.png "${wallpaperDir}"/*.bmp "${wallpaperDir}"/*.gif "${wallpaperDir}"/*.webp 2>/dev/null | sort`]
+        cyclingProcess.targetScreenName = screenName || ""
+        cyclingProcess.currentWallpaper = currentWallpaper
         cyclingProcess.running = true
     }
 
-    function cycleToPrevWallpaper() {
-        if (!SessionData.wallpaperPath)
-            return
+    function cycleToPrevWallpaper(screenName, wallpaperPath) {
+        const currentWallpaper = wallpaperPath || SessionData.wallpaperPath
+        if (!currentWallpaper) return
 
-        const wallpaperDir = SessionData.wallpaperPath.substring(
-                               0, SessionData.wallpaperPath.lastIndexOf('/'))
+        const wallpaperDir = currentWallpaper.substring(0, currentWallpaper.lastIndexOf('/'))
         prevCyclingProcess.command = ["sh", "-c", `ls -1 "${wallpaperDir}"/*.jpg "${wallpaperDir}"/*.jpeg "${wallpaperDir}"/*.png "${wallpaperDir}"/*.bmp "${wallpaperDir}"/*.gif "${wallpaperDir}"/*.webp 2>/dev/null | sort`]
+        prevCyclingProcess.targetScreenName = screenName || ""
+        prevCyclingProcess.currentWallpaper = currentWallpaper
         prevCyclingProcess.running = true
     }
 
@@ -111,6 +117,24 @@ Singleton {
                     intervalTimer.restart()
                 }
             }
+        }
+    }
+
+    function cycleNextForMonitor(screenName) {
+        if (!screenName) return
+        
+        var currentWallpaper = SessionData.getMonitorWallpaper(screenName)
+        if (currentWallpaper) {
+            cycleToNextWallpaper(screenName, currentWallpaper)
+        }
+    }
+
+    function cyclePrevForMonitor(screenName) {
+        if (!screenName) return
+        
+        var currentWallpaper = SessionData.getMonitorWallpaper(screenName)
+        if (currentWallpaper) {
+            cycleToPrevWallpaper(screenName, currentWallpaper)
         }
     }
 
@@ -146,29 +170,32 @@ Singleton {
 
     Process {
         id: cyclingProcess
+        
+        property string targetScreenName: ""
+        property string currentWallpaper: ""
+        
         running: false
 
         stdout: StdioCollector {
             onStreamFinished: {
                 if (text && text.trim()) {
-                    const files = text.trim().split('\n').filter(
-                        file => file.length > 0)
-                    if (files.length <= 1)
-                    return
+                    const files = text.trim().split('\n').filter(file => file.length > 0)
+                    if (files.length <= 1) return
 
                     const wallpaperList = files.sort()
-                    const currentPath = SessionData.wallpaperPath
-                    let currentIndex = wallpaperList.findIndex(
-                        path => path === currentPath)
-                    if (currentIndex === -1)
-                    currentIndex = 0
+                    const currentPath = cyclingProcess.currentWallpaper
+                    let currentIndex = wallpaperList.findIndex(path => path === currentPath)
+                    if (currentIndex === -1) currentIndex = 0
 
-                    // Get next wallpaper
                     const nextIndex = (currentIndex + 1) % wallpaperList.length
                     const nextWallpaper = wallpaperList[nextIndex]
 
                     if (nextWallpaper && nextWallpaper !== currentPath) {
-                        SessionData.setWallpaper(nextWallpaper)
+                        if (cyclingProcess.targetScreenName) {
+                            SessionData.setMonitorWallpaper(cyclingProcess.targetScreenName, nextWallpaper)
+                        } else {
+                            SessionData.setWallpaper(nextWallpaper)
+                        }
                     }
                 }
             }
@@ -177,33 +204,36 @@ Singleton {
 
     Process {
         id: prevCyclingProcess
+        
+        property string targetScreenName: ""
+        property string currentWallpaper: ""
+        
         running: false
 
         stdout: StdioCollector {
             onStreamFinished: {
                 if (text && text.trim()) {
-                    const files = text.trim().split('\n').filter(
-                        file => file.length > 0)
-                    if (files.length <= 1)
-                    return
+                    const files = text.trim().split('\n').filter(file => file.length > 0)
+                    if (files.length <= 1) return
 
                     const wallpaperList = files.sort()
-                    const currentPath = SessionData.wallpaperPath
-                    let currentIndex = wallpaperList.findIndex(
-                        path => path === currentPath)
-                    if (currentIndex === -1)
-                    currentIndex = 0
+                    const currentPath = prevCyclingProcess.currentWallpaper
+                    let currentIndex = wallpaperList.findIndex(path => path === currentPath)
+                    if (currentIndex === -1) currentIndex = 0
 
-                    // Get previous wallpaper
-                    const prevIndex = currentIndex
-                    === 0 ? wallpaperList.length - 1 : currentIndex - 1
+                    const prevIndex = currentIndex === 0 ? wallpaperList.length - 1 : currentIndex - 1
                     const prevWallpaper = wallpaperList[prevIndex]
 
                     if (prevWallpaper && prevWallpaper !== currentPath) {
-                        SessionData.setWallpaper(prevWallpaper)
+                        if (prevCyclingProcess.targetScreenName) {
+                            SessionData.setMonitorWallpaper(prevCyclingProcess.targetScreenName, prevWallpaper)
+                        } else {
+                            SessionData.setWallpaper(prevWallpaper)
+                        }
                     }
                 }
             }
         }
     }
+
 }

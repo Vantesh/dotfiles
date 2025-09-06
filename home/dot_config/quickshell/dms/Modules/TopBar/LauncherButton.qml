@@ -14,39 +14,43 @@ Item {
     property real barHeight: 48
     readonly property real horizontalPadding: SettingsData.topBarNoBackground ? 0 : Math.max(Theme.spacingXS, Theme.spacingS * (widgetHeight / 30))
 
-    signal clicked
+    signal clicked()
 
     width: Theme.iconSize + horizontalPadding * 2
     height: widgetHeight
 
     MouseArea {
         id: launcherArea
+
         anchors.fill: parent
         hoverEnabled: true
         cursorShape: Qt.PointingHandCursor
         acceptedButtons: Qt.LeftButton
-
         onPressed: {
             if (popupTarget && popupTarget.setTriggerPosition) {
-                var globalPos = mapToGlobal(0, 0)
-                var currentScreen = parentScreen || Screen
-                var screenX = currentScreen.x || 0
-                var relativeX = globalPos.x - screenX
-                popupTarget.setTriggerPosition(
-                            relativeX, barHeight + Theme.spacingXS,
-                            width, section, currentScreen)
+                const globalPos = mapToGlobal(0, 0);
+                const currentScreen = parentScreen || Screen;
+                const screenX = currentScreen.x || 0;
+                const relativeX = globalPos.x - screenX;
+                popupTarget.setTriggerPosition(relativeX, barHeight + Theme.spacingXS, width, section, currentScreen);
             }
-            root.clicked()
+            root.clicked();
         }
     }
 
     Rectangle {
         id: launcherContent
+
         anchors.fill: parent
         radius: SettingsData.topBarNoBackground ? 0 : Theme.cornerRadius
-        color: SettingsData.topBarNoBackground ? "transparent" : Qt.rgba(Theme.surfaceTextHover.r, Theme.surfaceTextHover.g,
-                       Theme.surfaceTextHover.b,
-                       Theme.surfaceTextHover.a * Theme.widgetTransparency)
+        color: {
+            if (SettingsData.topBarNoBackground) {
+                return "transparent";
+            }
+
+            const baseColor = launcherArea.containsMouse ? Theme.primaryPressed : (SessionService.idleInhibited ? Theme.primaryHover : Theme.secondaryHover);
+            return Qt.rgba(baseColor.r, baseColor.g, baseColor.b, baseColor.a * Theme.widgetTransparency);
+        }
 
         SystemLogo {
             visible: SettingsData.useOSLogo
@@ -65,5 +69,15 @@ Item {
             size: Theme.iconSize - 6
             color: Theme.surfaceText
         }
+
+        Behavior on color {
+            ColorAnimation {
+                duration: Theme.shortDuration
+                easing.type: Theme.standardEasing
+            }
+
+        }
+
     }
+
 }

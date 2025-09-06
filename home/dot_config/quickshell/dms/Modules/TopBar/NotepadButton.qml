@@ -13,21 +13,23 @@ Rectangle {
     property real barHeight: 48
     readonly property real horizontalPadding: SettingsData.topBarNoBackground ? 0 : Math.max(Theme.spacingXS, Theme.spacingS * (widgetHeight / 30))
 
-    signal clicked
+    signal clicked()
 
     width: notepadIcon.width + horizontalPadding * 2
     height: widgetHeight
     radius: SettingsData.topBarNoBackground ? 0 : Theme.cornerRadius
     color: {
-        if (SettingsData.topBarNoBackground) return "transparent"
-        const baseColor = notepadArea.containsMouse
-                        || root.isActive ? Theme.primaryPressed : Theme.secondaryHover
-        return Qt.rgba(baseColor.r, baseColor.g, baseColor.b,
-                       baseColor.a * Theme.widgetTransparency)
+        if (SettingsData.topBarNoBackground) {
+            return "transparent";
+        }
+
+        const baseColor = notepadArea.containsMouse || root.isActive ? Theme.primaryPressed : Theme.secondaryHover;
+        return Qt.rgba(baseColor.r, baseColor.g, baseColor.b, baseColor.a * Theme.widgetTransparency);
     }
 
     DankIcon {
         id: notepadIcon
+
         anchors.centerIn: parent
         name: "assignment"
         size: Theme.iconSize - 6
@@ -54,7 +56,7 @@ Rectangle {
         hoverEnabled: true
         cursorShape: Qt.PointingHandCursor
         onPressed: {
-            root.clicked()
+            root.clicked();
         }
     }
 
@@ -63,5 +65,7 @@ Rectangle {
             duration: Theme.shortDuration
             easing.type: Theme.standardEasing
         }
+
     }
+
 }

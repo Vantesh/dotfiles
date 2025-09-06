@@ -1,7 +1,5 @@
 import QtQuick
-import QtQuick.Controls
 import QtCore
-import Qt.labs.folderlistmodel
 import Quickshell.Io
 import qs.Common
 import qs.Widgets
@@ -16,8 +14,7 @@ Rectangle {
 
     height: 200
     radius: Theme.cornerRadius
-    color: Qt.rgba(Theme.surfaceContainer.r, Theme.surfaceContainer.g,
-                   Theme.surfaceContainer.b, 0.95)
+    color: Qt.rgba(Theme.surfaceContainer.r, Theme.surfaceContainer.g, Theme.surfaceContainer.b, 0.95)
     border.color: Theme.secondary
     border.width: 2
     opacity: showFileInfo ? 1 : 0
@@ -25,7 +22,7 @@ Rectangle {
 
     onShowFileInfoChanged: {
         if (showFileInfo && currentFileName && currentPath) {
-            var fullPath = currentPath + "/" + currentFileName
+            const fullPath = currentPath + "/" + currentFileName
             fileStatProcess.selectedFilePath = fullPath
             fileStatProcess.running = true
         }
@@ -37,64 +34,24 @@ Rectangle {
         property string selectedFilePath: ""
         property var fileStats: null
         running: false
-        
+
         stdout: StdioCollector {
             onStreamFinished: {
                 if (text && text.trim()) {
-                    var parts = text.trim().split('|')
+                    const parts = text.trim().split('|')
                     if (parts.length >= 4) {
                         fileStatProcess.fileStats = {
-                            modifiedTime: parts[0],
-                            permissions: parts[1],
-                            size: parseInt(parts[2]) || 0,
-                            fullPath: parts[3]
+                            "modifiedTime": parts[0],
+                            "permissions": parts[1],
+                            "size": parseInt(parts[2]) || 0,
+                            "fullPath": parts[3]
                         }
                     }
                 }
             }
         }
-        
-        onExited: function(exitCode) {}
-    }
 
-    readonly property var currentFileData: {
-        if (!sourceFolderModel || selectedIndex < 0 || selectedIndex >= sourceFolderModel.count) {
-            return {
-                exists: false,
-                name: "No selection",
-                type: "",
-                size: "",
-                modified: "",
-                permissions: "",
-                extension: "",
-                position: selectedIndex >= 0 ? (selectedIndex + 1) + " of " + (sourceFolderModel ? sourceFolderModel.count : 0) : "N/A"
-            }
-        }
-        
-        var path = currentPath
-        if (path && selectedIndex >= 0) {
-            return {
-                exists: true,
-                name: "Loading...",
-                type: "file",
-                size: "Calculating...",
-                modified: "Loading...",
-                permissions: "Loading...",
-                extension: "",
-                position: (selectedIndex + 1) + " of " + sourceFolderModel.count
-            }
-        }
-        
-        return {
-            exists: false,
-            name: "No selection",
-            type: "",
-            size: "",
-            modified: "",
-            permissions: "",
-            extension: "",
-            position: "N/A"
-        }
+        onExited: function (exitCode) {}
     }
 
     property string currentFileName: ""
@@ -103,7 +60,7 @@ Rectangle {
 
     onCurrentFileNameChanged: {
         if (showFileInfo && currentFileName && currentPath) {
-            var fullPath = currentPath + "/" + currentFileName
+            const fullPath = currentPath + "/" + currentFileName
             if (fullPath !== fileStatProcess.selectedFilePath) {
                 fileStatProcess.selectedFilePath = fullPath
                 fileStatProcess.running = true
@@ -116,16 +73,16 @@ Rectangle {
             fileStatProcess.selectedFilePath = filePath
             currentFileName = fileName || ""
             currentFileIsDir = isDirectory || false
-            
-            var ext = ""
+
+            let ext = ""
             if (!isDirectory && fileName) {
-                var lastDot = fileName.lastIndexOf('.')
+                const lastDot = fileName.lastIndexOf('.')
                 if (lastDot > 0) {
                     ext = fileName.substring(lastDot + 1).toLowerCase()
                 }
             }
             currentFileExtension = ext
-            
+
             if (showFileInfo) {
                 fileStatProcess.running = true
             }
@@ -135,27 +92,27 @@ Rectangle {
     readonly property var currentFileDisplayData: {
         if (selectedIndex < 0 || !sourceFolderModel) {
             return {
-                exists: false,
-                name: "No selection",
-                type: "",
-                size: "",
-                modified: "",
-                permissions: "",
-                extension: "",
-                position: "N/A"
+                "exists": false,
+                "name": "No selection",
+                "type": "",
+                "size": "",
+                "modified": "",
+                "permissions": "",
+                "extension": "",
+                "position": "N/A"
             }
         }
-        
-        var hasValidFile = currentFileName !== ""
+
+        const hasValidFile = currentFileName !== ""
         return {
-            exists: hasValidFile,
-            name: hasValidFile ? currentFileName : "Loading...",
-            type: currentFileIsDir ? "Directory" : "File",
-            size: fileStatProcess.fileStats ? formatFileSize(fileStatProcess.fileStats.size) : "Calculating...",
-            modified: fileStatProcess.fileStats ? formatDateTime(fileStatProcess.fileStats.modifiedTime) : "Loading...",
-            permissions: fileStatProcess.fileStats ? fileStatProcess.fileStats.permissions : "Loading...",
-            extension: currentFileExtension,
-            position: sourceFolderModel ? ((selectedIndex + 1) + " of " + sourceFolderModel.count) : "N/A"
+            "exists": hasValidFile,
+            "name": hasValidFile ? currentFileName : "Loading...",
+            "type": currentFileIsDir ? "Directory" : "File",
+            "size": fileStatProcess.fileStats ? formatFileSize(fileStatProcess.fileStats.size) : "Calculating...",
+            "modified": fileStatProcess.fileStats ? formatDateTime(fileStatProcess.fileStats.modifiedTime) : "Loading...",
+            "permissions": fileStatProcess.fileStats ? fileStatProcess.fileStats.permissions : "Loading...",
+            "extension": currentFileExtension,
+            "position": sourceFolderModel ? ((selectedIndex + 1) + " of " + sourceFolderModel.count) : "N/A"
         }
     }
 
@@ -251,16 +208,20 @@ Rectangle {
     }
 
     function formatFileSize(bytes) {
-        if (bytes === 0 || !bytes) return "0 B"
-        var k = 1024
-        var sizes = ['B', 'KB', 'MB', 'GB', 'TB']
-        var i = Math.floor(Math.log(bytes) / Math.log(k))
+        if (bytes === 0 || !bytes) {
+            return "0 B"
+        }
+        const k = 1024
+        const sizes = ['B', 'KB', 'MB', 'GB', 'TB']
+        const i = Math.floor(Math.log(bytes) / Math.log(k))
         return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
     }
 
     function formatDateTime(dateTimeString) {
-        if (!dateTimeString) return "Unknown"
-        var parts = dateTimeString.split(' ')
+        if (!dateTimeString) {
+            return "Unknown"
+        }
+        const parts = dateTimeString.split(' ')
         if (parts.length >= 2) {
             return parts[0] + " " + parts[1].split('.')[0]
         }

@@ -21,10 +21,12 @@ Rectangle {
     height: widgetHeight
     radius: SettingsData.topBarNoBackground ? 0 : Theme.cornerRadius
     color: {
-        if (SettingsData.topBarNoBackground) return "transparent"
+        if (SettingsData.topBarNoBackground) {
+            return "transparent"
+        }
+
         const baseColor = clockMouseArea.containsMouse ? Theme.primaryHover : Theme.surfaceTextHover
-        return Qt.rgba(baseColor.r, baseColor.g, baseColor.b,
-                       baseColor.a * Theme.widgetTransparency)
+        return Qt.rgba(baseColor.r, baseColor.g, baseColor.b, baseColor.a * Theme.widgetTransparency)
     }
     Component.onCompleted: {
         root.currentDate = systemClock.date
@@ -37,10 +39,10 @@ Rectangle {
         spacing: Theme.spacingS
 
         StyledText {
-            text: SettingsData.use24HourClock ? Qt.formatTime(
-                                                    root.currentDate,
-                                                    "HH:mm") : Qt.formatTime(
-                                                    root.currentDate, "h:mm AP")
+            text: {
+                const format = SettingsData.use24HourClock ? "HH:mm" : "h:mm AP"
+                return root.currentDate.toLocaleTimeString(Qt.locale(), format)
+            }
             font.pixelSize: Theme.fontSizeMedium - 1
             color: Theme.surfaceText
             anchors.verticalCenter: parent.verticalCenter
@@ -55,7 +57,13 @@ Rectangle {
         }
 
         StyledText {
-            text: Qt.formatDate(root.currentDate, SettingsData.clockDateFormat)
+            text: {
+                if (SettingsData.clockDateFormat && SettingsData.clockDateFormat.length > 0) {
+                    return root.currentDate.toLocaleDateString(Qt.locale(), SettingsData.clockDateFormat)
+                }
+
+                return root.currentDate.toLocaleDateString(Qt.locale(), "ddd d")
+            }
             font.pixelSize: Theme.fontSizeMedium - 1
             color: Theme.surfaceText
             anchors.verticalCenter: parent.verticalCenter
@@ -78,13 +86,11 @@ Rectangle {
         cursorShape: Qt.PointingHandCursor
         onPressed: {
             if (popupTarget && popupTarget.setTriggerPosition) {
-                var globalPos = mapToGlobal(0, 0)
-                var currentScreen = parentScreen || Screen
-                var screenX = currentScreen.x || 0
-                var relativeX = globalPos.x - screenX
-                popupTarget.setTriggerPosition(
-                            relativeX, barHeight + Theme.spacingXS,
-                            width, section, currentScreen)
+                const globalPos = mapToGlobal(0, 0)
+                const currentScreen = parentScreen || Screen
+                const screenX = currentScreen.x || 0
+                const relativeX = globalPos.x - screenX
+                popupTarget.setTriggerPosition(relativeX, barHeight + Theme.spacingXS, width, section, currentScreen)
             }
             root.clockClicked()
         }

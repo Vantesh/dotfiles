@@ -15,43 +15,45 @@ Item {
     signal clicked
     signal toggled(bool checked)
 
-    width: (text && !hideText) ? parent.width : 48
-    height: (text && !hideText) ? 60 : 24
+    readonly property bool showText: text && !hideText
+
+    width: showText ? parent.width : 48
+    height: showText ? 60 : 24
+
+    function handleClick() {
+        if (!enabled) {
+            return
+        }
+        checked = !checked
+        clicked()
+        toggled(checked)
+    }
 
     StyledRect {
         id: background
 
         anchors.fill: parent
-        radius: (toggle.text && !toggle.hideText) ? Theme.cornerRadius : 0
-        color: (toggle.text
-                && !toggle.hideText) ? Theme.surfaceHover : "transparent"
-        visible: (toggle.text && !toggle.hideText)
+        radius: showText ? Theme.cornerRadius : 0
+        color: showText ? Theme.surfaceHover : "transparent"
+        visible: showText
 
         StateLayer {
-            visible: (toggle.text && !toggle.hideText)
+            visible: showText
             disabled: !toggle.enabled
             stateColor: Theme.primary
             cornerRadius: parent.radius
-            onClicked: {
-                if (toggle.enabled) {
-                    toggle.checked = !toggle.checked
-                    toggle.clicked()
-                    toggle.toggled(toggle.checked)
-                }
-            }
+            onClicked: toggle.handleClick()
         }
     }
 
     Row {
-        id: textRow
-
         anchors.left: parent.left
         anchors.right: toggleTrack.left
         anchors.verticalCenter: parent.verticalCenter
         anchors.leftMargin: Theme.spacingM
         anchors.rightMargin: Theme.spacingM
         spacing: Theme.spacingXS
-        visible: (toggle.text && !toggle.hideText)
+        visible: showText
 
         Column {
             anchors.verticalCenter: parent.verticalCenter
@@ -78,15 +80,14 @@ Item {
     StyledRect {
         id: toggleTrack
 
-        width: toggle.text ? 48 : parent.width
-        height: toggle.text ? 24 : parent.height
+        width: text ? 48 : parent.width
+        height: text ? 24 : parent.height
         anchors.right: parent.right
-        anchors.rightMargin: toggle.text ? Theme.spacingM : 0
+        anchors.rightMargin: text ? Theme.spacingM : 0
         anchors.verticalCenter: parent.verticalCenter
         radius: height / 2
-        color: (toggle.checked
-                && toggle.enabled) ? Theme.primary : Theme.surfaceVariantAlpha
-        opacity: toggle.toggling ? 0.6 : (toggle.enabled ? 1 : 0.4)
+        color: (checked && enabled) ? Theme.primary : Theme.surfaceVariantAlpha
+        opacity: toggling ? 0.6 : (enabled ? 1 : 0.4)
 
         StyledRect {
             id: toggleHandle
@@ -96,18 +97,9 @@ Item {
             radius: 10
             color: Theme.surface
             anchors.verticalCenter: parent.verticalCenter
-            x: (toggle.checked && toggle.enabled) ? parent.width - width - 2 : 2
-
-            StyledRect {
-                anchors.centerIn: parent
-                width: parent.width + 2
-                height: parent.height + 2
-                radius: (parent.width + 2) / 2
-                color: "transparent"
-                border.color: Qt.rgba(0, 0, 0, 0.1)
-                border.width: 1
-                z: -1
-            }
+            x: (checked && enabled) ? parent.width - width - 2 : 2
+            border.color: Qt.rgba(0, 0, 0, 0.1)
+            border.width: 1
 
             Behavior on x {
                 NumberAnimation {
@@ -122,13 +114,7 @@ Item {
             disabled: !toggle.enabled
             stateColor: Theme.primary
             cornerRadius: parent.radius
-            onClicked: {
-                if (toggle.enabled) {
-                    toggle.checked = !toggle.checked
-                    toggle.clicked()
-                    toggle.toggled(toggle.checked)
-                }
-            }
+            onClicked: toggle.handleClick()
         }
     }
 }

@@ -1,9 +1,6 @@
 import QtQuick
-import QtQuick.Controls
-import Quickshell
-import Quickshell.Io
 import qs.Common
-import qs.Services
+import qs.Modals.Common
 import qs.Widgets
 
 DankModal {
@@ -14,10 +11,9 @@ DankModal {
     property string confirmButtonText: "Confirm"
     property string cancelButtonText: "Cancel"
     property color confirmButtonColor: Theme.primary
-    property var onConfirm: function() {}
-    property var onCancel: function() {}
-    
-    property int selectedButton: -1 // -1 = none, 0 = Cancel, 1 = Confirm
+    property var onConfirm: function () {}
+    property var onCancel: function () {}
+    property int selectedButton: -1
     property bool keyboardNavigation: false
 
     function show(title, message, onConfirmCallback, onCancelCallback) {
@@ -26,33 +22,36 @@ DankModal {
         confirmButtonText = "Confirm"
         cancelButtonText = "Cancel"
         confirmButtonColor = Theme.primary
-        onConfirm = onConfirmCallback || function() {}
-        onCancel = onCancelCallback || function() {}
+        onConfirm = onConfirmCallback || (() => {})
+        onCancel = onCancelCallback || (() => {})
         selectedButton = -1
         keyboardNavigation = false
         open()
     }
-    
+
     function showWithOptions(options) {
         confirmTitle = options.title || ""
         confirmMessage = options.message || ""
         confirmButtonText = options.confirmText || "Confirm"
         cancelButtonText = options.cancelText || "Cancel"
         confirmButtonColor = options.confirmColor || Theme.primary
-        onConfirm = options.onConfirm || function() {}
-        onCancel = options.onCancel || function() {}
+        onConfirm = options.onConfirm || (() => {})
+        onCancel = options.onCancel || (() => {})
         selectedButton = -1
         keyboardNavigation = false
         open()
     }
 
     function selectButton() {
+        close()
         if (selectedButton === 0) {
-            close()
-            if (onCancel) onCancel()
+            if (onCancel) {
+                onCancel()
+            }
         } else {
-            close()
-            if (onConfirm) onConfirm()
+            if (onConfirm) {
+                onConfirm()
+            }
         }
     }
 
@@ -64,18 +63,22 @@ DankModal {
     shouldHaveFocus: true
     onBackgroundClicked: {
         close()
-        if (onCancel) onCancel()
+        if (onCancel) {
+            onCancel()
+        }
     }
     onOpened: {
         modalFocusScope.forceActiveFocus()
         modalFocusScope.focus = true
         shouldHaveFocus = true
     }
-    modalFocusScope.Keys.onPressed: function(event) {
+    modalFocusScope.Keys.onPressed: function (event) {
         switch (event.key) {
         case Qt.Key_Escape:
             close()
-            if (onCancel) onCancel()
+            if (onCancel) {
+                onCancel()
+            }
             event.accepted = true
             break
         case Qt.Key_Left:
@@ -148,12 +151,13 @@ DankModal {
                         height: 40
                         radius: Theme.cornerRadius
                         color: {
-                            if (keyboardNavigation && selectedButton === 0)
+                            if (keyboardNavigation && selectedButton === 0) {
                                 return Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.12)
-                            else if (cancelButton.containsMouse)
+                            } else if (cancelButton.containsMouse) {
                                 return Theme.surfacePressed
-                            else
+                            } else {
                                 return Theme.surfaceVariantAlpha
+                            }
                         }
                         border.color: (keyboardNavigation && selectedButton === 0) ? Theme.primary : "transparent"
                         border.width: (keyboardNavigation && selectedButton === 0) ? 1 : 0
@@ -177,7 +181,6 @@ DankModal {
                                 selectButton()
                             }
                         }
-
                     }
 
                     Rectangle {
@@ -185,13 +188,14 @@ DankModal {
                         height: 40
                         radius: Theme.cornerRadius
                         color: {
-                            let baseColor = confirmButtonColor
-                            if (keyboardNavigation && selectedButton === 1)
+                            const baseColor = confirmButtonColor
+                            if (keyboardNavigation && selectedButton === 1) {
                                 return Qt.rgba(baseColor.r, baseColor.g, baseColor.b, 1)
-                            else if (confirmButton.containsMouse)
+                            } else if (confirmButton.containsMouse) {
                                 return Qt.rgba(baseColor.r, baseColor.g, baseColor.b, 0.9)
-                            else
+                            } else {
                                 return baseColor
+                            }
                         }
                         border.color: (keyboardNavigation && selectedButton === 1) ? "white" : "transparent"
                         border.width: (keyboardNavigation && selectedButton === 1) ? 1 : 0
@@ -215,15 +219,9 @@ DankModal {
                                 selectButton()
                             }
                         }
-
                     }
-
                 }
-
             }
-
         }
-
     }
-
 }

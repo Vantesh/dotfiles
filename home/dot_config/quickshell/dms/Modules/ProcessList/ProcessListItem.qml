@@ -12,14 +12,8 @@ Rectangle {
     width: parent ? parent.width : 0
     height: 40
     radius: Theme.cornerRadius
-    color: processMouseArea.containsMouse ? Qt.rgba(Theme.primary.r,
-                                                    Theme.primary.g,
-                                                    Theme.primary.b,
-                                                    0.08) : "transparent"
-    border.color: processMouseArea.containsMouse ? Qt.rgba(Theme.primary.r,
-                                                           Theme.primary.g,
-                                                           Theme.primary.b,
-                                                           0.12) : "transparent"
+    color: processMouseArea.containsMouse ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.08) : "transparent"
+    border.color: processMouseArea.containsMouse ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.12) : "transparent"
     border.width: 1
 
     MouseArea {
@@ -29,25 +23,21 @@ Rectangle {
         hoverEnabled: true
         cursorShape: Qt.PointingHandCursor
         acceptedButtons: Qt.LeftButton | Qt.RightButton
-        onClicked: mouse => {
-                       if (mouse.button === Qt.RightButton) {
-                           if (process && process.pid > 0 && contextMenu) {
-                               contextMenu.processData = process
-                               let globalPos = processMouseArea.mapToGlobal(
-                                   mouse.x, mouse.y)
-                               let localPos = contextMenu.parent ? contextMenu.parent.mapFromGlobal(
-                                                                       globalPos.x,
-                                                                       globalPos.y) : globalPos
-                               contextMenu.show(localPos.x, localPos.y)
-                           }
-                       }
-                   }
+        onClicked: (mouse) => {
+            if (mouse.button === Qt.RightButton) {
+                if (process && process.pid > 0 && contextMenu) {
+                    contextMenu.processData = process;
+                    const globalPos = processMouseArea.mapToGlobal(mouse.x, mouse.y);
+                    const localPos = contextMenu.parent ? contextMenu.parent.mapFromGlobal(globalPos.x, globalPos.y) : globalPos;
+                    contextMenu.show(localPos.x, localPos.y);
+                }
+            }
+        }
         onPressAndHold: {
             if (process && process.pid > 0 && contextMenu) {
-                contextMenu.processData = process
-                let globalPos = processMouseArea.mapToGlobal(
-                        processMouseArea.width / 2, processMouseArea.height / 2)
-                contextMenu.show(globalPos.x, globalPos.y)
+                contextMenu.processData = process;
+                const globalPos = processMouseArea.mapToGlobal(processMouseArea.width / 2, processMouseArea.height / 2);
+                contextMenu.show(globalPos.x, globalPos.y);
             }
         }
     }
@@ -62,10 +52,10 @@ Rectangle {
             name: DgopService.getProcessIcon(process ? process.command : "")
             size: Theme.iconSize - 4
             color: {
-                if (process && process.cpu > 80)
-                    return Theme.error
-
-                return Theme.surfaceText
+                if (process && process.cpu > 80) {
+                    return Theme.error;
+                }
+                return Theme.surfaceText;
             }
             opacity: 0.8
             anchors.left: parent.left
@@ -92,12 +82,10 @@ Rectangle {
             height: 20
             radius: Theme.cornerRadius
             color: {
-                if (process && process.cpu > 80)
-                    return Qt.rgba(Theme.error.r, Theme.error.g,
-                                   Theme.error.b, 0.12)
-
-                return Qt.rgba(Theme.surfaceText.r, Theme.surfaceText.g,
-                               Theme.surfaceText.b, 0.08)
+                if (process && process.cpu > 80) {
+                    return Qt.rgba(Theme.error.r, Theme.error.g, Theme.error.b, 0.12);
+                }
+                return Qt.rgba(Theme.surfaceText.r, Theme.surfaceText.g, Theme.surfaceText.b, 0.08);
             }
             anchors.right: parent.right
             anchors.rightMargin: 194
@@ -109,13 +97,14 @@ Rectangle {
                 font.family: SettingsData.monoFontFamily
                 font.weight: Font.Bold
                 color: {
-                    if (process && process.cpu > 80)
-                        return Theme.error
-
-                    return Theme.surfaceText
+                    if (process && process.cpu > 80) {
+                        return Theme.error;
+                    }
+                    return Theme.surfaceText;
                 }
                 anchors.centerIn: parent
             }
+
         }
 
         Rectangle {
@@ -125,31 +114,29 @@ Rectangle {
             height: 20
             radius: Theme.cornerRadius
             color: {
-                if (process && process.memoryKB > 1024 * 1024)
-                    return Qt.rgba(Theme.error.r, Theme.error.g,
-                                   Theme.error.b, 0.12)
-
-                return Qt.rgba(Theme.surfaceText.r, Theme.surfaceText.g,
-                               Theme.surfaceText.b, 0.08)
+                if (process && process.memoryKB > 1024 * 1024) {
+                    return Qt.rgba(Theme.error.r, Theme.error.g, Theme.error.b, 0.12);
+                }
+                return Qt.rgba(Theme.surfaceText.r, Theme.surfaceText.g, Theme.surfaceText.b, 0.08);
             }
             anchors.right: parent.right
             anchors.rightMargin: 102
             anchors.verticalCenter: parent.verticalCenter
 
             StyledText {
-                text: DgopService.formatMemoryUsage(
-                          process ? process.memoryKB : 0)
+                text: DgopService.formatMemoryUsage(process ? process.memoryKB : 0)
                 font.pixelSize: Theme.fontSizeSmall
                 font.family: SettingsData.monoFontFamily
                 font.weight: Font.Bold
                 color: {
-                    if (process && process.memoryKB > 1024 * 1024)
-                        return Theme.error
-
-                    return Theme.surfaceText
+                    if (process && process.memoryKB > 1024 * 1024) {
+                        return Theme.error;
+                    }
+                    return Theme.surfaceText;
                 }
                 anchors.centerIn: parent
             }
+
         }
 
         StyledText {
@@ -171,10 +158,7 @@ Rectangle {
             width: 28
             height: 28
             radius: Theme.cornerRadius
-            color: menuButtonArea.containsMouse ? Qt.rgba(Theme.surfaceText.r,
-                                                          Theme.surfaceText.g,
-                                                          Theme.surfaceText.b,
-                                                          0.08) : "transparent"
+            color: menuButtonArea.containsMouse ? Qt.rgba(Theme.surfaceText.r, Theme.surfaceText.g, Theme.surfaceText.b, 0.08) : "transparent"
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
 
@@ -194,13 +178,10 @@ Rectangle {
                 cursorShape: Qt.PointingHandCursor
                 onClicked: {
                     if (process && process.pid > 0 && contextMenu) {
-                        contextMenu.processData = process
-                        let globalPos = menuButtonArea.mapToGlobal(
-                                menuButtonArea.width / 2, menuButtonArea.height)
-                        let localPos = contextMenu.parent ? contextMenu.parent.mapFromGlobal(
-                                                                globalPos.x,
-                                                                globalPos.y) : globalPos
-                        contextMenu.show(localPos.x, localPos.y)
+                        contextMenu.processData = process;
+                        const globalPos = menuButtonArea.mapToGlobal(menuButtonArea.width / 2, menuButtonArea.height);
+                        const localPos = contextMenu.parent ? contextMenu.parent.mapFromGlobal(globalPos.x, globalPos.y) : globalPos;
+                        contextMenu.show(localPos.x, localPos.y);
                     }
                 }
             }
@@ -209,7 +190,11 @@ Rectangle {
                 ColorAnimation {
                     duration: Theme.shortDuration
                 }
+
             }
+
         }
+
     }
+
 }

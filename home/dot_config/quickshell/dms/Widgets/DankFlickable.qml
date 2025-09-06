@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import qs.Common
+import qs.Widgets
 
 Flickable {
     id: flickable
@@ -11,7 +12,6 @@ Flickable {
     property real friction: 0.95
     property real minMomentumVelocity: 50
     property real maxMomentumVelocity: 2500
-    // Internal: controls transient scrollbar visibility
     property bool _scrollBarActive: false
 
     flickDeceleration: 1500
@@ -38,16 +38,15 @@ Flickable {
         acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
 
         onWheel: event => {
-                     // Activate scrollbar on any wheel interaction
-                     flickable._scrollBarActive = true
-                     hideScrollBarTimer.restart()
-                     let currentTime = Date.now()
-                     let timeDelta = currentTime - lastWheelTime
+                     vbar._scrollBarActive = true
+                     vbar.hideTimer.restart()
+
+                     const currentTime = Date.now()
+                     const timeDelta = currentTime - lastWheelTime
                      lastWheelTime = currentTime
 
                      const deltaY = event.angleDelta.y
-                     const isMouseWheel = Math.abs(deltaY) >= 120
-                     && (Math.abs(deltaY) % 120) === 0
+                     const isMouseWheel = Math.abs(deltaY) >= 120 && (Math.abs(deltaY) % 120) === 0
 
                      if (isMouseWheel) {
                          momentumTimer.stop()
@@ -56,16 +55,13 @@ Flickable {
                          momentum = 0
 
                          const lines = Math.floor(Math.abs(deltaY) / 120)
-                         const scrollAmount = (deltaY > 0 ? -lines : lines)
-                         * flickable.mouseWheelSpeed
+                         const scrollAmount = (deltaY > 0 ? -lines : lines) * flickable.mouseWheelSpeed
                          let newY = flickable.contentY + scrollAmount
-                         newY = Math.max(
-                             0, Math.min(
-                                 flickable.contentHeight - flickable.height,
-                                 newY))
+                         newY = Math.max(0, Math.min(flickable.contentHeight - flickable.height, newY))
 
-                         if (flickable.flicking)
-                         flickable.cancelFlick()
+                         if (flickable.flicking) {
+                             flickable.cancelFlick()
+                         }
 
                          flickable.contentY = newY
                      } else {
@@ -83,22 +79,14 @@ Flickable {
                                                   "delta": delta,
                                                   "time": currentTime
                                               })
-                         velocitySamples = velocitySamples.filter(s => {
-                                                                      return currentTime
-                                                                      - s.time < 100
-                                                                  })
+                         velocitySamples = velocitySamples.filter(s => currentTime - s.time < 100)
 
                          if (velocitySamples.length > 1) {
-                             let totalDelta = velocitySamples.reduce(
-                                 (sum, s) => {
-                                     return sum + s.delta
-                                 }, 0)
-                             let timeSpan = currentTime - velocitySamples[0].time
-                             if (timeSpan > 0)
-                             flickable.momentumVelocity = Math.max(
-                                 -flickable.maxMomentumVelocity,
-                                 Math.min(flickable.maxMomentumVelocity,
-                                          totalDelta / timeSpan * 1000))
+                             const totalDelta = velocitySamples.reduce((sum, s) => sum + s.delta, 0)
+                             const timeSpan = currentTime - velocitySamples[0].time
+                             if (timeSpan > 0) {
+                                 flickable.momentumVelocity = Math.max(-flickable.maxMomentumVelocity, Math.min(flickable.maxMomentumVelocity, totalDelta / timeSpan * 1000))
+                             }
                          }
 
                          if (event.pixelDelta.y !== 0 && timeDelta < 50) {
@@ -109,13 +97,11 @@ Flickable {
                          }
 
                          let newY = flickable.contentY - delta
-                         newY = Math.max(
-                             0, Math.min(
-                                 flickable.contentHeight - flickable.height,
-                                 newY))
+                         newY = Math.max(0, Math.min(flickable.contentHeight - flickable.height, newY))
 
-                         if (flickable.flicking)
-                         flickable.cancelFlick()
+                         if (flickable.flicking) {
+                             flickable.cancelFlick()
+                         }
 
                          flickable.contentY = newY
                      }
@@ -135,12 +121,11 @@ Flickable {
         }
     }
 
-    // Show scrollbar while flicking / momentum
     onMovementStarted: {
-        _scrollBarActive = true
-        hideScrollBarTimer.stop()
+        vbar._scrollBarActive = true
+        vbar.hideTimer.stop()
     }
-    onMovementEnded: hideScrollBarTimer.restart()
+    onMovementEnded: vbar.hideTimer.restart()
 
     Timer {
         id: momentumTimer
@@ -148,17 +133,11 @@ Flickable {
         repeat: true
 
         onTriggered: {
-            let newY = flickable.contentY - flickable.momentumVelocity * 0.016
-            let maxY = Math.max(0, flickable.contentHeight - flickable.height)
+            const newY = flickable.contentY - flickable.momentumVelocity * 0.016
+            const maxY = Math.max(0, flickable.contentHeight - flickable.height)
 
-            if (newY < 0) {
-                flickable.contentY = 0
-                stop()
-                flickable.isMomentumActive = false
-                flickable.momentumVelocity = 0
-                return
-            } else if (newY > maxY) {
-                flickable.contentY = maxY
+            if (newY < 0 || newY > maxY) {
+                flickable.contentY = newY < 0 ? 0 : maxY
                 stop()
                 flickable.isMomentumActive = false
                 flickable.momentumVelocity = 0
@@ -166,7 +145,6 @@ Flickable {
             }
 
             flickable.contentY = newY
-
             flickable.momentumVelocity *= flickable.friction
 
             if (Math.abs(flickable.momentumVelocity) < 5) {
@@ -185,50 +163,7 @@ Flickable {
         easing.type: Easing.OutQuad
     }
 
-    // Styled vertical scrollbar (auto-hide, no track)
-    ScrollBar.vertical: ScrollBar {
+    ScrollBar.vertical: DankScrollbar {
         id: vbar
-        policy: flickable.contentHeight
-                > flickable.height ? ScrollBar.AsNeeded : ScrollBar.AlwaysOff
-        minimumSize: 0.08
-        implicitWidth: 10
-        interactive: true
-        hoverEnabled: true
-        z: 1000
-        opacity: (policy !== ScrollBar.AlwaysOff)
-                 && (vbar.pressed || vbar.hovered || vbar.active
-                     || flickable.moving || flickable.flicking
-                     || flickable.isMomentumActive
-                     || flickable._scrollBarActive) ? 1 : 0
-        visible: policy !== ScrollBar.AlwaysOff
-        Behavior on opacity {
-            NumberAnimation {
-                duration: 160
-                easing.type: Easing.OutQuad
-            }
-        }
-
-        contentItem: Rectangle {
-            implicitWidth: 6
-            radius: width / 2
-            color: vbar.pressed ? Theme.primary : (vbar.hovered || vbar.active
-                                                   || flickable.moving
-                                                   || flickable.flicking
-                                                   || flickable.isMomentumActive
-                                                   || flickable._scrollBarActive ? Theme.outline : Theme.outlineMedium)
-            opacity: vbar.pressed ? 1 : (vbar.hovered || vbar.active
-                                         || flickable.moving
-                                         || flickable.flicking
-                                         || flickable.isMomentumActive
-                                         || flickable._scrollBarActive ? 1 : 0.6)
-        }
-
-        background: Item {}
-    }
-
-    Timer {
-        id: hideScrollBarTimer
-        interval: 1200
-        onTriggered: flickable._scrollBarActive = false
     }
 }

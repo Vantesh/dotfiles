@@ -6,15 +6,15 @@ import Quickshell.Widgets
 import qs.Common
 
 IconImage {
-    id: root
-
     property string colorOverride: ""
     property real brightnessOverride: 0.5
     property real contrastOverride: 1
 
+    readonly property bool hasColorOverride: colorOverride !== ""
+
     smooth: true
     asynchronous: true
-    layer.enabled: colorOverride !== ""
+    layer.enabled: hasColorOverride
 
     Process {
         running: true
@@ -22,8 +22,7 @@ IconImage {
 
         stdout: StdioCollector {
             onStreamFinished: () => {
-                                  root.source = Quickshell.iconPath(
-                                      this.text.trim(), true)
+                                  source = Quickshell.iconPath(text.trim(), true)
                               }
         }
     }

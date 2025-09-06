@@ -1,4 +1,5 @@
 pragma Singleton
+
 pragma ComponentBehavior: Bound
 
 import QtQuick
@@ -41,11 +42,6 @@ Singleton {
         }
     }
 
-    // ! TODO - hacky because uwsm doesnt behave as expected
-    // uwsm idk, always passes the is-active check even if it's not a session
-    // It reutrns exit code 0 when uwsm stop fails
-    // They have flaws in their system, so we need to be hacky to just try it and
-    // detect random text
     Process {
         id: uwsmLogout
         command: ["uwsm", "stop"]
@@ -53,14 +49,14 @@ Singleton {
 
         stdout: SplitParser {
             splitMarker: "\n"
-            onRead: (data) => {
+            onRead: data => {
                 if (data.trim().toLowerCase().includes("not running")) {
                     _logout()
                 }
             }
         }
 
-        onExited: function(exitCode) {
+        onExited: function (exitCode) {
             if (exitCode === 0) {
                 return
             }
@@ -69,8 +65,9 @@ Singleton {
     }
 
     function logout() {
-        if (hasUwsm)
+        if (hasUwsm) {
             uwsmLogout.running = true
+        }
         _logout()
     }
 
@@ -100,15 +97,17 @@ Singleton {
     signal inhibitorChanged
 
     function enableIdleInhibit() {
-        if (idleInhibited)
+        if (idleInhibited) {
             return
+        }
         idleInhibited = true
         inhibitorChanged()
     }
 
     function disableIdleInhibit() {
-        if (!idleInhibited)
+        if (!idleInhibited) {
             return
+        }
         idleInhibited = false
         inhibitorChanged()
     }
@@ -129,8 +128,9 @@ Singleton {
             idleInhibited = false
 
             Qt.callLater(() => {
-                             if (wasActive)
-                             idleInhibited = true
+                             if (wasActive) {
+                                 idleInhibited = true
+                             }
                          })
         }
     }
@@ -143,16 +143,14 @@ Singleton {
                 return ["true"]
             }
 
-            return [isElogind ? "elogind-inhibit" : "systemd-inhibit", "--what=idle", "--who=quickshell", "--why="
-                    + inhibitReason, "--mode=block", "sleep", "infinity"]
+            return [isElogind ? "elogind-inhibit" : "systemd-inhibit", "--what=idle", "--who=quickshell", `--why=${inhibitReason}`, "--mode=block", "sleep", "infinity"]
         }
 
         running: idleInhibited
 
         onExited: function (exitCode) {
             if (idleInhibited && exitCode !== 0) {
-                console.warn("SessionService: Inhibitor process crashed with exit code:",
-                             exitCode)
+                console.warn("SessionService: Inhibitor process crashed with exit code:", exitCode)
                 idleInhibited = false
                 ToastService.showWarning("Idle inhibitor failed")
             }
@@ -181,11 +179,11 @@ Singleton {
 
         function reason(newReason: string): string {
             if (!newReason) {
-                return "Current reason: " + root.inhibitReason
+                return `Current reason: ${root.inhibitReason}`
             }
 
             root.setInhibitReason(newReason)
-            return "Inhibit reason set to: " + newReason
+            return `Inhibit reason set to: ${newReason}`
         }
 
         target: "inhibit"

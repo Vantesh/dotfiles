@@ -21,10 +21,10 @@ PanelWindow {
         appData = data
         dockVisibleHeight = dockHeight || 40
 
-        var dockWindow = button.Window.window
+        const dockWindow = button.Window.window
         if (dockWindow) {
             for (var i = 0; i < Quickshell.screens.length; i++) {
-                var s = Quickshell.screens[i]
+                const s = Quickshell.screens[i]
                 if (dockWindow.x >= s.x && dockWindow.x < s.x + s.width) {
                     root.screen = s
                     break
@@ -55,8 +55,11 @@ PanelWindow {
     property point anchorPos: Qt.point(screen.width / 2, screen.height - 100)
 
     onAnchorItemChanged: updatePosition()
-    onVisibleChanged: if (visible)
-                          updatePosition()
+    onVisibleChanged: {
+        if (visible) {
+            updatePosition()
+        }
+    }
 
     function updatePosition() {
         if (!anchorItem) {
@@ -64,40 +67,40 @@ PanelWindow {
             return
         }
 
-        var dockWindow = anchorItem.Window.window
+        const dockWindow = anchorItem.Window.window
         if (!dockWindow) {
             anchorPos = Qt.point(screen.width / 2, screen.height - 100)
             return
         }
 
-        var buttonPosInDock = anchorItem.mapToItem(dockWindow.contentItem, 0, 0)
-
-        var actualDockHeight = root.dockVisibleHeight // fallback
+        const buttonPosInDock = anchorItem.mapToItem(dockWindow.contentItem, 0, 0)
+        let actualDockHeight = root.dockVisibleHeight
 
         function findDockBackground(item) {
             if (item.objectName === "dockBackground") {
                 return item
             }
             for (var i = 0; i < item.children.length; i++) {
-                var found = findDockBackground(item.children[i])
-                if (found)
+                const found = findDockBackground(item.children[i])
+                if (found) {
                     return found
+                }
             }
             return null
         }
 
-        var dockBackground = findDockBackground(dockWindow.contentItem)
+        const dockBackground = findDockBackground(dockWindow.contentItem)
         if (dockBackground) {
             actualDockHeight = dockBackground.height
         }
 
-        var dockBottomMargin = 16 // The dock has bottom margin
-        var buttonScreenY = root.screen.height - actualDockHeight - dockBottomMargin - 20
+        const dockBottomMargin = 16
+        const buttonScreenY = root.screen.height - actualDockHeight - dockBottomMargin - 20
 
-        var dockContentWidth = dockWindow.width
-        var screenWidth = root.screen.width
-        var dockLeftMargin = Math.round((screenWidth - dockContentWidth) / 2)
-        var buttonScreenX = dockLeftMargin + buttonPosInDock.x + anchorItem.width / 2
+        const dockContentWidth = dockWindow.width
+        const screenWidth = root.screen.width
+        const dockLeftMargin = Math.round((screenWidth - dockContentWidth) / 2)
+        const buttonScreenX = dockLeftMargin + buttonPosInDock.x + anchorItem.width / 2
 
         anchorPos = Qt.point(buttonScreenX, buttonScreenY)
     }
@@ -105,22 +108,19 @@ PanelWindow {
     Rectangle {
         id: menuContainer
 
-        width: Math.min(400,
-                        Math.max(200,
-                                 menuColumn.implicitWidth + Theme.spacingS * 2))
+        width: Math.min(400, Math.max(200, menuColumn.implicitWidth + Theme.spacingS * 2))
         height: Math.max(60, menuColumn.implicitHeight + Theme.spacingS * 2)
 
         x: {
-            var left = 10
-            var right = root.width - width - 10
-            var want = root.anchorPos.x - width / 2
+            const left = 10
+            const right = root.width - width - 10
+            const want = root.anchorPos.x - width / 2
             return Math.max(left, Math.min(right, want))
         }
         y: Math.max(10, root.anchorPos.y - height + 30)
         color: Theme.popupBackground()
         radius: Theme.cornerRadius
-        border.color: Qt.rgba(Theme.outline.r, Theme.outline.g,
-                              Theme.outline.b, 0.08)
+        border.color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.08)
         border.width: 1
         opacity: showContextMenu ? 1 : 0
         scale: showContextMenu ? 1 : 0.85
@@ -148,10 +148,7 @@ PanelWindow {
                 width: parent.width
                 height: 28
                 radius: Theme.cornerRadius
-                color: pinArea.containsMouse ? Qt.rgba(Theme.primary.r,
-                                                       Theme.primary.g,
-                                                       Theme.primary.b,
-                                                       0.12) : "transparent"
+                color: pinArea.containsMouse ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.12) : "transparent"
 
                 StyledText {
                     anchors.left: parent.left
@@ -159,8 +156,7 @@ PanelWindow {
                     anchors.right: parent.right
                     anchors.rightMargin: Theme.spacingS
                     anchors.verticalCenter: parent.verticalCenter
-                    text: root.appData
-                          && root.appData.isPinned ? "Unpin from Dock" : "Pin to Dock"
+                    text: root.appData && root.appData.isPinned ? "Unpin from Dock" : "Pin to Dock"
                     font.pixelSize: Theme.fontSizeSmall
                     color: Theme.surfaceText
                     font.weight: Font.Normal
@@ -174,8 +170,9 @@ PanelWindow {
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
                     onClicked: {
-                        if (!root.appData)
+                        if (!root.appData) {
                             return
+                        }
                         if (root.appData.isPinned) {
                             SessionData.removePinnedApp(root.appData.appId)
                         } else {
@@ -190,16 +187,14 @@ PanelWindow {
                 visible: root.appData && root.appData.type === "window"
                 width: parent.width
                 height: 1
-                color: Qt.rgba(Theme.outline.r, Theme.outline.g,
-                               Theme.outline.b, 0.2)
+                color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.2)
             }
 
             Rectangle {
                 visible: root.appData && root.appData.type === "window"
                 width: parent.width
                 height: 1
-                color: Qt.rgba(Theme.outline.r, Theme.outline.g,
-                               Theme.outline.b, 0.2)
+                color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.2)
             }
 
             Rectangle {
@@ -207,11 +202,7 @@ PanelWindow {
                 width: parent.width
                 height: 28
                 radius: Theme.cornerRadius
-                color: closeArea.containsMouse ? Qt.rgba(
-                                                    Theme.error.r,
-                                                    Theme.error.g,
-                                                    Theme.error.b,
-                                                    0.12) : "transparent"
+                color: closeArea.containsMouse ? Qt.rgba(Theme.error.r, Theme.error.g, Theme.error.b, 0.12) : "transparent"
 
                 StyledText {
                     anchors.left: parent.left

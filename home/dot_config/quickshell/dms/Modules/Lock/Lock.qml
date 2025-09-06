@@ -38,10 +38,10 @@ Item {
         }
 
         onExited: (exitCode, exitStatus) => {
-            if (exitCode !== 0) {
-                console.warn("Failed to get session path, exit code:", exitCode)
-            }
-        }
+                      if (exitCode !== 0) {
+                          console.warn("Failed to get session path, exit code:", exitCode)
+                      }
+                  }
     }
 
     Process {
@@ -52,8 +52,7 @@ Item {
         stdout: StdioCollector {
             onStreamFinished: {
                 if (text.includes("true")) {
-                    console.log(
-                        "Session is locked on startup, activating lock screen")
+                    console.log("Session is locked on startup, activating lock screen")
                     LockScreenService.resetState()
                     loader.activeAsync = true
                 }
@@ -61,11 +60,10 @@ Item {
         }
 
         onExited: (exitCode, exitStatus) => {
-            if (exitCode !== 0) {
-                console.warn("Failed to check initial lock state, exit code:",
-                             exitCode)
-            }
-        }
+                      if (exitCode !== 0) {
+                          console.warn("Failed to check initial lock state, exit code:", exitCode)
+                      }
+                  }
     }
 
     Process {
@@ -77,32 +75,29 @@ Item {
             splitMarker: "\n"
 
             onRead: line => {
-                if (line.includes("org.freedesktop.login1.Session.Lock")) {
-                    console.log("login1: Lock signal received -> show lock")
-                    LockScreenService.resetState()
-                    loader.activeAsync = true
-                } else if (line.includes(
-                               "org.freedesktop.login1.Session.Unlock")) {
-                    console.log("login1: Unlock signal received -> hide lock")
-                    loader.active = false
-                } else if (line.includes("LockedHint") && line.includes(
-                               "true")) {
-                    console.log("login1: LockedHint=true -> show lock")
-                    LockScreenService.resetState()
-                    loader.activeAsync = true
-                } else if (line.includes("LockedHint") && line.includes(
-                               "false")) {
-                    console.log("login1: LockedHint=false -> hide lock")
-                    loader.active = false
-                }
-            }
+                        if (line.includes("org.freedesktop.login1.Session.Lock")) {
+                            console.log("login1: Lock signal received -> show lock")
+                            LockScreenService.resetState()
+                            loader.activeAsync = true
+                        } else if (line.includes("org.freedesktop.login1.Session.Unlock")) {
+                            console.log("login1: Unlock signal received -> hide lock")
+                            loader.active = false
+                        } else if (line.includes("LockedHint") && line.includes("true")) {
+                            console.log("login1: LockedHint=true -> show lock")
+                            LockScreenService.resetState()
+                            loader.activeAsync = true
+                        } else if (line.includes("LockedHint") && line.includes("false")) {
+                            console.log("login1: LockedHint=false -> hide lock")
+                            loader.active = false
+                        }
+                    }
         }
 
         onExited: (exitCode, exitStatus) => {
-            if (exitCode !== 0) {
-                console.warn("gdbus monitor failed, exit code:", exitCode)
-            }
-        }
+                      if (exitCode !== 0) {
+                          console.warn("gdbus monitor failed, exit code:", exitCode)
+                      }
+                  }
     }
 
     LazyLoader {
@@ -117,8 +112,9 @@ Item {
             locked: true
 
             onLockedChanged: {
-                if (!locked)
-                loader.active = false
+                if (!locked) {
+                    loader.active = false
+                }
             }
 
             LockSurface {
@@ -126,8 +122,8 @@ Item {
                 lock: sessionLock
                 sharedPasswordBuffer: sessionLock.sharedPasswordBuffer
                 onPasswordChanged: newPassword => {
-                    sessionLock.sharedPasswordBuffer = newPassword
-                }
+                                       sessionLock.sharedPasswordBuffer = newPassword
+                                   }
             }
         }
     }
@@ -139,13 +135,13 @@ Item {
     IpcHandler {
         target: "lock"
 
-        function lock(): void {
+        function lock() {
             console.log("Lock screen requested via IPC")
             LockScreenService.resetState()
             loader.activeAsync = true
         }
 
-        function demo(): void {
+        function demo() {
             console.log("Lock screen DEMO mode requested via IPC")
             demoWindow.showDemo()
         }

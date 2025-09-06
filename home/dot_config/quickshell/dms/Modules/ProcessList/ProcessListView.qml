@@ -10,10 +10,10 @@ Column {
     property var contextMenu: null
 
     Component.onCompleted: {
-        DgopService.addRef(["processes"])
+        DgopService.addRef(["processes"]);
     }
     Component.onDestruction: {
-        DgopService.removeRef(["processes"])
+        DgopService.removeRef(["processes"]);
     }
 
     Item {
@@ -28,14 +28,9 @@ Column {
             height: 20
             color: {
                 if (DgopService.currentSort === "name") {
-                    return Qt.rgba(Theme.primary.r, Theme.primary.g,
-                                   Theme.primary.b, 0.12)
+                    return Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.12);
                 }
-                return processHeaderArea.containsMouse ? Qt.rgba(
-                                                             Theme.surfaceText.r,
-                                                             Theme.surfaceText.g,
-                                                             Theme.surfaceText.b,
-                                                             0.08) : "transparent"
+                return processHeaderArea.containsMouse ? Qt.rgba(Theme.surfaceText.r, Theme.surfaceText.g, Theme.surfaceText.b, 0.08) : "transparent";
             }
             radius: Theme.cornerRadius
             anchors.left: parent.left
@@ -59,7 +54,7 @@ Column {
                 hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
                 onClicked: {
-                    DgopService.setSortBy("name")
+                    DgopService.setSortBy("name");
                 }
             }
 
@@ -67,7 +62,9 @@ Column {
                 ColorAnimation {
                     duration: Theme.shortDuration
                 }
+
             }
+
         }
 
         Rectangle {
@@ -75,14 +72,9 @@ Column {
             height: 20
             color: {
                 if (DgopService.currentSort === "cpu") {
-                    return Qt.rgba(Theme.primary.r, Theme.primary.g,
-                                   Theme.primary.b, 0.12)
+                    return Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.12);
                 }
-                return cpuHeaderArea.containsMouse ? Qt.rgba(
-                                                         Theme.surfaceText.r,
-                                                         Theme.surfaceText.g,
-                                                         Theme.surfaceText.b,
-                                                         0.08) : "transparent"
+                return cpuHeaderArea.containsMouse ? Qt.rgba(Theme.surfaceText.r, Theme.surfaceText.g, Theme.surfaceText.b, 0.08) : "transparent";
             }
             radius: Theme.cornerRadius
             anchors.right: parent.right
@@ -106,7 +98,7 @@ Column {
                 hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
                 onClicked: {
-                    DgopService.setSortBy("cpu")
+                    DgopService.setSortBy("cpu");
                 }
             }
 
@@ -114,7 +106,9 @@ Column {
                 ColorAnimation {
                     duration: Theme.shortDuration
                 }
+
             }
+
         }
 
         Rectangle {
@@ -122,14 +116,9 @@ Column {
             height: 20
             color: {
                 if (DgopService.currentSort === "memory") {
-                    return Qt.rgba(Theme.primary.r, Theme.primary.g,
-                                   Theme.primary.b, 0.12)
+                    return Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.12);
                 }
-                return memoryHeaderArea.containsMouse ? Qt.rgba(
-                                                            Theme.surfaceText.r,
-                                                            Theme.surfaceText.g,
-                                                            Theme.surfaceText.b,
-                                                            0.08) : "transparent"
+                return memoryHeaderArea.containsMouse ? Qt.rgba(Theme.surfaceText.r, Theme.surfaceText.g, Theme.surfaceText.b, 0.08) : "transparent";
             }
             radius: Theme.cornerRadius
             anchors.right: parent.right
@@ -153,7 +142,7 @@ Column {
                 hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
                 onClicked: {
-                    DgopService.setSortBy("memory")
+                    DgopService.setSortBy("memory");
                 }
             }
 
@@ -161,7 +150,9 @@ Column {
                 ColorAnimation {
                     duration: Theme.shortDuration
                 }
+
             }
+
         }
 
         Rectangle {
@@ -169,14 +160,9 @@ Column {
             height: 20
             color: {
                 if (DgopService.currentSort === "pid") {
-                    return Qt.rgba(Theme.primary.r, Theme.primary.g,
-                                   Theme.primary.b, 0.12)
+                    return Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.12);
                 }
-                return pidHeaderArea.containsMouse ? Qt.rgba(
-                                                         Theme.surfaceText.r,
-                                                         Theme.surfaceText.g,
-                                                         Theme.surfaceText.b,
-                                                         0.08) : "transparent"
+                return pidHeaderArea.containsMouse ? Qt.rgba(Theme.surfaceText.r, Theme.surfaceText.g, Theme.surfaceText.b, 0.08) : "transparent";
             }
             radius: Theme.cornerRadius
             anchors.right: parent.right
@@ -201,7 +187,7 @@ Column {
                 hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
                 onClicked: {
-                    DgopService.setSortBy("pid")
+                    DgopService.setSortBy("pid");
                 }
             }
 
@@ -209,17 +195,16 @@ Column {
                 ColorAnimation {
                     duration: Theme.shortDuration
                 }
+
             }
+
         }
 
         Rectangle {
             width: 28
             height: 28
             radius: Theme.cornerRadius
-            color: sortOrderArea.containsMouse ? Qt.rgba(Theme.surfaceText.r,
-                                                         Theme.surfaceText.g,
-                                                         Theme.surfaceText.b,
-                                                         0.08) : "transparent"
+            color: sortOrderArea.containsMouse ? Qt.rgba(Theme.surfaceText.r, Theme.surfaceText.g, Theme.surfaceText.b, 0.08) : "transparent"
             anchors.right: parent.right
             anchors.rightMargin: 8
             anchors.verticalCenter: parent.verticalCenter
@@ -232,14 +217,14 @@ Column {
             }
 
             MouseArea {
+                // TODO: Re-implement sort order toggle
+
                 id: sortOrderArea
 
                 anchors.fill: parent
                 hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
                 onClicked: {
-
-                    // ! TODO - we lost this with dgop
                 }
             }
 
@@ -247,8 +232,11 @@ Column {
                 ColorAnimation {
                     duration: Theme.shortDuration
                 }
+
             }
+
         }
+
     }
 
     DankListView {
@@ -266,5 +254,7 @@ Column {
             process: modelData
             contextMenu: root.contextMenu
         }
+
     }
+
 }

@@ -1,4 +1,5 @@
 pragma Singleton
+
 pragma ComponentBehavior: Bound
 
 import QtCore
@@ -26,7 +27,20 @@ Singleton {
         return url.startsWith("file://") ? url.substring(7) : url
     }
     readonly property string shellDir: Qt.resolvedUrl(".").toString().replace("file://", "").replace("/Common/", "")
-    readonly property string wallpaperPath: typeof SessionData !== "undefined" ? SessionData.wallpaperPath : ""
+    readonly property string wallpaperPath: {
+        if (typeof SessionData === "undefined") return ""
+
+        if (SessionData.perMonitorWallpaper) {
+            // Use first monitor's wallpaper for dynamic theming
+            var screens = Quickshell.screens
+            if (screens.length > 0) {
+                var firstMonitorWallpaper = SessionData.getMonitorWallpaper(screens[0].name)
+                return firstMonitorWallpaper || SessionData.wallpaperPath
+            }
+        }
+
+        return SessionData.wallpaperPath
+    }
 
     property bool matugenAvailable: false
     property var workerRunning: false
@@ -58,24 +72,24 @@ Singleton {
             return customThemeData || StockThemes.getThemeByName("blue", isLightMode)
         } else if (currentTheme === dynamic) {
             return {
-                primary: getMatugenColor("primary", "#42a5f5"),
-                primaryText: getMatugenColor("on_primary", "#ffffff"),
-                primaryContainer: getMatugenColor("primary_container", "#1976d2"),
-                secondary: getMatugenColor("secondary", "#8ab4f8"),
-                surface: getMatugenColor("surface", "#1a1c1e"),
-                surfaceText: getMatugenColor("on_background", "#e3e8ef"),
-                surfaceVariant: getMatugenColor("surface_variant", "#44464f"),
-                surfaceVariantText: getMatugenColor("on_surface_variant", "#c4c7c5"),
-                surfaceTint: getMatugenColor("surface_tint", "#8ab4f8"),
-                background: getMatugenColor("background", "#1a1c1e"),
-                backgroundText: getMatugenColor("on_background", "#e3e8ef"),
-                outline: getMatugenColor("outline", "#8e918f"),
-                surfaceContainer: getMatugenColor("surface_container", "#1e2023"),
-                surfaceContainerHigh: getMatugenColor("surface_container_high", "#292b2f"),
-                error: "#F2B8B5",
-                warning: "#FF9800",
-                info: "#2196F3",
-                success: "#4CAF50"
+                "primary": getMatugenColor("primary", "#42a5f5"),
+                "primaryText": getMatugenColor("on_primary", "#ffffff"),
+                "primaryContainer": getMatugenColor("primary_container", "#1976d2"),
+                "secondary": getMatugenColor("secondary", "#8ab4f8"),
+                "surface": getMatugenColor("surface", "#1a1c1e"),
+                "surfaceText": getMatugenColor("on_background", "#e3e8ef"),
+                "surfaceVariant": getMatugenColor("surface_variant", "#44464f"),
+                "surfaceVariantText": getMatugenColor("on_surface_variant", "#c4c7c5"),
+                "surfaceTint": getMatugenColor("surface_tint", "#8ab4f8"),
+                "background": getMatugenColor("background", "#1a1c1e"),
+                "backgroundText": getMatugenColor("on_background", "#e3e8ef"),
+                "outline": getMatugenColor("outline", "#8e918f"),
+                "surfaceContainer": getMatugenColor("surface_container", "#1e2023"),
+                "surfaceContainerHigh": getMatugenColor("surface_container_high", "#292b2f"),
+                "error": "#F2B8B5",
+                "warning": "#FF9800",
+                "info": "#2196F3",
+                "success": "#4CAF50"
             }
         } else {
             return StockThemes.getThemeByName(currentTheme, isLightMode)
@@ -179,16 +193,10 @@ Singleton {
 
     function setLightMode(light, savePrefs = true) {
         isLightMode = light
-        // If we update SessionData, it will emit isLightModeChanged which calls
-        // onLightModeChanged() that already triggers theme generation. To avoid
-        // double invocations, only generate immediately when we are NOT
-        // updating SessionData.
-        if (savePrefs && typeof SessionData !== "undefined") {
+        if (savePrefs && typeof SessionData !== "undefined")
             SessionData.setLightMode(isLightMode)
-        } else {
-            generateSystemThemesFromCurrentTheme()
-        }
         PortalService.setLightMode(isLightMode)
+        generateSystemThemesFromCurrentTheme()
     }
 
     function toggleLightMode(savePrefs = true) {
@@ -241,7 +249,6 @@ Singleton {
     readonly property var _availableThemeNames: StockThemes.getAllThemeNames()
     property string currentThemeName: currentTheme
 
-
     function popupBackground() {
         return Qt.rgba(surfaceContainer.r, surfaceContainer.g, surfaceContainer.b, popupTransparency)
     }
@@ -275,21 +282,34 @@ Singleton {
             return _getBatteryPowerProfileIcon()
 
         if (isCharging) {
-            if (level >= 90) return "battery_charging_full"
-            if (level >= 80) return "battery_charging_90"
-            if (level >= 60) return "battery_charging_80"
-            if (level >= 50) return "battery_charging_60"
-            if (level >= 30) return "battery_charging_50"
-            if (level >= 20) return "battery_charging_30"
+            if (level >= 90)
+                return "battery_charging_full"
+            if (level >= 80)
+                return "battery_charging_90"
+            if (level >= 60)
+                return "battery_charging_80"
+            if (level >= 50)
+                return "battery_charging_60"
+            if (level >= 30)
+                return "battery_charging_50"
+            if (level >= 20)
+                return "battery_charging_30"
             return "battery_charging_20"
         } else {
-            if (level >= 95) return "battery_full"
-            if (level >= 85) return "battery_6_bar"
-            if (level >= 70) return "battery_5_bar"
-            if (level >= 55) return "battery_4_bar"
-            if (level >= 40) return "battery_3_bar"
-            if (level >= 25) return "battery_2_bar"
-            if (level >= 10) return "battery_1_bar"
+            if (level >= 95)
+                return "battery_full"
+            if (level >= 85)
+                return "battery_6_bar"
+            if (level >= 70)
+                return "battery_5_bar"
+            if (level >= 55)
+                return "battery_4_bar"
+            if (level >= 40)
+                return "battery_3_bar"
+            if (level >= 25)
+                return "battery_2_bar"
+            if (level >= 10)
+                return "battery_1_bar"
             return "battery_alert"
         }
     }
@@ -383,10 +403,7 @@ Singleton {
         const json = JSON.stringify(desired)
         const desiredPath = stateDir + "/matugen.desired.json"
 
-        Quickshell.execDetached([
-            "sh", "-c",
-            `mkdir -p '${stateDir}' && cat > '${desiredPath}' << 'EOF'\n${json}\nEOF`
-        ])
+        Quickshell.execDetached(["sh", "-c", `mkdir -p '${stateDir}' && cat > '${desiredPath}' << 'EOF'\n${json}\nEOF`])
         workerRunning = true
         systemThemeGenerator.command = [shellDir + "/scripts/matugen-worker.sh", stateDir, shellDir, "--run"]
         systemThemeGenerator.running = true
@@ -403,7 +420,11 @@ Singleton {
             if (!wallpaperPath) {
                 return
             }
-            setDesiredTheme("image", wallpaperPath, isLight, iconTheme)
+            if (wallpaperPath.startsWith("#")) {
+                setDesiredTheme("hex", wallpaperPath, isLight, iconTheme)
+            } else {
+                setDesiredTheme("image", wallpaperPath, isLight, iconTheme)
+            }
         } else {
             let primaryColor
             if (currentTheme === "custom") {
@@ -425,18 +446,22 @@ Singleton {
     }
 
 
-
-
     function extractJsonFromText(text) {
-        if (!text) return null
+        if (!text)
+            return null
 
         const start = text.search(/[{\[]/)
-        if (start === -1) return null
+        if (start === -1)
+            return null
 
         const open = text[start]
-        const pairs = { "{": '}', "[": ']' }
+        const pairs = {
+            "{": '}',
+            "[": ']'
+        }
         const close = pairs[open]
-        if (!close) return null
+        if (!close)
+            return null
 
         let inString = false
         let escape = false
@@ -493,16 +518,17 @@ Singleton {
                 fileChecker.running = true
             }
 
-
             const isLight = (typeof SessionData !== "undefined" && SessionData.isLightMode)
             const iconTheme = (typeof SettingsData !== "undefined" && SettingsData.iconTheme) ? SettingsData.iconTheme : "System Default"
 
             if (currentTheme === dynamic) {
                 if (wallpaperPath) {
-                    // Clear cache on startup to force regeneration
                     Quickshell.execDetached(["rm", "-f", stateDir + "/matugen.key"])
-                    setDesiredTheme("image", wallpaperPath, isLight, iconTheme)
-                } else {
+                    if (wallpaperPath.startsWith("#")) {
+                        setDesiredTheme("hex", wallpaperPath, isLight, iconTheme)
+                    } else {
+                        setDesiredTheme("image", wallpaperPath, isLight, iconTheme)
+                    }
                 }
             } else {
                 let primaryColor
@@ -515,10 +541,8 @@ Singleton {
                 }
 
                 if (primaryColor) {
-                    // Clear cache on startup to force regeneration
                     Quickshell.execDetached(["rm", "-f", stateDir + "/matugen.key"])
                     setDesiredTheme("hex", primaryColor, isLight, iconTheme)
-                } else {
                 }
             }
         }
@@ -530,6 +554,8 @@ Singleton {
         onExited: code => {
             if (code === 0) {
                 matugenProcess.running = true
+            } else if (wallpaperPath.startsWith("#")) {
+                colorMatugenProcess.running = true
             }
         }
     }
@@ -583,9 +609,56 @@ Singleton {
     }
 
     Process {
-        id: ensureStateDir
+        id: colorMatugenProcess
+        command: ["matugen", "color", "hex", wallpaperPath, "--json", "hex"]
+
+        stdout: StdioCollector {
+            id: colorMatugenCollector
+            onStreamFinished: {
+                if (!colorMatugenCollector.text) {
+                    if (typeof ToastService !== "undefined") {
+                        ToastService.wallpaperErrorStatus = "error"
+                        ToastService.showError("Color Processing Failed: Empty JSON extracted from matugen output.")
+                    }
+                    return
+                }
+                const extractedJson = extractJsonFromText(colorMatugenCollector.text)
+                if (!extractedJson) {
+                    if (typeof ToastService !== "undefined") {
+                        ToastService.wallpaperErrorStatus = "error"
+                        ToastService.showError("Color Processing Failed: Invalid JSON extracted from matugen output.")
+                    }
+                    console.log("Raw matugen output:", colorMatugenCollector.text)
+                    return
+                }
+                try {
+                    root.matugenColors = JSON.parse(extractedJson)
+                    root.colorUpdateTrigger++
+                    if (typeof ToastService !== "undefined") {
+                        ToastService.clearWallpaperError()
+                    }
+                } catch (e) {
+                    if (typeof ToastService !== "undefined") {
+                        ToastService.wallpaperErrorStatus = "error"
+                        ToastService.showError("Color processing failed (JSON parse error after extraction)")
+                    }
+                }
+            }
+        }
+
+        onExited: code => {
+            if (code !== 0) {
+                if (typeof ToastService !== "undefined") {
+                    ToastService.wallpaperErrorStatus = "error"
+                    ToastService.showError("Matugen color command failed with exit code " + code)
+                }
+            }
+        }
     }
 
+    Process {
+        id: ensureStateDir
+    }
 
     Process {
         id: systemThemeGenerator
@@ -607,15 +680,10 @@ Singleton {
     }
 
 
-
-
-
-
-
     Component.onCompleted: {
         matugenCheck.running = true
         if (typeof SessionData !== "undefined")
-            SessionData.isLightModeChanged.connect(root.onLightModeChanged)
+        SessionData.isLightModeChanged.connect(root.onLightModeChanged)
     }
 
     FileView {
@@ -639,7 +707,7 @@ Singleton {
             customThemeFileView.reload()
         }
 
-        onLoadFailed: function(error) {
+        onLoadFailed: function (error) {
             if (typeof ToastService !== "undefined") {
                 ToastService.showError("Failed to read theme file: " + error)
             }

@@ -8,11 +8,25 @@ Item {
 
     property var categories: []
     property string selectedCategory: "All"
-    property bool compact: false // For different layout styles
+    property bool compact: false
 
     signal categorySelected(string category)
 
-    height: compact ? 36 : (72 + Theme.spacingS) // Single row vs two rows
+    readonly property int maxCompactItems: 8
+    readonly property int itemHeight: 36
+    readonly property color selectedBorderColor: "transparent"
+    readonly property color unselectedBorderColor: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.3)
+
+    function handleCategoryClick(category) {
+        selectedCategory = category
+        categorySelected(category)
+    }
+
+    function getButtonWidth(itemCount, containerWidth) {
+        return itemCount > 0 ? (containerWidth - (itemCount - 1) * Theme.spacingS) / itemCount : 0
+    }
+
+    height: compact ? itemHeight : (itemHeight * 2 + Theme.spacingS)
 
     Row {
         visible: compact
@@ -20,22 +34,16 @@ Item {
         spacing: Theme.spacingS
 
         Repeater {
-            model: categories.slice(0, Math.min(categories.length,
-                                                8)) // Limit for space
+            model: categories ? categories.slice(0, Math.min(categories.length || 0, maxCompactItems)) : []
 
             Rectangle {
-                height: 36
-                width: (parent.width - (Math.min(
-                                            categories.length,
-                                            8) - 1) * Theme.spacingS) / Math.min(
-                           categories.length, 8)
+                property int itemCount: Math.min(categories ? categories.length || 0 : 0, maxCompactItems)
+
+                height: root.itemHeight
+                width: root.getButtonWidth(itemCount, parent.width)
                 radius: Theme.cornerRadius
                 color: selectedCategory === modelData ? Theme.primary : "transparent"
-                border.color: selectedCategory === modelData ? "transparent" : Qt.rgba(
-                                                                   Theme.outline.r,
-                                                                   Theme.outline.g,
-                                                                   Theme.outline.b,
-                                                                   0.3)
+                border.color: selectedCategory === modelData ? selectedBorderColor : unselectedBorderColor
 
                 StyledText {
                     anchors.centerIn: parent
@@ -50,10 +58,7 @@ Item {
                     anchors.fill: parent
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
-                    onClicked: {
-                        selectedCategory = modelData
-                        categorySelected(modelData)
-                    }
+                    onClicked: root.handleCategoryClick(modelData)
                 }
             }
         }
@@ -65,27 +70,20 @@ Item {
         spacing: Theme.spacingS
 
         Row {
-            property var firstRowCategories: categories.slice(
-                                                 0, Math.min(4,
-                                                             categories.length))
-
             width: parent.width
             spacing: Theme.spacingS
 
             Repeater {
-                model: parent.firstRowCategories
+                model: categories ? categories.slice(0, Math.min(4, categories.length || 0)) : []
 
                 Rectangle {
-                    height: 36
-                    width: (parent.width - (parent.firstRowCategories.length - 1)
-                            * Theme.spacingS) / parent.firstRowCategories.length
+                    property int itemCount: Math.min(4, categories ? categories.length || 0 : 0)
+
+                    height: root.itemHeight
+                    width: root.getButtonWidth(itemCount, parent.width)
                     radius: Theme.cornerRadius
                     color: selectedCategory === modelData ? Theme.primary : "transparent"
-                    border.color: selectedCategory
-                                  === modelData ? "transparent" : Qt.rgba(
-                                                      Theme.outline.r,
-                                                      Theme.outline.g,
-                                                      Theme.outline.b, 0.3)
+                    border.color: selectedCategory === modelData ? selectedBorderColor : unselectedBorderColor
 
                     StyledText {
                         anchors.centerIn: parent
@@ -100,37 +98,28 @@ Item {
                         anchors.fill: parent
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: {
-                            selectedCategory = modelData
-                            categorySelected(modelData)
-                        }
+                        onClicked: root.handleCategoryClick(modelData)
                     }
                 }
             }
         }
 
         Row {
-            property var secondRowCategories: categories.slice(
-                                                  4, categories.length)
-
             width: parent.width
             spacing: Theme.spacingS
-            visible: secondRowCategories.length > 0
+            visible: categories && categories.length > 4
 
             Repeater {
-                model: parent.secondRowCategories
+                model: categories && categories.length > 4 ? categories.slice(4) : []
 
                 Rectangle {
-                    height: 36
-                    width: (parent.width - (parent.secondRowCategories.length - 1)
-                            * Theme.spacingS) / parent.secondRowCategories.length
+                    property int itemCount: categories && categories.length > 4 ? categories.length - 4 : 0
+
+                    height: root.itemHeight
+                    width: root.getButtonWidth(itemCount, parent.width)
                     radius: Theme.cornerRadius
                     color: selectedCategory === modelData ? Theme.primary : "transparent"
-                    border.color: selectedCategory
-                                  === modelData ? "transparent" : Qt.rgba(
-                                                      Theme.outline.r,
-                                                      Theme.outline.g,
-                                                      Theme.outline.b, 0.3)
+                    border.color: selectedCategory === modelData ? selectedBorderColor : unselectedBorderColor
 
                     StyledText {
                         anchors.centerIn: parent
@@ -145,10 +134,7 @@ Item {
                         anchors.fill: parent
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: {
-                            selectedCategory = modelData
-                            categorySelected(modelData)
-                        }
+                        onClicked: root.handleCategoryClick(modelData)
                     }
                 }
             }

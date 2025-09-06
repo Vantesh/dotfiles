@@ -1152,7 +1152,7 @@ Item {
         }
     }
 
-    DankWidgetSelectionPopup {
+    WidgetSelectionPopup {
         id: widgetSelectionPopup
 
         anchors.centerIn: parent

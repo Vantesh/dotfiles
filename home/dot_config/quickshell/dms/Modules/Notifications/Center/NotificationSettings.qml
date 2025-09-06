@@ -15,10 +15,8 @@ Rectangle {
     visible: expanded
     clip: true
     radius: Theme.cornerRadius
-    color: Qt.rgba(Theme.surfaceContainer.r, Theme.surfaceContainer.g,
-                   Theme.surfaceContainer.b, 0.3)
-    border.color: Qt.rgba(Theme.outline.r, Theme.outline.g,
-                          Theme.outline.b, 0.1)
+    color: Qt.rgba(Theme.surfaceContainer.r, Theme.surfaceContainer.g, Theme.surfaceContainer.b, 0.3)
+    border.color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.1)
     border.width: 1
 
     Behavior on height {
@@ -29,7 +27,6 @@ Rectangle {
         }
     }
 
-    // Ensure smooth opacity transition
     opacity: expanded ? 1 : 0
     Behavior on opacity {
         NumberAnimation {
@@ -82,17 +79,20 @@ Rectangle {
             return "5 seconds"
         }
 
-        for (var i = 0; i < timeoutOptions.length; i++) {
+        for (let i = 0; i < timeoutOptions.length; i++) {
             if (timeoutOptions[i].value === value) {
                 return timeoutOptions[i].text
             }
         }
-        if (value === 0)
+        if (value === 0) {
             return "Never"
-        if (value < 1000)
+        }
+        if (value < 1000) {
             return value + "ms"
-        if (value < 60000)
+        }
+        if (value < 60000) {
             return Math.round(value / 1000) + " seconds"
+        }
         return Math.round(value / 60000) + " minutes"
     }
 
@@ -139,16 +139,14 @@ Rectangle {
                 anchors.right: parent.right
                 anchors.verticalCenter: parent.verticalCenter
                 checked: SessionData.doNotDisturb
-                onToggled: SessionData.setDoNotDisturb(
-                               !SessionData.doNotDisturb)
+                onToggled: SessionData.setDoNotDisturb(!SessionData.doNotDisturb)
             }
         }
 
         Rectangle {
             width: parent.width
             height: 1
-            color: Qt.rgba(Theme.outline.r, Theme.outline.g,
-                           Theme.outline.b, 0.1)
+            color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.1)
         }
 
         StyledText {
@@ -165,10 +163,9 @@ Rectangle {
             currentValue: getTimeoutText(SettingsData.notificationTimeoutLow)
             options: timeoutOptions.map(opt => opt.text)
             onValueChanged: value => {
-                                for (var i = 0; i < timeoutOptions.length; i++) {
+                                for (let i = 0; i < timeoutOptions.length; i++) {
                                     if (timeoutOptions[i].text === value) {
-                                        SettingsData.setNotificationTimeoutLow(
-                                            timeoutOptions[i].value)
+                                        SettingsData.setNotificationTimeoutLow(timeoutOptions[i].value)
                                         break
                                     }
                                 }
@@ -182,10 +179,9 @@ Rectangle {
             currentValue: getTimeoutText(SettingsData.notificationTimeoutNormal)
             options: timeoutOptions.map(opt => opt.text)
             onValueChanged: value => {
-                                for (var i = 0; i < timeoutOptions.length; i++) {
+                                for (let i = 0; i < timeoutOptions.length; i++) {
                                     if (timeoutOptions[i].text === value) {
-                                        SettingsData.setNotificationTimeoutNormal(
-                                            timeoutOptions[i].value)
+                                        SettingsData.setNotificationTimeoutNormal(timeoutOptions[i].value)
                                         break
                                     }
                                 }
@@ -196,14 +192,12 @@ Rectangle {
             width: parent.width
             text: "Critical Priority"
             description: "Timeout for critical priority notifications"
-            currentValue: getTimeoutText(
-                              SettingsData.notificationTimeoutCritical)
+            currentValue: getTimeoutText(SettingsData.notificationTimeoutCritical)
             options: timeoutOptions.map(opt => opt.text)
             onValueChanged: value => {
-                                for (var i = 0; i < timeoutOptions.length; i++) {
+                                for (let i = 0; i < timeoutOptions.length; i++) {
                                     if (timeoutOptions[i].text === value) {
-                                        SettingsData.setNotificationTimeoutCritical(
-                                            timeoutOptions[i].value)
+                                        SettingsData.setNotificationTimeoutCritical(timeoutOptions[i].value)
                                         break
                                     }
                                 }
@@ -213,8 +207,7 @@ Rectangle {
         Rectangle {
             width: parent.width
             height: 1
-            color: Qt.rgba(Theme.outline.r, Theme.outline.g,
-                           Theme.outline.b, 0.1)
+            color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.1)
         }
 
         Item {
@@ -255,8 +248,7 @@ Rectangle {
                 anchors.right: parent.right
                 anchors.verticalCenter: parent.verticalCenter
                 checked: SettingsData.notificationOverlayEnabled
-                onToggled: toggled => SettingsData.setNotificationOverlayEnabled(
-                               toggled)
+                onToggled: toggled => SettingsData.setNotificationOverlayEnabled(toggled)
             }
         }
     }

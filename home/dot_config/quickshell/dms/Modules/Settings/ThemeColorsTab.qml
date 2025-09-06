@@ -4,6 +4,7 @@ import Quickshell
 import Quickshell.Io
 import qs.Common
 import qs.Modals
+import qs.Modals.FileBrowser
 import qs.Services
 import qs.Widgets
 
@@ -691,39 +692,7 @@ Item {
                 }
             }
 
-            // System Configuration Warning
-            Rectangle {
-                width: parent.width
-                height: warningText.implicitHeight + Theme.spacingM * 2
-                radius: Theme.cornerRadius
-                color: Qt.rgba(Theme.warning.r, Theme.warning.g,
-                               Theme.warning.b, 0.12)
-                border.color: Qt.rgba(Theme.warning.r, Theme.warning.g,
-                                      Theme.warning.b, 0.3)
-                border.width: 1
 
-                Row {
-                    anchors.fill: parent
-                    anchors.margins: Theme.spacingM
-                    spacing: Theme.spacingM
-
-                    DankIcon {
-                        name: "info"
-                        size: Theme.iconSizeSmall
-                        color: Theme.warning
-                        anchors.verticalCenter: parent.verticalCenter
-                    }
-
-                    StyledText {
-                        id: warningText
-                        font.pixelSize: Theme.fontSizeSmall
-                        text: "The below settings will modify your GTK and Qt settings. If you wish to preserve your current configurations, please back them up (qt5ct.conf|qt6ct.conf and ~/.config/gtk-3.0|gtk-4.0)."
-                        wrapMode: Text.WordWrap
-                        width: parent.width - Theme.iconSizeSmall - Theme.spacingM
-                        anchors.verticalCenter: parent.verticalCenter
-                    }
-                }
-            }
 
             // Icon Theme
             StyledRect {
@@ -767,19 +736,11 @@ Item {
                                 SettingsData.detectAvailableIconThemes()
                                 return SettingsData.availableIconThemes
                             }
-                            onValueChanged: value => {
-                                                SettingsData.setIconTheme(value)
-                                                if (Quickshell.env("QT_QPA_PLATFORMTHEME") != "gtk3" &&
-                                                    Quickshell.env("QT_QPA_PLATFORMTHEME") != "qt6ct" &&
-                                                    Quickshell.env("QT_QPA_PLATFORMTHEME_QT6") != "qt6ct") {
-                                                    ToastService.showError("Missing Environment Variables", "You need to set either:\nQT_QPA_PLATFORMTHEME=gtk3 OR\nQT_QPA_PLATFORMTHEME=qt6ct\nas environment variables, and then restart the shell.\n\nqt6ct requires qt6ct-kde to be installed.")
-                                                }
-                                            }
+                            onValueChanged: value => { SettingsData.setIconTheme(value) }
                         }
                     }
                 }
             }
-
 
         }
     }

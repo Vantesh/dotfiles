@@ -1,4 +1,5 @@
 pragma Singleton
+
 pragma ComponentBehavior: Bound
 
 import QtCore
@@ -45,13 +46,16 @@ Singleton {
     property bool controlCenterShowAudioIcon: true
     property bool showWorkspaceIndex: false
     property bool showWorkspacePadding: false
+    property bool showWorkspaceApps: false
+    property int maxWorkspaceIcons: 3
+    property bool workspacesPerMonitor: true
     property var workspaceNameIcons: ({})
     property bool clockCompactMode: false
     property bool focusedWindowCompactMode: false
     property bool runningAppsCompactMode: true
     property bool runningAppsCurrentWorkspace: false
-    property string clockDateFormat: "ddd d"
-    property string lockDateFormat: "dddd, MMMM d"
+    property string clockDateFormat: ""
+    property string lockDateFormat: ""
     property int mediaSize: 1
     property var topBarLeftWidgets: ["launcherButton", "workspaceSwitcher", "focusedWindow"]
     property var topBarCenterWidgets: ["music", "clock", "weather"]
@@ -77,6 +81,8 @@ Singleton {
     property string fontFamily: "Inter Variable"
     property string monoFontFamily: "Fira Code"
     property int fontWeight: Font.Normal
+    property bool gtkThemingEnabled: false
+    property bool qtThemingEnabled: false
     property bool showDock: false
     property bool dockAutoHide: false
     property real cornerRadius: 12
@@ -94,17 +100,29 @@ Singleton {
     property var screenPreferences: ({})
     readonly property string defaultFontFamily: "Inter Variable"
     readonly property string defaultMonoFontFamily: "Fira Code"
-    readonly property string _homeUrl: StandardPaths.writableLocation(
-                                           StandardPaths.HomeLocation)
-    readonly property string _configUrl: StandardPaths.writableLocation(
-                                             StandardPaths.ConfigLocation)
-    readonly property string _configDir: _configUrl.startsWith(
-                                             "file://") ? _configUrl.substring(
-                                                              7) : _configUrl
+    readonly property string _homeUrl: StandardPaths.writableLocation(StandardPaths.HomeLocation)
+    readonly property string _configUrl: StandardPaths.writableLocation(StandardPaths.ConfigLocation)
+    readonly property string _configDir: _configUrl.startsWith("file://") ? _configUrl.substring(7) : _configUrl
 
     signal forceTopBarLayoutRefresh
     signal widgetDataChanged
     signal workspaceIconsUpdated
+
+    function getEffectiveTimeFormat() {
+        if (use24HourClock) {
+            return Locale.ShortFormat
+        } else {
+            return "h:mm AP"
+        }
+    }
+
+    function getEffectiveClockDateFormat() {
+        return clockDateFormat && clockDateFormat.length > 0 ? clockDateFormat : "ddd d"
+    }
+
+    function getEffectiveLockDateFormat() {
+        return lockDateFormat && lockDateFormat.length > 0 ? lockDateFormat : Locale.LongFormat
+    }
 
     function initializeListModels() {
         // ! Hack-ish to add all properties to the listmodel once
@@ -146,42 +164,20 @@ Singleton {
                     currentThemeName = settings.currentThemeName !== undefined ? settings.currentThemeName : "blue"
                 }
                 customThemeFile = settings.customThemeFile !== undefined ? settings.customThemeFile : ""
-                topBarTransparency = settings.topBarTransparency
-                        !== undefined ? (settings.topBarTransparency
-                                         > 1 ? settings.topBarTransparency
-                                               / 100 : settings.topBarTransparency) : 0.75
-                topBarWidgetTransparency = settings.topBarWidgetTransparency
-                        !== undefined ? (settings.topBarWidgetTransparency
-                                         > 1 ? settings.topBarWidgetTransparency
-                                               / 100 : settings.topBarWidgetTransparency) : 0.85
-                popupTransparency = settings.popupTransparency
-                        !== undefined ? (settings.popupTransparency
-                                         > 1 ? settings.popupTransparency
-                                               / 100 : settings.popupTransparency) : 0.92
-                dockTransparency = settings.dockTransparency
-                        !== undefined ? (settings.dockTransparency
-                                         > 1 ? settings.dockTransparency
-                                               / 100 : settings.dockTransparency) : 1
-                use24HourClock = settings.use24HourClock
-                        !== undefined ? settings.use24HourClock : true
-                useFahrenheit = settings.useFahrenheit
-                        !== undefined ? settings.useFahrenheit : false
-                nightModeEnabled = settings.nightModeEnabled
-                        !== undefined ? settings.nightModeEnabled : false
-                weatherLocation = settings.weatherLocation
-                        !== undefined ? settings.weatherLocation : "New York, NY"
-                weatherCoordinates = settings.weatherCoordinates
-                        !== undefined ? settings.weatherCoordinates : "40.7128,-74.0060"
-                useAutoLocation = settings.useAutoLocation
-                        !== undefined ? settings.useAutoLocation : false
-                weatherEnabled = settings.weatherEnabled
-                        !== undefined ? settings.weatherEnabled : true
-                showLauncherButton = settings.showLauncherButton
-                        !== undefined ? settings.showLauncherButton : true
-                showWorkspaceSwitcher = settings.showWorkspaceSwitcher
-                        !== undefined ? settings.showWorkspaceSwitcher : true
-                showFocusedWindow = settings.showFocusedWindow
-                        !== undefined ? settings.showFocusedWindow : true
+                topBarTransparency = settings.topBarTransparency !== undefined ? (settings.topBarTransparency > 1 ? settings.topBarTransparency / 100 : settings.topBarTransparency) : 0.75
+                topBarWidgetTransparency = settings.topBarWidgetTransparency !== undefined ? (settings.topBarWidgetTransparency > 1 ? settings.topBarWidgetTransparency / 100 : settings.topBarWidgetTransparency) : 0.85
+                popupTransparency = settings.popupTransparency !== undefined ? (settings.popupTransparency > 1 ? settings.popupTransparency / 100 : settings.popupTransparency) : 0.92
+                dockTransparency = settings.dockTransparency !== undefined ? (settings.dockTransparency > 1 ? settings.dockTransparency / 100 : settings.dockTransparency) : 1
+                use24HourClock = settings.use24HourClock !== undefined ? settings.use24HourClock : true
+                useFahrenheit = settings.useFahrenheit !== undefined ? settings.useFahrenheit : false
+                nightModeEnabled = settings.nightModeEnabled !== undefined ? settings.nightModeEnabled : false
+                weatherLocation = settings.weatherLocation !== undefined ? settings.weatherLocation : "New York, NY"
+                weatherCoordinates = settings.weatherCoordinates !== undefined ? settings.weatherCoordinates : "40.7128,-74.0060"
+                useAutoLocation = settings.useAutoLocation !== undefined ? settings.useAutoLocation : false
+                weatherEnabled = settings.weatherEnabled !== undefined ? settings.weatherEnabled : true
+                showLauncherButton = settings.showLauncherButton !== undefined ? settings.showLauncherButton : true
+                showWorkspaceSwitcher = settings.showWorkspaceSwitcher !== undefined ? settings.showWorkspaceSwitcher : true
+                showFocusedWindow = settings.showFocusedWindow !== undefined ? settings.showFocusedWindow : true
                 showWeather = settings.showWeather !== undefined ? settings.showWeather : true
                 showMusic = settings.showMusic !== undefined ? settings.showMusic : true
                 showClipboard = settings.showClipboard !== undefined ? settings.showClipboard : true
@@ -189,64 +185,43 @@ Singleton {
                 showMemUsage = settings.showMemUsage !== undefined ? settings.showMemUsage : true
                 showCpuTemp = settings.showCpuTemp !== undefined ? settings.showCpuTemp : true
                 showGpuTemp = settings.showGpuTemp !== undefined ? settings.showGpuTemp : true
-                selectedGpuIndex = settings.selectedGpuIndex
-                        !== undefined ? settings.selectedGpuIndex : 0
-                enabledGpuPciIds = settings.enabledGpuPciIds
-                        !== undefined ? settings.enabledGpuPciIds : []
-                showSystemTray = settings.showSystemTray
-                        !== undefined ? settings.showSystemTray : true
+                selectedGpuIndex = settings.selectedGpuIndex !== undefined ? settings.selectedGpuIndex : 0
+                enabledGpuPciIds = settings.enabledGpuPciIds !== undefined ? settings.enabledGpuPciIds : []
+                showSystemTray = settings.showSystemTray !== undefined ? settings.showSystemTray : true
                 showClock = settings.showClock !== undefined ? settings.showClock : true
-                showNotificationButton = settings.showNotificationButton
-                        !== undefined ? settings.showNotificationButton : true
+                showNotificationButton = settings.showNotificationButton !== undefined ? settings.showNotificationButton : true
                 showBattery = settings.showBattery !== undefined ? settings.showBattery : true
-                showControlCenterButton = settings.showControlCenterButton
-                        !== undefined ? settings.showControlCenterButton : true
-                controlCenterShowNetworkIcon = settings.controlCenterShowNetworkIcon
-                        !== undefined ? settings.controlCenterShowNetworkIcon : true
-                controlCenterShowBluetoothIcon = settings.controlCenterShowBluetoothIcon
-                        !== undefined ? settings.controlCenterShowBluetoothIcon : true
-                controlCenterShowAudioIcon = settings.controlCenterShowAudioIcon
-                        !== undefined ? settings.controlCenterShowAudioIcon : true
-                showWorkspaceIndex = settings.showWorkspaceIndex
-                        !== undefined ? settings.showWorkspaceIndex : false
-                showWorkspacePadding = settings.showWorkspacePadding
-                        !== undefined ? settings.showWorkspacePadding : false
-                workspaceNameIcons = settings.workspaceNameIcons
-                        !== undefined ? settings.workspaceNameIcons : ({})
-                clockCompactMode = settings.clockCompactMode
-                        !== undefined ? settings.clockCompactMode : false
-                focusedWindowCompactMode = settings.focusedWindowCompactMode
-                        !== undefined ? settings.focusedWindowCompactMode : false
-                runningAppsCompactMode = settings.runningAppsCompactMode
-                        !== undefined ? settings.runningAppsCompactMode : true
-                runningAppsCurrentWorkspace = settings.runningAppsCurrentWorkspace
-                        !== undefined ? settings.runningAppsCurrentWorkspace : false
-                clockDateFormat = settings.clockDateFormat
-                        !== undefined ? settings.clockDateFormat : "ddd d"
-                lockDateFormat = settings.lockDateFormat
-                        !== undefined ? settings.lockDateFormat : "dddd, MMMM d"
+                showControlCenterButton = settings.showControlCenterButton !== undefined ? settings.showControlCenterButton : true
+                controlCenterShowNetworkIcon = settings.controlCenterShowNetworkIcon !== undefined ? settings.controlCenterShowNetworkIcon : true
+                controlCenterShowBluetoothIcon = settings.controlCenterShowBluetoothIcon !== undefined ? settings.controlCenterShowBluetoothIcon : true
+                controlCenterShowAudioIcon = settings.controlCenterShowAudioIcon !== undefined ? settings.controlCenterShowAudioIcon : true
+                showWorkspaceIndex = settings.showWorkspaceIndex !== undefined ? settings.showWorkspaceIndex : false
+                showWorkspacePadding = settings.showWorkspacePadding !== undefined ? settings.showWorkspacePadding : false
+                showWorkspaceApps = settings.showWorkspaceApps !== undefined ? settings.showWorkspaceApps : false
+                maxWorkspaceIcons = settings.maxWorkspaceIcons !== undefined ? settings.maxWorkspaceIcons : 3
+                workspaceNameIcons = settings.workspaceNameIcons !== undefined ? settings.workspaceNameIcons : ({})
+                workspacesPerMonitor = settings.workspacesPerMonitor !== undefined ? settings.workspacesPerMonitor : true
+                clockCompactMode = settings.clockCompactMode !== undefined ? settings.clockCompactMode : false
+                focusedWindowCompactMode = settings.focusedWindowCompactMode !== undefined ? settings.focusedWindowCompactMode : false
+                runningAppsCompactMode = settings.runningAppsCompactMode !== undefined ? settings.runningAppsCompactMode : true
+                runningAppsCurrentWorkspace = settings.runningAppsCurrentWorkspace !== undefined ? settings.runningAppsCurrentWorkspace : false
+                clockDateFormat = settings.clockDateFormat !== undefined ? settings.clockDateFormat : ""
+                lockDateFormat = settings.lockDateFormat !== undefined ? settings.lockDateFormat : ""
                 mediaSize = settings.mediaSize !== undefined ? settings.mediaSize : (settings.mediaCompactMode !== undefined ? (settings.mediaCompactMode ? 0 : 1) : 1)
                 if (settings.topBarWidgetOrder) {
                     topBarLeftWidgets = settings.topBarWidgetOrder.filter(w => {
                                                                               return ["launcherButton", "workspaceSwitcher", "focusedWindow"].includes(w)
                                                                           })
-                    topBarCenterWidgets = settings.topBarWidgetOrder.filter(
-                                w => {
-                                    return ["clock", "music", "weather"].includes(
-                                        w)
-                                })
-                    topBarRightWidgets = settings.topBarWidgetOrder.filter(
-                                w => {
-                                    return ["systemTray", "clipboard", "systemResources", "notificationButton", "battery", "controlCenterButton"].includes(
-                                        w)
-                                })
+                    topBarCenterWidgets = settings.topBarWidgetOrder.filter(w => {
+                                                                                return ["clock", "music", "weather"].includes(w)
+                                                                            })
+                    topBarRightWidgets = settings.topBarWidgetOrder.filter(w => {
+                                                                               return ["systemTray", "clipboard", "systemResources", "notificationButton", "battery", "controlCenterButton"].includes(w)
+                                                                           })
                 } else {
-                    var leftWidgets = settings.topBarLeftWidgets
-                            !== undefined ? settings.topBarLeftWidgets : ["launcherButton", "workspaceSwitcher", "focusedWindow"]
-                    var centerWidgets = settings.topBarCenterWidgets
-                            !== undefined ? settings.topBarCenterWidgets : ["music", "clock", "weather"]
-                    var rightWidgets = settings.topBarRightWidgets
-                            !== undefined ? settings.topBarRightWidgets : ["systemTray", "clipboard", "cpuUsage", "memUsage", "notificationButton", "battery", "controlCenterButton"]
+                    var leftWidgets = settings.topBarLeftWidgets !== undefined ? settings.topBarLeftWidgets : ["launcherButton", "workspaceSwitcher", "focusedWindow"]
+                    var centerWidgets = settings.topBarCenterWidgets !== undefined ? settings.topBarCenterWidgets : ["music", "clock", "weather"]
+                    var rightWidgets = settings.topBarRightWidgets !== undefined ? settings.topBarRightWidgets : ["systemTray", "clipboard", "cpuUsage", "memUsage", "notificationButton", "battery", "controlCenterButton"]
                     topBarLeftWidgets = leftWidgets
                     topBarCenterWidgets = centerWidgets
                     topBarRightWidgets = rightWidgets
@@ -254,51 +229,35 @@ Singleton {
                     updateListModel(centerWidgetsModel, centerWidgets)
                     updateListModel(rightWidgetsModel, rightWidgets)
                 }
-                appLauncherViewMode = settings.appLauncherViewMode
-                        !== undefined ? settings.appLauncherViewMode : "list"
-                spotlightModalViewMode = settings.spotlightModalViewMode
-                        !== undefined ? settings.spotlightModalViewMode : "list"
-                networkPreference = settings.networkPreference
-                        !== undefined ? settings.networkPreference : "auto"
+                appLauncherViewMode = settings.appLauncherViewMode !== undefined ? settings.appLauncherViewMode : "list"
+                spotlightModalViewMode = settings.spotlightModalViewMode !== undefined ? settings.spotlightModalViewMode : "list"
+                networkPreference = settings.networkPreference !== undefined ? settings.networkPreference : "auto"
                 iconTheme = settings.iconTheme !== undefined ? settings.iconTheme : "System Default"
                 useOSLogo = settings.useOSLogo !== undefined ? settings.useOSLogo : false
-                osLogoColorOverride = settings.osLogoColorOverride
-                        !== undefined ? settings.osLogoColorOverride : ""
-                osLogoBrightness = settings.osLogoBrightness
-                        !== undefined ? settings.osLogoBrightness : 0.5
+                osLogoColorOverride = settings.osLogoColorOverride !== undefined ? settings.osLogoColorOverride : ""
+                osLogoBrightness = settings.osLogoBrightness !== undefined ? settings.osLogoBrightness : 0.5
                 osLogoContrast = settings.osLogoContrast !== undefined ? settings.osLogoContrast : 1
-                wallpaperDynamicTheming = settings.wallpaperDynamicTheming
-                        !== undefined ? settings.wallpaperDynamicTheming : true
-                fontFamily = settings.fontFamily
-                        !== undefined ? settings.fontFamily : defaultFontFamily
-                monoFontFamily = settings.monoFontFamily
-                        !== undefined ? settings.monoFontFamily : defaultMonoFontFamily
+                wallpaperDynamicTheming = settings.wallpaperDynamicTheming !== undefined ? settings.wallpaperDynamicTheming : true
+                fontFamily = settings.fontFamily !== undefined ? settings.fontFamily : defaultFontFamily
+                monoFontFamily = settings.monoFontFamily !== undefined ? settings.monoFontFamily : defaultMonoFontFamily
                 fontWeight = settings.fontWeight !== undefined ? settings.fontWeight : Font.Normal
-
+                gtkThemingEnabled = settings.gtkThemingEnabled !== undefined ? settings.gtkThemingEnabled : false
+                qtThemingEnabled = settings.qtThemingEnabled !== undefined ? settings.qtThemingEnabled : false
                 showDock = settings.showDock !== undefined ? settings.showDock : false
                 dockAutoHide = settings.dockAutoHide !== undefined ? settings.dockAutoHide : false
                 cornerRadius = settings.cornerRadius !== undefined ? settings.cornerRadius : 12
-                notificationOverlayEnabled = settings.notificationOverlayEnabled
-                        !== undefined ? settings.notificationOverlayEnabled : false
-                topBarAutoHide = settings.topBarAutoHide
-                        !== undefined ? settings.topBarAutoHide : false
-                topBarVisible = settings.topBarVisible
-                        !== undefined ? settings.topBarVisible : true
-                notificationTimeoutLow = settings.notificationTimeoutLow
-                        !== undefined ? settings.notificationTimeoutLow : 5000
-                notificationTimeoutNormal = settings.notificationTimeoutNormal
-                        !== undefined ? settings.notificationTimeoutNormal : 5000
-                notificationTimeoutCritical = settings.notificationTimeoutCritical
-                        !== undefined ? settings.notificationTimeoutCritical : 0
+                notificationOverlayEnabled = settings.notificationOverlayEnabled !== undefined ? settings.notificationOverlayEnabled : false
+                topBarAutoHide = settings.topBarAutoHide !== undefined ? settings.topBarAutoHide : false
+                topBarVisible = settings.topBarVisible !== undefined ? settings.topBarVisible : true
+                notificationTimeoutLow = settings.notificationTimeoutLow !== undefined ? settings.notificationTimeoutLow : 5000
+                notificationTimeoutNormal = settings.notificationTimeoutNormal !== undefined ? settings.notificationTimeoutNormal : 5000
+                notificationTimeoutCritical = settings.notificationTimeoutCritical !== undefined ? settings.notificationTimeoutCritical : 0
                 topBarSpacing = settings.topBarSpacing !== undefined ? settings.topBarSpacing : 4
                 topBarBottomGap = settings.topBarBottomGap !== undefined ? settings.topBarBottomGap : 0
                 topBarInnerPadding = settings.topBarInnerPadding !== undefined ? settings.topBarInnerPadding : 8
-                topBarSquareCorners = settings.topBarSquareCorners
-                        !== undefined ? settings.topBarSquareCorners : false
-                topBarNoBackground = settings.topBarNoBackground
-                        !== undefined ? settings.topBarNoBackground : false
-                screenPreferences = settings.screenPreferences
-                        !== undefined ? settings.screenPreferences : ({})
+                topBarSquareCorners = settings.topBarSquareCorners !== undefined ? settings.topBarSquareCorners : false
+                topBarNoBackground = settings.topBarNoBackground !== undefined ? settings.topBarNoBackground : false
+                screenPreferences = settings.screenPreferences !== undefined ? settings.screenPreferences : ({})
                 applyStoredTheme()
                 detectAvailableIconThemes()
                 detectQtTools()
@@ -349,6 +308,9 @@ Singleton {
                                                 "controlCenterShowAudioIcon": controlCenterShowAudioIcon,
                                                 "showWorkspaceIndex": showWorkspaceIndex,
                                                 "showWorkspacePadding": showWorkspacePadding,
+                                                "showWorkspaceApps": showWorkspaceApps,
+                                                "maxWorkspaceIcons": maxWorkspaceIcons,
+                                                "workspacesPerMonitor": workspacesPerMonitor,
                                                 "workspaceNameIcons": workspaceNameIcons,
                                                 "clockCompactMode": clockCompactMode,
                                                 "focusedWindowCompactMode": focusedWindowCompactMode,
@@ -372,6 +334,8 @@ Singleton {
                                                 "fontFamily": fontFamily,
                                                 "monoFontFamily": monoFontFamily,
                                                 "fontWeight": fontWeight,
+                                                "gtkThemingEnabled": gtkThemingEnabled,
+                                                "qtThemingEnabled": qtThemingEnabled,
                                                 "showDock": showDock,
                                                 "dockAutoHide": dockAutoHide,
                                                 "cornerRadius": cornerRadius,
@@ -397,6 +361,21 @@ Singleton {
 
     function setShowWorkspacePadding(enabled) {
         showWorkspacePadding = enabled
+        saveSettings()
+    }
+
+    function setShowWorkspaceApps(enabled) {
+        showWorkspaceApps = enabled
+        saveSettings()
+    }
+
+    function setMaxWorkspaceIcons(maxIcons) {
+        maxWorkspaceIcons = maxIcons
+        saveSettings()
+    }
+
+    function setWorkspacesPerMonitor(enabled) {
+        workspacesPerMonitor = enabled
         saveSettings()
     }
 
@@ -437,8 +416,7 @@ Singleton {
         if (typeof NiriService === "undefined" || !CompositorService.isNiri)
             return namedWorkspaces
 
-        for (var i = 0; i < NiriService.allWorkspaces.length; i++) {
-            var ws = NiriService.allWorkspaces[i]
+        for (const ws of NiriService.allWorkspaces) {
             if (ws.name && ws.name.trim() !== "") {
                 namedWorkspaces.push(ws.name)
             }
@@ -467,12 +445,12 @@ Singleton {
     }
 
     function setClockDateFormat(format) {
-        clockDateFormat = format
+        clockDateFormat = format || ""
         saveSettings()
     }
 
     function setLockDateFormat(format) {
-        lockDateFormat = format
+        lockDateFormat = format || ""
         saveSettings()
     }
 
@@ -487,7 +465,7 @@ Singleton {
         else
             Qt.callLater(() => {
                              if (typeof Theme !== "undefined")
-                                 Theme.switchTheme(currentThemeName, false)
+                             Theme.switchTheme(currentThemeName, false)
                          })
     }
 
@@ -667,8 +645,7 @@ Singleton {
             var widgetId = typeof order[i] === "string" ? order[i] : order[i].id
             var enabled = typeof order[i] === "string" ? true : order[i].enabled
             var size = typeof order[i] === "string" ? undefined : order[i].size
-            var selectedGpuIndex = typeof order[i]
-                    === "string" ? undefined : order[i].selectedGpuIndex
+            var selectedGpuIndex = typeof order[i] === "string" ? undefined : order[i].selectedGpuIndex
             var pciId = typeof order[i] === "string" ? undefined : order[i].pciId
             var item = {
                 "widgetId": widgetId,
@@ -795,8 +772,7 @@ Singleton {
                 + "            print \"icon_theme=\" theme; icon_theme_added = 1 \n" + "          } \n" + "          in_appearance = 0; print; next \n" + "        }\n" + "        in_appearance && /^icon_theme=/ { \n" + "          if (!icon_theme_added) { \n" + "            print \"icon_theme=\" theme; icon_theme_added = 1 \n" + "          } \n"
                 + "          next \n" + "        }\n" + "        { print }\n" + "        END { if (in_appearance && !icon_theme_added) print \"icon_theme=\" theme }\n" + "      ' \"$config_file\" > \"$config_file.tmp\" && mv \"$config_file.tmp\" \"$config_file\"\n" + "    else\n" + "      printf '\\n[Appearance]\\nicon_theme=%s\\n' \"$theme_name\" >> \"$config_file\"\n" + "    fi\n"
                 + "  else\n" + "    printf '[Appearance]\\nicon_theme=%s\\n' \"$theme_name\" > \"$config_file\"\n" + "  fi\n" + "}\n" + "update_qt_config " + _configDir + "/qt5ct/qt5ct.conf " + _shq(
-                    qtThemeName) + "\n" + "update_qt_config " + _configDir + "/qt6ct/qt6ct.conf " + _shq(qtThemeName) + "\n"
-                + "rm -rf " + home + "/.cache/icon-cache " + home + "/.cache/thumbnails 2>/dev/null || true\n"
+                    qtThemeName) + "\n" + "update_qt_config " + _configDir + "/qt6ct/qt6ct.conf " + _shq(qtThemeName) + "\n" + "rm -rf " + home + "/.cache/icon-cache " + home + "/.cache/thumbnails 2>/dev/null || true\n"
         Quickshell.execDetached(["sh", "-lc", script])
     }
 
@@ -845,7 +821,21 @@ Singleton {
         saveSettings()
     }
 
+    function setGtkThemingEnabled(enabled) {
+        gtkThemingEnabled = enabled
+        saveSettings()
+        if (enabled && typeof Theme !== "undefined") {
+            Theme.generateSystemThemesFromCurrentTheme()
+        }
+    }
 
+    function setQtThemingEnabled(enabled) {
+        qtThemingEnabled = enabled
+        saveSettings()
+        if (enabled && typeof Theme !== "undefined") {
+            Theme.generateSystemThemesFromCurrentTheme()
+        }
+    }
 
     function setShowDock(enabled) {
         showDock = enabled
@@ -965,17 +955,14 @@ Singleton {
         onTriggered: {
             var availableFonts = Qt.fontFamilies()
             var missingFonts = []
-            if (fontFamily === defaultFontFamily && !availableFonts.includes(
-                        defaultFontFamily))
-                missingFonts.push(defaultFontFamily)
+            if (fontFamily === defaultFontFamily && !availableFonts.includes(defaultFontFamily))
+            missingFonts.push(defaultFontFamily)
 
-            if (monoFontFamily === defaultMonoFontFamily
-                    && !availableFonts.includes(defaultMonoFontFamily))
-                missingFonts.push(defaultMonoFontFamily)
+            if (monoFontFamily === defaultMonoFontFamily && !availableFonts.includes(defaultMonoFontFamily))
+            missingFonts.push(defaultMonoFontFamily)
 
             if (missingFonts.length > 0) {
-                var message = "Missing fonts: " + missingFonts.join(
-                            ", ") + ". Using system defaults."
+                var message = "Missing fonts: " + missingFonts.join(", ") + ". Using system defaults."
                 ToastService.showWarning(message)
             }
         }
@@ -986,8 +973,7 @@ Singleton {
     FileView {
         id: settingsFile
 
-        path: StandardPaths.writableLocation(
-                  StandardPaths.ConfigLocation) + "/DankMaterialShell/settings.json"
+        path: StandardPaths.writableLocation(StandardPaths.ConfigLocation) + "/DankMaterialShell/settings.json"
         blockLoading: true
         blockWrites: true
         watchChanges: true
@@ -996,13 +982,13 @@ Singleton {
             hasTriedDefaultSettings = false
         }
         onLoadFailed: error => {
-                          if (!hasTriedDefaultSettings) {
-                              hasTriedDefaultSettings = true
-                              defaultSettingsCheckProcess.running = true
-                          } else {
-                              applyStoredTheme()
-                          }
-                      }
+            if (!hasTriedDefaultSettings) {
+                hasTriedDefaultSettings = true
+                defaultSettingsCheckProcess.running = true
+            } else {
+                applyStoredTheme()
+            }
+        }
     }
 
     Process {
@@ -1011,12 +997,12 @@ Singleton {
         command: ["sh", "-c", "gsettings get org.gnome.desktop.interface icon-theme 2>/dev/null | sed \"s/'//g\" || echo ''"]
         running: false
         onExited: exitCode => {
-                      if (exitCode === 0 && stdout && stdout.length > 0)
-                      systemDefaultIconTheme = stdout.trim()
-                      else
-                      systemDefaultIconTheme = ""
-                      iconThemeDetectionProcess.running = true
-                  }
+            if (exitCode === 0 && stdout && stdout.length > 0)
+            systemDefaultIconTheme = stdout.trim()
+            else
+            systemDefaultIconTheme = ""
+            iconThemeDetectionProcess.running = true
+        }
     }
 
     Process {
@@ -1032,9 +1018,8 @@ Singleton {
                     var themes = text.trim().split('\n')
                     for (var i = 0; i < themes.length; i++) {
                         var theme = themes[i].trim()
-                        if (theme && theme !== "" && theme !== "default"
-                                && theme !== "hicolor" && theme !== "locolor")
-                            detectedThemes.push(theme)
+                        if (theme && theme !== "" && theme !== "default" && theme !== "hicolor" && theme !== "locolor")
+                        detectedThemes.push(theme)
                     }
                 }
                 availableIconThemes = detectedThemes
@@ -1055,11 +1040,11 @@ Singleton {
                     for (var i = 0; i < lines.length; i++) {
                         var line = lines[i]
                         if (line.startsWith('qt5ct:'))
-                            qt5ctAvailable = line.split(':')[1] === 'true'
+                        qt5ctAvailable = line.split(':')[1] === 'true'
                         else if (line.startsWith('qt6ct:'))
-                            qt6ctAvailable = line.split(':')[1] === 'true'
+                        qt6ctAvailable = line.split(':')[1] === 'true'
                         else if (line.startsWith('gtk:'))
-                            gtkAvailable = line.split(':')[1] === 'true'
+                        gtkAvailable = line.split(':')[1] === 'true'
                     }
                 }
             }
@@ -1069,40 +1054,40 @@ Singleton {
     Process {
         id: defaultSettingsCheckProcess
 
-        command: ["sh", "-c", "CONFIG_DIR=\"" + _configDir + "/DankMaterialShell\"; if [ -f \"$CONFIG_DIR/default-settings.json\" ] && [ ! -f \"$CONFIG_DIR/settings.json\" ]; then cp \"$CONFIG_DIR/default-settings.json\" \"$CONFIG_DIR/settings.json\" && echo 'copied'; else echo 'not_found'; fi"]
+        command: ["sh", "-c", "CONFIG_DIR=\"" + _configDir
+            + "/DankMaterialShell\"; if [ -f \"$CONFIG_DIR/default-settings.json\" ] && [ ! -f \"$CONFIG_DIR/settings.json\" ]; then cp \"$CONFIG_DIR/default-settings.json\" \"$CONFIG_DIR/settings.json\" && echo 'copied'; else echo 'not_found'; fi"]
         running: false
         onExited: exitCode => {
-                      if (exitCode === 0) {
-                          console.log("Copied default-settings.json to settings.json")
-                          settingsFile.reload()
-                      } else {
-                          // No default settings file found, just apply stored theme
-                          applyStoredTheme()
-                      }
-                  }
+            if (exitCode === 0) {
+                console.log("Copied default-settings.json to settings.json")
+                settingsFile.reload()
+            } else {
+                // No default settings file found, just apply stored theme
+                applyStoredTheme()
+            }
+        }
     }
 
     IpcHandler {
-        function show() {
+        function reveal(): string {
             root.setTopBarVisible(true)
             return "BAR_SHOW_SUCCESS"
         }
 
-        function hide() {
+        function hide(): string {
             root.setTopBarVisible(false)
             return "BAR_HIDE_SUCCESS"
         }
 
-        function toggle() {
+        function toggle(): string {
             root.toggleTopBarVisible()
             return topBarVisible ? "BAR_SHOW_SUCCESS" : "BAR_HIDE_SUCCESS"
         }
 
-        function status() {
+        function status(): string {
             return topBarVisible ? "visible" : "hidden"
         }
 
         target: "bar"
     }
-
 }

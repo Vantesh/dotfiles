@@ -17,20 +17,12 @@ Item {
     property bool debounceSearch: true
     property int debounceInterval: 50
     property bool keyboardNavigationActive: false
-    property var categories: {
-        var allCategories = AppSearchService.getAllCategories().filter(cat => {
-                                                                           return cat !== "Education"
-                                                                           && cat !== "Science"
-                                                                       })
-        var result = ["All"]
-        return result.concat(allCategories.filter(cat => {
-                                                      return cat !== "All"
-                                                  }))
+    readonly property var categories: {
+        const allCategories = AppSearchService.getAllCategories().filter(cat => cat !== "Education" && cat !== "Science")
+        const result = ["All"]
+        return result.concat(allCategories.filter(cat => cat !== "All"))
     }
-    property var categoryIcons: categories.map(category => {
-                                                   return AppSearchService.getCategoryIcon(
-                                                       category)
-                                               })
+    readonly property var categoryIcons: categories.map(category => AppSearchService.getCategoryIcon(category))
     property var appUsageRanking: AppUsageHistoryData.appUsageRanking || {}
     property alias model: filteredModel
     property var _watchApplications: AppSearchService.applications
@@ -43,116 +35,96 @@ Item {
         filteredModel.clear()
         selectedIndex = 0
         keyboardNavigationActive = false
-        var apps = []
+
+        let apps = []
         if (searchQuery.length === 0) {
-            if (selectedCategory === "All") {
-                apps = AppSearchService.getAppsInCategory(
-                            "All") // HACK: Use function call instead of property
-            } else {
-                var categoryApps = AppSearchService.getAppsInCategory(
-                            selectedCategory)
-                apps = categoryApps.slice(0, maxResults)
-            }
+            apps = selectedCategory === "All" ? AppSearchService.getAppsInCategory("All") : AppSearchService.getAppsInCategory(selectedCategory).slice(0, maxResults)
         } else {
             if (selectedCategory === "All") {
                 apps = AppSearchService.searchApplications(searchQuery)
             } else {
-                var categoryApps = AppSearchService.getAppsInCategory(
-                            selectedCategory)
+                const categoryApps = AppSearchService.getAppsInCategory(selectedCategory)
                 if (categoryApps.length > 0) {
-                    var allSearchResults = AppSearchService.searchApplications(
-                                searchQuery)
-                    var categoryNames = new Set(categoryApps.map(app => {
-                                                                     return app.name
-                                                                 }))
-                    apps = allSearchResults.filter(searchApp => {
-                                                       return categoryNames.has(
-                                                           searchApp.name)
-                                                   }).slice(0, maxResults)
+                    const allSearchResults = AppSearchService.searchApplications(searchQuery)
+                    const categoryNames = new Set(categoryApps.map(app => app.name))
+                    apps = allSearchResults.filter(searchApp => categoryNames.has(searchApp.name)).slice(0, maxResults)
                 } else {
                     apps = []
                 }
             }
         }
-        if (searchQuery.length === 0)
-            apps = apps.sort(function (a, b) {
-                var aId = a.id || (a.execString || a.exec || "")
-                var bId = b.id || (b.execString || b.exec || "")
-                var aUsage = appUsageRanking[aId] ? appUsageRanking[aId].usageCount : 0
-                var bUsage = appUsageRanking[bId] ? appUsageRanking[bId].usageCount : 0
-                if (aUsage !== bUsage)
-                    return bUsage - aUsage
 
-                return (a.name || "").localeCompare(b.name || "")
-            })
+        if (searchQuery.length === 0) {
+            apps = apps.sort((a, b) => {
+                                 const aId = a.id || a.execString || a.exec || ""
+                                 const bId = b.id || b.execString || b.exec || ""
+                                 const aUsage = appUsageRanking[aId] ? appUsageRanking[aId].usageCount : 0
+                                 const bUsage = appUsageRanking[bId] ? appUsageRanking[bId].usageCount : 0
+                                 if (aUsage !== bUsage) {
+                                     return bUsage - aUsage
+                                 }
+                                 return (a.name || "").localeCompare(b.name || "")
+                             })
+        }
 
         apps.forEach(app => {
-                         if (app)
-                         filteredModel.append({
-                                                  "name": app.name || "",
-                                                  "exec": app.execString || "",
-                                                  "icon": app.icon
-                                                          || "application-x-executable",
-                                                  "comment": app.comment || "",
-                                                  "categories": app.categories
-                                                                || [],
-                                                  "desktopEntry": app
-                                              })
+                         if (app) {
+                             filteredModel.append({
+                                                      "name": app.name || "",
+                                                      "exec": app.execString || "",
+                                                      "icon": app.icon || "application-x-executable",
+                                                      "comment": app.comment || "",
+                                                      "categories": app.categories || [],
+                                                      "desktopEntry": app
+                                                  })
+                         }
                      })
     }
 
     function selectNext() {
-        if (filteredModel.count > 0) {
-            keyboardNavigationActive = true
-            if (viewMode === "grid") {
-                var newIndex = Math.min(selectedIndex + gridColumns,
-                                        filteredModel.count - 1)
-                selectedIndex = newIndex
-            } else {
-                selectedIndex = Math.min(selectedIndex + 1,
-                                         filteredModel.count - 1)
-            }
+        if (filteredModel.count === 0) {
+            return
         }
+        keyboardNavigationActive = true
+        selectedIndex = viewMode === "grid" ? Math.min(selectedIndex + gridColumns, filteredModel.count - 1) : Math.min(selectedIndex + 1, filteredModel.count - 1)
     }
 
     function selectPrevious() {
-        if (filteredModel.count > 0) {
-            keyboardNavigationActive = true
-            if (viewMode === "grid") {
-                var newIndex = Math.max(selectedIndex - gridColumns, 0)
-                selectedIndex = newIndex
-            } else {
-                selectedIndex = Math.max(selectedIndex - 1, 0)
-            }
+        if (filteredModel.count === 0) {
+            return
         }
+        keyboardNavigationActive = true
+        selectedIndex = viewMode === "grid" ? Math.max(selectedIndex - gridColumns, 0) : Math.max(selectedIndex - 1, 0)
     }
 
     function selectNextInRow() {
-        if (filteredModel.count > 0 && viewMode === "grid") {
-            keyboardNavigationActive = true
-            selectedIndex = Math.min(selectedIndex + 1, filteredModel.count - 1)
+        if (filteredModel.count === 0 || viewMode !== "grid") {
+            return
         }
+        keyboardNavigationActive = true
+        selectedIndex = Math.min(selectedIndex + 1, filteredModel.count - 1)
     }
 
     function selectPreviousInRow() {
-        if (filteredModel.count > 0 && viewMode === "grid") {
-            keyboardNavigationActive = true
-            selectedIndex = Math.max(selectedIndex - 1, 0)
+        if (filteredModel.count === 0 || viewMode !== "grid") {
+            return
         }
+        keyboardNavigationActive = true
+        selectedIndex = Math.max(selectedIndex - 1, 0)
     }
 
     function launchSelected() {
-        if (filteredModel.count > 0 && selectedIndex >= 0
-                && selectedIndex < filteredModel.count) {
-            var selectedApp = filteredModel.get(selectedIndex)
-            launchApp(selectedApp)
+        if (filteredModel.count === 0 || selectedIndex < 0 || selectedIndex >= filteredModel.count) {
+            return
         }
+        const selectedApp = filteredModel.get(selectedIndex)
+        launchApp(selectedApp)
     }
 
     function launchApp(appData) {
-        if (!appData)
+        if (!appData) {
             return
-
+        }
         appData.desktopEntry.execute()
         appLaunched(appData)
         AppUsageHistoryData.addAppUsage(appData.desktopEntry)
@@ -169,10 +141,11 @@ Item {
     }
 
     onSearchQueryChanged: {
-        if (debounceSearch)
+        if (debounceSearch) {
             searchDebounceTimer.restart()
-        else
+        } else {
             updateFilteredModel()
+        }
     }
     onSelectedCategoryChanged: updateFilteredModel()
     onAppUsageRankingChanged: updateFilteredModel()

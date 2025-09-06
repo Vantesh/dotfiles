@@ -26,19 +26,11 @@ Item {
             id: tabRepeater
 
             Rectangle {
-                property int tabCount: tabRepeater.count
                 property bool isActive: tabBar.currentIndex === index
-                property bool hasIcon: tabBar.showIcons && modelData
-                                       && ("icon" in modelData)
-                                       && modelData.icon
-                                       && modelData.icon.length > 0
-                property bool hasText: modelData && ("text" in modelData)
-                                       && modelData.text
-                                       && modelData.text.length > 0
+                property bool hasIcon: tabBar.showIcons && modelData && modelData.icon && modelData.icon.length > 0
+                property bool hasText: modelData && modelData.text && modelData.text.length > 0
 
-                width: tabBar.equalWidthTabs ? (tabBar.width - tabBar.spacing * (tabCount - 1))
-                                               / tabCount : contentRow.implicitWidth
-                                               + Theme.spacingM * 2
+                width: tabBar.equalWidthTabs ? (tabBar.width - tabBar.spacing * (tabRepeater.count - 1)) / tabRepeater.count : contentRow.implicitWidth + Theme.spacingM * 2
                 height: tabBar.tabHeight
                 radius: Theme.cornerRadius
                 color: isActive ? Theme.primaryPressed : tabArea.containsMouse ? Theme.primaryHoverLight : "transparent"
@@ -52,19 +44,19 @@ Item {
                     DankIcon {
                         name: modelData.icon || ""
                         size: Theme.iconSize - 4
-                        color: parent.parent.isActive ? Theme.primary : Theme.surfaceText
+                        color: isActive ? Theme.primary : Theme.surfaceText
                         anchors.verticalCenter: parent.verticalCenter
-                        visible: parent.parent.hasIcon
+                        visible: hasIcon
                     }
 
                     StyledText {
                         text: modelData.text || ""
                         font.pixelSize: Theme.fontSizeMedium
-                        color: parent.parent.isActive ? Theme.primary : Theme.surfaceText
-                        font.weight: parent.parent.isActive ? Font.Medium : Font.Normal
+                        color: isActive ? Theme.primary : Theme.surfaceText
+                        font.weight: isActive ? Font.Medium : Font.Normal
                         anchors.verticalCenter: parent.verticalCenter
                         anchors.verticalCenterOffset: 1
-                        visible: parent.parent.hasText
+                        visible: hasText
                     }
                 }
 

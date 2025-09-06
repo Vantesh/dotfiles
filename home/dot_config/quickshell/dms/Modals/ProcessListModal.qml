@@ -1,12 +1,7 @@
 import QtQuick
-import QtQuick.Controls
-import QtQuick.Effects
 import QtQuick.Layouts
-import Quickshell
-import Quickshell.Io
-import Quickshell.Wayland
-import Quickshell.Widgets
 import qs.Common
+import qs.Modals.Common
 import qs.Modules.ProcessList
 import qs.Services
 import qs.Widgets
@@ -19,28 +14,31 @@ DankModal {
 
     function show() {
         if (!DgopService.dgopAvailable) {
-            console.warn("ProcessListModal: dgop is not available")
-            return
+            console.warn("ProcessListModal: dgop is not available");
+            return ;
         }
-        open()
-        UserInfoService.getUptime()
+        open();
+        UserInfoService.getUptime();
     }
 
     function hide() {
-        close()
-        if (processContextMenu.visible)
-            processContextMenu.close()
+        close();
+        if (processContextMenu.visible) {
+            processContextMenu.close();
+        }
+
     }
 
     function toggle() {
         if (!DgopService.dgopAvailable) {
-            console.warn("ProcessListModal: dgop is not available")
-            return
+            console.warn("ProcessListModal: dgop is not available");
+            return ;
         }
-        if (shouldBeVisible)
-            hide()
-        else
-            show()
+        if (shouldBeVisible) {
+            hide();
+        } else {
+            show();
+        }
     }
 
     width: 900
@@ -49,7 +47,9 @@ DankModal {
     backgroundColor: Theme.popupBackground()
     cornerRadius: Theme.cornerRadius
     enableShadow: true
-    onBackgroundClicked: hide()
+    onBackgroundClicked: () => {
+        return hide();
+    }
 
     Component {
         id: processesTabComponent
@@ -57,18 +57,23 @@ DankModal {
         ProcessesTab {
             contextMenu: processContextMenu
         }
+
     }
 
     Component {
         id: performanceTabComponent
 
-        PerformanceTab {}
+        PerformanceTab {
+        }
+
     }
 
     Component {
         id: systemTabComponent
 
-        SystemTab {}
+        SystemTab {
+        }
+
     }
 
     ProcessContextMenu {
@@ -79,19 +84,19 @@ DankModal {
         Item {
             anchors.fill: parent
             focus: true
-            Keys.onPressed: function (event) {
+            Keys.onPressed: (event) => {
                 if (event.key === Qt.Key_Escape) {
-                    processListModal.hide()
-                    event.accepted = true
+                    processListModal.hide();
+                    event.accepted = true;
                 } else if (event.key === Qt.Key_1) {
-                    currentTab = 0
-                    event.accepted = true
+                    currentTab = 0;
+                    event.accepted = true;
                 } else if (event.key === Qt.Key_2) {
-                    currentTab = 1
-                    event.accepted = true
+                    currentTab = 1;
+                    event.accepted = true;
                 } else if (event.key === Qt.Key_3) {
-                    currentTab = 2
-                    event.accepted = true
+                    currentTab = 2;
+                    event.accepted = true;
                 }
             }
 
@@ -133,7 +138,9 @@ DankModal {
                         horizontalAlignment: Text.AlignHCenter
                         wrapMode: Text.WordWrap
                     }
+
                 }
+
             }
 
             ColumnLayout {
@@ -163,10 +170,12 @@ DankModal {
                         iconName: "close"
                         iconSize: Theme.iconSize - 4
                         iconColor: Theme.surfaceText
-                        hoverColor: Theme.errorHover
-                        onClicked: processListModal.hide()
+                        onClicked: () => {
+                            return processListModal.hide();
+                        }
                         Layout.alignment: Qt.AlignVCenter
                     }
+
                 }
 
                 Rectangle {
@@ -199,20 +208,11 @@ DankModal {
 
                                     DankIcon {
                                         name: {
-                                            switch (index) {
-                                            case 0:
-                                                return "list_alt"
-                                            case 1:
-                                                return "analytics"
-                                            case 2:
-                                                return "settings"
-                                            default:
-                                                return "tab"
-                                            }
+                                            const tabIcons = ["list_alt", "analytics", "settings"];
+                                            return tabIcons[index] || "tab";
                                         }
                                         size: Theme.iconSize - 2
-                                        color: currentTab
-                                               === index ? Theme.primary : Theme.surfaceText
+                                        color: currentTab === index ? Theme.primary : Theme.surfaceText
                                         opacity: currentTab === index ? 1 : 0.7
                                         anchors.verticalCenter: parent.verticalCenter
 
@@ -220,15 +220,16 @@ DankModal {
                                             ColorAnimation {
                                                 duration: Theme.shortDuration
                                             }
+
                                         }
+
                                     }
 
                                     StyledText {
                                         text: modelData
                                         font.pixelSize: Theme.fontSizeLarge
                                         font.weight: Font.Medium
-                                        color: currentTab
-                                               === index ? Theme.primary : Theme.surfaceText
+                                        color: currentTab === index ? Theme.primary : Theme.surfaceText
                                         anchors.verticalCenter: parent.verticalCenter
                                         anchors.verticalCenterOffset: -1
 
@@ -236,8 +237,11 @@ DankModal {
                                             ColorAnimation {
                                                 duration: Theme.shortDuration
                                             }
+
                                         }
+
                                     }
+
                                 }
 
                                 MouseArea {
@@ -246,8 +250,8 @@ DankModal {
                                     anchors.fill: parent
                                     hoverEnabled: true
                                     cursorShape: Qt.PointingHandCursor
-                                    onClicked: {
-                                        currentTab = index
+                                    onClicked: () => {
+                                        currentTab = index;
                                     }
                                 }
 
@@ -255,16 +259,22 @@ DankModal {
                                     ColorAnimation {
                                         duration: Theme.shortDuration
                                     }
+
                                 }
 
                                 Behavior on border.color {
                                     ColorAnimation {
                                         duration: Theme.shortDuration
                                     }
+
                                 }
+
                             }
+
                         }
+
                     }
+
                 }
 
                 Rectangle {
@@ -290,7 +300,9 @@ DankModal {
                                 duration: Theme.mediumDuration
                                 easing.type: Theme.emphasizedEasing
                             }
+
                         }
+
                     }
 
                     Loader {
@@ -308,7 +320,9 @@ DankModal {
                                 duration: Theme.mediumDuration
                                 easing.type: Theme.emphasizedEasing
                             }
+
                         }
+
                     }
 
                     Loader {
@@ -326,10 +340,17 @@ DankModal {
                                 duration: Theme.mediumDuration
                                 easing.type: Theme.emphasizedEasing
                             }
+
                         }
+
                     }
+
                 }
+
             }
+
         }
+
     }
+
 }

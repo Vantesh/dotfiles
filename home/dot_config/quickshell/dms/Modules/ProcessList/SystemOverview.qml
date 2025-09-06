@@ -8,10 +8,10 @@ Row {
     width: parent.width
     spacing: Theme.spacingM
     Component.onCompleted: {
-        DgopService.addRef(["cpu", "memory", "system"])
+        DgopService.addRef(["cpu", "memory", "system"]);
     }
     Component.onDestruction: {
-        DgopService.removeRef(["cpu", "memory", "system"])
+        DgopService.removeRef(["cpu", "memory", "system"]);
     }
 
     Rectangle {
@@ -19,23 +19,15 @@ Row {
         height: 80
         radius: Theme.cornerRadius
         color: {
-            if (DgopService.sortBy === "cpu")
-                return Qt.rgba(Theme.primary.r, Theme.primary.g,
-                               Theme.primary.b, 0.16)
-            else if (cpuCardMouseArea.containsMouse)
-                return Qt.rgba(Theme.primary.r, Theme.primary.g,
-                               Theme.primary.b, 0.12)
-            else
-                return Qt.rgba(Theme.primary.r, Theme.primary.g,
-                               Theme.primary.b, 0.08)
+            if (DgopService.sortBy === "cpu") {
+                return Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.16);
+            } else if (cpuCardMouseArea.containsMouse) {
+                return Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.12);
+            } else {
+                return Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.08);
+            }
         }
-        border.color: DgopService.sortBy === "cpu" ? Qt.rgba(Theme.primary.r,
-                                                             Theme.primary.g,
-                                                             Theme.primary.b,
-                                                             0.4) : Qt.rgba(
-                                                         Theme.primary.r,
-                                                         Theme.primary.g,
-                                                         Theme.primary.b, 0.2)
+        border.color: DgopService.sortBy === "cpu" ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.4) : Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.2)
         border.width: DgopService.sortBy === "cpu" ? 2 : 1
 
         MouseArea {
@@ -44,7 +36,9 @@ Row {
             anchors.fill: parent
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
-            onClicked: DgopService.setSortBy("cpu")
+            onClicked: {
+                DgopService.setSortBy("cpu");
+            }
         }
 
         Column {
@@ -66,10 +60,10 @@ Row {
 
                 StyledText {
                     text: {
-                        if (DgopService.cpuUsage === undefined
-                                || DgopService.cpuUsage === null)
-                            return "--%"
-                        return DgopService.cpuUsage.toFixed(1) + "%"
+                        if (DgopService.cpuUsage === undefined || DgopService.cpuUsage === null) {
+                            return "--%";
+                        }
+                        return DgopService.cpuUsage.toFixed(1) + "%";
                     }
                     font.pixelSize: Theme.fontSizeLarge
                     font.family: SettingsData.monoFontFamily
@@ -81,56 +75,58 @@ Row {
                 Rectangle {
                     width: 1
                     height: 20
-                    color: Qt.rgba(Theme.surfaceText.r, Theme.surfaceText.g,
-                                   Theme.surfaceText.b, 0.3)
+                    color: Qt.rgba(Theme.surfaceText.r, Theme.surfaceText.g, Theme.surfaceText.b, 0.3)
                     anchors.verticalCenter: parent.verticalCenter
                 }
 
                 StyledText {
                     text: {
-                        if (DgopService.cpuTemperature === undefined
-                                || DgopService.cpuTemperature === null
-                                || DgopService.cpuTemperature <= 0)
-                            return "--°"
-
-                        return Math.round(DgopService.cpuTemperature) + "°"
+                        if (DgopService.cpuTemperature === undefined || DgopService.cpuTemperature === null || DgopService.cpuTemperature <= 0) {
+                            return "--°";
+                        }
+                        return Math.round(DgopService.cpuTemperature) + "°";
                     }
                     font.pixelSize: Theme.fontSizeMedium
                     font.family: SettingsData.monoFontFamily
                     font.weight: Font.Medium
                     color: {
-                        if (DgopService.cpuTemperature > 80)
-                            return Theme.error
-
-                        if (DgopService.cpuTemperature > 60)
-                            return Theme.warning
-
-                        return Theme.surfaceText
+                        if (DgopService.cpuTemperature > 80) {
+                            return Theme.error;
+                        }
+                        if (DgopService.cpuTemperature > 60) {
+                            return Theme.warning;
+                        }
+                        return Theme.surfaceText;
                     }
                     anchors.verticalCenter: parent.verticalCenter
                 }
+
             }
 
             StyledText {
-                text: DgopService.cpuCores + " cores"
+                text: `${DgopService.cpuCores} cores`
                 font.pixelSize: Theme.fontSizeSmall
                 font.family: SettingsData.monoFontFamily
                 color: Theme.surfaceText
                 opacity: 0.7
             }
+
         }
 
         Behavior on color {
             ColorAnimation {
                 duration: Theme.shortDuration
             }
+
         }
 
         Behavior on border.color {
             ColorAnimation {
                 duration: Theme.shortDuration
             }
+
         }
+
     }
 
     Rectangle {
@@ -138,25 +134,15 @@ Row {
         height: 80
         radius: Theme.cornerRadius
         color: {
-            if (DgopService.sortBy === "memory")
-                return Qt.rgba(Theme.primary.r, Theme.primary.g,
-                               Theme.primary.b, 0.16)
-            else if (memoryCardMouseArea.containsMouse)
-                return Qt.rgba(Theme.secondary.r, Theme.secondary.g,
-                               Theme.secondary.b, 0.12)
-            else
-                return Qt.rgba(Theme.secondary.r, Theme.secondary.g,
-                               Theme.secondary.b, 0.08)
+            if (DgopService.sortBy === "memory") {
+                return Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.16);
+            } else if (memoryCardMouseArea.containsMouse) {
+                return Qt.rgba(Theme.secondary.r, Theme.secondary.g, Theme.secondary.b, 0.12);
+            } else {
+                return Qt.rgba(Theme.secondary.r, Theme.secondary.g, Theme.secondary.b, 0.08);
+            }
         }
-        border.color: DgopService.sortBy === "memory" ? Qt.rgba(
-                                                            Theme.primary.r,
-                                                            Theme.primary.g,
-                                                            Theme.primary.b,
-                                                            0.4) : Qt.rgba(
-                                                            Theme.secondary.r,
-                                                            Theme.secondary.g,
-                                                            Theme.secondary.b,
-                                                            0.2)
+        border.color: DgopService.sortBy === "memory" ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.4) : Qt.rgba(Theme.secondary.r, Theme.secondary.g, Theme.secondary.b, 0.2)
         border.width: DgopService.sortBy === "memory" ? 2 : 1
 
         MouseArea {
@@ -165,7 +151,9 @@ Row {
             anchors.fill: parent
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
-            onClicked: DgopService.setSortBy("memory")
+            onClicked: {
+                DgopService.setSortBy("memory");
+            }
         }
 
         Column {
@@ -186,8 +174,7 @@ Row {
                 spacing: Theme.spacingS
 
                 StyledText {
-                    text: DgopService.formatSystemMemory(
-                              DgopService.usedMemoryKB)
+                    text: DgopService.formatSystemMemory(DgopService.usedMemoryKB)
                     font.pixelSize: Theme.fontSizeLarge
                     font.family: SettingsData.monoFontFamily
                     font.weight: Font.Bold
@@ -198,15 +185,13 @@ Row {
                 Rectangle {
                     width: 1
                     height: 20
-                    color: Qt.rgba(Theme.surfaceText.r, Theme.surfaceText.g,
-                                   Theme.surfaceText.b, 0.3)
+                    color: Qt.rgba(Theme.surfaceText.r, Theme.surfaceText.g, Theme.surfaceText.b, 0.3)
                     anchors.verticalCenter: parent.verticalCenter
                     visible: DgopService.totalSwapKB > 0
                 }
 
                 StyledText {
-                    text: DgopService.totalSwapKB > 0 ? DgopService.formatSystemMemory(
-                                                            DgopService.usedSwapKB) : ""
+                    text: DgopService.totalSwapKB > 0 ? DgopService.formatSystemMemory(DgopService.usedSwapKB) : ""
                     font.pixelSize: Theme.fontSizeMedium
                     font.family: SettingsData.monoFontFamily
                     font.weight: Font.Medium
@@ -214,35 +199,38 @@ Row {
                     anchors.verticalCenter: parent.verticalCenter
                     visible: DgopService.totalSwapKB > 0
                 }
+
             }
 
             StyledText {
                 text: {
-                    if (DgopService.totalSwapKB > 0)
-                        return "of " + DgopService.formatSystemMemory(
-                                    DgopService.totalMemoryKB) + " + swap"
-
-                    return "of " + DgopService.formatSystemMemory(
-                                DgopService.totalMemoryKB)
+                    if (DgopService.totalSwapKB > 0) {
+                        return "of " + DgopService.formatSystemMemory(DgopService.totalMemoryKB) + " + swap";
+                    }
+                    return "of " + DgopService.formatSystemMemory(DgopService.totalMemoryKB);
                 }
                 font.pixelSize: Theme.fontSizeSmall
                 font.family: SettingsData.monoFontFamily
                 color: Theme.surfaceText
                 opacity: 0.7
             }
+
         }
 
         Behavior on color {
             ColorAnimation {
                 duration: Theme.shortDuration
             }
+
         }
 
         Behavior on border.color {
             ColorAnimation {
                 duration: Theme.shortDuration
             }
+
         }
+
     }
 
     Rectangle {
@@ -250,74 +238,54 @@ Row {
         height: 80
         radius: Theme.cornerRadius
         color: {
-            if (!DgopService.availableGpus
-                    || DgopService.availableGpus.length === 0) {
-                if (gpuCardMouseArea.containsMouse
-                        && DgopService.availableGpus.length > 1)
-                    return Qt.rgba(Theme.surfaceVariant.r,
-                                   Theme.surfaceVariant.g,
-                                   Theme.surfaceVariant.b, 0.16)
-                else
-                    return Qt.rgba(Theme.surfaceVariant.r,
-                                   Theme.surfaceVariant.g,
-                                   Theme.surfaceVariant.b, 0.08)
+            if (!DgopService.availableGpus || DgopService.availableGpus.length === 0) {
+                if (gpuCardMouseArea.containsMouse && DgopService.availableGpus.length > 1) {
+                    return Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g, Theme.surfaceVariant.b, 0.16);
+                } else {
+                    return Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g, Theme.surfaceVariant.b, 0.08);
+                }
             }
-            var gpu = DgopService.availableGpus[Math.min(
-                                                    SessionData.selectedGpuIndex,
-                                                    DgopService.availableGpus.length - 1)]
-            var vendor = gpu.vendor.toLowerCase()
+            const gpu = DgopService.availableGpus[Math.min(SessionData.selectedGpuIndex, DgopService.availableGpus.length - 1)];
+            const vendor = gpu.vendor.toLowerCase();
             if (vendor.includes("nvidia")) {
-                if (gpuCardMouseArea.containsMouse
-                        && DgopService.availableGpus.length > 1)
-                    return Qt.rgba(Theme.success.r, Theme.success.g,
-                                   Theme.success.b, 0.2)
-                else
-                    return Qt.rgba(Theme.success.r, Theme.success.g,
-                                   Theme.success.b, 0.12)
+                if (gpuCardMouseArea.containsMouse && DgopService.availableGpus.length > 1) {
+                    return Qt.rgba(Theme.success.r, Theme.success.g, Theme.success.b, 0.2);
+                } else {
+                    return Qt.rgba(Theme.success.r, Theme.success.g, Theme.success.b, 0.12);
+                }
             } else if (vendor.includes("amd")) {
-                if (gpuCardMouseArea.containsMouse
-                        && DgopService.availableGpus.length > 1)
-                    return Qt.rgba(Theme.error.r, Theme.error.g,
-                                   Theme.error.b, 0.2)
-                else
-                    return Qt.rgba(Theme.error.r, Theme.error.g,
-                                   Theme.error.b, 0.12)
+                if (gpuCardMouseArea.containsMouse && DgopService.availableGpus.length > 1) {
+                    return Qt.rgba(Theme.error.r, Theme.error.g, Theme.error.b, 0.2);
+                } else {
+                    return Qt.rgba(Theme.error.r, Theme.error.g, Theme.error.b, 0.12);
+                }
             } else if (vendor.includes("intel")) {
-                if (gpuCardMouseArea.containsMouse
-                        && DgopService.availableGpus.length > 1)
-                    return Qt.rgba(Theme.info.r, Theme.info.g,
-                                   Theme.info.b, 0.2)
-                else
-                    return Qt.rgba(Theme.info.r, Theme.info.g,
-                                   Theme.info.b, 0.12)
+                if (gpuCardMouseArea.containsMouse && DgopService.availableGpus.length > 1) {
+                    return Qt.rgba(Theme.info.r, Theme.info.g, Theme.info.b, 0.2);
+                } else {
+                    return Qt.rgba(Theme.info.r, Theme.info.g, Theme.info.b, 0.12);
+                }
             }
-            if (gpuCardMouseArea.containsMouse
-                    && DgopService.availableGpus.length > 1)
-                return Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g,
-                               Theme.surfaceVariant.b, 0.16)
-            else
-                return Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g,
-                               Theme.surfaceVariant.b, 0.08)
+            if (gpuCardMouseArea.containsMouse && DgopService.availableGpus.length > 1) {
+                return Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g, Theme.surfaceVariant.b, 0.16);
+            } else {
+                return Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g, Theme.surfaceVariant.b, 0.08);
+            }
         }
         border.color: {
-            if (!DgopService.availableGpus
-                    || DgopService.availableGpus.length === 0)
-                return Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g,
-                               Theme.surfaceVariant.b, 0.2)
-
-            var gpu = DgopService.availableGpus[Math.min(
-                                                    SessionData.selectedGpuIndex,
-                                                    DgopService.availableGpus.length - 1)]
-            var vendor = gpu.vendor.toLowerCase()
-            if (vendor.includes("nvidia"))
-                return Qt.rgba(Theme.success.r, Theme.success.g,
-                               Theme.success.b, 0.3)
-            else if (vendor.includes("amd"))
-                return Qt.rgba(Theme.error.r, Theme.error.g, Theme.error.b, 0.3)
-            else if (vendor.includes("intel"))
-                return Qt.rgba(Theme.info.r, Theme.info.g, Theme.info.b, 0.3)
-            return Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g,
-                           Theme.surfaceVariant.b, 0.2)
+            if (!DgopService.availableGpus || DgopService.availableGpus.length === 0) {
+                return Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g, Theme.surfaceVariant.b, 0.2);
+            }
+            const gpu = DgopService.availableGpus[Math.min(SessionData.selectedGpuIndex, DgopService.availableGpus.length - 1)];
+            const vendor = gpu.vendor.toLowerCase();
+            if (vendor.includes("nvidia")) {
+                return Qt.rgba(Theme.success.r, Theme.success.g, Theme.success.b, 0.3);
+            } else if (vendor.includes("amd")) {
+                return Qt.rgba(Theme.error.r, Theme.error.g, Theme.error.b, 0.3);
+            } else if (vendor.includes("intel")) {
+                return Qt.rgba(Theme.info.r, Theme.info.g, Theme.info.b, 0.3);
+            }
+            return Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g, Theme.surfaceVariant.b, 0.2);
         }
         border.width: 1
 
@@ -327,19 +295,17 @@ Row {
             anchors.fill: parent
             hoverEnabled: true
             acceptedButtons: Qt.LeftButton | Qt.RightButton
-            cursorShape: DgopService.availableGpus.length
-                         > 1 ? Qt.PointingHandCursor : Qt.ArrowCursor
-            onClicked: mouse => {
-                           if (mouse.button === Qt.LeftButton) {
-                               if (DgopService.availableGpus.length > 1) {
-                                   var nextIndex = (SessionData.selectedGpuIndex + 1)
-                                   % DgopService.availableGpus.length
-                                   SessionData.setSelectedGpuIndex(nextIndex)
-                               }
-                           } else if (mouse.button === Qt.RightButton) {
-                               gpuContextMenu.popup()
-                           }
-                       }
+            cursorShape: DgopService.availableGpus.length > 1 ? Qt.PointingHandCursor : Qt.ArrowCursor
+            onClicked: (mouse) => {
+                if (mouse.button === Qt.LeftButton) {
+                    if (DgopService.availableGpus.length > 1) {
+                        const nextIndex = (SessionData.selectedGpuIndex + 1) % DgopService.availableGpus.length;
+                        SessionData.setSelectedGpuIndex(nextIndex);
+                    }
+                } else if (mouse.button === Qt.RightButton) {
+                    gpuContextMenu.popup();
+                }
+            }
         }
 
         Column {
@@ -358,69 +324,54 @@ Row {
 
             StyledText {
                 text: {
-                    if (!DgopService.availableGpus
-                            || DgopService.availableGpus.length === 0)
-                        return "No GPU"
-
-                    var gpu = DgopService.availableGpus[Math.min(
-                                                            SessionData.selectedGpuIndex,
-                                                            DgopService.availableGpus.length - 1)]
+                    if (!DgopService.availableGpus || DgopService.availableGpus.length === 0) {
+                        return "No GPU";
+                    }
+                    const gpu = DgopService.availableGpus[Math.min(SessionData.selectedGpuIndex, DgopService.availableGpus.length - 1)];
                     // Check if temperature monitoring is enabled for this GPU
-                    var tempEnabled = SessionData.enabledGpuPciIds
-                            && SessionData.enabledGpuPciIds.indexOf(
-                                gpu.pciId) !== -1
-                    var temp = gpu.temperature
-                    var hasTemp = tempEnabled && temp !== undefined
-                            && temp !== null && temp !== 0
-                    if (hasTemp)
-                        return Math.round(temp) + "°"
-                    else
-                        return gpu.vendor
+                    const tempEnabled = SessionData.enabledGpuPciIds && SessionData.enabledGpuPciIds.indexOf(gpu.pciId) !== -1;
+                    const temp = gpu.temperature;
+                    const hasTemp = tempEnabled && temp !== undefined && temp !== null && temp !== 0;
+                    if (hasTemp) {
+                        return Math.round(temp) + "°";
+                    } else {
+                        return gpu.vendor;
+                    }
                 }
                 font.pixelSize: Theme.fontSizeLarge
                 font.family: SettingsData.monoFontFamily
                 font.weight: Font.Bold
                 color: {
-                    if (!DgopService.availableGpus
-                            || DgopService.availableGpus.length === 0)
-                        return Theme.surfaceText
-
-                    var gpu = DgopService.availableGpus[Math.min(
-                                                            SessionData.selectedGpuIndex,
-                                                            DgopService.availableGpus.length - 1)]
-                    var tempEnabled = SessionData.enabledGpuPciIds
-                            && SessionData.enabledGpuPciIds.indexOf(
-                                gpu.pciId) !== -1
-                    var temp = gpu.temperature || 0
-                    if (tempEnabled && temp > 80)
-                        return Theme.error
-
-                    if (tempEnabled && temp > 60)
-                        return Theme.warning
-
-                    return Theme.surfaceText
+                    if (!DgopService.availableGpus || DgopService.availableGpus.length === 0) {
+                        return Theme.surfaceText;
+                    }
+                    const gpu = DgopService.availableGpus[Math.min(SessionData.selectedGpuIndex, DgopService.availableGpus.length - 1)];
+                    const tempEnabled = SessionData.enabledGpuPciIds && SessionData.enabledGpuPciIds.indexOf(gpu.pciId) !== -1;
+                    const temp = gpu.temperature || 0;
+                    if (tempEnabled && temp > 80) {
+                        return Theme.error;
+                    }
+                    if (tempEnabled && temp > 60) {
+                        return Theme.warning;
+                    }
+                    return Theme.surfaceText;
                 }
             }
 
             StyledText {
                 text: {
-                    if (!DgopService.availableGpus
-                            || DgopService.availableGpus.length === 0)
-                        return "No GPUs detected"
-
-                    var gpu = DgopService.availableGpus[Math.min(
-                                                            SessionData.selectedGpuIndex,
-                                                            DgopService.availableGpus.length - 1)]
-                    var tempEnabled = SessionData.enabledGpuPciIds
-                            && SessionData.enabledGpuPciIds.indexOf(
-                                gpu.pciId) !== -1
-                    var temp = gpu.temperature
-                    var hasTemp = tempEnabled && temp !== undefined
-                            && temp !== null && temp !== 0
-                    if (hasTemp)
-                        return gpu.vendor + " " + gpu.displayName
-                    else
-                        return gpu.displayName
+                    if (!DgopService.availableGpus || DgopService.availableGpus.length === 0) {
+                        return "No GPUs detected";
+                    }
+                    const gpu = DgopService.availableGpus[Math.min(SessionData.selectedGpuIndex, DgopService.availableGpus.length - 1)];
+                    const tempEnabled = SessionData.enabledGpuPciIds && SessionData.enabledGpuPciIds.indexOf(gpu.pciId) !== -1;
+                    const temp = gpu.temperature;
+                    const hasTemp = tempEnabled && temp !== undefined && temp !== null && temp !== 0;
+                    if (hasTemp) {
+                        return gpu.vendor + " " + gpu.displayName;
+                    } else {
+                        return gpu.displayName;
+                    }
                 }
                 font.pixelSize: Theme.fontSizeSmall
                 font.family: SettingsData.monoFontFamily
@@ -430,6 +381,7 @@ Row {
                 elide: Text.ElideRight
                 maximumLineCount: 1
             }
+
         }
 
         Menu {
@@ -439,53 +391,45 @@ Row {
                 text: "Enable GPU Temperature"
                 checkable: true
                 checked: {
-                    if (!DgopService.availableGpus
-                            || DgopService.availableGpus.length === 0) {
-                        return false
+                    if (!DgopService.availableGpus || DgopService.availableGpus.length === 0) {
+                        return false;
                     }
-
-                    var gpu = DgopService.availableGpus[Math.min(
-                                                            SessionData.selectedGpuIndex,
-                                                            DgopService.availableGpus.length - 1)]
-                    if (!gpu.pciId)
-                        return false
-
-                    return SessionData.enabledGpuPciIds ? SessionData.enabledGpuPciIds.indexOf(
-                                                              gpu.pciId) !== -1 : false
+                    const gpu = DgopService.availableGpus[Math.min(SessionData.selectedGpuIndex, DgopService.availableGpus.length - 1)];
+                    if (!gpu.pciId) {
+                        return false;
+                    }
+                    return SessionData.enabledGpuPciIds ? SessionData.enabledGpuPciIds.indexOf(gpu.pciId) !== -1 : false;
                 }
                 onTriggered: {
-                    if (!DgopService.availableGpus
-                            || DgopService.availableGpus.length === 0) {
-                        return
+                    if (!DgopService.availableGpus || DgopService.availableGpus.length === 0) {
+                        return;
                     }
-
-                    var gpu = DgopService.availableGpus[Math.min(
-                                                            SessionData.selectedGpuIndex,
-                                                            DgopService.availableGpus.length - 1)]
-                    if (!gpu.pciId)
-                        return
-
-                    var enabledIds = SessionData.enabledGpuPciIds ? SessionData.enabledGpuPciIds.slice(
-                                                                        ) : []
-                    var index = enabledIds.indexOf(gpu.pciId)
-
+                    const gpu = DgopService.availableGpus[Math.min(SessionData.selectedGpuIndex, DgopService.availableGpus.length - 1)];
+                    if (!gpu.pciId) {
+                        return;
+                    }
+                    const enabledIds = SessionData.enabledGpuPciIds ? SessionData.enabledGpuPciIds.slice() : [];
+                    const index = enabledIds.indexOf(gpu.pciId);
                     if (checked && index === -1) {
-                        enabledIds.push(gpu.pciId)
-                        DgopService.addGpuPciId(gpu.pciId)
+                        enabledIds.push(gpu.pciId);
+                        DgopService.addGpuPciId(gpu.pciId);
                     } else if (!checked && index !== -1) {
-                        enabledIds.splice(index, 1)
-                        DgopService.removeGpuPciId(gpu.pciId)
+                        enabledIds.splice(index, 1);
+                        DgopService.removeGpuPciId(gpu.pciId);
                     }
-
-                    SessionData.setEnabledGpuPciIds(enabledIds)
+                    SessionData.setEnabledGpuPciIds(enabledIds);
                 }
             }
+
         }
 
         Behavior on color {
             ColorAnimation {
                 duration: Theme.shortDuration
             }
+
         }
+
     }
+
 }

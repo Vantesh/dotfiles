@@ -25,15 +25,13 @@ QtObject {
     function rebuildFlatNavigation() {
         isRebuilding = true
 
-        var nav = []
-        var groups = NotificationService.groupedNotifications
+        const nav = []
+        const groups = NotificationService.groupedNotifications
 
-        for (var i = 0; i < groups.length; i++) {
-            var group = groups[i]
-            var isExpanded = NotificationService.expandedGroups[group.key]
-                    || false
+        for (let i = 0; i < groups.length; i++) {
+            const group = groups[i]
+            const isExpanded = NotificationService.expandedGroups[group.key] || false
 
-            // Add the group itself
             nav.push({
                          "type": "group",
                          "groupIndex": i,
@@ -42,12 +40,10 @@ QtObject {
                          "notificationId": ""
                      })
 
-            // If expanded, add individual notifications
             if (isExpanded) {
-                var notifications = group.notifications || []
-                for (var j = 0; j < notifications.length; j++) {
-                    var notifId = String(
-                                notifications[j]?.notification?.id || "")
+                const notifications = group.notifications || []
+                for (let j = 0; j < notifications.length; j++) {
+                    const notifId = String(notifications[j] && notifications[j].notification && notifications[j].notification.id ? notifications[j].notification.id : "")
                     nav.push({
                                  "type": "notification",
                                  "groupIndex": i,
@@ -65,22 +61,18 @@ QtObject {
     }
 
     function updateSelectedIndexFromId() {
-        if (!keyboardNavigationActive)
+        if (!keyboardNavigationActive) {
             return
+        }
 
-        // Find the index that matches our selected ID/key
-        for (var i = 0; i < flatNavigation.length; i++) {
-            var item = flatNavigation[i]
+        for (let i = 0; i < flatNavigation.length; i++) {
+            const item = flatNavigation[i]
 
-            if (selectedItemType === "group" && item.type === "group"
-                    && item.groupKey === selectedGroupKey) {
+            if (selectedItemType === "group" && item.type === "group" && item.groupKey === selectedGroupKey) {
                 selectedFlatIndex = i
                 selectionVersion++ // Trigger UI update
                 return
-            } else if (selectedItemType === "notification"
-                       && item.type === "notification" && String(
-                           item.notificationId) === String(
-                           selectedNotificationId)) {
+            } else if (selectedItemType === "notification" && item.type === "notification" && String(item.notificationId) === String(selectedNotificationId)) {
                 selectedFlatIndex = i
                 selectionVersion++ // Trigger UI update
                 return
@@ -89,10 +81,9 @@ QtObject {
 
         // If not found, try to find the same group but select the group header instead
         if (selectedItemType === "notification") {
-            for (var j = 0; j < flatNavigation.length; j++) {
-                var groupItem = flatNavigation[j]
-                if (groupItem.type === "group"
-                        && groupItem.groupKey === selectedGroupKey) {
+            for (let j = 0; j < flatNavigation.length; j++) {
+                const groupItem = flatNavigation[j]
+                if (groupItem.type === "group" && groupItem.groupKey === selectedGroupKey) {
                     selectedFlatIndex = j
                     selectedItemType = "group"
                     selectedNotificationId = ""
@@ -104,8 +95,7 @@ QtObject {
 
         // If still not found, clamp to valid range and update
         if (flatNavigation.length > 0) {
-            selectedFlatIndex = Math.min(selectedFlatIndex,
-                                         flatNavigation.length - 1)
+            selectedFlatIndex = Math.min(selectedFlatIndex, flatNavigation.length - 1)
             selectedFlatIndex = Math.max(selectedFlatIndex, 0)
             updateSelectedIdFromIndex()
             selectionVersion++ // Trigger UI update
@@ -113,9 +103,8 @@ QtObject {
     }
 
     function updateSelectedIdFromIndex() {
-        if (selectedFlatIndex >= 0
-                && selectedFlatIndex < flatNavigation.length) {
-            var item = flatNavigation[selectedFlatIndex]
+        if (selectedFlatIndex >= 0 && selectedFlatIndex < flatNavigation.length) {
+            const item = flatNavigation[selectedFlatIndex]
             selectedItemType = item.type
             selectedGroupKey = item.groupKey
             selectedNotificationId = item.notificationId
@@ -143,8 +132,7 @@ QtObject {
             listView.enableAutoScroll()
         }
 
-        selectedFlatIndex = Math.min(selectedFlatIndex + 1,
-                                     flatNavigation.length - 1)
+        selectedFlatIndex = Math.min(selectedFlatIndex + 1, flatNavigation.length - 1)
         updateSelectedIdFromIndex()
         selectionVersion++
         ensureVisible()
@@ -167,8 +155,7 @@ QtObject {
     }
 
     function toggleGroupExpanded() {
-        if (flatNavigation.length === 0
-                || selectedFlatIndex >= flatNavigation.length)
+        if (flatNavigation.length === 0 || selectedFlatIndex >= flatNavigation.length)
             return
 
         const currentItem = flatNavigation[selectedFlatIndex]
@@ -182,8 +169,7 @@ QtObject {
         if (notificationCount < 2)
             return
 
-        const wasExpanded = NotificationService.expandedGroups[group.key]
-                          || false
+        const wasExpanded = NotificationService.expandedGroups[group.key] || false
         const groupIndex = currentItem.groupIndex
 
         isTogglingGroup = true
@@ -193,18 +179,16 @@ QtObject {
         // Smart selection after toggle
         if (!wasExpanded) {
             // Just expanded - move to first notification in the group
-            for (var i = 0; i < flatNavigation.length; i++) {
-                if (flatNavigation[i].type === "notification"
-                        && flatNavigation[i].groupIndex === groupIndex) {
+            for (let i = 0; i < flatNavigation.length; i++) {
+                if (flatNavigation[i].type === "notification" && flatNavigation[i].groupIndex === groupIndex) {
                     selectedFlatIndex = i
                     break
                 }
             }
         } else {
             // Just collapsed - stay on the group header
-            for (var i = 0; i < flatNavigation.length; i++) {
-                if (flatNavigation[i].type === "group"
-                        && flatNavigation[i].groupIndex === groupIndex) {
+            for (let i = 0; i < flatNavigation.length; i++) {
+                if (flatNavigation[i].type === "group" && flatNavigation[i].groupIndex === groupIndex) {
                     selectedFlatIndex = i
                     break
                 }
@@ -216,8 +200,7 @@ QtObject {
     }
 
     function handleEnterKey() {
-        if (flatNavigation.length === 0
-                || selectedFlatIndex >= flatNavigation.length)
+        if (flatNavigation.length === 0 || selectedFlatIndex >= flatNavigation.length)
             return
 
         const currentItem = flatNavigation[selectedFlatIndex]
@@ -239,8 +222,7 @@ QtObject {
     }
 
     function toggleTextExpanded() {
-        if (flatNavigation.length === 0
-                || selectedFlatIndex >= flatNavigation.length)
+        if (flatNavigation.length === 0 || selectedFlatIndex >= flatNavigation.length)
             return
 
         const currentItem = flatNavigation[selectedFlatIndex]
@@ -249,15 +231,12 @@ QtObject {
         if (!group)
             return
 
-        var messageId = ""
+        let messageId = ""
 
         if (currentItem.type === "group") {
             messageId = group.latestNotification?.notification?.id + "_desc"
-        } else if (currentItem.type === "notification"
-                   && currentItem.notificationIndex >= 0
-                   && currentItem.notificationIndex < group.notifications.length) {
-            messageId = group.notifications[currentItem.notificationIndex]?.notification?.id
-                    + "_desc"
+        } else if (currentItem.type === "notification" && currentItem.notificationIndex >= 0 && currentItem.notificationIndex < group.notifications.length) {
+            messageId = group.notifications[currentItem.notificationIndex]?.notification?.id + "_desc"
         }
 
         if (messageId) {
@@ -266,8 +245,7 @@ QtObject {
     }
 
     function executeAction(actionIndex) {
-        if (flatNavigation.length === 0
-                || selectedFlatIndex >= flatNavigation.length)
+        if (flatNavigation.length === 0 || selectedFlatIndex >= flatNavigation.length)
             return
 
         const currentItem = flatNavigation[selectedFlatIndex]
@@ -276,15 +254,12 @@ QtObject {
         if (!group)
             return
 
-        var actions = []
+        let actions = []
 
         if (currentItem.type === "group") {
             actions = group.latestNotification?.actions || []
-        } else if (currentItem.type === "notification"
-                   && currentItem.notificationIndex >= 0
-                   && currentItem.notificationIndex < group.notifications.length) {
-            actions = group.notifications[currentItem.notificationIndex]?.actions
-                    || []
+        } else if (currentItem.type === "notification" && currentItem.notificationIndex >= 0 && currentItem.notificationIndex < group.notifications.length) {
+            actions = group.notifications[currentItem.notificationIndex]?.actions || []
         }
 
         if (actionIndex >= 0 && actionIndex < actions.length) {
@@ -298,8 +273,7 @@ QtObject {
     }
 
     function clearSelected() {
-        if (flatNavigation.length === 0
-                || selectedFlatIndex >= flatNavigation.length)
+        if (flatNavigation.length === 0 || selectedFlatIndex >= flatNavigation.length)
             return
 
         const currentItem = flatNavigation[selectedFlatIndex]
@@ -330,24 +304,20 @@ QtObject {
     }
 
     function ensureVisible() {
-        if (flatNavigation.length === 0
-                || selectedFlatIndex >= flatNavigation.length || !listView)
+        if (flatNavigation.length === 0 || selectedFlatIndex >= flatNavigation.length || !listView)
             return
 
         const currentItem = flatNavigation[selectedFlatIndex]
 
-        if (keyboardNavigationActive && currentItem
-                && currentItem.groupIndex >= 0) {
+        if (keyboardNavigationActive && currentItem && currentItem.groupIndex >= 0) {
             // Always center the selected item for better visibility
             // This ensures the selected item stays in view even when new notifications arrive
             if (currentItem.type === "notification") {
                 // For individual notifications, center on the group but bias towards the notification
-                listView.positionViewAtIndex(currentItem.groupIndex,
-                                             ListView.Center)
+                listView.positionViewAtIndex(currentItem.groupIndex, ListView.Center)
             } else {
                 // For group headers, center on the group
-                listView.positionViewAtIndex(currentItem.groupIndex,
-                                             ListView.Center)
+                listView.positionViewAtIndex(currentItem.groupIndex, ListView.Center)
             }
 
             // Force immediate update
@@ -356,8 +326,7 @@ QtObject {
     }
 
     function handleKey(event) {
-        if ((event.key === Qt.Key_Delete || event.key === Qt.Key_Backspace)
-                && (event.modifiers & Qt.ShiftModifier)) {
+        if ((event.key === Qt.Key_Delete || event.key === Qt.Key_Backspace) && (event.modifiers & Qt.ShiftModifier)) {
             NotificationService.clearAllNotifications()
             rebuildFlatNavigation()
             if (flatNavigation.length === 0) {
@@ -430,15 +399,13 @@ QtObject {
             if (event.key === Qt.Key_Space) {
                 toggleGroupExpanded()
                 event.accepted = true
-            } else if (event.key === Qt.Key_Return
-                       || event.key === Qt.Key_Enter) {
+            } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
                 handleEnterKey()
                 event.accepted = true
             } else if (event.key === Qt.Key_E) {
                 toggleTextExpanded()
                 event.accepted = true
-            } else if (event.key === Qt.Key_Delete
-                       || event.key === Qt.Key_Backspace) {
+            } else if (event.key === Qt.Key_Delete || event.key === Qt.Key_Backspace) {
                 clearSelected()
                 event.accepted = true
             } else if (event.key >= Qt.Key_1 && event.key <= Qt.Key_9) {
@@ -456,8 +423,7 @@ QtObject {
 
     // Get current selection info for UI
     function getCurrentSelection() {
-        if (!keyboardNavigationActive || selectedFlatIndex < 0
-                || selectedFlatIndex >= flatNavigation.length) {
+        if (!keyboardNavigationActive || selectedFlatIndex < 0 || selectedFlatIndex >= flatNavigation.length) {
             return {
                 "type": "",
                 "groupIndex": -1,

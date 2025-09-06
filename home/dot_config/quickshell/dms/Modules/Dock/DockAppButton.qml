@@ -28,49 +28,48 @@ Item {
         if (!appData || appData.type !== "window") {
             return false
         }
-        var toplevel = getToplevelObject()
+        const toplevel = getToplevelObject()
         if (!toplevel) {
             return false
         }
         return toplevel.activated
     }
     property string tooltipText: {
-        if (!appData)
+        if (!appData) {
             return ""
+        }
 
-        // For window type, show app name + window title
         if (appData.type === "window" && showWindowTitle) {
-            var desktopEntry = DesktopEntries.heuristicLookup(appData.appId)
-            var appName = desktopEntry
-                    && desktopEntry.name ? desktopEntry.name : appData.appId
+            const desktopEntry = DesktopEntries.heuristicLookup(appData.appId)
+            const appName = desktopEntry && desktopEntry.name ? desktopEntry.name : appData.appId
             return appName + (windowTitle ? " • " + windowTitle : "")
         }
-        // For pinned apps, just show app name
-        if (!appData.appId)
-            return ""
 
-        var desktopEntry = DesktopEntries.heuristicLookup(appData.appId)
-        return desktopEntry
-                && desktopEntry.name ? desktopEntry.name : appData.appId
+        if (!appData.appId) {
+            return ""
+        }
+
+        const desktopEntry = DesktopEntries.heuristicLookup(appData.appId)
+        return desktopEntry && desktopEntry.name ? desktopEntry.name : appData.appId
     }
 
     width: 40
     height: 40
-    
+
     function getToplevelObject() {
         if (!appData || appData.type !== "window") {
             return null
         }
-        
-        var sortedToplevels = CompositorService.sortedToplevels
+
+        const sortedToplevels = CompositorService.sortedToplevels
         if (!sortedToplevels) {
             return null
         }
 
         if (appData.uniqueId) {
             for (var i = 0; i < sortedToplevels.length; i++) {
-                var toplevel = sortedToplevels[i]
-                var checkId = toplevel.title + "|" + (toplevel.appId || "") + "|" + i
+                const toplevel = sortedToplevels[i]
+                const checkId = toplevel.title + "|" + (toplevel.appId || "") + "|" + i
                 if (checkId === appData.uniqueId) {
                     return toplevel
                 }
@@ -82,7 +81,7 @@ Item {
                 return sortedToplevels[appData.windowId]
             }
         }
-        
+
         return null
     }
     onIsHoveredChanged: {
@@ -148,8 +147,9 @@ Item {
         interval: 500
         repeat: false
         onTriggered: {
-            if (appData && appData.isPinned)
+            if (appData && appData.isPinned) {
                 longPressing = true
+            }
         }
     }
 
@@ -162,8 +162,7 @@ Item {
         cursorShape: longPressing ? Qt.DragMoveCursor : Qt.PointingHandCursor
         acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
         onPressed: mouse => {
-                       if (mouse.button === Qt.LeftButton && appData
-                           && appData.isPinned) {
+                       if (mouse.button === Qt.LeftButton && appData && appData.isPinned) {
                            dragStartPos = Qt.point(mouse.x, mouse.y)
                            longPressTimer.start()
                        }
@@ -171,9 +170,9 @@ Item {
         onReleased: mouse => {
                         longPressTimer.stop()
                         if (longPressing) {
-                            if (dragging && targetIndex >= 0
-                                && targetIndex !== originalIndex && dockApps)
-                            dockApps.movePinnedApp(originalIndex, targetIndex)
+                            if (dragging && targetIndex >= 0 && targetIndex !== originalIndex && dockApps) {
+                                dockApps.movePinnedApp(originalIndex, targetIndex)
+                            }
 
                             longPressing = false
                             dragging = false
@@ -184,10 +183,7 @@ Item {
                     }
         onPositionChanged: mouse => {
                                if (longPressing && !dragging) {
-                                   var distance = Math.sqrt(
-                                       Math.pow(mouse.x - dragStartPos.x,
-                                                2) + Math.pow(
-                                           mouse.y - dragStartPos.y, 2))
+                                   const distance = Math.sqrt(Math.pow(mouse.x - dragStartPos.x, 2) + Math.pow(mouse.y - dragStartPos.y, 2))
                                    if (distance > 5) {
                                        dragging = true
                                        targetIndex = index
@@ -195,79 +191,66 @@ Item {
                                    }
                                }
                                if (dragging) {
-                                   dragOffset = Qt.point(
-                                       mouse.x - dragStartPos.x,
-                                       mouse.y - dragStartPos.y)
+                                   dragOffset = Qt.point(mouse.x - dragStartPos.x, mouse.y - dragStartPos.y)
                                    if (dockApps) {
-                                       var threshold = 40
-                                       var newTargetIndex = targetIndex
-                                       if (dragOffset.x > threshold
-                                           && targetIndex < dockApps.pinnedAppCount - 1)
-                                       newTargetIndex = targetIndex + 1
-                                       else if (dragOffset.x < -threshold
-                                                && targetIndex > 0)
-                                       newTargetIndex = targetIndex - 1
+                                       const threshold = 40
+                                       let newTargetIndex = targetIndex
+                                       if (dragOffset.x > threshold && targetIndex < dockApps.pinnedAppCount - 1) {
+                                           newTargetIndex = targetIndex + 1
+                                       } else if (dragOffset.x < -threshold && targetIndex > 0) {
+                                           newTargetIndex = targetIndex - 1
+                                       }
                                        if (newTargetIndex !== targetIndex) {
                                            targetIndex = newTargetIndex
-                                           dragStartPos = Qt.point(mouse.x,
-                                                                   mouse.y)
+                                           dragStartPos = Qt.point(mouse.x, mouse.y)
                                        }
                                    }
                                }
                            }
         onClicked: mouse => {
-                       if (!appData || longPressing)
-                       return
+                       if (!appData || longPressing) {
+                           return
+                       }
 
                        if (mouse.button === Qt.LeftButton) {
-                           // Handle based on type
                            if (appData.type === "pinned") {
-                               // Launch the pinned app
                                if (appData && appData.appId) {
-                                   var desktopEntry = DesktopEntries.heuristicLookup(
-                                       appData.appId)
-                                   if (desktopEntry)
-                                   AppUsageHistoryData.addAppUsage({
-                                                                       "id": appData.appId,
-                                                                       "name": desktopEntry.name
-                                                                               || appData.appId,
-                                                                       "icon": desktopEntry.icon
-                                                                               || "",
-                                                                       "exec": desktopEntry.exec
-                                                                               || "",
-                                                                       "comment": desktopEntry.comment || ""
-                                                                   })
-
+                                   const desktopEntry = DesktopEntries.heuristicLookup(appData.appId)
+                                   if (desktopEntry) {
+                                       AppUsageHistoryData.addAppUsage({
+                                                                           "id": appData.appId,
+                                                                           "name": desktopEntry.name || appData.appId,
+                                                                           "icon": desktopEntry.icon || "",
+                                                                           "exec": desktopEntry.exec || "",
+                                                                           "comment": desktopEntry.comment || ""
+                                                                       })
+                                   }
                                    desktopEntry.execute()
                                }
                            } else if (appData.type === "window") {
-                               var toplevel = getToplevelObject()
+                               const toplevel = getToplevelObject()
                                if (toplevel) {
                                    toplevel.activate()
                                }
                            }
                        } else if (mouse.button === Qt.MiddleButton) {
                            if (appData && appData.appId) {
-                               var desktopEntry = DesktopEntries.heuristicLookup(
-                                   appData.appId)
-                               if (desktopEntry)
-                               AppUsageHistoryData.addAppUsage({
-                                                                   "id": appData.appId,
-                                                                   "name": desktopEntry.name
-                                                                           || appData.appId,
-                                                                   "icon": desktopEntry.icon
-                                                                           || "",
-                                                                   "exec": desktopEntry.exec
-                                                                           || "",
-                                                                   "comment": desktopEntry.comment
-                                                                              || ""
-                                                               })
-
-                                 desktopEntry.execute()
+                               const desktopEntry = DesktopEntries.heuristicLookup(appData.appId)
+                               if (desktopEntry) {
+                                   AppUsageHistoryData.addAppUsage({
+                                                                       "id": appData.appId,
+                                                                       "name": desktopEntry.name || appData.appId,
+                                                                       "icon": desktopEntry.icon || "",
+                                                                       "exec": desktopEntry.exec || "",
+                                                                       "comment": desktopEntry.comment || ""
+                                                                   })
+                               }
+                               desktopEntry.execute()
                            }
                        } else if (mouse.button === Qt.RightButton) {
-                           if (contextMenu)
-                           contextMenu.showForButton(root, appData, 40)
+                           if (contextMenu) {
+                               contextMenu.showForButton(root, appData, 40)
+                           }
                        }
                    }
     }
@@ -278,8 +261,10 @@ Item {
         anchors.centerIn: parent
         implicitSize: 40
         source: {
-            if (appData.appId === "__SEPARATOR__") return ""
-            var desktopEntry = DesktopEntries.heuristicLookup(Paths.moddedAppId(appData.appId))
+            if (appData.appId === "__SEPARATOR__") {
+                return ""
+            }
+            const desktopEntry = DesktopEntries.heuristicLookup(Paths.moddedAppId(appData.appId))
             return desktopEntry && desktopEntry.icon ? Quickshell.iconPath(desktopEntry.icon, true) : ""
         }
         mipmap: true
@@ -301,12 +286,14 @@ Item {
         Text {
             anchors.centerIn: parent
             text: {
-                if (!appData || !appData.appId)
+                if (!appData || !appData.appId) {
                     return "?"
+                }
 
-                var desktopEntry = DesktopEntries.heuristicLookup(appData.appId)
-                if (desktopEntry && desktopEntry.name)
+                const desktopEntry = DesktopEntries.heuristicLookup(appData.appId)
+                if (desktopEntry && desktopEntry.name) {
                     return desktopEntry.name.charAt(0).toUpperCase()
+                }
 
                 return appData.appId.charAt(0).toUpperCase()
             }
@@ -326,17 +313,17 @@ Item {
         radius: 1
         visible: appData && (appData.isRunning || appData.type === "window")
         color: {
-            if (!appData)
+            if (!appData) {
                 return "transparent"
+            }
 
-            // For window type, check if focused using reactive property
-            if (isWindowFocused)
+            if (isWindowFocused) {
                 return Theme.primary
+            }
 
-            // For running apps, show dimmer indicator
-            if (appData.isRunning || appData.type === "window")
-                return Qt.rgba(Theme.surfaceText.r, Theme.surfaceText.g,
-                               Theme.surfaceText.b, 0.6)
+            if (appData.isRunning || appData.type === "window") {
+                return Qt.rgba(Theme.surfaceText.r, Theme.surfaceText.g, Theme.surfaceText.b, 0.6)
+            }
 
             return "transparent"
         }

@@ -15,28 +15,31 @@ DankPopout {
     property var triggerScreen: null
 
     function setTriggerPosition(x, y, width, section, screen) {
-        triggerX = x
-        triggerY = y
-        triggerWidth = width
-        triggerSection = section
-        triggerScreen = screen
+        triggerX = x;
+        triggerY = y;
+        triggerWidth = width;
+        triggerSection = section;
+        triggerScreen = screen;
     }
 
     function isActiveProfile(profile) {
-        if (typeof PowerProfiles === "undefined")
-            return false
+        if (typeof PowerProfiles === "undefined") {
+            return false;
+        }
 
-        return PowerProfiles.profile === profile
+        return PowerProfiles.profile === profile;
     }
 
     function setProfile(profile) {
         if (typeof PowerProfiles === "undefined") {
-            ToastService.showError("power-profiles-daemon not available")
-            return
+            ToastService.showError("power-profiles-daemon not available");
+            return ;
         }
-        PowerProfiles.profile = profile
-        if (PowerProfiles.profile !== profile)
-            ToastService.showError("Failed to set power profile")
+        PowerProfiles.profile = profile;
+        if (PowerProfiles.profile !== profile) {
+            ToastService.showError("Failed to set power profile");
+        }
+
     }
 
     popupWidth: 400
@@ -62,26 +65,29 @@ DankPopout {
             antialiasing: true
             smooth: true
             focus: true
-
             Component.onCompleted: {
-                if (root.shouldBeVisible)
-                    forceActiveFocus()
-            }
+                if (root.shouldBeVisible) {
+                    forceActiveFocus();
+                }
 
-            Keys.onPressed: function (event) {
+            }
+            Keys.onPressed: function(event) {
                 if (event.key === Qt.Key_Escape) {
-                    root.close()
-                    event.accepted = true
+                    root.close();
+                    event.accepted = true;
                 }
             }
 
             Connections {
                 function onShouldBeVisibleChanged() {
-                    if (root.shouldBeVisible)
-                        Qt.callLater(function () {
-                            batteryContent.forceActiveFocus()
-                        })
+                    if (root.shouldBeVisible) {
+                        Qt.callLater(function() {
+                            batteryContent.forceActiveFocus();
+                        });
+                    }
+
                 }
+
                 target: root
             }
 
@@ -116,6 +122,7 @@ DankPopout {
 
             Column {
                 id: contentColumn
+
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.top: parent.top
@@ -156,23 +163,21 @@ DankPopout {
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
                             onPressed: {
-                                root.close()
+                                root.close();
                             }
                         }
+
                     }
+
                 }
 
                 Rectangle {
                     width: parent.width
                     height: 80
                     radius: Theme.cornerRadius
-                    color: Qt.rgba(Theme.surfaceVariant.r,
-                                   Theme.surfaceVariant.g,
-                                   Theme.surfaceVariant.b,
-                                   Theme.getContentBackgroundAlpha() * 0.4)
+                    color: Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g, Theme.surfaceVariant.b, Theme.getContentBackgroundAlpha() * 0.4)
                     border.color: BatteryService.isCharging ? Theme.primary : (BatteryService.isLowBattery ? Theme.error : Theme.outlineMedium)
-                    border.width: BatteryService.isCharging
-                                  || BatteryService.isLowBattery ? 2 : 1
+                    border.width: BatteryService.isCharging || BatteryService.isLowBattery ? 2 : 1
                     visible: BatteryService.batteryAvailable
 
                     Row {
@@ -184,67 +189,99 @@ DankPopout {
                         DankIcon {
                             name: {
                                 if (!BatteryService.batteryAvailable)
-                                    return "power"
+                                    return "power";
 
                                 // Check if plugged in but not charging (like at 80% charge limit)
-                                if (!BatteryService.isCharging
-                                        && BatteryService.isPluggedIn) {
-                                    if (BatteryService.batteryLevel >= 90)
-                                        return "battery_charging_full"
-                                    if (BatteryService.batteryLevel >= 80)
-                                        return "battery_charging_90"
-                                    if (BatteryService.batteryLevel >= 60)
-                                        return "battery_charging_80"
-                                    if (BatteryService.batteryLevel >= 50)
-                                        return "battery_charging_60"
-                                    if (BatteryService.batteryLevel >= 30)
-                                        return "battery_charging_50"
-                                    if (BatteryService.batteryLevel >= 20)
-                                        return "battery_charging_30"
-                                    return "battery_charging_20"
-                                }
+                                if (!BatteryService.isCharging && BatteryService.isPluggedIn) {
+                                    if (BatteryService.batteryLevel >= 90) {
+                                        return "battery_charging_full";
+                                    }
 
+                                    if (BatteryService.batteryLevel >= 80) {
+                                        return "battery_charging_90";
+                                    }
+
+                                    if (BatteryService.batteryLevel >= 60) {
+                                        return "battery_charging_80";
+                                    }
+
+                                    if (BatteryService.batteryLevel >= 50) {
+                                        return "battery_charging_60";
+                                    }
+
+                                    if (BatteryService.batteryLevel >= 30) {
+                                        return "battery_charging_50";
+                                    }
+
+                                    if (BatteryService.batteryLevel >= 20) {
+                                        return "battery_charging_30";
+                                    }
+
+                                    return "battery_charging_20";
+                                }
                                 if (BatteryService.isCharging) {
-                                    if (BatteryService.batteryLevel >= 90)
-                                        return "battery_charging_full"
-                                    if (BatteryService.batteryLevel >= 80)
-                                        return "battery_charging_90"
-                                    if (BatteryService.batteryLevel >= 60)
-                                        return "battery_charging_80"
-                                    if (BatteryService.batteryLevel >= 50)
-                                        return "battery_charging_60"
-                                    if (BatteryService.batteryLevel >= 30)
-                                        return "battery_charging_50"
-                                    if (BatteryService.batteryLevel >= 20)
-                                        return "battery_charging_30"
-                                    return "battery_charging_20"
+                                    if (BatteryService.batteryLevel >= 90) {
+                                        return "battery_charging_full";
+                                    }
+
+                                    if (BatteryService.batteryLevel >= 80) {
+                                        return "battery_charging_90";
+                                    }
+
+                                    if (BatteryService.batteryLevel >= 60) {
+                                        return "battery_charging_80";
+                                    }
+
+                                    if (BatteryService.batteryLevel >= 50) {
+                                        return "battery_charging_60";
+                                    }
+
+                                    if (BatteryService.batteryLevel >= 30) {
+                                        return "battery_charging_50";
+                                    }
+
+                                    if (BatteryService.batteryLevel >= 20) {
+                                        return "battery_charging_30";
+                                    }
+
+                                    return "battery_charging_20";
                                 } else {
-                                    if (BatteryService.batteryLevel >= 95)
-                                        return "battery_full"
-                                    if (BatteryService.batteryLevel >= 85)
-                                        return "battery_6_bar"
-                                    if (BatteryService.batteryLevel >= 70)
-                                        return "battery_5_bar"
-                                    if (BatteryService.batteryLevel >= 55)
-                                        return "battery_4_bar"
-                                    if (BatteryService.batteryLevel >= 40)
-                                        return "battery_3_bar"
-                                    if (BatteryService.batteryLevel >= 25)
-                                        return "battery_2_bar"
-                                    return "battery_1_bar"
+                                    if (BatteryService.batteryLevel >= 95) {
+                                        return "battery_full";
+                                    }
+
+                                    if (BatteryService.batteryLevel >= 85) {
+                                        return "battery_6_bar";
+                                    }
+
+                                    if (BatteryService.batteryLevel >= 70) {
+                                        return "battery_5_bar";
+                                    }
+
+                                    if (BatteryService.batteryLevel >= 55) {
+                                        return "battery_4_bar";
+                                    }
+
+                                    if (BatteryService.batteryLevel >= 40) {
+                                        return "battery_3_bar";
+                                    }
+
+                                    if (BatteryService.batteryLevel >= 25) {
+                                        return "battery_2_bar";
+                                    }
+
+                                    return "battery_1_bar";
                                 }
                             }
                             size: Theme.iconSizeLarge
                             color: {
-                                if (BatteryService.isLowBattery
-                                        && !BatteryService.isCharging)
-                                    return Theme.error
+                                if (BatteryService.isLowBattery && !BatteryService.isCharging)
+                                    return Theme.error;
 
-                                if (BatteryService.isCharging
-                                        || BatteryService.isPluggedIn)
-                                    return Theme.primary
+                                if (BatteryService.isCharging || BatteryService.isPluggedIn)
+                                    return Theme.primary;
 
-                                return Theme.surfaceText
+                                return Theme.surfaceText;
                             }
                             anchors.verticalCenter: parent.verticalCenter
                         }
@@ -257,17 +294,18 @@ DankPopout {
                                 spacing: Theme.spacingM
 
                                 StyledText {
-                                    text: BatteryService.batteryLevel + "%"
+                                    text: `${BatteryService.batteryLevel}%`
                                     font.pixelSize: Theme.fontSizeLarge
                                     color: {
-                                        if (BatteryService.isLowBattery
-                                                && !BatteryService.isCharging)
-                                            return Theme.error
+                                        if (BatteryService.isLowBattery && !BatteryService.isCharging) {
+                                            return Theme.error;
+                                        }
 
-                                        if (BatteryService.isCharging)
-                                            return Theme.primary
+                                        if (BatteryService.isCharging) {
+                                            return Theme.primary;
+                                        }
 
-                                        return Theme.surfaceText
+                                        return Theme.surfaceText;
                                     }
                                     font.weight: Font.Bold
                                 }
@@ -276,44 +314,47 @@ DankPopout {
                                     text: BatteryService.batteryStatus
                                     font.pixelSize: Theme.fontSizeMedium
                                     color: {
-                                        if (BatteryService.isLowBattery
-                                                && !BatteryService.isCharging)
-                                            return Theme.error
+                                        if (BatteryService.isLowBattery && !BatteryService.isCharging) {
+                                            return Theme.error;
+                                        }
 
-                                        if (BatteryService.isCharging)
-                                            return Theme.primary
+                                        if (BatteryService.isCharging) {
+                                            return Theme.primary;
+                                        }
 
-                                        return Theme.surfaceText
+                                        return Theme.surfaceText;
                                     }
                                     font.weight: Font.Medium
                                     anchors.verticalCenter: parent.verticalCenter
                                 }
+
                             }
 
                             StyledText {
                                 text: {
-                                    let time = BatteryService.formatTimeRemaining()
-                                    if (time !== "Unknown")
-                                        return BatteryService.isCharging ? "Time until full: " + time : "Time remaining: " + time
+                                    const time = BatteryService.formatTimeRemaining();
+                                    if (time !== "Unknown") {
+                                        return BatteryService.isCharging ? `Time until full: ${time}` : `Time remaining: ${time}`;
+                                    }
 
-                                    return ""
+                                    return "";
                                 }
                                 font.pixelSize: Theme.fontSizeSmall
                                 color: Theme.surfaceTextMedium
                                 visible: text.length > 0
                             }
+
                         }
+
                     }
+
                 }
 
                 Rectangle {
                     width: parent.width
                     height: 80
                     radius: Theme.cornerRadius
-                    color: Qt.rgba(Theme.surfaceVariant.r,
-                                   Theme.surfaceVariant.g,
-                                   Theme.surfaceVariant.b,
-                                   Theme.getContentBackgroundAlpha() * 0.4)
+                    color: Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g, Theme.surfaceVariant.b, Theme.getContentBackgroundAlpha() * 0.4)
                     border.color: Theme.outlineMedium
                     border.width: 1
                     visible: !BatteryService.batteryAvailable
@@ -345,8 +386,11 @@ DankPopout {
                                 font.pixelSize: Theme.fontSizeMedium
                                 color: Theme.surfaceTextMedium
                             }
+
                         }
+
                     }
+
                 }
 
                 Column {
@@ -380,14 +424,15 @@ DankPopout {
                                 text: BatteryService.batteryHealth
                                 font.pixelSize: Theme.fontSizeMedium
                                 color: {
-                                    if (BatteryService.batteryHealth === "N/A")
-                                        return Theme.surfaceText
+                                    if (BatteryService.batteryHealth === "N/A") {
+                                        return Theme.surfaceText;
+                                    }
 
-                                    var healthNum = parseInt(
-                                                BatteryService.batteryHealth)
-                                    return healthNum < 80 ? Theme.error : Theme.surfaceText
+                                    const healthNum = parseInt(BatteryService.batteryHealth);
+                                    return healthNum < 80 ? Theme.error : Theme.surfaceText;
                                 }
                             }
+
                         }
 
                         Column {
@@ -402,14 +447,15 @@ DankPopout {
                             }
 
                             StyledText {
-                                text: BatteryService.batteryCapacity
-                                      > 0 ? BatteryService.batteryCapacity.toFixed(
-                                                1) + " Wh" : "Unknown"
+                                text: BatteryService.batteryCapacity > 0 ? `${BatteryService.batteryCapacity.toFixed(1)} Wh` : "Unknown"
                                 font.pixelSize: Theme.fontSizeMedium
                                 color: Theme.surfaceText
                             }
+
                         }
+
                     }
+
                 }
 
                 Column {
@@ -436,10 +482,8 @@ DankPopout {
                                 height: 50
                                 radius: Theme.cornerRadius
                                 color: profileArea.containsMouse ? Theme.primaryHoverLight : (root.isActiveProfile(modelData) ? Theme.primaryPressed : Theme.surfaceLight)
-                                border.color: root.isActiveProfile(
-                                                  modelData) ? Theme.primary : Theme.outlineLight
-                                border.width: root.isActiveProfile(
-                                                  modelData) ? 2 : 1
+                                border.color: root.isActiveProfile(modelData) ? Theme.primary : Theme.outlineLight
+                                border.width: root.isActiveProfile(modelData) ? 2 : 1
 
                                 Row {
                                     anchors.left: parent.left
@@ -448,11 +492,9 @@ DankPopout {
                                     spacing: Theme.spacingM
 
                                     DankIcon {
-                                        name: Theme.getPowerProfileIcon(
-                                                  modelData)
+                                        name: Theme.getPowerProfileIcon(modelData)
                                         size: Theme.iconSize
-                                        color: root.isActiveProfile(
-                                                   modelData) ? Theme.primary : Theme.surfaceText
+                                        color: root.isActiveProfile(modelData) ? Theme.primary : Theme.surfaceText
                                         anchors.verticalCenter: parent.verticalCenter
                                     }
 
@@ -461,22 +503,20 @@ DankPopout {
                                         anchors.verticalCenter: parent.verticalCenter
 
                                         StyledText {
-                                            text: Theme.getPowerProfileLabel(
-                                                      modelData)
+                                            text: Theme.getPowerProfileLabel(modelData)
                                             font.pixelSize: Theme.fontSizeMedium
-                                            color: root.isActiveProfile(
-                                                       modelData) ? Theme.primary : Theme.surfaceText
-                                            font.weight: root.isActiveProfile(
-                                                             modelData) ? Font.Medium : Font.Normal
+                                            color: root.isActiveProfile(modelData) ? Theme.primary : Theme.surfaceText
+                                            font.weight: root.isActiveProfile(modelData) ? Font.Medium : Font.Normal
                                         }
 
                                         StyledText {
-                                            text: Theme.getPowerProfileDescription(
-                                                      modelData)
+                                            text: Theme.getPowerProfileDescription(modelData)
                                             font.pixelSize: Theme.fontSizeSmall
                                             color: Theme.surfaceTextMedium
                                         }
+
                                     }
+
                                 }
 
                                 MouseArea {
@@ -486,12 +526,16 @@ DankPopout {
                                     hoverEnabled: true
                                     cursorShape: Qt.PointingHandCursor
                                     onPressed: {
-                                        root.setProfile(modelData)
+                                        root.setProfile(modelData);
                                     }
                                 }
+
                             }
+
                         }
+
                     }
+
                 }
 
                 Rectangle {
@@ -501,9 +545,7 @@ DankPopout {
                     color: Theme.errorHover
                     border.color: Theme.primarySelected
                     border.width: 1
-                    visible: (typeof PowerProfiles !== "undefined")
-                             && PowerProfiles.degradationReason
-                             !== PerformanceDegradationReason.None
+                    visible: (typeof PowerProfiles !== "undefined") && PowerProfiles.degradationReason !== PerformanceDegradationReason.None
 
                     Row {
                         anchors.left: parent.left
@@ -530,17 +572,21 @@ DankPopout {
                             }
 
                             StyledText {
-                                text: (typeof PowerProfiles
-                                       !== "undefined") ? PerformanceDegradationReason.toString(
-                                                              PowerProfiles.degradationReason) : ""
+                                text: (typeof PowerProfiles !== "undefined") ? PerformanceDegradationReason.toString(PowerProfiles.degradationReason) : ""
                                 font.pixelSize: Theme.fontSizeSmall
-                                color: Qt.rgba(Theme.error.r, Theme.error.g,
-                                               Theme.error.b, 0.8)
+                                color: Qt.rgba(Theme.error.r, Theme.error.g, Theme.error.b, 0.8)
                             }
+
                         }
+
                     }
+
                 }
+
             }
+
         }
+
     }
+
 }

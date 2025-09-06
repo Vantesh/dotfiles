@@ -27,7 +27,6 @@ PanelWindow {
     property real borderWidth: 1
     property real cornerRadius: Theme.cornerRadius
     property bool enableShadow: false
-    // Expose the focusScope for external access
     property alias modalFocusScope: focusScope
     property bool shouldBeVisible: false
     property bool shouldHaveFocus: shouldBeVisible
@@ -37,15 +36,6 @@ PanelWindow {
     signal opened
     signal dialogClosed
     signal backgroundClicked
-
-    Connections {
-        target: ModalManager
-        function onCloseAllModalsExcept(excludedModal) {
-            if (excludedModal !== root && !allowStacking && shouldBeVisible) {
-                close()
-            }
-        }
-    }
 
     function open() {
         ModalManager.openModal(root)
@@ -61,15 +51,16 @@ PanelWindow {
     }
 
     function toggle() {
-        if (shouldBeVisible)
+        if (shouldBeVisible) {
             close()
-        else
+        } else {
             open()
+        }
     }
 
     visible: shouldBeVisible
     color: "transparent"
-    WlrLayershell.layer: WlrLayershell.Overlay
+    WlrLayershell.layer: WlrLayershell.Top // if set to overlay -> virtual keyboards can be stuck under modal
     WlrLayershell.exclusiveZone: -1
     WlrLayershell.keyboardFocus: shouldHaveFocus ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
     onVisibleChanged: {
@@ -82,6 +73,16 @@ PanelWindow {
             }
             dialogClosed()
         }
+    }
+
+    Connections {
+        function onCloseAllModalsExcept(excludedModal) {
+            if (excludedModal !== root && !allowStacking && shouldBeVisible) {
+                close()
+            }
+        }
+
+        target: ModalManager
     }
 
     Timer {
@@ -112,13 +113,10 @@ PanelWindow {
             anchors.fill: parent
             enabled: root.closeOnBackgroundClick
             onClicked: mouse => {
-                           var localPos = mapToItem(contentContainer,
-                                                    mouse.x, mouse.y)
-                           if (localPos.x < 0
-                               || localPos.x > contentContainer.width
-                               || localPos.y < 0
-                               || localPos.y > contentContainer.height)
-                           root.backgroundClicked()
+                           const localPos = mapToItem(contentContainer, mouse.x, mouse.y)
+                           if (localPos.x < 0 || localPos.x > contentContainer.width || localPos.y < 0 || localPos.y > contentContainer.height) {
+                               root.backgroundClicked()
+                           }
                        }
         }
 
@@ -137,19 +135,20 @@ PanelWindow {
         height: root.height
         anchors.centerIn: positioning === "center" ? parent : undefined
         x: {
-            if (positioning === "top-right")
-                return Math.max(Theme.spacingL,
-                                root.screenWidth - width - Theme.spacingL)
-            else if (positioning === "custom")
+            if (positioning === "top-right") {
+                return Math.max(Theme.spacingL, root.screenWidth - width - Theme.spacingL)
+            } else if (positioning === "custom") {
                 return root.customPosition.x
-            return 0 // Will be overridden by anchors.centerIn when positioning === "center"
+            }
+            return 0
         }
         y: {
-            if (positioning === "top-right")
+            if (positioning === "top-right") {
                 return Theme.barHeight + Theme.spacingXS
-            else if (positioning === "custom")
+            } else if (positioning === "custom") {
                 return root.customPosition.y
-            return 0 // Will be overridden by anchors.centerIn when positioning === "center"
+            }
+            return 0
         }
         color: root.backgroundColor
         radius: root.cornerRadius
@@ -157,12 +156,7 @@ PanelWindow {
         border.width: root.borderWidth
         layer.enabled: root.enableShadow
         opacity: root.shouldBeVisible ? 1 : 0
-        scale: {
-            if (root.animationType === "scale")
-                return root.shouldBeVisible ? 1 : 0.9
-
-            return 1
-        }
+        scale: root.animationType === "scale" ? (root.shouldBeVisible ? 1 : 0.9) : 1
         transform: root.animationType === "slide" ? slideTransform : null
 
         Translate {
@@ -214,28 +208,25 @@ PanelWindow {
         visible: root.visible // Only active when the modal is visible
         focus: root.visible
         Keys.onEscapePressed: event => {
-                                  if (root.closeOnEscapeKey
-                                      && shouldHaveFocus) {
+                                  if (root.closeOnEscapeKey && shouldHaveFocus) {
                                       root.close()
                                       event.accepted = true
                                   }
                               }
         onVisibleChanged: {
-            if (visible && shouldHaveFocus)
-                Qt.callLater(function () {
-                    focusScope.forceActiveFocus()
-                })
+            if (visible && shouldHaveFocus) {
+                Qt.callLater(() => focusScope.forceActiveFocus())
+            }
         }
 
         Connections {
-            target: root
             function onShouldHaveFocusChanged() {
                 if (shouldHaveFocus && visible) {
-                    Qt.callLater(function () {
-                        focusScope.forceActiveFocus()
-                    })
+                    Qt.callLater(() => focusScope.forceActiveFocus())
                 }
             }
+
+            target: root
         }
     }
 }

@@ -47,7 +47,7 @@ Item {
                 anchors.bottom: parent.top
                 anchors.bottomMargin: Theme.spacingS
                 anchors.horizontalCenter: parent.horizontalCenter
-                visible: doNotDisturbButton.children[1].containsMouse // Access StateLayer's containsMouse
+                visible: doNotDisturbButton.children[1].containsMouse
                 opacity: visible ? 1 : 0
 
                 StyledText {
@@ -76,12 +76,10 @@ Item {
         anchors.verticalCenter: parent.verticalCenter
         spacing: Theme.spacingXS
 
-        // Keyboard help button
         DankActionButton {
             id: helpButton
             iconName: "info"
-            iconColor: keyboardController
-                       && keyboardController.showKeyboardHints ? Theme.primary : Theme.surfaceText
+            iconColor: (keyboardController && keyboardController.showKeyboardHints) ? Theme.primary : Theme.surfaceText
             buttonSize: 28
             visible: keyboardController !== null
             anchors.verticalCenter: parent.verticalCenter
@@ -92,7 +90,6 @@ Item {
             }
         }
 
-        // Settings button
         DankActionButton {
             id: settingsButton
             iconName: "settings"
@@ -109,17 +106,8 @@ Item {
             height: 28
             radius: Theme.cornerRadius
             visible: NotificationService.notifications.length > 0
-            color: clearArea.containsMouse ? Qt.rgba(Theme.primary.r,
-                                                     Theme.primary.g,
-                                                     Theme.primary.b,
-                                                     0.12) : Qt.rgba(
-                                                 Theme.surfaceVariant.r,
-                                                 Theme.surfaceVariant.g,
-                                                 Theme.surfaceVariant.b, 0.3)
-            border.color: clearArea.containsMouse ? Theme.primary : Qt.rgba(
-                                                        Theme.outline.r,
-                                                        Theme.outline.g,
-                                                        Theme.outline.b, 0.08)
+            color: clearArea.containsMouse ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.12) : Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g, Theme.surfaceVariant.b, 0.3)
+            border.color: clearArea.containsMouse ? Theme.primary : Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.08)
             border.width: 1
 
             Row {

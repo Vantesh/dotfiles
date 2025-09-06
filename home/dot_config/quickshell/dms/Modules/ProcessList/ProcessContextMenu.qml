@@ -12,25 +12,27 @@ Popup {
     property var processData: null
 
     function show(x, y) {
-        if (!processContextMenu.parent && typeof Overlay !== "undefined"
-                && Overlay.overlay)
-            processContextMenu.parent = Overlay.overlay
+        if (!processContextMenu.parent && typeof Overlay !== "undefined" && Overlay.overlay) {
+            processContextMenu.parent = Overlay.overlay;
+        }
 
-        const menuWidth = 180
-        const menuHeight = menuColumn.implicitHeight + Theme.spacingS * 2
-        const screenWidth = Screen.width
-        const screenHeight = Screen.height
-        let finalX = x
-        let finalY = y
-        if (x + menuWidth > screenWidth - 20)
-            finalX = x - menuWidth
+        const menuWidth = 180;
+        const menuHeight = menuColumn.implicitHeight + Theme.spacingS * 2;
+        const screenWidth = Screen.width;
+        const screenHeight = Screen.height;
+        let finalX = x;
+        let finalY = y;
+        if (x + menuWidth > screenWidth - 20) {
+            finalX = x - menuWidth;
+        }
 
-        if (y + menuHeight > screenHeight - 20)
-            finalY = y - menuHeight
+        if (y + menuHeight > screenHeight - 20) {
+            finalY = y - menuHeight;
+        }
 
-        processContextMenu.x = Math.max(20, finalX)
-        processContextMenu.y = Math.max(20, finalY)
-        open()
+        processContextMenu.x = Math.max(20, finalX);
+        processContextMenu.y = Math.max(20, finalY);
+        open();
     }
 
     width: 180
@@ -39,10 +41,10 @@ Popup {
     modal: false
     closePolicy: Popup.CloseOnEscape
     onClosed: {
-        closePolicy = Popup.CloseOnEscape
+        closePolicy = Popup.CloseOnEscape;
     }
     onOpened: {
-        outsideClickTimer.start()
+        outsideClickTimer.start();
     }
 
     Timer {
@@ -50,7 +52,7 @@ Popup {
 
         interval: 100
         onTriggered: {
-            processContextMenu.closePolicy = Popup.CloseOnEscape | Popup.CloseOnPressOutside
+            processContextMenu.closePolicy = Popup.CloseOnEscape | Popup.CloseOnPressOutside;
         }
     }
 
@@ -63,8 +65,7 @@ Popup {
 
         color: Theme.popupBackground()
         radius: Theme.cornerRadius
-        border.color: Qt.rgba(Theme.outline.r, Theme.outline.g,
-                              Theme.outline.b, 0.08)
+        border.color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.08)
         border.width: 1
 
         Column {
@@ -78,10 +79,7 @@ Popup {
                 width: parent.width
                 height: 28
                 radius: Theme.cornerRadius
-                color: copyPidArea.containsMouse ? Qt.rgba(Theme.primary.r,
-                                                           Theme.primary.g,
-                                                           Theme.primary.b,
-                                                           0.12) : "transparent"
+                color: copyPidArea.containsMouse ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.12) : "transparent"
 
                 StyledText {
                     anchors.left: parent.left
@@ -100,25 +98,21 @@ Popup {
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
                     onClicked: {
-                        if (processContextMenu.processData)
-                            Quickshell.execDetached(
-                                        ["wl-copy", processContextMenu.processData.pid.toString(
-                                             )])
+                        if (processContextMenu.processData) {
+                            Quickshell.execDetached(["wl-copy", processContextMenu.processData.pid.toString()]);
+                        }
 
-                        processContextMenu.close()
+                        processContextMenu.close();
                     }
                 }
+
             }
 
             Rectangle {
                 width: parent.width
                 height: 28
                 radius: Theme.cornerRadius
-                color: copyNameArea.containsMouse ? Qt.rgba(
-                                                        Theme.primary.r,
-                                                        Theme.primary.g,
-                                                        Theme.primary.b,
-                                                        0.12) : "transparent"
+                color: copyNameArea.containsMouse ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.12) : "transparent"
 
                 StyledText {
                     anchors.left: parent.left
@@ -138,13 +132,13 @@ Popup {
                     cursorShape: Qt.PointingHandCursor
                     onClicked: {
                         if (processContextMenu.processData) {
-                            let processName = processContextMenu.processData.displayName
-                                || processContextMenu.processData.command
-                            Quickshell.execDetached(["wl-copy", processName])
+                            const processName = processContextMenu.processData.displayName || processContextMenu.processData.command;
+                            Quickshell.execDetached(["wl-copy", processName]);
                         }
-                        processContextMenu.close()
+                        processContextMenu.close();
                     }
                 }
+
             }
 
             Rectangle {
@@ -157,19 +151,16 @@ Popup {
                     anchors.centerIn: parent
                     width: parent.width
                     height: 1
-                    color: Qt.rgba(Theme.outline.r, Theme.outline.g,
-                                   Theme.outline.b, 0.2)
+                    color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.2)
                 }
+
             }
 
             Rectangle {
                 width: parent.width
                 height: 28
                 radius: Theme.cornerRadius
-                color: killArea.containsMouse ? Qt.rgba(Theme.error.r,
-                                                        Theme.error.g,
-                                                        Theme.error.b,
-                                                        0.12) : "transparent"
+                color: killArea.containsMouse ? Qt.rgba(Theme.error.r, Theme.error.g, Theme.error.b, 0.12) : "transparent"
                 enabled: processContextMenu.processData
                 opacity: enabled ? 1 : 0.5
 
@@ -179,10 +170,7 @@ Popup {
                     anchors.verticalCenter: parent.verticalCenter
                     text: "Kill Process"
                     font.pixelSize: Theme.fontSizeSmall
-                    color: parent.enabled ? (killArea.containsMouse ? Theme.error : Theme.surfaceText) : Qt.rgba(
-                                                Theme.surfaceText.r,
-                                                Theme.surfaceText.g,
-                                                Theme.surfaceText.b, 0.5)
+                    color: parent.enabled ? (killArea.containsMouse ? Theme.error : Theme.surfaceText) : Qt.rgba(Theme.surfaceText.r, Theme.surfaceText.g, Theme.surfaceText.b, 0.5)
                     font.weight: Font.Normal
                 }
 
@@ -194,27 +182,22 @@ Popup {
                     cursorShape: parent.enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
                     enabled: parent.enabled
                     onClicked: {
-                        if (processContextMenu.processData)
-                            Quickshell.execDetached(
-                                        ["kill", processContextMenu.processData.pid.toString(
-                                             )])
+                        if (processContextMenu.processData) {
+                            Quickshell.execDetached(["kill", processContextMenu.processData.pid.toString()]);
+                        }
 
-                        processContextMenu.close()
+                        processContextMenu.close();
                     }
                 }
+
             }
 
             Rectangle {
                 width: parent.width
                 height: 28
                 radius: Theme.cornerRadius
-                color: forceKillArea.containsMouse ? Qt.rgba(
-                                                         Theme.error.r,
-                                                         Theme.error.g,
-                                                         Theme.error.b,
-                                                         0.12) : "transparent"
-                enabled: processContextMenu.processData
-                         && processContextMenu.processData.pid > 1000
+                color: forceKillArea.containsMouse ? Qt.rgba(Theme.error.r, Theme.error.g, Theme.error.b, 0.12) : "transparent"
+                enabled: processContextMenu.processData && processContextMenu.processData.pid > 1000
                 opacity: enabled ? 1 : 0.5
 
                 StyledText {
@@ -223,10 +206,7 @@ Popup {
                     anchors.verticalCenter: parent.verticalCenter
                     text: "Force Kill Process"
                     font.pixelSize: Theme.fontSizeSmall
-                    color: parent.enabled ? (forceKillArea.containsMouse ? Theme.error : Theme.surfaceText) : Qt.rgba(
-                                                Theme.surfaceText.r,
-                                                Theme.surfaceText.g,
-                                                Theme.surfaceText.b, 0.5)
+                    color: parent.enabled ? (forceKillArea.containsMouse ? Theme.error : Theme.surfaceText) : Qt.rgba(Theme.surfaceText.r, Theme.surfaceText.g, Theme.surfaceText.b, 0.5)
                     font.weight: Font.Normal
                 }
 
@@ -238,15 +218,18 @@ Popup {
                     cursorShape: parent.enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
                     enabled: parent.enabled
                     onClicked: {
-                        if (processContextMenu.processData)
-                            Quickshell.execDetached(
-                                        ["kill", "-9", processContextMenu.processData.pid.toString(
-                                             )])
+                        if (processContextMenu.processData) {
+                            Quickshell.execDetached(["kill", "-9", processContextMenu.processData.pid.toString()]);
+                        }
 
-                        processContextMenu.close()
+                        processContextMenu.close();
                     }
                 }
+
             }
+
         }
+
     }
+
 }

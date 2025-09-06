@@ -1,4 +1,5 @@
 pragma Singleton
+
 pragma ComponentBehavior: Bound
 
 import QtQuick
@@ -10,7 +11,6 @@ import Quickshell.Hyprland
 Singleton {
     id: root
 
-    // Compositor detection
     property bool isHyprland: false
     property bool isNiri: false
     property string compositor: "unknown"
@@ -19,62 +19,64 @@ Singleton {
     readonly property string niriSocket: Quickshell.env("NIRI_SOCKET")
 
     property bool useNiriSorting: isNiri && NiriService
-    property bool useHyprlandSorting: false
 
     property var sortedToplevels: {
         if (!ToplevelManager.toplevels || !ToplevelManager.toplevels.values) {
             return []
         }
-                
-        // Only use niri sorting when both compositor is niri AND niri service is ready
+
         if (useNiriSorting) {
             return NiriService.sortToplevels(ToplevelManager.toplevels.values)
         }
 
         if (isHyprland) {
             const hyprlandToplevels = Array.from(Hyprland.toplevels.values)
-            
+
             const sortedHyprland = hyprlandToplevels.sort((a, b) => {
-                // Sort by monitor first
-                if (a.monitor && b.monitor) {
-                    const monitorCompare = a.monitor.name.localeCompare(b.monitor.name)
-                    if (monitorCompare !== 0) return monitorCompare
-                }
-                
-                // Then by workspace
-                if (a.workspace && b.workspace) {
-                    const workspaceCompare = a.workspace.id - b.workspace.id
-                    if (workspaceCompare !== 0) return workspaceCompare
-                }
-                
-                
-                if (a.lastIpcObject && b.lastIpcObject && a.lastIpcObject.at && b.lastIpcObject.at) {
-                    const aX = a.lastIpcObject.at[0]
-                    const bX = b.lastIpcObject.at[0]
-                    const aY = a.lastIpcObject.at[1]
-                    const bY = b.lastIpcObject.at[1]
-                    
-                    const xCompare = aX - bX
-                    if (Math.abs(xCompare) > 10) return xCompare
-                    return aY - bY
-                }
-                
-                if (a.lastIpcObject && !b.lastIpcObject) return -1
-                if (!a.lastIpcObject && b.lastIpcObject) return 1
-                
-                if (a.title && b.title) {
-                    return a.title.localeCompare(b.title)
-                }
-                
-                
-                return 0
-            })
-            
-            // Return the wayland Toplevel objects
+                                                              if (a.monitor && b.monitor) {
+                                                                  const monitorCompare = a.monitor.name.localeCompare(b.monitor.name)
+                                                                  if (monitorCompare !== 0) {
+                                                                      return monitorCompare
+                                                                  }
+                                                              }
+
+                                                              if (a.workspace && b.workspace) {
+                                                                  const workspaceCompare = a.workspace.id - b.workspace.id
+                                                                  if (workspaceCompare !== 0) {
+                                                                      return workspaceCompare
+                                                                  }
+                                                              }
+
+                                                              if (a.lastIpcObject && b.lastIpcObject && a.lastIpcObject.at && b.lastIpcObject.at) {
+                                                                  const aX = a.lastIpcObject.at[0]
+                                                                  const bX = b.lastIpcObject.at[0]
+                                                                  const aY = a.lastIpcObject.at[1]
+                                                                  const bY = b.lastIpcObject.at[1]
+
+                                                                  const xCompare = aX - bX
+                                                                  if (Math.abs(xCompare) > 10) {
+                                                                      return xCompare
+                                                                  }
+                                                                  return aY - bY
+                                                              }
+
+                                                              if (a.lastIpcObject && !b.lastIpcObject) {
+                                                                  return -1
+                                                              }
+                                                              if (!a.lastIpcObject && b.lastIpcObject) {
+                                                                  return 1
+                                                              }
+
+                                                              if (a.title && b.title) {
+                                                                  return a.title.localeCompare(b.title)
+                                                              }
+
+                                                              return 0
+                                                          })
+
             return sortedHyprland.map(hyprToplevel => hyprToplevel.wayland).filter(wayland => wayland !== null)
         }
 
-        // For other compositors or when services aren't ready yet, return unsorted toplevels
         return ToplevelManager.toplevels.values
     }
 
@@ -82,7 +84,7 @@ Singleton {
         detectCompositor()
     }
 
-    function filterCurrentWorkspace(toplevels, screen){
+    function filterCurrentWorkspace(toplevels, screen) {
         if (useNiriSorting) {
             return NiriService.filterCurrentWorkspace(toplevels, screen)
         }
@@ -97,11 +99,10 @@ Singleton {
             return toplevels
         }
 
-        var currentWorkspaceId = null
+        let currentWorkspaceId = null
         const hyprlandToplevels = Array.from(Hyprland.toplevels.values)
-        
-        for (var i = 0; i < hyprlandToplevels.length; i++) {
-            var hyprToplevel = hyprlandToplevels[i]
+
+        for (const hyprToplevel of hyprlandToplevels) {
             if (hyprToplevel.monitor && hyprToplevel.monitor.name === screenName && hyprToplevel.workspace) {
                 if (hyprToplevel.activated) {
                     currentWorkspaceId = hyprToplevel.workspace.id
@@ -115,8 +116,7 @@ Singleton {
 
         if (currentWorkspaceId === null && Hyprland.workspaces) {
             const workspaces = Array.from(Hyprland.workspaces.values)
-            for (var k = 0; k < workspaces.length; k++) {
-                var workspace = workspaces[k]
+            for (const workspace of workspaces) {
                 if (workspace.monitor && workspace.monitor === screenName) {
                     if (Hyprland.focusedWorkspace && workspace.id === Hyprland.focusedWorkspace.id) {
                         currentWorkspaceId = workspace.id
@@ -134,18 +134,16 @@ Singleton {
         }
 
         return toplevels.filter(toplevel => {
-            for (var j = 0; j < hyprlandToplevels.length; j++) {
-                var hyprToplevel = hyprlandToplevels[j]
-                if (hyprToplevel.wayland === toplevel) {
-                    return hyprToplevel.workspace && hyprToplevel.workspace.id === currentWorkspaceId
-                }
-            }
-            return false
-        })
+                                    for (const hyprToplevel of hyprlandToplevels) {
+                                        if (hyprToplevel.wayland === toplevel) {
+                                            return hyprToplevel.workspace && hyprToplevel.workspace.id === currentWorkspaceId
+                                        }
+                                    }
+                                    return false
+                                })
     }
 
     function detectCompositor() {
-        // Check for Hyprland first
         if (hyprlandSignature && hyprlandSignature.length > 0) {
             isHyprland = true
             isNiri = false
@@ -154,12 +152,9 @@ Singleton {
             return
         }
 
-        // Check for Niri
         if (niriSocket && niriSocket.length > 0) {
-            // Verify the socket actually exists
             niriSocketCheck.running = true
         } else {
-            // No compositor detected, default to Niri
             isHyprland = false
             isNiri = false
             compositor = "unknown"

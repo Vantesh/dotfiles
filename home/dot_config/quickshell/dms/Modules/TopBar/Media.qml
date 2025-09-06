@@ -13,21 +13,21 @@ Rectangle {
     readonly property int textWidth: {
         switch (SettingsData.mediaSize) {
         case 0:
-            return 0 // No text in small mode
+            return 0; // No text in small mode
         case 2:
-            return 180 // Large text area
+            return 180; // Large text area
         default:
-            return 120 // Medium text area
+            return 120; // Medium text area
         }
     }
-
     readonly property int currentContentWidth: {
         // Calculate actual content width:
         // AudioViz (20) + spacing + [text + spacing] + controls (prev:20 + spacing + play:24 + spacing + next:20) + padding
-        const controlsWidth = 20 + Theme.spacingXS + 24 + Theme.spacingXS + 20  // ~72px total
-        const audioVizWidth = 20
-        const contentWidth = audioVizWidth + Theme.spacingXS + controlsWidth
-        return contentWidth + (textWidth > 0 ? textWidth + Theme.spacingXS : 0) + horizontalPadding * 2
+        const controlsWidth = 20 + Theme.spacingXS + 24 + Theme.spacingXS + 20;
+        // ~72px total
+        const audioVizWidth = 20;
+        const contentWidth = audioVizWidth + Theme.spacingXS + controlsWidth;
+        return contentWidth + (textWidth > 0 ? textWidth + Theme.spacingXS : 0) + horizontalPadding * 2;
     }
     property string section: "center"
     property var popupTarget: null
@@ -36,15 +36,17 @@ Rectangle {
     property real widgetHeight: 30
     readonly property real horizontalPadding: SettingsData.topBarNoBackground ? 0 : Math.max(Theme.spacingXS, Theme.spacingS * (widgetHeight / 30))
 
-    signal clicked
+    signal clicked()
 
     height: widgetHeight
     radius: SettingsData.topBarNoBackground ? 0 : Theme.cornerRadius
     color: {
-        if (SettingsData.topBarNoBackground) return "transparent"
-        const baseColor = Theme.surfaceTextHover
-        return Qt.rgba(baseColor.r, baseColor.g, baseColor.b,
-                       baseColor.a * Theme.widgetTransparency)
+        if (SettingsData.topBarNoBackground) {
+            return "transparent";
+        }
+
+        const baseColor = Theme.surfaceTextHover;
+        return Qt.rgba(baseColor.r, baseColor.g, baseColor.b, baseColor.a * Theme.widgetTransparency);
     }
     states: [
         State {
@@ -56,6 +58,7 @@ Rectangle {
                 opacity: 1
                 width: currentContentWidth
             }
+
         },
         State {
             name: "hidden"
@@ -66,6 +69,7 @@ Rectangle {
                 opacity: 0
                 width: 0
             }
+
         }
     ]
     transitions: [
@@ -83,7 +87,9 @@ Rectangle {
                     duration: Theme.shortDuration
                     easing.type: Theme.standardEasing
                 }
+
             }
+
         },
         Transition {
             from: "hidden"
@@ -94,6 +100,7 @@ Rectangle {
                 duration: Theme.shortDuration
                 easing.type: Theme.standardEasing
             }
+
         }
     ]
 
@@ -115,6 +122,25 @@ Rectangle {
             Rectangle {
                 id: textContainer
 
+                property string displayText: {
+                    if (!activePlayer || !activePlayer.trackTitle) {
+                        return "";
+                    }
+
+                    let identity = activePlayer.identity || "";
+                    let isWebMedia = identity.toLowerCase().includes("firefox") || identity.toLowerCase().includes("chrome") || identity.toLowerCase().includes("chromium") || identity.toLowerCase().includes("edge") || identity.toLowerCase().includes("safari");
+                    let title = "";
+                    let subtitle = "";
+                    if (isWebMedia && activePlayer.trackTitle) {
+                        title = activePlayer.trackTitle;
+                        subtitle = activePlayer.trackArtist || identity;
+                    } else {
+                        title = activePlayer.trackTitle || "Unknown Track";
+                        subtitle = activePlayer.trackArtist || "";
+                    }
+                    return subtitle.length > 0 ? title + " • " + subtitle : title;
+                }
+
                 anchors.verticalCenter: parent.verticalCenter
                 width: textWidth
                 height: 20
@@ -122,31 +148,11 @@ Rectangle {
                 clip: true
                 color: "transparent"
 
-                property string displayText: {
-                    if (!activePlayer || !activePlayer.trackTitle)
-                        return ""
-
-                    let identity = activePlayer.identity || ""
-                    let isWebMedia = identity.toLowerCase().includes("firefox")
-                        || identity.toLowerCase().includes(
-                            "chrome") || identity.toLowerCase(
-                            ).includes("chromium")
-                        || identity.toLowerCase().includes(
-                            "edge") || identity.toLowerCase().includes("safari")
-                    let title = ""
-                    let subtitle = ""
-                    if (isWebMedia && activePlayer.trackTitle) {
-                        title = activePlayer.trackTitle
-                        subtitle = activePlayer.trackArtist || identity
-                    } else {
-                        title = activePlayer.trackTitle || "Unknown Track"
-                        subtitle = activePlayer.trackArtist || ""
-                    }
-                    return subtitle.length > 0 ? title + " • " + subtitle : title
-                }
-
                 StyledText {
                     id: mediaText
+
+                    property bool needsScrolling: implicitWidth > textContainer.width
+                    property real scrollOffset: 0
 
                     anchors.verticalCenter: parent.verticalCenter
                     text: textContainer.displayText
@@ -154,16 +160,16 @@ Rectangle {
                     color: Theme.surfaceText
                     font.weight: Font.Medium
                     wrapMode: Text.NoWrap
-
-                    property bool needsScrolling: implicitWidth > textContainer.width
-                    property real scrollOffset: 0
-
                     x: needsScrolling ? -scrollOffset : 0
+                    onTextChanged: {
+                        scrollOffset = 0;
+                        scrollAnimation.restart();
+                    }
 
                     SequentialAnimation {
                         id: scrollAnimation
-                        running: mediaText.needsScrolling
-                                 && textContainer.visible
+
+                        running: mediaText.needsScrolling && textContainer.visible
                         loops: Animation.Infinite
 
                         PauseAnimation {
@@ -175,9 +181,7 @@ Rectangle {
                             property: "scrollOffset"
                             from: 0
                             to: mediaText.implicitWidth - textContainer.width + 5
-                            duration: Math.max(
-                                          1000,
-                                          (mediaText.implicitWidth - textContainer.width + 5) * 60)
+                            duration: Math.max(1000, (mediaText.implicitWidth - textContainer.width + 5) * 60)
                             easing.type: Easing.Linear
                         }
 
@@ -189,41 +193,33 @@ Rectangle {
                             target: mediaText
                             property: "scrollOffset"
                             to: 0
-                            duration: Math.max(
-                                          1000,
-                                          (mediaText.implicitWidth - textContainer.width + 5) * 60)
+                            duration: Math.max(1000, (mediaText.implicitWidth - textContainer.width + 5) * 60)
                             easing.type: Easing.Linear
                         }
+
                     }
 
-                    onTextChanged: {
-                        scrollOffset = 0
-                        scrollAnimation.restart()
-                    }
                 }
 
                 MouseArea {
                     anchors.fill: parent
-                    enabled: root.playerAvailable && root.opacity > 0
-                             && root.width > 0 && textContainer.visible
+                    enabled: root.playerAvailable && root.opacity > 0 && root.width > 0 && textContainer.visible
                     hoverEnabled: enabled
                     cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
                     onPressed: {
-                        if (root.popupTarget
-                                && root.popupTarget.setTriggerPosition) {
-                            var globalPos = mapToGlobal(0, 0)
-                            var currentScreen = root.parentScreen || Screen
-                            var screenX = currentScreen.x || 0
-                            var relativeX = globalPos.x - screenX
-                            root.popupTarget.setTriggerPosition(
-                                        relativeX,
-                                        barHeight + Theme.spacingXS,
-                                        root.width, root.section, currentScreen)
+                        if (root.popupTarget && root.popupTarget.setTriggerPosition) {
+                            const globalPos = mapToGlobal(0, 0);
+                            const currentScreen = root.parentScreen || Screen;
+                            const screenX = currentScreen.x || 0;
+                            const relativeX = globalPos.x - screenX;
+                            root.popupTarget.setTriggerPosition(relativeX, barHeight + Theme.spacingXS, root.width, root.section, currentScreen);
                         }
-                        root.clicked()
+                        root.clicked();
                     }
                 }
+
             }
+
         }
 
         Row {
@@ -254,10 +250,12 @@ Rectangle {
                     hoverEnabled: enabled
                     cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
                     onClicked: {
-                        if (activePlayer)
-                            activePlayer.previous()
+                        if (activePlayer) {
+                            activePlayer.previous();
+                        }
                     }
                 }
+
             }
 
             Rectangle {
@@ -265,18 +263,15 @@ Rectangle {
                 height: 24
                 radius: 12
                 anchors.verticalCenter: parent.verticalCenter
-                color: activePlayer
-                       && activePlayer.playbackState === 1 ? Theme.primary : Theme.primaryHover
+                color: activePlayer && activePlayer.playbackState === 1 ? Theme.primary : Theme.primaryHover
                 visible: root.playerAvailable
                 opacity: activePlayer ? 1 : 0.3
 
                 DankIcon {
                     anchors.centerIn: parent
-                    name: activePlayer
-                          && activePlayer.playbackState === 1 ? "pause" : "play_arrow"
+                    name: activePlayer && activePlayer.playbackState === 1 ? "pause" : "play_arrow"
                     size: 14
-                    color: activePlayer
-                           && activePlayer.playbackState === 1 ? Theme.background : Theme.primary
+                    color: activePlayer && activePlayer.playbackState === 1 ? Theme.background : Theme.primary
                 }
 
                 MouseArea {
@@ -285,10 +280,12 @@ Rectangle {
                     hoverEnabled: enabled
                     cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
                     onClicked: {
-                        if (activePlayer)
-                            activePlayer.togglePlaying()
+                        if (activePlayer) {
+                            activePlayer.togglePlaying();
+                        }
                     }
                 }
+
             }
 
             Rectangle {
@@ -315,12 +312,16 @@ Rectangle {
                     hoverEnabled: enabled
                     cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
                     onClicked: {
-                        if (activePlayer)
-                            activePlayer.next()
+                        if (activePlayer) {
+                            activePlayer.next();
+                        }
                     }
                 }
+
             }
+
         }
+
     }
 
     Behavior on color {
@@ -328,6 +329,7 @@ Rectangle {
             duration: Theme.shortDuration
             easing.type: Theme.standardEasing
         }
+
     }
 
     Behavior on width {
@@ -335,5 +337,7 @@ Rectangle {
             duration: Theme.shortDuration
             easing.type: Theme.standardEasing
         }
+
     }
+
 }

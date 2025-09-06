@@ -11,7 +11,6 @@ DankOSD {
     autoHideInterval: 3000
     enableMouseInteraction: true
 
-
     Connections {
         target: AudioService
 
@@ -20,8 +19,9 @@ DankOSD {
         }
 
         function onSinkChanged() {
-            if (root.shouldBeVisible)
+            if (root.shouldBeVisible) {
                 root.show()
+            }
         }
     }
 
@@ -80,16 +80,17 @@ DankOSD {
                 unit: "%"
 
                 Component.onCompleted: {
-                    if (AudioService.sink && AudioService.sink.audio)
-                        value = Math.round(AudioService.sink.audio.volume * 100)
-                }
-
-                onSliderValueChanged: function(newValue) {
                     if (AudioService.sink && AudioService.sink.audio) {
-                        AudioService.sink.audio.volume = newValue / 100
-                        resetHideTimer()
+                        value = Math.round(AudioService.sink.audio.volume * 100)
                     }
                 }
+
+                onSliderValueChanged: newValue => {
+                                          if (AudioService.sink && AudioService.sink.audio) {
+                                              AudioService.sink.audio.volume = newValue / 100
+                                              resetHideTimer()
+                                          }
+                                      }
 
                 onContainsMouseChanged: {
                     setChildHovered(containsMouse || muteButton.containsMouse)
@@ -99,8 +100,9 @@ DankOSD {
                     target: AudioService.sink && AudioService.sink.audio ? AudioService.sink.audio : null
 
                     function onVolumeChanged() {
-                        if (volumeSlider && !volumeSlider.pressed)
+                        if (volumeSlider && !volumeSlider.pressed) {
                             volumeSlider.value = Math.round(AudioService.sink.audio.volume * 100)
+                        }
                     }
                 }
             }
@@ -109,9 +111,10 @@ DankOSD {
 
     onOsdShown: {
         if (AudioService.sink && AudioService.sink.audio && contentLoader.item) {
-            let slider = contentLoader.item.children[0].children[1]
-            if (slider)
+            const slider = contentLoader.item.children[0].children[1]
+            if (slider) {
                 slider.value = Math.round(AudioService.sink.audio.volume * 100)
+            }
         }
     }
 }

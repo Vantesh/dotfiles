@@ -11,10 +11,8 @@ Rectangle {
     width: parent.width
     height: parent.height
     radius: Theme.cornerRadius
-    color: Qt.rgba(Theme.surfaceContainer.r, Theme.surfaceContainer.g,
-                   Theme.surfaceContainer.b, 0.4)
-    border.color: Qt.rgba(Theme.outline.r, Theme.outline.g,
-                          Theme.outline.b, 0.08)
+    color: Qt.rgba(Theme.surfaceContainer.r, Theme.surfaceContainer.g, Theme.surfaceContainer.b, 0.4)
+    border.color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.08)
     border.width: 1
     layer.enabled: true
 
@@ -25,22 +23,19 @@ Rectangle {
     Column {
         anchors.centerIn: parent
         spacing: Theme.spacingS
-        visible: !WeatherService.weather.available
-                 || WeatherService.weather.temp === 0
+        visible: !WeatherService.weather.available || WeatherService.weather.temp === 0
 
         DankIcon {
             name: "cloud_off"
             size: Theme.iconSize + 8
-            color: Qt.rgba(Theme.surfaceText.r, Theme.surfaceText.g,
-                           Theme.surfaceText.b, 0.5)
+            color: Qt.rgba(Theme.surfaceText.r, Theme.surfaceText.g, Theme.surfaceText.b, 0.5)
             anchors.horizontalCenter: parent.horizontalCenter
         }
 
         StyledText {
             text: "No Weather Data"
             font.pixelSize: Theme.fontSizeMedium
-            color: Qt.rgba(Theme.surfaceText.r, Theme.surfaceText.g,
-                           Theme.surfaceText.b, 0.7)
+            color: Qt.rgba(Theme.surfaceText.r, Theme.surfaceText.g, Theme.surfaceText.b, 0.7)
             anchors.horizontalCenter: parent.horizontalCenter
         }
     }
@@ -49,8 +44,7 @@ Rectangle {
         anchors.fill: parent
         anchors.margins: Theme.spacingL
         spacing: Theme.spacingS
-        visible: WeatherService.weather.available
-                 && WeatherService.weather.temp !== 0
+        visible: WeatherService.weather.available && WeatherService.weather.temp !== 0
 
         Item {
             width: parent.width
@@ -60,8 +54,7 @@ Rectangle {
                 id: refreshButton
                 name: "refresh"
                 size: Theme.iconSize - 6
-                color: Qt.rgba(Theme.surfaceText.r, Theme.surfaceText.g,
-                               Theme.surfaceText.b, 0.3)
+                color: Qt.rgba(Theme.surfaceText.r, Theme.surfaceText.g, Theme.surfaceText.b, 0.3)
                 anchors.right: parent.right
                 anchors.top: parent.top
                 anchors.rightMargin: -Theme.spacingS
@@ -102,8 +95,7 @@ Rectangle {
                 spacing: Theme.spacingL
 
                 DankIcon {
-                    name: WeatherService.getWeatherIcon(
-                              WeatherService.weather.wCode)
+                    name: WeatherService.getWeatherIcon(WeatherService.weather.wCode)
                     size: Theme.iconSize + 8
                     color: Theme.primary
                     anchors.verticalCenter: parent.verticalCenter
@@ -114,8 +106,7 @@ Rectangle {
                     anchors.verticalCenter: parent.verticalCenter
 
                     StyledText {
-                        text: (SettingsData.useFahrenheit ? WeatherService.weather.tempF : WeatherService.weather.temp)
-                              + "°" + (SettingsData.useFahrenheit ? "F" : "C")
+                        text: (SettingsData.useFahrenheit ? WeatherService.weather.tempF : WeatherService.weather.temp) + "°" + (SettingsData.useFahrenheit ? "F" : "C")
                         font.pixelSize: Theme.fontSizeXLarge
                         color: Theme.surfaceText
                         font.weight: Font.Light
@@ -125,9 +116,9 @@ Rectangle {
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
                             onClicked: {
-                                if (WeatherService.weather.available)
-                                    SettingsData.setTemperatureUnit(
-                                                !SettingsData.useFahrenheit)
+                                if (WeatherService.weather.available) {
+                                    SettingsData.setTemperatureUnit(!SettingsData.useFahrenheit)
+                                }
                             }
                             enabled: WeatherService.weather.available
                         }
@@ -136,9 +127,7 @@ Rectangle {
                     StyledText {
                         text: WeatherService.weather.city || ""
                         font.pixelSize: Theme.fontSizeMedium
-                        color: Qt.rgba(Theme.surfaceText.r,
-                                       Theme.surfaceText.g,
-                                       Theme.surfaceText.b, 0.7)
+                        color: Qt.rgba(Theme.surfaceText.r, Theme.surfaceText.g, Theme.surfaceText.b, 0.7)
                         visible: text.length > 0
                     }
                 }
@@ -161,8 +150,7 @@ Rectangle {
                 }
 
                 StyledText {
-                    text: WeatherService.weather.humidity ? WeatherService.weather.humidity
-                                                            + "%" : "--"
+                    text: WeatherService.weather.humidity ? WeatherService.weather.humidity + "%" : "--"
                     font.pixelSize: Theme.fontSizeSmall
                     color: Theme.surfaceText
                     anchors.verticalCenter: parent.verticalCenter

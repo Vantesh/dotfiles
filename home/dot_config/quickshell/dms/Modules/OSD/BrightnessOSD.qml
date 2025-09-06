@@ -24,7 +24,6 @@ DankOSD {
         }
     }
 
-
     Connections {
         target: DisplayService
         function onBrightnessChanged() {
@@ -54,12 +53,13 @@ DankOSD {
                     anchors.centerIn: parent
                     name: {
                         const deviceInfo = DisplayService.getCurrentDeviceInfo()
-                        if (!deviceInfo || deviceInfo.class === "backlight" || deviceInfo.class === "ddc")
+                        if (!deviceInfo || deviceInfo.class === "backlight" || deviceInfo.class === "ddc") {
                             return "brightness_medium"
-                        else if (deviceInfo.name.includes("kbd"))
+                        } else if (deviceInfo.name.includes("kbd")) {
                             return "keyboard"
-                        else
+                        } else {
                             return "lightbulb"
+                        }
                     }
                     size: Theme.iconSize
                     color: Theme.primary
@@ -80,40 +80,43 @@ DankOSD {
                 unit: "%"
 
                 Component.onCompleted: {
-                    if (DisplayService.brightnessAvailable)
-                        value = DisplayService.brightnessLevel
-                }
-
-                onSliderValueChanged: function(newValue) {
                     if (DisplayService.brightnessAvailable) {
-                        root.brightnessDebounceTimer.pendingValue = newValue
-                        root.brightnessDebounceTimer.restart()
-                        resetHideTimer()
+                        value = DisplayService.brightnessLevel
                     }
                 }
+
+                onSliderValueChanged: newValue => {
+                                          if (DisplayService.brightnessAvailable) {
+                                              root.brightnessDebounceTimer.pendingValue = newValue
+                                              root.brightnessDebounceTimer.restart()
+                                              resetHideTimer()
+                                          }
+                                      }
 
                 onContainsMouseChanged: {
                     setChildHovered(containsMouse)
                 }
 
-                onSliderDragFinished: function(finalValue) {
-                    if (DisplayService.brightnessAvailable) {
-                        root.brightnessDebounceTimer.stop()
-                        DisplayService.setBrightnessInternal(finalValue, DisplayService.lastIpcDevice)
-                    }
-                }
+                onSliderDragFinished: finalValue => {
+                                          if (DisplayService.brightnessAvailable) {
+                                              root.brightnessDebounceTimer.stop()
+                                              DisplayService.setBrightnessInternal(finalValue, DisplayService.lastIpcDevice)
+                                          }
+                                      }
 
                 Connections {
                     target: DisplayService
 
                     function onBrightnessChanged() {
-                        if (!brightnessSlider.pressed)
+                        if (!brightnessSlider.pressed) {
                             brightnessSlider.value = DisplayService.brightnessLevel
+                        }
                     }
 
                     function onDeviceSwitched() {
-                        if (!brightnessSlider.pressed)
+                        if (!brightnessSlider.pressed) {
                             brightnessSlider.value = DisplayService.brightnessLevel
+                        }
                     }
                 }
             }
@@ -122,9 +125,10 @@ DankOSD {
 
     onOsdShown: {
         if (DisplayService.brightnessAvailable && contentLoader.item) {
-            let slider = contentLoader.item.children[0].children[1]
-            if (slider)
+            const slider = contentLoader.item.children[0].children[1]
+            if (slider) {
                 slider.value = DisplayService.brightnessLevel
+            }
         }
     }
 }

@@ -1,4 +1,5 @@
 pragma Singleton
+
 pragma ComponentBehavior: Bound
 
 import QtQuick
@@ -13,8 +14,7 @@ Singleton {
 
     readonly property list<NotifWrapper> notifications: []
     readonly property list<NotifWrapper> allWrappers: []
-    readonly property list<NotifWrapper> popups: allWrappers.filter(
-                                                     n => n && n.popup)
+    readonly property list<NotifWrapper> popups: allWrappers.filter(n => n && n.popup)
 
     property list<NotifWrapper> notificationQueue: []
     property list<NotifWrapper> visibleNotifications: []
@@ -34,14 +34,19 @@ Singleton {
     property int _dismissBatchSize: 8
     property int _dismissTickMs: 8
     property bool _suspendGrouping: false
-    property var _groupCache: ({"notifications": [], "popups": []})
+    property var _groupCache: ({
+                                   "notifications": [],
+                                   "popups": []
+                               })
     property bool _groupsDirty: false
 
     Component.onCompleted: {
         _recomputeGroups()
     }
 
-    function _nowSec() { return Date.now() / 1000.0 }
+    function _nowSec() {
+        return Date.now() / 1000.0
+    }
 
     function _ingressAllowed(notif) {
         const t = _nowSec()
@@ -50,22 +55,26 @@ Singleton {
             _ingressCountThisSec = 0
         }
         _ingressCountThisSec += 1
-        if (notif.urgency === NotificationUrgency.Critical)
+        if (notif.urgency === NotificationUrgency.Critical) {
             return true
+        }
         return _ingressCountThisSec <= maxIngressPerSecond
     }
 
     function _enqueuePopup(wrapper) {
         if (notificationQueue.length >= maxQueueSize) {
             const gk = getGroupKey(wrapper)
-            let idx = notificationQueue.findIndex(w =>
-                w && getGroupKey(w) === gk && w.urgency !== NotificationUrgency.Critical)
+            let idx = notificationQueue.findIndex(w => w && getGroupKey(w) === gk && w.urgency !== NotificationUrgency.Critical)
             if (idx === -1) {
                 idx = notificationQueue.findIndex(w => w && w.urgency !== NotificationUrgency.Critical)
             }
-            if (idx === -1) idx = 0
+            if (idx === -1) {
+                idx = 0
+            }
             const victim = notificationQueue[idx]
-            if (victim) victim.popup = false
+            if (victim) {
+                victim.popup = false
+            }
             notificationQueue.splice(idx, 1)
         }
         notificationQueue = [...notificationQueue, wrapper]
@@ -80,18 +89,26 @@ Singleton {
     function _trimStored() {
         if (notifications.length > maxStoredNotifications) {
             const overflow = notifications.length - maxStoredNotifications
-            let toDrop = []
-            for (let i = notifications.length - 1; i >= 0 && toDrop.length < overflow; --i) {
+            const toDrop = []
+            for (var i = notifications.length - 1; i >= 0 && toDrop.length < overflow; --i) {
                 const w = notifications[i]
-                if (w && w.notification && w.urgency !== NotificationUrgency.Critical)
+                if (w && w.notification && w.urgency !== NotificationUrgency.Critical) {
                     toDrop.push(w)
+                }
             }
-            for (let i = notifications.length - 1; i >= 0 && toDrop.length < overflow; --i) {
+            for (var i = notifications.length - 1; i >= 0 && toDrop.length < overflow; --i) {
                 const w = notifications[i]
-                if (w && w.notification && toDrop.indexOf(w) === -1)
+                if (w && w.notification && toDrop.indexOf(w) === -1) {
                     toDrop.push(w)
+                }
             }
-            for (const w of toDrop) { try { w.notification.dismiss() } catch(e) {} }
+            for (const w of toDrop) {
+                try {
+                    w.notification.dismiss()
+                } catch (e) {
+
+                }
+            }
         }
     }
 
@@ -144,11 +161,15 @@ Singleton {
         running: false
         onTriggered: {
             let n = Math.min(_dismissBatchSize, _dismissQueue.length)
-            for (let i = 0; i < n; ++i) {
+            for (var i = 0; i < n; ++i) {
                 const w = _dismissQueue.pop()
                 try {
-                    if (w && w.notification) w.notification.dismiss()
-                } catch (e) {}
+                    if (w && w.notification) {
+                        w.notification.dismiss()
+                    }
+                } catch (e) {
+
+                }
             }
             if (_dismissQueue.length === 0) {
                 dismissPump.stop()
@@ -195,7 +216,11 @@ Singleton {
 
             if (!_ingressAllowed(notif)) {
                 if (notif.urgency !== NotificationUrgency.Critical) {
-                    try { notif.dismiss() } catch(e) {}
+                    try {
+                        notif.dismiss()
+                    } catch (e) {
+
+                    }
                     return
                 }
             }
@@ -212,8 +237,8 @@ Singleton {
                 _trimStored()
 
                 Qt.callLater(() => {
-                    _initWrapperPersistence(wrapper)
-                })
+                                 _initWrapperPersistence(wrapper)
+                             })
 
                 if (shouldShowPopup) {
                     _enqueuePopup(wrapper)
@@ -241,8 +266,9 @@ Singleton {
 
         readonly property Timer timer: Timer {
             interval: {
-                if (!wrapper.notification)
-                return 5000
+                if (!wrapper.notification) {
+                    return 5000
+                }
 
                 switch (wrapper.notification.urgency) {
                     case NotificationUrgency.Low:
@@ -273,17 +299,15 @@ Singleton {
             const hours = Math.floor(minutes / 60)
 
             if (hours < 1) {
-                if (minutes < 1)
-                return "now"
+                if (minutes < 1) {
+                    return "now"
+                }
                 return `${minutes}m ago`
             }
 
-            const nowDate = new Date(now.getFullYear(), now.getMonth(),
-                                     now.getDate())
-            const timeDate = new Date(time.getFullYear(), time.getMonth(),
-                                      time.getDate())
-            const daysDiff = Math.floor(
-                (nowDate - timeDate) / (1000 * 60 * 60 * 24))
+            const nowDate = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+            const timeDate = new Date(time.getFullYear(), time.getMonth(), time.getDate())
+            const daysDiff = Math.floor((nowDate - timeDate) / (1000 * 60 * 60 * 24))
 
             if (daysDiff === 0) {
                 return formatTime(time)
@@ -299,8 +323,7 @@ Singleton {
         function formatTime(date) {
             let use24Hour = true
             try {
-                if (typeof SettingsData !== "undefined"
-                        && SettingsData.use24HourClock !== undefined) {
+                if (typeof SettingsData !== "undefined" && SettingsData.use24HourClock !== undefined) {
                     use24Hour = SettingsData.use24HourClock
                 }
             } catch (e) {
@@ -318,7 +341,9 @@ Singleton {
         readonly property string summary: notification.summary
         readonly property string body: notification.body
         readonly property string htmlBody: {
-            if (!popup && !root.popupsDisabled) return ""
+            if (!popup && !root.popupsDisabled) {
+                return ""
+            }
             if (body && (body.includes('<') && body.includes('>'))) {
                 return body
             }
@@ -337,8 +362,9 @@ Singleton {
         readonly property string desktopEntry: notification.desktopEntry
         readonly property string image: notification.image
         readonly property string cleanImage: {
-            if (!image)
-            return ""
+            if (!image) {
+                return ""
+            }
             if (image.startsWith("file://")) {
                 return image.substring(7)
             }
@@ -354,12 +380,12 @@ Singleton {
                 root.allWrappers = root.allWrappers.filter(w => w !== wrapper)
                 root.notifications = root.notifications.filter(w => w !== wrapper)
 
-                if (root.bulkDismissing)
+                if (root.bulkDismissing) {
                     return
+                }
 
                 const groupKey = getGroupKey(wrapper)
-                const remainingInGroup = root.notifications.filter(
-                                           n => getGroupKey(n) === groupKey)
+                const remainingInGroup = root.notifications.filter(n => getGroupKey(n) === groupKey)
 
                 if (remainingInGroup.length <= 1) {
                     clearGroupExpansionState(groupKey)
@@ -392,20 +418,23 @@ Singleton {
         visibleNotifications = []
 
         _dismissQueue = notifications.slice()
-        if (notifications.length)
+        if (notifications.length) {
             notifications = []
+        }
         expandedGroups = {}
         expandedMessages = {}
 
         _suspendGrouping = true
 
-        if (!dismissPump.running && _dismissQueue.length)
+        if (!dismissPump.running && _dismissQueue.length) {
             dismissPump.start()
+        }
     }
 
     function dismissNotification(wrapper) {
-        if (!wrapper || !wrapper.notification)
+        if (!wrapper || !wrapper.notification) {
             return
+        }
         wrapper.popup = false
         wrapper.notification.dismiss()
     }
@@ -422,14 +451,18 @@ Singleton {
     }
 
     function processQueue() {
-        if (addGateBusy)
+        if (addGateBusy) {
             return
-        if (popupsDisabled)
+        }
+        if (popupsDisabled) {
             return
-        if (SessionData.doNotDisturb)
+        }
+        if (SessionData.doNotDisturb) {
             return
-        if (notificationQueue.length === 0)
+        }
+        if (notificationQueue.length === 0) {
             return
+        }
 
         const activePopupCount = visibleNotifications.filter(n => n && n.popup).length
         if (activePopupCount >= 4) {
@@ -461,10 +494,12 @@ Singleton {
 
         if (w && w.destroy && !w.isPersistent && notifications.indexOf(w) === -1) {
             Qt.callLater(() => {
-                try {
-                    w.destroy()
-                } catch (e) {}
-            })
+                             try {
+                                 w.destroy()
+                             } catch (e) {
+
+                             }
+                         })
         }
     }
 
@@ -490,8 +525,9 @@ Singleton {
 
     function _recomputeGroupsLater() {
         _groupsDirty = true
-        if (!groupsDebounce.running)
+        if (!groupsDebounce.running) {
             groupsDebounce.start()
+        }
     }
 
     function _calcGroupedNotifications() {
@@ -520,15 +556,12 @@ Singleton {
         }
 
         return Object.values(groups).sort((a, b) => {
-                                              const aUrgency = a.latestNotification.urgency
-                                              || NotificationUrgency.Low
-                                              const bUrgency = b.latestNotification.urgency
-                                              || NotificationUrgency.Low
+                                              const aUrgency = a.latestNotification.urgency || NotificationUrgency.Low
+                                              const bUrgency = b.latestNotification.urgency || NotificationUrgency.Low
                                               if (aUrgency !== bUrgency) {
                                                   return bUrgency - aUrgency
                                               }
-                                              return b.latestNotification.time.getTime(
-                                                  ) - a.latestNotification.time.getTime()
+                                              return b.latestNotification.time.getTime() - a.latestNotification.time.getTime()
                                           })
     }
 
@@ -558,8 +591,7 @@ Singleton {
         }
 
         return Object.values(groups).sort((a, b) => {
-                                              return b.latestNotification.time.getTime(
-                                                  ) - a.latestNotification.time.getTime()
+                                              return b.latestNotification.time.getTime() - a.latestNotification.time.getTime()
                                           })
     }
 
@@ -582,8 +614,7 @@ Singleton {
             }
         } else {
             for (const notif of allWrappers) {
-                if (notif && notif.notification && getGroupKey(
-                            notif) === groupKey) {
+                if (notif && notif.notification && getGroupKey(notif) === groupKey) {
                     notif.notification.dismiss()
                 }
             }
@@ -617,8 +648,7 @@ Singleton {
         expandedGroups = newExpandedGroups
         let newExpandedMessages = {}
         for (const messageId in expandedMessages) {
-            if (currentMessageIds.has(messageId)
-                    && expandedMessages[messageId]) {
+            if (currentMessageIds.has(messageId) && expandedMessages[messageId]) {
                 newExpandedMessages[messageId] = true
             }
         }

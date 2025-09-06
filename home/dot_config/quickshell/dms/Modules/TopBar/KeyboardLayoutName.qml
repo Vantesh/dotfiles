@@ -1,9 +1,9 @@
 import QtQuick
 import QtQuick.Controls
 import qs.Common
+import qs.Modules.ProcessList
 import qs.Services
 import qs.Widgets
-import qs.Modules.ProcessList
 
 Rectangle {
     id: root
@@ -13,12 +13,13 @@ Rectangle {
     width: contentRow.implicitWidth + horizontalPadding * 2
     height: widgetHeight
     radius: SettingsData.topBarNoBackground ? 0 : Theme.cornerRadius
-    
     color: {
-        if (SettingsData.topBarNoBackground) return "transparent"
-        const baseColor = mouseArea.containsMouse ? Theme.primaryPressed : Theme.secondaryHover
-        return Qt.rgba(baseColor.r, baseColor.g, baseColor.b,
-                       baseColor.a * Theme.widgetTransparency)
+        if (SettingsData.topBarNoBackground) {
+            return "transparent";
+        }
+
+        const baseColor = mouseArea.containsMouse ? Theme.primaryPressed : Theme.secondaryHover;
+        return Qt.rgba(baseColor.r, baseColor.g, baseColor.b, baseColor.a * Theme.widgetTransparency);
     }
 
     MouseArea {
@@ -27,9 +28,8 @@ Rectangle {
         anchors.fill: parent
         hoverEnabled: true
         cursorShape: Qt.PointingHandCursor
-
         onClicked: {
-            NiriService.cycleKeyboardLayout()
+            NiriService.cycleKeyboardLayout();
         }
     }
 
@@ -45,6 +45,7 @@ Rectangle {
             color: Theme.surfaceText
             anchors.verticalCenter: parent.verticalCenter
         }
+
     }
 
     Behavior on color {
@@ -52,5 +53,7 @@ Rectangle {
             duration: Theme.shortDuration
             easing.type: Theme.standardEasing
         }
+
     }
+
 }

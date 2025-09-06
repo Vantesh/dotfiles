@@ -10,34 +10,24 @@ StyledRect {
     property string placeholderText: ""
     property alias font: textInput.font
     property alias textColor: textInput.color
-    property alias selectByMouse: textInput.selectByMouse
     property alias enabled: textInput.enabled
     property alias echoMode: textInput.echoMode
-    property alias verticalAlignment: textInput.verticalAlignment
-    property alias cursorVisible: textInput.cursorVisible
-    property alias readOnly: textInput.readOnly
     property alias validator: textInput.validator
-    property alias inputMethodHints: textInput.inputMethodHints
     property alias maximumLength: textInput.maximumLength
     property string leftIconName: ""
     property int leftIconSize: Theme.iconSize
     property color leftIconColor: Theme.surfaceVariantText
     property color leftIconFocusedColor: Theme.primary
     property bool showClearButton: false
-    property color backgroundColor: Qt.rgba(Theme.surfaceContainer.r,
-                                            Theme.surfaceContainer.g,
-                                            Theme.surfaceContainer.b, 0.9)
+    property color backgroundColor: Qt.rgba(Theme.surfaceContainer.r, Theme.surfaceContainer.g, Theme.surfaceContainer.b, 0.9)
     property color focusedBorderColor: Theme.primary
     property color normalBorderColor: Theme.outlineStrong
     property color placeholderColor: Theme.outlineButton
     property int borderWidth: 1
     property int focusedBorderWidth: 2
     property real cornerRadius: Theme.cornerRadius
-    readonly property real leftPadding: Theme.spacingM
-                                        + (leftIconName ? leftIconSize + Theme.spacingM : 0)
-    readonly property real rightPadding: Theme.spacingM + (showClearButton
-                                                           && text.length
-                                                           > 0 ? 24 + Theme.spacingM : 0)
+    readonly property real leftPadding: Theme.spacingM + (leftIconName ? leftIconSize + Theme.spacingM : 0)
+    readonly property real rightPadding: Theme.spacingM + (showClearButton && text.length > 0 ? 24 + Theme.spacingM : 0)
     property real topPadding: Theme.spacingM
     property real bottomPadding: Theme.spacingM
     property bool ignoreLeftRightKeys: false
@@ -51,45 +41,20 @@ StyledRect {
     function getActiveFocus() {
         return textInput.activeFocus
     }
-
-    function getFocus() {
-        return textInput.focus
-    }
-
     function setFocus(value) {
         textInput.focus = value
     }
-
     function forceActiveFocus() {
         textInput.forceActiveFocus()
     }
-
     function selectAll() {
         textInput.selectAll()
     }
-
     function clear() {
         textInput.clear()
     }
-
-    function paste() {
-        textInput.paste()
-    }
-
-    function copy() {
-        textInput.copy()
-    }
-
-    function cut() {
-        textInput.cut()
-    }
-
     function insertText(str) {
         textInput.insert(textInput.cursorPosition, str)
-    }
-
-    function clearFocus() {
-        textInput.focus = false
     }
 
     width: 200
@@ -129,18 +94,26 @@ StyledRect {
         onAccepted: root.accepted()
         onActiveFocusChanged: root.focusStateChanged(activeFocus)
         Keys.forwardTo: root.ignoreLeftRightKeys ? root.keyForwardTargets : []
-        Keys.onLeftPressed: function (event) {
-            if (root.ignoreLeftRightKeys)
-                event.accepted = true
-        }
-        Keys.onRightPressed: function (event) {
-            if (root.ignoreLeftRightKeys)
-                event.accepted = true
-        }
+        Keys.onLeftPressed: event => {
+                                if (root.ignoreLeftRightKeys) {
+                                    event.accepted = true
+                                } else {
+                                    // Allow normal TextInput cursor movement
+                                    event.accepted = false
+                                }
+                            }
+        Keys.onRightPressed: event => {
+                                 if (root.ignoreLeftRightKeys) {
+                                     event.accepted = true
+                                 } else {
+                                     // Allow normal TextInput cursor movement
+                                     event.accepted = false
+                                 }
+                             }
 
         MouseArea {
             anchors.fill: parent
-            hoverEnabled: true
+            hoverEnabled: true 
             cursorShape: Qt.IBeamCursor
             acceptedButtons: Qt.NoButton
         }

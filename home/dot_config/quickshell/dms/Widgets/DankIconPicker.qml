@@ -10,7 +10,6 @@ Rectangle {
     id: root
 
     property string currentIcon: ""
-    property string currentText: ""
     property string iconType: "icon" // "icon" or "text"
 
     signal iconSelected(string iconName, string iconType)
@@ -19,12 +18,15 @@ Rectangle {
     height: 32
     radius: Theme.cornerRadius
     color: Theme.surfaceContainer
-    border.color: dropdownLoader.active ? Theme.primary : (mouseArea.containsMouse ? Theme.outline : Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.5))
+    border.color: dropdownLoader.active ? Theme.primary : Theme.outline
     border.width: 1
 
     property var iconCategories: [{
+            "name": "Numbers",
+            "icons": ["looks_one", "looks_two", "looks_3", "looks_4", "looks_5", "looks_6", "filter_1", "filter_2", "filter_3", "filter_4", "filter_5", "filter_6", "filter_7", "filter_8", "filter_9", "filter_9_plus", "plus_one", "exposure_plus_1", "exposure_plus_2"]
+        }, {
             "name": "Workspace",
-            "icons": ["work", "laptop", "desktop_windows", "code", "terminal", "build", "settings", "folder", "view_module", "dashboard", "apps", "grid_view"]
+            "icons": ["work", "laptop", "desktop_windows", "folder", "view_module", "dashboard", "apps", "grid_view"]
         }, {
             "name": "Development",
             "icons": ["code", "terminal", "bug_report", "build", "engineering", "integration_instructions", "data_object", "schema", "api", "webhook"]
@@ -36,7 +38,7 @@ Rectangle {
             "icons": ["music_note", "headphones", "mic", "videocam", "photo", "movie", "library_music", "album", "radio", "volume_up"]
         }, {
             "name": "System",
-            "icons": ["memory", "storage", "developer_board", "monitor", "keyboard", "mouse", "battery_std", "wifi", "bluetooth", "security"]
+            "icons": ["memory", "storage", "developer_board", "monitor", "keyboard", "mouse", "battery_std", "wifi", "bluetooth", "security", "settings"]
         }, {
             "name": "Navigation",
             "icons": ["home", "arrow_forward", "arrow_back", "expand_more", "expand_less", "menu", "close", "search", "filter_list", "sort"]
@@ -45,20 +47,11 @@ Rectangle {
             "icons": ["add", "remove", "edit", "delete", "save", "download", "upload", "share", "content_copy", "content_paste", "content_cut", "undo", "redo"]
         }, {
             "name": "Status",
-            "icons": ["check", "close", "error", "warning", "info", "done", "pending", "schedule", "update", "sync", "offline_bolt"]
+            "icons": ["check", "error", "warning", "info", "done", "pending", "schedule", "update", "sync", "offline_bolt"]
         }, {
             "name": "Fun",
             "icons": ["celebration", "cake", "star", "favorite", "pets", "sports_esports", "local_fire_department", "bolt", "auto_awesome", "diamond"]
         }]
-
-    MouseArea {
-        id: mouseArea
-        anchors.fill: parent
-        hoverEnabled: true
-        onClicked: {
-            dropdownLoader.active = !dropdownLoader.active
-        }
-    }
 
     Row {
         anchors.left: parent.left
@@ -67,29 +60,26 @@ Rectangle {
         spacing: Theme.spacingS
 
         DankIcon {
-            name: root.iconType === "icon"
-                  && root.currentIcon ? root.currentIcon : (root.iconType
-                                                            === "text" ? "text_fields" : "add")
+            name: (root.iconType === "icon" && root.currentIcon) ? root.currentIcon : (root.iconType === "text" ? "text_fields" : "add")
             size: 16
-            color: root.currentIcon
-                   || root.currentText ? Theme.surfaceText : Theme.outline
+            color: root.currentIcon ? Theme.surfaceText : Theme.outline
             anchors.verticalCenter: parent.verticalCenter
         }
 
         StyledText {
-            text: {
-                if (root.iconType === "text" && root.currentText)
-                    return root.currentText
-                if (root.iconType === "icon" && root.currentIcon)
-                    return root.currentIcon
-                return "Choose icon or text"
-            }
+            text: root.currentIcon ? root.currentIcon : "Choose icon"
             font.pixelSize: Theme.fontSizeSmall
-            color: root.currentIcon
-                   || root.currentText ? Theme.surfaceText : Theme.outline
+            color: root.currentIcon ? Theme.surfaceText : Theme.outline
             anchors.verticalCenter: parent.verticalCenter
             width: 160
             elide: Text.ElideRight
+
+            MouseArea {
+                anchors.fill: parent
+                onClicked: {
+                    dropdownLoader.active = !dropdownLoader.active
+                }
+            }
         }
     }
 
@@ -116,7 +106,6 @@ Rectangle {
             color: "transparent"
             WlrLayershell.layer: WlrLayershell.Overlay
             WlrLayershell.exclusiveZone: -1
-            WlrLayershell.keyboardFocus: WlrKeyboardFocus.OnDemand
 
             anchors {
                 top: true
@@ -125,45 +114,96 @@ Rectangle {
                 bottom: true
             }
 
-            // Click outside to close
+            // Top area - above popup
             MouseArea {
-                anchors.fill: parent
-                onClicked: dropdownLoader.active = false
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                height: popupContainer.y
+                onClicked: {
+                    dropdownLoader.active = false
+                }
+            }
+
+            // Bottom area - below popup
+            MouseArea {
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: popupContainer.bottom
+                anchors.bottom: parent.bottom
+                onClicked: {
+                    dropdownLoader.active = false
+                }
+            }
+
+            // Left area - left of popup
+            MouseArea {
+                anchors.left: parent.left
+                anchors.top: popupContainer.top
+                anchors.bottom: popupContainer.bottom
+                width: popupContainer.x
+                onClicked: {
+                    dropdownLoader.active = false
+                }
+            }
+
+            // Right area - right of popup
+            MouseArea {
+                anchors.right: parent.right
+                anchors.top: popupContainer.top
+                anchors.bottom: popupContainer.bottom
+                anchors.left: popupContainer.right
+                onClicked: {
+                    dropdownLoader.active = false
+                }
             }
 
             Rectangle {
+                id: popupContainer
                 width: 320
                 height: Math.min(500, dropdownContent.implicitHeight + 32)
-                x: {
-                    // Get the root picker's position relative to the screen
-                    var pickerPos = root.mapToItem(null, 0, 0)
-                    return Math.max(16, Math.min(pickerPos.x,
-                                                 parent.width - width - 16))
-                }
-                y: {
-                    // Position below the picker button
-                    var pickerPos = root.mapToItem(null, 0, root.height + 4)
-                    return Math.max(16, Math.min(pickerPos.y,
-                                                 parent.height - height - 16))
-                }
+                x: Math.max(16, Math.min(root.mapToItem(null, 0, 0).x, parent.width - width - 16))
+                y: Math.max(16, Math.min(root.mapToItem(null, 0, root.height + 4).y, parent.height - height - 16))
                 radius: Theme.cornerRadius
                 color: Theme.surface
-                border.color: Theme.outline
-                border.width: 1
-
-                // Prevent this from closing the dropdown when clicked
-                MouseArea {
-                    anchors.fill: parent
-                    // Don't propagate clicks to parent
-                }
 
                 layer.enabled: true
                 layer.effect: MultiEffect {
                     shadowEnabled: true
-                    shadowColor: Theme.shadowDark
+                    shadowColor: Theme.shadowStrong
                     shadowBlur: 0.8
                     shadowHorizontalOffset: 0
                     shadowVerticalOffset: 4
+                }
+
+                // Close button
+                Rectangle {
+                    width: 24
+                    height: 24
+                    radius: 12
+                    color: closeMouseArea.containsMouse ? Theme.errorHover : "transparent"
+                    anchors.top: parent.top
+                    anchors.right: parent.right
+                    anchors.topMargin: Theme.spacingS
+                    anchors.rightMargin: Theme.spacingS
+                    z: 1
+
+                    DankIcon {
+                        name: "close"
+                        size: 16
+                        color: closeMouseArea.containsMouse ? Theme.error : Theme.outline
+                        anchors.centerIn: parent
+                    }
+
+                    MouseArea {
+                        id: closeMouseArea
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            dropdownLoader.active = false
+                        }
+                    }
                 }
 
                 DankFlickable {
@@ -171,89 +211,12 @@ Rectangle {
                     anchors.margins: Theme.spacingS
                     contentHeight: dropdownContent.height
                     clip: true
+                    pressDelay: 0
 
                     Column {
                         id: dropdownContent
                         width: parent.width
                         spacing: Theme.spacingM
-
-                        // Custom text section
-                        Rectangle {
-                            width: parent.width
-                            height: customTextSection.implicitHeight + Theme.spacingS * 2
-                            radius: Theme.cornerRadius
-                            color: Qt.rgba(Theme.surfaceVariant.r,
-                                           Theme.surfaceVariant.g,
-                                           Theme.surfaceVariant.b, 0.3)
-
-                            Column {
-                                id: customTextSection
-                                anchors.fill: parent
-                                anchors.margins: Theme.spacingS
-                                spacing: Theme.spacingS
-
-                                StyledText {
-                                    text: "Custom Text"
-                                    font.pixelSize: Theme.fontSizeSmall
-                                    font.weight: Font.Medium
-                                    color: Theme.surfaceText
-                                }
-
-                                Rectangle {
-                                    width: parent.width
-                                    height: 28
-                                    radius: Theme.cornerRadius
-                                    color: Theme.surfaceContainer
-                                    border.color: customTextInput.activeFocus ? Theme.primary : Theme.outline
-                                    border.width: 1
-
-                                    Row {
-                                        anchors.left: parent.left
-                                        anchors.verticalCenter: parent.verticalCenter
-                                        anchors.leftMargin: Theme.spacingS
-                                        spacing: Theme.spacingS
-
-                                        DankIcon {
-                                            name: "text_fields"
-                                            size: 14
-                                            color: Theme.outline
-                                            anchors.verticalCenter: parent.verticalCenter
-                                        }
-
-                                        TextInput {
-                                            id: customTextInput
-                                            anchors.verticalCenter: parent.verticalCenter
-                                            width: 200
-                                            text: root.iconType === "text" ? root.currentText : ""
-                                            font.pixelSize: Theme.fontSizeSmall
-                                            color: Theme.surfaceText
-                                            selectByMouse: true
-
-                                            onEditingFinished: {
-                                                var trimmedText = text.trim()
-                                                if (trimmedText) {
-                                                    root.iconSelected(
-                                                                trimmedText,
-                                                                "text")
-                                                    dropdownLoader.active = false
-                                                }
-                                            }
-                                        }
-                                    }
-
-                                    StyledText {
-                                        anchors.left: parent.left
-                                        anchors.leftMargin: Theme.spacingS + 14 + Theme.spacingS
-                                        anchors.verticalCenter: parent.verticalCenter
-                                        text: "1-2 characters"
-                                        font.pixelSize: Theme.fontSizeSmall
-                                        color: Theme.outline
-                                        opacity: 0.6
-                                        visible: customTextInput.text === ""
-                                    }
-                                }
-                            }
-                        }
 
                         // Icon categories
                         Repeater {
@@ -298,9 +261,7 @@ Rectangle {
                                                 hoverEnabled: true
                                                 cursorShape: Qt.PointingHandCursor
                                                 onClicked: {
-                                                    root.iconSelected(
-                                                                modelData,
-                                                                "icon")
+                                                    root.iconSelected(modelData, "icon")
                                                     dropdownLoader.active = false
                                                 }
                                             }
@@ -323,14 +284,8 @@ Rectangle {
     }
 
     function setIcon(iconName, type) {
-        if (type === "text") {
-            root.currentText = iconName
-            root.currentIcon = ""
-            root.iconType = "text"
-        } else {
-            root.currentIcon = iconName
-            root.currentText = ""
-            root.iconType = "icon"
-        }
+        root.iconType = type
+        root.iconType = "icon"
+        root.currentIcon = iconName
     }
 }

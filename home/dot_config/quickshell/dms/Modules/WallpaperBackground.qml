@@ -32,26 +32,47 @@ LazyLoader {
                 id: root
                 anchors.fill: parent
 
-                property string source: SessionData.wallpaperPath || ""
+                property string source: SessionData.getMonitorWallpaper(modelData.name) || ""
+                property bool isColorSource: source.startsWith("#")
                 property Image current: one
 
                 onSourceChanged: {
-                    if (!source)
+                    if (!source) {
                         current = null
-                    else if (current === one)
-                        two.update()
-                    else
-                        one.update()
+                        one.source = ""
+                        two.source = ""
+                    } else if (isColorSource) {
+                        current = null
+                        one.source = ""
+                        two.source = ""
+                    } else {
+                        if (current === one)
+                            two.update()
+                        else
+                            one.update()
+                    }
+                }
+
+                onIsColorSourceChanged: {
+                    if (isColorSource) {
+                        current = null
+                        one.source = ""
+                        two.source = ""
+                    } else if (source) {
+                        if (current === one)
+                            two.update()
+                        else
+                            one.update()
+                    }
                 }
 
                 Loader {
                     anchors.fill: parent
-                    active: !root.source
+                    active: !root.source || root.isColorSource
                     asynchronous: true
 
                     sourceComponent: DankBackdrop {
-                        screenWidth: wallpaperWindow.modelData.width
-                        screenHeight: wallpaperWindow.modelData.height
+                        screenName: modelData.name
                     }
                 }
 

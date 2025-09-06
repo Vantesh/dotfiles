@@ -9,10 +9,15 @@ DankListView {
     property var keyboardController: null
     property bool keyboardActive: false
     property bool autoScrollDisabled: false
+    property alias count: listView.count
+    property alias listContentHeight: listView.contentHeight
+
+    clip: true
+    model: NotificationService.groupedNotifications
+    spacing: Theme.spacingL
 
     onIsUserScrollingChanged: {
-        if (isUserScrolling && keyboardController
-                && keyboardController.keyboardNavigationActive) {
+        if (isUserScrolling && keyboardController && keyboardController.keyboardNavigationActive) {
             autoScrollDisabled = true
         }
     }
@@ -21,24 +26,13 @@ DankListView {
         autoScrollDisabled = false
     }
 
-    property alias count: listView.count
-    property alias listContentHeight: listView.contentHeight
-
-    clip: true
-    model: NotificationService.groupedNotifications
-    spacing: Theme.spacingL
-
     Timer {
         id: positionPreservationTimer
         interval: 200
-        running: keyboardController
-                 && keyboardController.keyboardNavigationActive
-                 && !autoScrollDisabled
+        running: keyboardController && keyboardController.keyboardNavigationActive && !autoScrollDisabled
         repeat: true
         onTriggered: {
-            if (keyboardController
-                    && keyboardController.keyboardNavigationActive
-                    && !autoScrollDisabled) {
+            if (keyboardController && keyboardController.keyboardNavigationActive && !autoScrollDisabled) {
                 keyboardController.ensureVisible()
             }
         }
@@ -50,107 +44,94 @@ DankListView {
     }
 
     onModelChanged: {
-        if (keyboardController && keyboardController.keyboardNavigationActive) {
-            keyboardController.rebuildFlatNavigation()
-            Qt.callLater(function () {
-                if (keyboardController
-                        && keyboardController.keyboardNavigationActive
-                        && !autoScrollDisabled) {
-                    keyboardController.ensureVisible()
-                }
-            })
+        if (!keyboardController || !keyboardController.keyboardNavigationActive) {
+            return
         }
+        keyboardController.rebuildFlatNavigation()
+        Qt.callLater(() => {
+                         if (keyboardController && keyboardController.keyboardNavigationActive && !autoScrollDisabled) {
+                             keyboardController.ensureVisible()
+                         }
+                     })
     }
 
     delegate: Item {
         required property var modelData
         required property int index
 
-        readonly property bool isExpanded: NotificationService.expandedGroups[modelData?.key]
-                                           || false
+        readonly property bool isExpanded: (NotificationService.expandedGroups[modelData && modelData.key] || false)
 
         width: ListView.view.width
-        height: notificationCardWrapper.height
+        height: notificationCard.height
 
-        Item {
-            id: notificationCardWrapper
+        NotificationCard {
+            id: notificationCard
             width: parent.width
-            height: notificationCard.height
+            notificationGroup: modelData
+            keyboardNavigationActive: listView.keyboardActive
 
-            NotificationCard {
-                id: notificationCard
-                width: parent.width
-                notificationGroup: modelData
+            isGroupSelected: {
+                if (!keyboardController || !keyboardController.keyboardNavigationActive || !listView.keyboardActive) {
+                    return false
+                }
+                keyboardController.selectionVersion
+                const selection = keyboardController.getCurrentSelection()
+                return selection.type === "group" && selection.groupIndex === index
+            }
 
-                isGroupSelected: {
-                    if (!keyboardController
-                            || !keyboardController.keyboardNavigationActive)
-                        return false
-                    keyboardController.selectionVersion
-                    if (!listView.keyboardActive)
-                        return false
-                    const selection = keyboardController.getCurrentSelection()
-                    return selection.type === "group"
-                            && selection.groupIndex === index
+            selectedNotificationIndex: {
+                if (!keyboardController || !keyboardController.keyboardNavigationActive || !listView.keyboardActive) {
+                    return -1
                 }
-                selectedNotificationIndex: {
-                    if (!keyboardController
-                            || !keyboardController.keyboardNavigationActive)
-                        return -1
-                    keyboardController.selectionVersion
-                    if (!listView.keyboardActive)
-                        return -1
-                    const selection = keyboardController.getCurrentSelection()
-                    return (selection.type === "notification"
-                            && selection.groupIndex === index) ? selection.notificationIndex : -1
-                }
-                keyboardNavigationActive: listView.keyboardActive
+                keyboardController.selectionVersion
+                const selection = keyboardController.getCurrentSelection()
+                return (selection.type === "notification" && selection.groupIndex === index) ? selection.notificationIndex : -1
             }
         }
     }
 
     Connections {
+        target: NotificationService
+
         function onGroupedNotificationsChanged() {
-            if (keyboardController) {
-                if (keyboardController.isTogglingGroup) {
-                    keyboardController.rebuildFlatNavigation()
-                    return
-                }
+            if (!keyboardController) {
+                return
+            }
 
+            if (keyboardController.isTogglingGroup) {
                 keyboardController.rebuildFlatNavigation()
+                return
+            }
 
-                if (keyboardController.keyboardNavigationActive) {
-                    Qt.callLater(function () {
-                        if (!autoScrollDisabled) {
-                            keyboardController.ensureVisible()
-                        }
-                    })
-                }
+            keyboardController.rebuildFlatNavigation()
+
+            if (keyboardController.keyboardNavigationActive) {
+                Qt.callLater(() => {
+                                 if (!autoScrollDisabled) {
+                                     keyboardController.ensureVisible()
+                                 }
+                             })
             }
         }
 
         function onExpandedGroupsChanged() {
-            if (keyboardController
-                    && keyboardController.keyboardNavigationActive) {
-                Qt.callLater(function () {
-                    if (!autoScrollDisabled) {
-                        keyboardController.ensureVisible()
-                    }
-                })
+            if (keyboardController && keyboardController.keyboardNavigationActive) {
+                Qt.callLater(() => {
+                                 if (!autoScrollDisabled) {
+                                     keyboardController.ensureVisible()
+                                 }
+                             })
             }
         }
 
         function onExpandedMessagesChanged() {
-            if (keyboardController
-                    && keyboardController.keyboardNavigationActive) {
-                Qt.callLater(function () {
-                    if (!autoScrollDisabled) {
-                        keyboardController.ensureVisible()
-                    }
-                })
+            if (keyboardController && keyboardController.keyboardNavigationActive) {
+                Qt.callLater(() => {
+                                 if (!autoScrollDisabled) {
+                                     keyboardController.ensureVisible()
+                                 }
+                             })
             }
         }
-
-        target: NotificationService
     }
 }

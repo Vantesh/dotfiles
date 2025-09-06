@@ -1,18 +1,20 @@
 import QtQuick
-import QtQuick.Effects
 import qs.Common
 
 Item {
     id: root
 
-    property int screenWidth: parent.width
-    property int screenHeight: parent.height
-
     anchors.fill: parent
+
+    property string screenName: ""
+    property bool isColorWallpaper: {
+        var currentWallpaper = SessionData.getMonitorWallpaper(screenName)
+        return currentWallpaper && currentWallpaper.startsWith("#")
+    }
 
     Rectangle {
         anchors.fill: parent
-        color: Theme.background
+        color: isColorWallpaper ? SessionData.getMonitorWallpaper(screenName) : Theme.background
     }
 
     Rectangle {
@@ -22,6 +24,7 @@ Item {
         height: parent.height * 1.5
         color: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.15)
         rotation: 35
+        visible: !isColorWallpaper
     }
 
     Rectangle {
@@ -31,22 +34,22 @@ Item {
         height: parent.height * 1.2
         color: Qt.rgba(Theme.secondary.r, Theme.secondary.g, Theme.secondary.b, 0.12)
         rotation: 35
+        visible: !isColorWallpaper
     }
-
 
     Item {
         anchors.left: parent.left
         anchors.bottom: parent.bottom
         anchors.leftMargin: Theme.spacingXL * 2
         anchors.bottomMargin: Theme.spacingXL * 2
-        
         opacity: 0.25
-        
+        visible: !isColorWallpaper
+
         StyledText {
             anchors.left: parent.left
             anchors.bottom: parent.bottom
-            text: `
-██████╗  █████╗ ███╗   ██╗██╗  ██╗
+            // ! TODO qmlfmt will brick this
+            text: `██████╗  █████╗ ███╗   ██╗██╗  ██╗
 ██╔══██╗██╔══██╗████╗  ██║██║ ██╔╝
 ██║  ██║███████║██╔██╗ ██║█████╔╝
 ██║  ██║██╔══██║██║╚██╗██║██╔═██╗

@@ -12,28 +12,23 @@ PanelWindow {
     property var targetScreen: null
 
     function showTooltip(text, x, y, screen) {
-        tooltipText = text
-        targetScreen = screen
-
-        var screenX = screen ? screen.x : 0
-        targetX = x - screenX
-        targetY = y
-
-        visible = true
+        tooltipText = text;
+        targetScreen = screen;
+        const screenX = screen ? screen.x : 0;
+        targetX = x - screenX;
+        targetY = y;
+        visible = true;
     }
 
     function hideTooltip() {
-        visible = false
+        visible = false;
     }
 
     screen: targetScreen
-    implicitWidth: Math.min(300, Math.max(
-                                120,
-                                textContent.implicitWidth + Theme.spacingM * 2))
+    implicitWidth: Math.min(300, Math.max(120, textContent.implicitWidth + Theme.spacingM * 2))
     implicitHeight: textContent.implicitHeight + Theme.spacingS * 2
     color: "transparent"
     visible: false
-
     WlrLayershell.layer: WlrLayershell.Overlay
     WlrLayershell.exclusiveZone: -1
 
@@ -56,6 +51,7 @@ PanelWindow {
 
         Text {
             id: textContent
+
             anchors.centerIn: parent
             text: root.tooltipText
             font.pixelSize: Theme.fontSizeSmall
@@ -65,5 +61,7 @@ PanelWindow {
             elide: Text.ElideRight
             width: parent.width - Theme.spacingM * 2
         }
+
     }
+
 }

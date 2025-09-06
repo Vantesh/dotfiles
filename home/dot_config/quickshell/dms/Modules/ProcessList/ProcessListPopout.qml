@@ -19,21 +19,22 @@ DankPopout {
     property var triggerScreen: null
 
     function setTriggerPosition(x, y, width, section, screen) {
-        triggerX = x
-        triggerY = y
-        triggerWidth = width
-        triggerSection = section
-        triggerScreen = screen
+        triggerX = x;
+        triggerY = y;
+        triggerWidth = width;
+        triggerSection = section;
+        triggerScreen = screen;
     }
 
     function hide() {
-        close()
-        if (processContextMenu.visible)
-            processContextMenu.close()
+        close();
+        if (processContextMenu.visible) {
+            processContextMenu.close();
+        }
     }
 
     function show() {
-        open()
+        open();
     }
 
     popupWidth: 600
@@ -51,39 +52,43 @@ DankPopout {
         service: DgopService
     }
 
+    ProcessContextMenu {
+        id: processContextMenu
+    }
+
     content: Component {
         Rectangle {
             id: processListContent
 
             radius: Theme.cornerRadius
             color: Theme.popupBackground()
-            border.color: Qt.rgba(Theme.outline.r, Theme.outline.g,
-                                  Theme.outline.b, 0.08)
+            border.color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.08)
             border.width: 1
             clip: true
             antialiasing: true
             smooth: true
             focus: true
-
             Component.onCompleted: {
-                if (processListPopout.shouldBeVisible)
-                    forceActiveFocus()
+                if (processListPopout.shouldBeVisible) {
+                    forceActiveFocus();
+                }
             }
-
-            Keys.onPressed: function (event) {
+            Keys.onPressed: (event) => {
                 if (event.key === Qt.Key_Escape) {
-                    processListPopout.close()
-                    event.accepted = true
+                    processListPopout.close();
+                    event.accepted = true;
                 }
             }
 
             Connections {
                 function onShouldBeVisibleChanged() {
-                    if (processListPopout.shouldBeVisible)
-                        Qt.callLater(function () {
-                            processListContent.forceActiveFocus()
-                        })
+                    if (processListPopout.shouldBeVisible) {
+                        Qt.callLater(() => {
+                            processListContent.forceActiveFocus();
+                        });
+                    }
                 }
+
                 target: processListPopout
             }
 
@@ -96,11 +101,8 @@ DankPopout {
                     Layout.fillWidth: true
                     height: systemOverview.height + Theme.spacingM * 2
                     radius: Theme.cornerRadius
-                    color: Qt.rgba(Theme.surfaceVariant.r,
-                                   Theme.surfaceVariant.g,
-                                   Theme.surfaceVariant.b, 0.2)
-                    border.color: Qt.rgba(Theme.outline.r, Theme.outline.g,
-                                          Theme.outline.b, 0.08)
+                    color: Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g, Theme.surfaceVariant.b, 0.2)
+                    border.color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.08)
                     border.width: 1
 
                     SystemOverview {
@@ -109,17 +111,15 @@ DankPopout {
                         anchors.centerIn: parent
                         width: parent.width - Theme.spacingM * 2
                     }
+
                 }
 
                 Rectangle {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     radius: Theme.cornerRadius
-                    color: Qt.rgba(Theme.surfaceVariant.r,
-                                   Theme.surfaceVariant.g,
-                                   Theme.surfaceVariant.b, 0.1)
-                    border.color: Qt.rgba(Theme.outline.r, Theme.outline.g,
-                                          Theme.outline.b, 0.05)
+                    color: Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g, Theme.surfaceVariant.b, 0.1)
+                    border.color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.05)
                     border.width: 1
 
                     ProcessListView {
@@ -127,12 +127,13 @@ DankPopout {
                         anchors.margins: Theme.spacingS
                         contextMenu: processContextMenu
                     }
+
                 }
+
             }
+
         }
+
     }
 
-    ProcessContextMenu {
-        id: processContextMenu
-    }
 }

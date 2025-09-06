@@ -36,9 +36,7 @@ PanelWindow {
             closeTimer.stop()
             shouldBeVisible = true
             visible = true
-            Qt.callLater(() => {
-                             calendarGrid.loadEventsForMonth()
-                         })
+            Qt.callLater(() => calendarGrid.loadEventsForMonth())
         } else {
             shouldBeVisible = false
             closeTimer.restart()
@@ -55,8 +53,9 @@ PanelWindow {
         }
     }
     onVisibleChanged: {
-        if (visible && calendarGrid)
+        if (visible && calendarGrid) {
             calendarGrid.loadEventsForMonth()
+        }
     }
     implicitWidth: 480
     implicitHeight: 600
@@ -75,32 +74,27 @@ PanelWindow {
     Rectangle {
         id: mainContainer
 
-        readonly property real targetWidth: Math.min(
-                                                (root.screen ? root.screen.width : Screen.width)
-                                                * 0.9, 600)
+        readonly property real targetWidth: Math.min((root.screen ? root.screen.width : Screen.width) * 0.9, 600)
 
         function calculateWidth() {
-            let baseWidth = 320
-            if (leftWidgets.hasAnyWidgets)
+            const baseWidth = 320
+            if (leftWidgets.hasAnyWidgets) {
                 return Math.min(parent.width * 0.9, 600)
-
+            }
             return Math.min(parent.width * 0.7, 400)
         }
 
         function calculateHeight() {
             let contentHeight = Theme.spacingM * 2
-            // margins
             let widgetHeight = 160
             widgetHeight += 140 + Theme.spacingM
-            let calendarHeight = 300
-            let mainRowHeight = Math.max(widgetHeight, calendarHeight)
+            const calendarHeight = 300
+            const mainRowHeight = Math.max(widgetHeight, calendarHeight)
             contentHeight += mainRowHeight + Theme.spacingM
+
             if (CalendarService && CalendarService.khalAvailable) {
-                let hasEvents = events.selectedDateEvents
-                    && events.selectedDateEvents.length > 0
-                let eventsHeight = hasEvents ? Math.min(
-                                                   300,
-                                                   80 + events.selectedDateEvents.length * 60) : 120
+                const hasEvents = events.selectedDateEvents && events.selectedDateEvents.length > 0
+                const eventsHeight = hasEvents ? Math.min(300, 80 + events.selectedDateEvents.length * 60) : 120
                 contentHeight += eventsHeight
             } else {
                 contentHeight -= Theme.spacingM
@@ -109,26 +103,22 @@ PanelWindow {
         }
 
         readonly property real calculatedX: {
-            var screenWidth = root.screen ? root.screen.width : Screen.width
+            const screenWidth = root.screen ? root.screen.width : Screen.width
             if (root.triggerSection === "center") {
                 return (screenWidth - targetWidth) / 2
             }
 
-            var centerX = root.triggerX + (root.triggerWidth / 2) - (targetWidth / 2)
+            const centerX = root.triggerX + (root.triggerWidth / 2) - (targetWidth / 2)
 
-            if (centerX >= Theme.spacingM
-                    && centerX + targetWidth <= screenWidth - Theme.spacingM) {
+            if (centerX >= Theme.spacingM && centerX + targetWidth <= screenWidth - Theme.spacingM) {
                 return centerX
             }
-
             if (centerX < Theme.spacingM) {
                 return Theme.spacingM
             }
-
             if (centerX + targetWidth > screenWidth - Theme.spacingM) {
                 return screenWidth - targetWidth - Theme.spacingM
             }
-
             return centerX
         }
 
@@ -136,8 +126,7 @@ PanelWindow {
         height: calculateHeight()
         color: Theme.surfaceContainer
         radius: Theme.cornerRadius
-        border.color: Qt.rgba(Theme.outline.r, Theme.outline.g,
-                              Theme.outline.b, 0.08)
+        border.color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.08)
         border.width: 1
         layer.enabled: true
         opacity: shouldBeVisible ? 1 : 0
@@ -145,21 +134,24 @@ PanelWindow {
         x: calculatedX
         y: root.triggerY
         onOpacityChanged: {
-            if (opacity === 1)
+            if (opacity === 1) {
                 Qt.callLater(() => {
                                  height = calculateHeight()
                              })
+            }
         }
 
         Connections {
             function onEventsByDateChanged() {
-                if (mainContainer.opacity === 1)
+                if (mainContainer.opacity === 1) {
                     mainContainer.height = mainContainer.calculateHeight()
+                }
             }
 
             function onKhalAvailableChanged() {
-                if (mainContainer.opacity === 1)
+                if (mainContainer.opacity === 1) {
                     mainContainer.height = mainContainer.calculateHeight()
+                }
             }
 
             target: CalendarService
@@ -168,8 +160,9 @@ PanelWindow {
 
         Connections {
             function onSelectedDateEventsChanged() {
-                if (mainContainer.opacity === 1)
+                if (mainContainer.opacity === 1) {
                     mainContainer.height = mainContainer.calculateHeight()
+                }
             }
 
             target: events
@@ -178,8 +171,7 @@ PanelWindow {
 
         Rectangle {
             anchors.fill: parent
-            color: Qt.rgba(Theme.surfaceTint.r, Theme.surfaceTint.g,
-                           Theme.surfaceTint.b, 0.04)
+            color: Qt.rgba(Theme.surfaceTint.r, Theme.surfaceTint.g, Theme.surfaceTint.b, 0.04)
             radius: parent.radius
 
             SequentialAnimation on opacity {
@@ -219,10 +211,8 @@ PanelWindow {
                 width: parent.width
                 height: {
                     let widgetHeight = 160
-                    // Media widget
-                    widgetHeight += 140 + Theme.spacingM // Weather/SystemInfo widget with spacing
-                    let calendarHeight = 300
-                    // Calendar
+                    widgetHeight += 140 + Theme.spacingM
+                    const calendarHeight = 300
                     return Math.max(widgetHeight, calendarHeight)
                 }
                 spacing: Theme.spacingM
@@ -232,8 +222,7 @@ PanelWindow {
 
                     property bool hasAnyWidgets: true
 
-                    width: hasAnyWidgets ? parent.width
-                                           * 0.42 : 0 // Slightly narrower for better proportions
+                    width: hasAnyWidgets ? parent.width * 0.42 : 0
                     height: childrenRect.height
                     spacing: Theme.spacingM
                     visible: hasAnyWidgets
@@ -258,15 +247,11 @@ PanelWindow {
                 }
 
                 Rectangle {
-                    width: leftWidgets.hasAnyWidgets ? parent.width - leftWidgets.width
-                                                       - Theme.spacingM : parent.width
+                    width: leftWidgets.hasAnyWidgets ? parent.width - leftWidgets.width - Theme.spacingM : parent.width
                     height: parent.height
                     radius: Theme.cornerRadius
-                    color: Qt.rgba(Theme.surfaceVariant.r,
-                                   Theme.surfaceVariant.g,
-                                   Theme.surfaceVariant.b, 0.2)
-                    border.color: Qt.rgba(Theme.outline.r, Theme.outline.g,
-                                          Theme.outline.b, 0.08)
+                    color: Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g, Theme.surfaceVariant.b, 0.2)
+                    border.color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.08)
                     border.width: 1
 
                     CalendarGrid {
@@ -317,10 +302,10 @@ PanelWindow {
         z: -1
         enabled: shouldBeVisible
         onClicked: function (mouse) {
-            var localPos = mapToItem(mainContainer, mouse.x, mouse.y)
-            if (localPos.x < 0 || localPos.x > mainContainer.width
-                    || localPos.y < 0 || localPos.y > mainContainer.height)
+            const localPos = mapToItem(mainContainer, mouse.x, mouse.y)
+            if (localPos.x < 0 || localPos.x > mainContainer.width || localPos.y < 0 || localPos.y > mainContainer.height) {
                 calendarVisible = false
+            }
         }
     }
 }

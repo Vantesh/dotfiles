@@ -19,7 +19,7 @@ ColumnLayout {
     ProcessListView {
         Layout.fillWidth: true
         Layout.fillHeight: true
-        contextMenu: processesTab.contextMenu || localContextMenu
+        contextMenu: processesTab.contextMenu
     }
 
     ProcessContextMenu {

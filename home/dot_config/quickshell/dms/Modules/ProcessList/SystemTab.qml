@@ -4,19 +4,19 @@ import qs.Common
 import qs.Services
 import qs.Widgets
 
-ScrollView {
+DankFlickable {
     anchors.fill: parent
-    clip: true
-    ScrollBar.vertical.policy: ScrollBar.AsNeeded
-    ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
+    contentHeight: systemColumn.implicitHeight
     Component.onCompleted: {
-        DgopService.addRef(["system", "hardware", "diskmounts"])
+        DgopService.addRef(["system", "hardware", "diskmounts"]);
     }
     Component.onDestruction: {
-        DgopService.removeRef(["system", "hardware", "diskmounts"])
+        DgopService.removeRef(["system", "hardware", "diskmounts"]);
     }
 
     Column {
+        id: systemColumn
+
         width: parent.width
         spacing: Theme.spacingM
 
@@ -24,8 +24,7 @@ ScrollView {
             width: parent.width
             height: systemInfoColumn.implicitHeight + 2 * Theme.spacingL
             radius: Theme.cornerRadius
-            color: Qt.rgba(Theme.surfaceContainer.r, Theme.surfaceContainer.g,
-                           Theme.surfaceContainer.b, 0.6)
+            color: Qt.rgba(Theme.surfaceContainer.r, Theme.surfaceContainer.g, Theme.surfaceContainer.b, 0.6)
             border.width: 0
 
             Column {
@@ -61,46 +60,37 @@ ScrollView {
                         }
 
                         StyledText {
-                            text: DgopService.distribution + " • " + DgopService.architecture
-                                  + " • " + DgopService.kernelVersion
+                            text: `${DgopService.distribution} • ${DgopService.architecture} • ${DgopService.kernelVersion}`
                             font.pixelSize: Theme.fontSizeMedium
                             font.family: SettingsData.monoFontFamily
-                            color: Qt.rgba(Theme.surfaceText.r,
-                                           Theme.surfaceText.g,
-                                           Theme.surfaceText.b, 0.7)
+                            color: Qt.rgba(Theme.surfaceText.r, Theme.surfaceText.g, Theme.surfaceText.b, 0.7)
                             verticalAlignment: Text.AlignVCenter
                         }
 
                         StyledText {
-                            text: "Up " + UserInfoService.uptime + " • Boot: "
-                                  + DgopService.bootTime
+                            text: `Up ${UserInfoService.uptime} • Boot: ${DgopService.bootTime}`
                             font.pixelSize: Theme.fontSizeSmall
                             font.family: SettingsData.monoFontFamily
-                            color: Qt.rgba(Theme.surfaceText.r,
-                                           Theme.surfaceText.g,
-                                           Theme.surfaceText.b, 0.6)
+                            color: Qt.rgba(Theme.surfaceText.r, Theme.surfaceText.g, Theme.surfaceText.b, 0.6)
                             verticalAlignment: Text.AlignVCenter
                         }
 
                         StyledText {
-                            text: "Load: " + DgopService.loadAverage + " • "
-                                  + DgopService.processCount + " processes, "
-                                  + DgopService.threadCount + " threads"
+                            text: `Load: ${DgopService.loadAverage} • ${DgopService.processCount} processes, ${DgopService.threadCount} threads`
                             font.pixelSize: Theme.fontSizeSmall
                             font.family: SettingsData.monoFontFamily
-                            color: Qt.rgba(Theme.surfaceText.r,
-                                           Theme.surfaceText.g,
-                                           Theme.surfaceText.b, 0.6)
+                            color: Qt.rgba(Theme.surfaceText.r, Theme.surfaceText.g, Theme.surfaceText.b, 0.6)
                             verticalAlignment: Text.AlignVCenter
                         }
+
                     }
+
                 }
 
                 Rectangle {
                     width: parent.width
                     height: 1
-                    color: Qt.rgba(Theme.outline.r, Theme.outline.g,
-                                   Theme.outline.b, 0.2)
+                    color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.2)
                 }
 
                 Row {
@@ -111,12 +101,9 @@ ScrollView {
                         width: (parent.width - Theme.spacingXL) / 2
                         height: hardwareColumn.implicitHeight + Theme.spacingL
                         radius: Theme.cornerRadius
-                        color: Qt.rgba(Theme.surfaceContainerHigh.r,
-                                       Theme.surfaceContainerHigh.g,
-                                       Theme.surfaceContainerHigh.b, 0.4)
+                        color: Qt.rgba(Theme.surfaceContainerHigh.r, Theme.surfaceContainerHigh.g, Theme.surfaceContainerHigh.b, 0.4)
                         border.width: 1
-                        border.color: Qt.rgba(Theme.outline.r, Theme.outline.g,
-                                              Theme.outline.b, 0.1)
+                        border.color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.1)
 
                         Column {
                             id: hardwareColumn
@@ -146,6 +133,7 @@ ScrollView {
                                     color: Theme.primary
                                     anchors.verticalCenter: parent.verticalCenter
                                 }
+
                             }
 
                             StyledText {
@@ -165,9 +153,7 @@ ScrollView {
                                 text: DgopService.motherboard
                                 font.pixelSize: Theme.fontSizeSmall
                                 font.family: SettingsData.monoFontFamily
-                                color: Qt.rgba(Theme.surfaceText.r,
-                                               Theme.surfaceText.g,
-                                               Theme.surfaceText.b, 0.8)
+                                color: Qt.rgba(Theme.surfaceText.r, Theme.surfaceText.g, Theme.surfaceText.b, 0.8)
                                 width: parent.width
                                 elide: Text.ElideRight
                                 wrapMode: Text.NoWrap
@@ -176,30 +162,27 @@ ScrollView {
                             }
 
                             StyledText {
-                                text: "BIOS " + DgopService.biosVersion
+                                text: `BIOS ${DgopService.biosVersion}`
                                 font.pixelSize: Theme.fontSizeSmall
                                 font.family: SettingsData.monoFontFamily
-                                color: Qt.rgba(Theme.surfaceText.r,
-                                               Theme.surfaceText.g,
-                                               Theme.surfaceText.b, 0.7)
+                                color: Qt.rgba(Theme.surfaceText.r, Theme.surfaceText.g, Theme.surfaceText.b, 0.7)
                                 width: parent.width
                                 elide: Text.ElideRight
                                 verticalAlignment: Text.AlignVCenter
                             }
 
                             StyledText {
-                                text: DgopService.formatSystemMemory(
-                                          DgopService.totalMemoryKB) + " RAM"
+                                text: `${DgopService.formatSystemMemory(DgopService.totalMemoryKB)} RAM`
                                 font.pixelSize: Theme.fontSizeSmall
                                 font.family: SettingsData.monoFontFamily
-                                color: Qt.rgba(Theme.surfaceText.r,
-                                               Theme.surfaceText.g,
-                                               Theme.surfaceText.b, 0.8)
+                                color: Qt.rgba(Theme.surfaceText.r, Theme.surfaceText.g, Theme.surfaceText.b, 0.8)
                                 width: parent.width
                                 elide: Text.ElideRight
                                 verticalAlignment: Text.AlignVCenter
                             }
+
                         }
+
                     }
 
                     Rectangle {
@@ -207,100 +190,58 @@ ScrollView {
                         height: gpuColumn.implicitHeight + Theme.spacingL
                         radius: Theme.cornerRadius
                         color: {
-                            var baseColor = Qt.rgba(
-                                        Theme.surfaceContainerHigh.r,
-                                        Theme.surfaceContainerHigh.g,
-                                        Theme.surfaceContainerHigh.b, 0.4)
-                            var hoverColor = Qt.rgba(
-                                        Theme.surfaceContainerHigh.r,
-                                        Theme.surfaceContainerHigh.g,
-                                        Theme.surfaceContainerHigh.b, 0.6)
-
-                            if (!DgopService.availableGpus
-                                    || DgopService.availableGpus.length === 0) {
-                                return gpuCardMouseArea.containsMouse
-                                        && DgopService.availableGpus.length
-                                        > 1 ? hoverColor : baseColor
+                            const baseColor = Qt.rgba(Theme.surfaceContainerHigh.r, Theme.surfaceContainerHigh.g, Theme.surfaceContainerHigh.b, 0.4);
+                            const hoverColor = Qt.rgba(Theme.surfaceContainerHigh.r, Theme.surfaceContainerHigh.g, Theme.surfaceContainerHigh.b, 0.6);
+                            if (!DgopService.availableGpus || DgopService.availableGpus.length === 0) {
+                                return gpuCardMouseArea.containsMouse && DgopService.availableGpus.length > 1 ? hoverColor : baseColor;
                             }
 
-                            var gpu = DgopService.availableGpus[Math.min(
-                                                                    SessionData.selectedGpuIndex,
-                                                                    DgopService.availableGpus.length
-                                                                    - 1)]
-                            var vendor = gpu.fullName.split(
-                                        ' ')[0].toLowerCase()
-                            var tintColor
-
+                            const gpu = DgopService.availableGpus[Math.min(SessionData.selectedGpuIndex, DgopService.availableGpus.length - 1)];
+                            const vendor = gpu.fullName.split(' ')[0].toLowerCase();
+                            let tintColor;
                             if (vendor.includes("nvidia")) {
-                                tintColor = Theme.success
+                                tintColor = Theme.success;
                             } else if (vendor.includes("amd")) {
-                                tintColor = Theme.error
+                                tintColor = Theme.error;
                             } else if (vendor.includes("intel")) {
-                                tintColor = Theme.info
+                                tintColor = Theme.info;
                             } else {
-                                return gpuCardMouseArea.containsMouse
-                                        && DgopService.availableGpus.length
-                                        > 1 ? hoverColor : baseColor
+                                return gpuCardMouseArea.containsMouse && DgopService.availableGpus.length > 1 ? hoverColor : baseColor;
                             }
-
-                            if (gpuCardMouseArea.containsMouse
-                                    && DgopService.availableGpus.length > 1) {
-                                return Qt.rgba(
-                                            (hoverColor.r + tintColor.r * 0.1) / 1.1,
-                                            (hoverColor.g + tintColor.g * 0.1) / 1.1,
-                                            (hoverColor.b + tintColor.b * 0.1) / 1.1,
-                                            0.6)
+                            if (gpuCardMouseArea.containsMouse && DgopService.availableGpus.length > 1) {
+                                return Qt.rgba((hoverColor.r + tintColor.r * 0.1) / 1.1, (hoverColor.g + tintColor.g * 0.1) / 1.1, (hoverColor.b + tintColor.b * 0.1) / 1.1, 0.6);
                             } else {
-                                return Qt.rgba(
-                                            (baseColor.r + tintColor.r * 0.08) / 1.08,
-                                            (baseColor.g + tintColor.g * 0.08) / 1.08,
-                                            (baseColor.b + tintColor.b * 0.08) / 1.08,
-                                            0.4)
+                                return Qt.rgba((baseColor.r + tintColor.r * 0.08) / 1.08, (baseColor.g + tintColor.g * 0.08) / 1.08, (baseColor.b + tintColor.b * 0.08) / 1.08, 0.4);
                             }
                         }
                         border.width: 1
                         border.color: {
-                            if (!DgopService.availableGpus
-                                    || DgopService.availableGpus.length === 0) {
-                                return Qt.rgba(Theme.outline.r,
-                                               Theme.outline.g,
-                                               Theme.outline.b, 0.1)
+                            if (!DgopService.availableGpus || DgopService.availableGpus.length === 0) {
+                                return Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.1);
                             }
 
-                            var gpu = DgopService.availableGpus[Math.min(
-                                                                    SessionData.selectedGpuIndex,
-                                                                    DgopService.availableGpus.length
-                                                                    - 1)]
-                            var vendor = gpu.fullName.split(
-                                        ' ')[0].toLowerCase()
-
+                            const gpu = DgopService.availableGpus[Math.min(SessionData.selectedGpuIndex, DgopService.availableGpus.length - 1)];
+                            const vendor = gpu.fullName.split(' ')[0].toLowerCase();
                             if (vendor.includes("nvidia")) {
-                                return Qt.rgba(Theme.success.r,
-                                               Theme.success.g,
-                                               Theme.success.b, 0.3)
+                                return Qt.rgba(Theme.success.r, Theme.success.g, Theme.success.b, 0.3);
                             } else if (vendor.includes("amd")) {
-                                return Qt.rgba(Theme.error.r, Theme.error.g,
-                                               Theme.error.b, 0.3)
+                                return Qt.rgba(Theme.error.r, Theme.error.g, Theme.error.b, 0.3);
                             } else if (vendor.includes("intel")) {
-                                return Qt.rgba(Theme.info.r, Theme.info.g,
-                                               Theme.info.b, 0.3)
+                                return Qt.rgba(Theme.info.r, Theme.info.g, Theme.info.b, 0.3);
                             }
-
-                            return Qt.rgba(Theme.outline.r, Theme.outline.g,
-                                           Theme.outline.b, 0.1)
+                            return Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.1);
                         }
 
                         MouseArea {
                             id: gpuCardMouseArea
+
                             anchors.fill: parent
                             hoverEnabled: true
-                            cursorShape: DgopService.availableGpus.length
-                                         > 1 ? Qt.PointingHandCursor : Qt.ArrowCursor
+                            cursorShape: DgopService.availableGpus.length > 1 ? Qt.PointingHandCursor : Qt.ArrowCursor
                             onClicked: {
                                 if (DgopService.availableGpus.length > 1) {
-                                    var nextIndex = (SessionData.selectedGpuIndex + 1)
-                                            % DgopService.availableGpus.length
-                                    SessionData.setSelectedGpuIndex(nextIndex)
+                                    const nextIndex = (SessionData.selectedGpuIndex + 1) % DgopService.availableGpus.length;
+                                    SessionData.setSelectedGpuIndex(nextIndex);
                                 }
                             }
                         }
@@ -333,17 +274,17 @@ ScrollView {
                                     color: Theme.secondary
                                     anchors.verticalCenter: parent.verticalCenter
                                 }
+
                             }
 
                             StyledText {
                                 text: {
-                                    if (!DgopService.availableGpus
-                                            || DgopService.availableGpus.length === 0) {
-                                        return "No GPUs detected"
+                                    if (!DgopService.availableGpus || DgopService.availableGpus.length === 0) {
+                                        return "No GPUs detected";
                                     }
-                                    var gpu = DgopService.availableGpus[Math.min(
-                                                                            SessionData.selectedGpuIndex, DgopService.availableGpus.length - 1)]
-                                    return gpu.fullName
+
+                                    const gpu = DgopService.availableGpus[Math.min(SessionData.selectedGpuIndex, DgopService.availableGpus.length - 1)];
+                                    return gpu.fullName;
                                 }
                                 font.pixelSize: Theme.fontSizeSmall
                                 font.family: SettingsData.monoFontFamily
@@ -357,19 +298,16 @@ ScrollView {
 
                             StyledText {
                                 text: {
-                                    if (!DgopService.availableGpus
-                                            || DgopService.availableGpus.length === 0) {
-                                        return "Device: N/A"
+                                    if (!DgopService.availableGpus || DgopService.availableGpus.length === 0) {
+                                        return "Device: N/A";
                                     }
-                                    var gpu = DgopService.availableGpus[Math.min(
-                                                                            SessionData.selectedGpuIndex, DgopService.availableGpus.length - 1)]
-                                    return "Device: " + gpu.pciId
+
+                                    const gpu = DgopService.availableGpus[Math.min(SessionData.selectedGpuIndex, DgopService.availableGpus.length - 1)];
+                                    return `Device: ${gpu.pciId}`;
                                 }
                                 font.pixelSize: Theme.fontSizeSmall
                                 font.family: SettingsData.monoFontFamily
-                                color: Qt.rgba(Theme.surfaceText.r,
-                                               Theme.surfaceText.g,
-                                               Theme.surfaceText.b, 0.8)
+                                color: Qt.rgba(Theme.surfaceText.r, Theme.surfaceText.g, Theme.surfaceText.b, 0.8)
                                 width: parent.width
                                 elide: Text.ElideRight
                                 verticalAlignment: Text.AlignVCenter
@@ -378,19 +316,16 @@ ScrollView {
 
                             StyledText {
                                 text: {
-                                    if (!DgopService.availableGpus
-                                            || DgopService.availableGpus.length === 0) {
-                                        return "Driver: N/A"
+                                    if (!DgopService.availableGpus || DgopService.availableGpus.length === 0) {
+                                        return "Driver: N/A";
                                     }
-                                    var gpu = DgopService.availableGpus[Math.min(
-                                                                            SessionData.selectedGpuIndex, DgopService.availableGpus.length - 1)]
-                                    return "Driver: " + gpu.driver
+
+                                    const gpu = DgopService.availableGpus[Math.min(SessionData.selectedGpuIndex, DgopService.availableGpus.length - 1)];
+                                    return `Driver: ${gpu.driver}`;
                                 }
                                 font.pixelSize: Theme.fontSizeSmall
                                 font.family: SettingsData.monoFontFamily
-                                color: Qt.rgba(Theme.surfaceText.r,
-                                               Theme.surfaceText.g,
-                                               Theme.surfaceText.b, 0.8)
+                                color: Qt.rgba(Theme.surfaceText.r, Theme.surfaceText.g, Theme.surfaceText.b, 0.8)
                                 width: parent.width
                                 elide: Text.ElideRight
                                 verticalAlignment: Text.AlignVCenter
@@ -398,60 +333,60 @@ ScrollView {
 
                             StyledText {
                                 text: {
-                                    if (!DgopService.availableGpus
-                                            || DgopService.availableGpus.length === 0) {
-                                        return "Temp: --°"
+                                    if (!DgopService.availableGpus || DgopService.availableGpus.length === 0) {
+                                        return "Temp: --°";
                                     }
-                                    var gpu = DgopService.availableGpus[Math.min(
-                                                                            SessionData.selectedGpuIndex, DgopService.availableGpus.length - 1)]
-                                    var temp = gpu.temperature
-                                    return "Temp: " + ((temp === undefined
-                                                        || temp === null
-                                                        || temp === 0) ? "--°" : Math.round(
-                                                                             temp) + "°C")
+
+                                    const gpu = DgopService.availableGpus[Math.min(SessionData.selectedGpuIndex, DgopService.availableGpus.length - 1)];
+                                    const temp = gpu.temperature;
+                                    return `Temp: ${(temp === undefined || temp === null || temp === 0) ? '--°' : `${Math.round(temp)}°C`}`;
                                 }
                                 font.pixelSize: Theme.fontSizeSmall
                                 font.family: SettingsData.monoFontFamily
                                 color: {
-                                    if (!DgopService.availableGpus
-                                            || DgopService.availableGpus.length === 0) {
-                                        return Qt.rgba(Theme.surfaceText.r,
-                                                       Theme.surfaceText.g,
-                                                       Theme.surfaceText.b, 0.7)
+                                    if (!DgopService.availableGpus || DgopService.availableGpus.length === 0) {
+                                        return Qt.rgba(Theme.surfaceText.r, Theme.surfaceText.g, Theme.surfaceText.b, 0.7);
                                     }
-                                    var gpu = DgopService.availableGpus[Math.min(
-                                                                            SessionData.selectedGpuIndex, DgopService.availableGpus.length - 1)]
-                                    var temp = gpu.temperature || 0
-                                    if (temp > 80)
-                                        return Theme.error
-                                    if (temp > 60)
-                                        return Theme.warning
-                                    return Qt.rgba(Theme.surfaceText.r,
-                                                   Theme.surfaceText.g,
-                                                   Theme.surfaceText.b, 0.7)
+
+                                    const gpu = DgopService.availableGpus[Math.min(SessionData.selectedGpuIndex, DgopService.availableGpus.length - 1)];
+                                    const temp = gpu.temperature || 0;
+                                    if (temp > 80) {
+                                        return Theme.error;
+                                    }
+
+                                    if (temp > 60) {
+                                        return Theme.warning;
+                                    }
+
+                                    return Qt.rgba(Theme.surfaceText.r, Theme.surfaceText.g, Theme.surfaceText.b, 0.7);
                                 }
                                 width: parent.width
                                 elide: Text.ElideRight
                                 verticalAlignment: Text.AlignVCenter
                             }
+
                         }
 
                         Behavior on color {
                             ColorAnimation {
                                 duration: Theme.shortDuration
                             }
+
                         }
+
                     }
+
                 }
+
             }
+
         }
 
         Rectangle {
             width: parent.width
             height: storageColumn.implicitHeight + 2 * Theme.spacingL
             radius: Theme.cornerRadius
-            color: Qt.rgba(Theme.surfaceContainer.r, Theme.surfaceContainer.g,
-                           Theme.surfaceContainer.b, 0.6)
+            color: Qt.rgba(Theme.surfaceContainer.r, Theme.surfaceContainer.g, Theme.surfaceContainer.b, 0.6)
             border.width: 0
 
             Column {
@@ -482,6 +417,7 @@ ScrollView {
                         color: Theme.surfaceText
                         anchors.verticalCenter: parent.verticalCenter
                     }
+
                 }
 
                 Column {
@@ -558,6 +494,7 @@ ScrollView {
                             elide: Text.ElideRight
                             verticalAlignment: Text.AlignVCenter
                         }
+
                     }
 
                     Repeater {
@@ -569,11 +506,7 @@ ScrollView {
                             width: parent.width
                             height: 24
                             radius: Theme.cornerRadius
-                            color: diskMouseArea.containsMouse ? Qt.rgba(
-                                                                     Theme.surfaceText.r,
-                                                                     Theme.surfaceText.g,
-                                                                     Theme.surfaceText.b,
-                                                                     0.04) : "transparent"
+                            color: diskMouseArea.containsMouse ? Qt.rgba(Theme.surfaceText.r, Theme.surfaceText.g, Theme.surfaceText.b, 0.04) : "transparent"
 
                             MouseArea {
                                 id: diskMouseArea
@@ -646,26 +579,35 @@ ScrollView {
                                     font.pixelSize: Theme.fontSizeSmall
                                     font.family: SettingsData.monoFontFamily
                                     color: {
-                                        const percent = parseInt(
-                                                          modelData.percent)
-                                        if (percent > 90)
-                                            return Theme.error
+                                        const percent = parseInt(modelData.percent);
+                                        if (percent > 90) {
+                                            return Theme.error;
+                                        }
 
-                                        if (percent > 75)
-                                            return Theme.warning
+                                        if (percent > 75) {
+                                            return Theme.warning;
+                                        }
 
-                                        return Theme.surfaceText
+                                        return Theme.surfaceText;
                                     }
                                     width: parent.width * 0.1
                                     elide: Text.ElideRight
                                     anchors.verticalCenter: parent.verticalCenter
                                     verticalAlignment: Text.AlignVCenter
                                 }
+
                             }
+
                         }
+
                     }
+
                 }
+
             }
+
         }
+
     }
+
 }

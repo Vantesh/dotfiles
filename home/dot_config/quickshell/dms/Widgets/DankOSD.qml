@@ -34,28 +34,13 @@ PanelWindow {
         closeTimer.restart()
     }
 
-    function resetHideTimer() {
-        if (shouldBeVisible && enableMouseInteraction) {
-            // Only restart timer if we're not currently hovering
-            let isHovered = (enableMouseInteraction && mouseArea.containsMouse) || osdContainer.childHovered
-            if (!isHovered) {
-                hideTimer.restart()
-            }
-        }
-    }
-
-    function stopHideTimer() {
-        if (enableMouseInteraction)
-            hideTimer.stop()
-    }
-
     function updateHoverState() {
         let isHovered = (enableMouseInteraction && mouseArea.containsMouse) || osdContainer.childHovered
         if (enableMouseInteraction) {
             if (isHovered) {
-                stopHideTimer()
+                hideTimer.stop()
             } else if (shouldBeVisible) {
-                resetHideTimer()
+                hideTimer.restart()
             }
         }
     }
@@ -85,7 +70,7 @@ PanelWindow {
         interval: autoHideInterval
         repeat: false
         onTriggered: {
-            if (!enableMouseInteraction || !osdContainer.containsMouse) {
+            if (!enableMouseInteraction || !mouseArea.containsMouse) {
                 hide()
             } else {
                 hideTimer.restart()
@@ -107,7 +92,6 @@ PanelWindow {
     Rectangle {
         id: osdContainer
 
-        property bool containsMouse: enableMouseInteraction && mouseArea.containsMouse
         property bool childHovered: false
 
         width: osdWidth
@@ -130,15 +114,10 @@ PanelWindow {
             acceptedButtons: Qt.NoButton
             propagateComposedEvents: true
             z: -1
-
-            onContainsMouseChanged: {
-                updateHoverState()
-            }
+            onContainsMouseChanged: updateHoverState()
         }
 
-        onChildHoveredChanged: {
-            root.updateHoverState()
-        }
+        onChildHoveredChanged: updateHoverState()
 
         Loader {
             id: contentLoader
@@ -153,7 +132,6 @@ PanelWindow {
             shadowVerticalOffset: 4
             shadowBlur: 0.8
             shadowColor: Qt.rgba(0, 0, 0, 0.3)
-            shadowOpacity: 0.3
         }
 
         Behavior on opacity {

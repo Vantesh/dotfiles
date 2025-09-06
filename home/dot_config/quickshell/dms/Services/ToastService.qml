@@ -1,4 +1,5 @@
 pragma Singleton
+
 pragma ComponentBehavior: Bound
 
 import QtQuick
@@ -24,8 +25,9 @@ Singleton {
                             "level": level,
                             "details": details
                         })
-        if (!toastVisible)
+        if (!toastVisible) {
             processQueue()
+        }
     }
 
     function showInfo(message, details = "") {
@@ -48,13 +50,15 @@ Singleton {
         currentLevel = levelInfo
         toastTimer.stop()
         resetToastState()
-        if (toastQueue.length > 0)
+        if (toastQueue.length > 0) {
             processQueue()
+        }
     }
 
     function processQueue() {
-        if (toastQueue.length === 0)
+        if (toastQueue.length === 0) {
             return
+        }
 
         const toast = toastQueue.shift()
         currentMessage = toast.message
@@ -68,8 +72,7 @@ Singleton {
             toastTimer.interval = 8000
             toastTimer.start()
         } else {
-            toastTimer.interval = toast.level
-                    === levelError ? 5000 : toast.level === levelWarn ? 4000 : 3000
+            toastTimer.interval = toast.level === levelError ? 5000 : toast.level === levelWarn ? 4000 : 3000
             toastTimer.start()
         }
     }

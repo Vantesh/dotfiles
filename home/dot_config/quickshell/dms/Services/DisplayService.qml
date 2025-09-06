@@ -1,4 +1,5 @@
 pragma Singleton
+
 pragma ComponentBehavior: Bound
 
 import QtQuick
@@ -21,9 +22,10 @@ Singleton {
     property bool skipDdcRead: false
     property int brightnessLevel: {
         const deviceToUse = lastIpcDevice === "" ? getDefaultDevice() : (lastIpcDevice || currentDevice)
-        if (!deviceToUse) return 50
+        if (!deviceToUse) {
+            return 50
+        }
 
-        // Always use cached values for consistency
         return getDeviceBrightness(deviceToUse)
     }
     property int maxBrightness: 100
@@ -34,7 +36,6 @@ Singleton {
 
     property bool nightModeActive: nightModeEnabled
 
-    // Night Mode Properties
     property bool nightModeEnabled: false
     property bool automationAvailable: false
     property bool geoclueAvailable: false
@@ -47,32 +48,25 @@ Singleton {
 
     function setBrightnessInternal(percentage, device) {
         const clampedValue = Math.max(1, Math.min(100, percentage))
-        const actualDevice = device === "" ? getDefaultDevice(
-                                                 ) : (device || currentDevice
-                                                      || getDefaultDevice())
+        const actualDevice = device === "" ? getDefaultDevice() : (device || currentDevice || getDefaultDevice())
 
-        // Update the device brightness cache immediately for all devices
         if (actualDevice) {
-            var newBrightness = Object.assign({}, deviceBrightness)
+            const newBrightness = Object.assign({}, deviceBrightness)
             newBrightness[actualDevice] = clampedValue
             deviceBrightness = newBrightness
         }
-        
+
         const deviceInfo = getCurrentDeviceInfoByName(actualDevice)
 
         if (deviceInfo && deviceInfo.class === "ddc") {
-            // Use ddcutil for DDC devices
-            ddcBrightnessSetProcess.command = ["ddcutil", "setvcp", "-d", String(
-                                                   deviceInfo.ddcDisplay), "10", String(
-                                                   clampedValue)]
+            ddcBrightnessSetProcess.command = ["ddcutil", "setvcp", "-d", String(deviceInfo.ddcDisplay), "10", String(clampedValue)]
             ddcBrightnessSetProcess.running = true
         } else {
-            // Use brightnessctl for regular devices
-            if (device)
-                brightnessSetProcess.command
-                        = ["brightnessctl", "-d", device, "set", clampedValue + "%"]
-            else
-                brightnessSetProcess.command = ["brightnessctl", "set", clampedValue + "%"]
+            if (device) {
+                brightnessSetProcess.command = ["brightnessctl", "-d", device, "set", `${clampedValue}%`]
+            } else {
+                brightnessSetProcess.command = ["brightnessctl", "set", `${clampedValue}%`]
+            }
             brightnessSetProcess.running = true
         }
     }
@@ -83,26 +77,23 @@ Singleton {
     }
 
     function setCurrentDevice(deviceName, saveToSession = false) {
-        if (currentDevice === deviceName)
+        if (currentDevice === deviceName) {
             return
+        }
 
         currentDevice = deviceName
         lastIpcDevice = deviceName
 
-        // Only save to session if explicitly requested (user choice)
         if (saveToSession) {
             SessionData.setLastBrightnessDevice(deviceName)
         }
 
         deviceSwitched()
 
-        // Check if this is a DDC device
         const deviceInfo = getCurrentDeviceInfoByName(deviceName)
         if (deviceInfo && deviceInfo.class === "ddc") {
-            // For DDC devices, never read after initial - just use cached values
             return
         } else {
-            // For regular devices, use brightnessctl
             brightnessGetProcess.command = ["brightnessctl", "-m", "-d", deviceName, "get"]
             brightnessGetProcess.running = true
         }
@@ -116,19 +107,19 @@ Singleton {
         const allDevices = [...devices, ...ddcDevices]
 
         allDevices.sort((a, b) => {
-                            if (a.class === "backlight"
-                                && b.class !== "backlight")
-                            return -1
-                            if (a.class !== "backlight"
-                                && b.class === "backlight")
-                            return 1
+                            if (a.class === "backlight" && b.class !== "backlight") {
+                                return -1
+                            }
+                            if (a.class !== "backlight" && b.class === "backlight") {
+                                return 1
+                            }
 
-                            if (a.class === "ddc" && b.class !== "ddc"
-                                && b.class !== "backlight")
-                            return -1
-                            if (a.class !== "ddc" && b.class === "ddc"
-                                && a.class !== "backlight")
-                            return 1
+                            if (a.class === "ddc" && b.class !== "ddc" && b.class !== "backlight") {
+                                return -1
+                            }
+                            if (a.class !== "ddc" && b.class === "ddc" && a.class !== "backlight") {
+                                return 1
+                            }
 
                             return a.name.localeCompare(b.name)
                         })
@@ -141,25 +132,26 @@ Singleton {
             if (deviceExists) {
                 setCurrentDevice(lastDevice, false)
             } else {
-                const nonKbdDevice = devices.find(d => !d.name.includes("kbd"))
-                                   || devices[0]
+                const nonKbdDevice = devices.find(d => !d.name.includes("kbd")) || devices[0]
                 setCurrentDevice(nonKbdDevice.name, false)
             }
         }
     }
 
     function getDeviceBrightness(deviceName) {
-        if (!deviceName) return 50
-        
+        if (!deviceName) {
+            return
+        } 50
+
         const deviceInfo = getCurrentDeviceInfoByName(deviceName)
-        if (!deviceInfo) return 50
-        
-        // For DDC devices, always use cached values
+        if (!deviceInfo) {
+            return 50
+        }
+
         if (deviceInfo.class === "ddc") {
             return deviceBrightness[deviceName] || 50
         }
-        
-        // For regular devices, try cache first, then device info
+
         return deviceBrightness[deviceName] || deviceInfo.percentage || 50
     }
 
@@ -173,11 +165,10 @@ Singleton {
     }
 
     function getCurrentDeviceInfo() {
-        const deviceToUse = lastIpcDevice === "" ? getDefaultDevice(
-                                                       ) : (lastIpcDevice
-                                                            || currentDevice)
-        if (!deviceToUse)
+        const deviceToUse = lastIpcDevice === "" ? getDefaultDevice() : (lastIpcDevice || currentDevice)
+        if (!deviceToUse) {
             return null
+        }
 
         for (const device of devices) {
             if (device.name === deviceToUse) {
@@ -188,11 +179,10 @@ Singleton {
     }
 
     function isCurrentDeviceReady() {
-        const deviceToUse = lastIpcDevice === "" ? getDefaultDevice(
-                                                       ) : (lastIpcDevice
-                                                            || currentDevice)
-        if (!deviceToUse)
+        const deviceToUse = lastIpcDevice === "" ? getDefaultDevice() : (lastIpcDevice || currentDevice)
+        if (!deviceToUse) {
             return false
+        }
 
         if (ddcPendingInit[deviceToUse]) {
             return false
@@ -202,8 +192,9 @@ Singleton {
     }
 
     function getCurrentDeviceInfoByName(deviceName) {
-        if (!deviceName)
+        if (!deviceName) {
             return null
+        }
 
         for (const device of devices) {
             if (device.name === deviceName) {
@@ -219,8 +210,7 @@ Singleton {
         }
 
         const displayId = ddcInitQueue.shift()
-        ddcInitialBrightnessProcess.command = ["ddcutil", "getvcp", "-d", String(
-                                                   displayId), "10", "--brief"]
+        ddcInitialBrightnessProcess.command = ["ddcutil", "getvcp", "-d", String(displayId), "10", "--brief"]
         ddcInitialBrightnessProcess.running = true
     }
 
@@ -233,7 +223,7 @@ Singleton {
 
         nightModeEnabled = true
         SessionData.setNightModeEnabled(true)
-        
+
         // Apply immediately or start automation
         if (SessionData.nightModeAutoEnabled) {
             startAutomation()
@@ -266,10 +256,7 @@ Singleton {
 
     function applyNightModeDirectly() {
         const temperature = SessionData.nightModeTemperature || 4500
-        gammaStepProcess.command = buildGammastepCommand([
-            "-m", "wayland", 
-            "-O", String(temperature)
-        ])
+        gammaStepProcess.command = buildGammastepCommand(["-m", "wayland", "-O", String(temperature)])
         gammaStepProcess.running = true
     }
 
@@ -279,17 +266,19 @@ Singleton {
     }
 
     function startAutomation() {
-        if (!automationAvailable) return
+        if (!automationAvailable) {
+            return
+        }
 
         const mode = SessionData.nightModeAutoMode || "time"
-        
+
         switch (mode) {
-            case "time":
-                startTimeBasedMode()
-                break
-            case "location":
-                startLocationBasedMode()
-                break
+        case "time":
+            startTimeBasedMode()
+            break
+        case "location":
+            startLocationBasedMode()
+            break
         }
     }
 
@@ -310,29 +299,19 @@ Singleton {
     function startLocationBasedMode() {
         const temperature = SessionData.nightModeTemperature || 4500
         const dayTemp = 6500
-        
+
         if (SessionData.latitude !== 0.0 && SessionData.longitude !== 0.0) {
-            automationProcess.command = buildGammastepCommand([
-                "-m", "wayland",
-                "-l", `${SessionData.latitude.toFixed(6)}:${SessionData.longitude.toFixed(6)}`,
-                "-t", `${dayTemp}:${temperature}`,
-                "-v"
-            ])
+            automationProcess.command = buildGammastepCommand(["-m", "wayland", "-l", `${SessionData.latitude.toFixed(6)}:${SessionData.longitude.toFixed(6)}`, "-t", `${dayTemp}:${temperature}`, "-v"])
             automationProcess.running = true
             return
         }
-        
+
         if (SessionData.nightModeLocationProvider === "geoclue2") {
-            automationProcess.command = buildGammastepCommand([
-                "-m", "wayland",
-                "-l", "geoclue2",
-                "-t", `${dayTemp}:${temperature}`,
-                "-v"
-            ])
+            automationProcess.command = buildGammastepCommand(["-m", "wayland", "-l", "geoclue2", "-t", `${dayTemp}:${temperature}`, "-v"])
             automationProcess.running = true
             return
         }
-        
+
         console.warn("DisplayService: Location mode selected but no coordinates or geoclue provider set")
     }
 
@@ -347,7 +326,7 @@ Singleton {
         const endMinutes = SessionData.nightModeEndHour * 60 + SessionData.nightModeEndMinute
 
         let shouldBeNight = false
-        
+
         if (startMinutes > endMinutes) {
             shouldBeNight = (currentTime >= startMinutes) || (currentTime < endMinutes)
         } else {
@@ -356,7 +335,7 @@ Singleton {
 
         if (shouldBeNight !== isAutomaticNightTime) {
             isAutomaticNightTime = shouldBeNight
-            
+
             if (shouldBeNight) {
                 applyNightModeDirectly()
             } else {
@@ -373,14 +352,14 @@ Singleton {
         SessionData.setNightModeAutoMode(mode)
     }
 
-    function evaluateNightMode() {        
+    function evaluateNightMode() {
         // Always stop all processes first to clean slate
         stopAutomation()
-        
+
         if (!nightModeEnabled) {
             return
         }
-        
+
         if (SessionData.nightModeAutoEnabled) {
             restartTimer.nextAction = "automation"
             restartTimer.start()
@@ -399,7 +378,7 @@ Singleton {
         property string nextAction: ""
         interval: 100
         repeat: false
-        
+
         onTriggered: {
             if (nextAction === "automation") {
                 startAutomation()
@@ -476,8 +455,7 @@ Singleton {
                     }
 
                     ddcDevices = newDdcDevices
-                    console.log("DisplayService: Found", ddcDevices.length,
-                                "DDC displays")
+                    console.log("DisplayService: Found", ddcDevices.length, "DDC displays")
 
                     // Queue initial brightness readings for DDC devices
                     ddcInitQueue = []
@@ -496,16 +474,13 @@ Singleton {
                     // Retry setting last device now that DDC devices are available
                     const lastDevice = SessionData.lastBrightnessDevice || ""
                     if (lastDevice) {
-                        const deviceExists = devices.some(
-                                               d => d.name === lastDevice)
-                        if (deviceExists && (!currentDevice
-                                             || currentDevice !== lastDevice)) {
+                        const deviceExists = devices.some(d => d.name === lastDevice)
+                        if (deviceExists && (!currentDevice || currentDevice !== lastDevice)) {
                             setCurrentDevice(lastDevice, false)
                         }
                     }
                 } catch (error) {
-                    console.warn("DisplayService: Failed to parse DDC devices:",
-                                 error)
+                    console.warn("DisplayService: Failed to parse DDC devices:", error)
                     ddcDevices = []
                 }
             }
@@ -513,8 +488,7 @@ Singleton {
 
         onExited: function (exitCode) {
             if (exitCode !== 0) {
-                console.warn("DisplayService: Failed to detect DDC displays:",
-                             exitCode)
+                console.warn("DisplayService: Failed to detect DDC displays:", exitCode)
                 ddcDevices = []
             }
         }
@@ -526,8 +500,7 @@ Singleton {
         command: ["brightnessctl", "-m", "-l"]
         onExited: function (exitCode) {
             if (exitCode !== 0) {
-                console.warn("DisplayService: Failed to list devices:",
-                             exitCode)
+                console.warn("DisplayService: Failed to list devices:", exitCode)
                 brightnessAvailable = false
             }
         }
@@ -542,7 +515,7 @@ Singleton {
                 const newDevices = []
                 for (const line of lines) {
                     const parts = line.split(",")
-                    if (parts.length >= 5)
+                    if (parts.length >= 5) {
                         newDevices.push({
                                             "name": parts[0],
                                             "class": parts[1],
@@ -550,10 +523,11 @@ Singleton {
                                             "percentage": parseInt(parts[3]),
                                             "max": parseInt(parts[4])
                                         })
+                    }
                 }
                 // Store brightnessctl devices separately
                 devices = newDevices
-                
+
                 // Always refresh to combine with DDC devices and set up device selection
                 refreshDevicesInternal()
             }
@@ -565,9 +539,9 @@ Singleton {
 
         running: false
         onExited: function (exitCode) {
-            if (exitCode !== 0)
-                console.warn("DisplayService: Failed to set brightness:",
-                             exitCode)
+            if (exitCode !== 0) {
+                console.warn("DisplayService: Failed to set brightness:", exitCode)
+            }
         }
     }
 
@@ -576,10 +550,9 @@ Singleton {
 
         running: false
         onExited: function (exitCode) {
-            if (exitCode !== 0)
-                console.warn(
-                            "DisplayService: Failed to set DDC brightness:",
-                            exitCode)
+            if (exitCode !== 0) {
+                console.warn("DisplayService: Failed to set DDC brightness:", exitCode)
+            }
         }
     }
 
@@ -588,9 +561,9 @@ Singleton {
 
         running: false
         onExited: function (exitCode) {
-            if (exitCode !== 0)
-                console.warn("DisplayService: Failed to get initial DDC brightness:",
-                             exitCode)
+            if (exitCode !== 0) {
+                console.warn("DisplayService: Failed to get initial DDC brightness:", exitCode)
+            }
 
             processNextDdcInit()
         }
@@ -598,7 +571,7 @@ Singleton {
         stdout: StdioCollector {
             onStreamFinished: {
                 if (!text.trim())
-                    return
+                return
 
                 const parts = text.trim().split(" ")
                 if (parts.length >= 5) {
@@ -619,8 +592,7 @@ Singleton {
                         delete newPending[deviceName]
                         ddcPendingInit = newPending
 
-                        console.log("DisplayService: Initial DDC Device",
-                                    deviceName, "brightness:", brightness + "%")
+                        console.log("DisplayService: Initial DDC Device", deviceName, "brightness:", brightness + "%")
                     }
                 }
             }
@@ -632,15 +604,15 @@ Singleton {
 
         running: false
         onExited: function (exitCode) {
-            if (exitCode !== 0)
-                console.warn("DisplayService: Failed to get brightness:",
-                             exitCode)
+            if (exitCode !== 0) {
+                console.warn("DisplayService: Failed to get brightness:", exitCode)
+            }
         }
 
         stdout: StdioCollector {
             onStreamFinished: {
                 if (!text.trim())
-                    return
+                return
 
                 const parts = text.trim().split(",")
                 if (parts.length >= 5) {
@@ -657,8 +629,7 @@ Singleton {
                     }
 
                     brightnessInitialized = true
-                    console.log("DisplayService: Device", currentDevice,
-                                "brightness:", brightness + "%")
+                    console.log("DisplayService: Device", currentDevice, "brightness:", brightness + "%")
                     brightnessChanged()
                 }
             }
@@ -670,16 +641,15 @@ Singleton {
 
         running: false
         onExited: function (exitCode) {
-            if (exitCode !== 0)
-                console.warn(
-                            "DisplayService: Failed to get DDC brightness:",
-                            exitCode)
+            if (exitCode !== 0) {
+                console.warn("DisplayService: Failed to get DDC brightness:", exitCode)
+            }
         }
 
         stdout: StdioCollector {
             onStreamFinished: {
                 if (!text.trim())
-                    return
+                return
 
                 // Parse ddcutil getvcp output format: "VCP 10 C 50 100"
                 const parts = text.trim().split(" ")
@@ -697,8 +667,7 @@ Singleton {
                     }
 
                     brightnessInitialized = true
-                    console.log("DisplayService: DDC Device", currentDevice,
-                                "brightness:", brightness + "%")
+                    console.log("DisplayService: DDC Device", currentDevice, "brightness:", brightness + "%")
                     brightnessChanged()
                 }
             }
@@ -709,12 +678,12 @@ Singleton {
         id: gammastepAvailabilityProcess
         command: ["which", "gammastep"]
         running: false
-        
-        onExited: function(exitCode) {
+
+        onExited: function (exitCode) {
             automationAvailable = (exitCode === 0)
             if (automationAvailable) {
                 detectLocationProviders()
-                
+
                 // If night mode should be enabled on startup
                 if (nightModeEnabled && SessionData.nightModeAutoEnabled) {
                     startAutomation()
@@ -748,7 +717,7 @@ Singleton {
                 automationAvailable = true
                 nightModeEnabled = true
                 SessionData.setNightModeEnabled(true)
-                
+
                 if (SessionData.nightModeAutoEnabled) {
                     startAutomation()
                 } else {
@@ -789,121 +758,149 @@ Singleton {
     // Session Data Connections
     Connections {
         target: SessionData
-        
+
         function onNightModeEnabledChanged() {
             nightModeEnabled = SessionData.nightModeEnabled
             evaluateNightMode()
         }
-        
-        function onNightModeAutoEnabledChanged() { evaluateNightMode() }
-        function onNightModeAutoModeChanged() { evaluateNightMode() }
-        function onNightModeStartHourChanged() { evaluateNightMode() }
-        function onNightModeStartMinuteChanged() { evaluateNightMode() }
-        function onNightModeEndHourChanged() { evaluateNightMode() }
-        function onNightModeEndMinuteChanged() { evaluateNightMode() }
-        function onNightModeTemperatureChanged() { evaluateNightMode() }
-        function onLatitudeChanged() { evaluateNightMode() }
-        function onLongitudeChanged() { evaluateNightMode() }
-        function onNightModeLocationProviderChanged() { evaluateNightMode() }
+
+        function onNightModeAutoEnabledChanged() {
+            evaluateNightMode()
+        }
+        function onNightModeAutoModeChanged() {
+            evaluateNightMode()
+        }
+        function onNightModeStartHourChanged() {
+            evaluateNightMode()
+        }
+        function onNightModeStartMinuteChanged() {
+            evaluateNightMode()
+        }
+        function onNightModeEndHourChanged() {
+            evaluateNightMode()
+        }
+        function onNightModeEndMinuteChanged() {
+            evaluateNightMode()
+        }
+        function onNightModeTemperatureChanged() {
+            evaluateNightMode()
+        }
+        function onLatitudeChanged() {
+            evaluateNightMode()
+        }
+        function onLongitudeChanged() {
+            evaluateNightMode()
+        }
+        function onNightModeLocationProviderChanged() {
+            evaluateNightMode()
+        }
     }
 
     // IPC Handler for external control
     IpcHandler {
         function set(percentage: string, device: string): string {
-            if (!root.brightnessAvailable)
+            if (!root.brightnessAvailable) {
                 return "Brightness control not available"
+            }
 
             const value = parseInt(percentage)
             if (isNaN(value)) {
                 return "Invalid brightness value: " + percentage
             }
-            
+
             const clampedValue = Math.max(1, Math.min(100, value))
             const targetDevice = device || ""
-            
+
             // Ensure device exists if specified
             if (targetDevice && !root.devices.some(d => d.name === targetDevice)) {
                 return "Device not found: " + targetDevice
             }
-            
+
             root.lastIpcDevice = targetDevice
             if (targetDevice && targetDevice !== root.currentDevice) {
                 root.setCurrentDevice(targetDevice, false)
             }
             root.setBrightness(clampedValue, targetDevice)
-            
-            if (targetDevice)
+
+            if (targetDevice) {
                 return "Brightness set to " + clampedValue + "% on " + targetDevice
-            else
+            } else {
                 return "Brightness set to " + clampedValue + "%"
+            }
         }
 
         function increment(step: string, device: string): string {
-            if (!root.brightnessAvailable)
+            if (!root.brightnessAvailable) {
                 return "Brightness control not available"
+            }
 
             const targetDevice = device || ""
             const actualDevice = targetDevice === "" ? root.getDefaultDevice() : targetDevice
-            
+
             // Ensure device exists
             if (actualDevice && !root.devices.some(d => d.name === actualDevice)) {
                 return "Device not found: " + actualDevice
             }
-            
+
             const currentLevel = actualDevice ? root.getDeviceBrightness(actualDevice) : root.brightnessLevel
             const stepValue = parseInt(step || "10")
             const newLevel = Math.max(1, Math.min(100, currentLevel + stepValue))
-            
+
             root.lastIpcDevice = targetDevice
             if (targetDevice && targetDevice !== root.currentDevice) {
                 root.setCurrentDevice(targetDevice, false)
             }
             root.setBrightness(newLevel, targetDevice)
-            
-            if (targetDevice)
+
+            if (targetDevice) {
                 return "Brightness increased to " + newLevel + "% on " + targetDevice
-            else
+            } else {
                 return "Brightness increased to " + newLevel + "%"
+            }
         }
 
         function decrement(step: string, device: string): string {
-            if (!root.brightnessAvailable)
+            if (!root.brightnessAvailable) {
                 return "Brightness control not available"
+            }
 
             const targetDevice = device || ""
             const actualDevice = targetDevice === "" ? root.getDefaultDevice() : targetDevice
-            
+
             // Ensure device exists
             if (actualDevice && !root.devices.some(d => d.name === actualDevice)) {
                 return "Device not found: " + actualDevice
             }
-            
+
             const currentLevel = actualDevice ? root.getDeviceBrightness(actualDevice) : root.brightnessLevel
             const stepValue = parseInt(step || "10")
             const newLevel = Math.max(1, Math.min(100, currentLevel - stepValue))
-            
+
             root.lastIpcDevice = targetDevice
             if (targetDevice && targetDevice !== root.currentDevice) {
                 root.setCurrentDevice(targetDevice, false)
             }
             root.setBrightness(newLevel, targetDevice)
-            
-            if (targetDevice)
+
+            if (targetDevice) {
                 return "Brightness decreased to " + newLevel + "% on " + targetDevice
-            else
+            } else {
                 return "Brightness decreased to " + newLevel + "%"
+            }
         }
 
         function status(): string {
-            if (!root.brightnessAvailable)
+            if (!root.brightnessAvailable) {
                 return "Brightness control not available"
+            }
 
             return "Device: " + root.currentDevice + " - Brightness: " + root.brightnessLevel + "%"
         }
 
         function list(): string {
-            if (!root.brightnessAvailable)
+            if (!root.brightnessAvailable) {
                 return "No brightness devices available"
+            }
 
             let result = "Available devices:\\n"
             for (const device of root.devices) {

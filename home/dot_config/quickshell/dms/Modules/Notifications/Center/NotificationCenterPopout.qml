@@ -20,9 +20,9 @@ DankPopout {
         id: keyboardController
         listView: null
         isOpen: notificationHistoryVisible
-        onClose: function () {
-            notificationHistoryVisible = false
-        }
+        onClose: () => {
+                     notificationHistoryVisible = false
+                 }
     }
 
     function setTriggerPosition(x, y, width, section, screen) {
@@ -55,32 +55,27 @@ DankPopout {
     onShouldBeVisibleChanged: {
         if (shouldBeVisible) {
             NotificationService.onOverlayOpen()
-            // Set up keyboard controller when content is loaded
-            Qt.callLater(function () {
-                if (contentLoader.item) {
-                    contentLoader.item.externalKeyboardController = keyboardController
+            Qt.callLater(() => {
+                             if (contentLoader.item) {
+                                 contentLoader.item.externalKeyboardController = keyboardController
 
-                    // Find the notification list and set up the connection
-                    var notificationList = findChild(contentLoader.item,
-                                                     "notificationList")
-                    var notificationHeader = findChild(contentLoader.item,
-                                                       "notificationHeader")
+                                 const notificationList = findChild(contentLoader.item, "notificationList")
+                                 const notificationHeader = findChild(contentLoader.item, "notificationHeader")
 
-                    if (notificationList) {
-                        keyboardController.listView = notificationList
-                        notificationList.keyboardController = keyboardController
-                    }
-                    if (notificationHeader) {
-                        notificationHeader.keyboardController = keyboardController
-                    }
+                                 if (notificationList) {
+                                     keyboardController.listView = notificationList
+                                     notificationList.keyboardController = keyboardController
+                                 }
+                                 if (notificationHeader) {
+                                     notificationHeader.keyboardController = keyboardController
+                                 }
 
-                    keyboardController.reset()
-                    keyboardController.rebuildFlatNavigation()
-                }
-            })
+                                 keyboardController.reset()
+                                 keyboardController.rebuildFlatNavigation()
+                             }
+                         })
         } else {
             NotificationService.onOverlayClose()
-            // Reset keyboard state when closing
             keyboardController.keyboardNavigationActive = false
         }
     }
@@ -89,9 +84,9 @@ DankPopout {
         if (parent.objectName === objectName) {
             return parent
         }
-        for (var i = 0; i < parent.children.length; i++) {
-            var child = parent.children[i]
-            var result = findChild(child, objectName)
+        for (let i = 0; i < parent.children.length; i++) {
+            const child = parent.children[i]
+            const result = findChild(child, objectName)
             if (result) {
                 return result
             }
@@ -112,44 +107,44 @@ DankPopout {
                 baseHeight += (notificationSettings.expanded ? notificationSettings.contentHeight : 0)
                 baseHeight += Theme.spacingM * 2
                 let listHeight = notificationList.listContentHeight
-                if (NotificationService.groupedNotifications.length === 0)
+                if (NotificationService.groupedNotifications.length === 0) {
                     listHeight = 200
+                }
                 baseHeight += Math.min(listHeight, 600)
-                return Math.max(
-                            300, Math.min(
-                                baseHeight,
-                                root.screen ? root.screen.height * 0.8 : Screen.height * 0.8))
+                const maxHeight = root.screen ? root.screen.height * 0.8 : Screen.height * 0.8
+                return Math.max(300, Math.min(baseHeight, maxHeight))
             }
 
             color: Theme.popupBackground()
             radius: Theme.cornerRadius
-            border.color: Qt.rgba(Theme.outline.r, Theme.outline.g,
-                                  Theme.outline.b, 0.08)
+            border.color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.08)
             border.width: 1
             focus: true
 
             Component.onCompleted: {
-                if (root.shouldBeVisible)
+                if (root.shouldBeVisible) {
                     forceActiveFocus()
-            }
-
-            Keys.onPressed: function (event) {
-                if (event.key === Qt.Key_Escape) {
-                    root.close()
-                    event.accepted = true
-                } else if (externalKeyboardController) {
-                    externalKeyboardController.handleKey(event)
                 }
             }
 
+            Keys.onPressed: event => {
+                                if (event.key === Qt.Key_Escape) {
+                                    root.close()
+                                    event.accepted = true
+                                } else if (externalKeyboardController) {
+                                    externalKeyboardController.handleKey(event)
+                                }
+                            }
+
             Connections {
                 function onShouldBeVisibleChanged() {
-                    if (root.shouldBeVisible)
-                        Qt.callLater(function () {
-                            notificationContent.forceActiveFocus()
-                        })
-                    else
+                    if (root.shouldBeVisible) {
+                        Qt.callLater(() => {
+                                         notificationContent.forceActiveFocus()
+                                     })
+                    } else {
                         notificationContent.focus = false
+                    }
                 }
                 target: root
             }
@@ -182,8 +177,7 @@ DankPopout {
                         objectName: "notificationList"
 
                         width: parent.width
-                        height: parent.height - notificationContent.cachedHeaderHeight
-                                - notificationSettings.height - contentColumnInner.spacing * 2
+                        height: parent.height - notificationContent.cachedHeaderHeight - notificationSettings.height - contentColumnInner.spacing * 2
                     }
                 }
             }
@@ -194,7 +188,7 @@ DankPopout {
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.margins: Theme.spacingL
-                showHints: externalKeyboardController ? externalKeyboardController.showKeyboardHints : false
+                showHints: (externalKeyboardController && externalKeyboardController.showKeyboardHints) || false
                 z: 200
             }
 

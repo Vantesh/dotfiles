@@ -8,7 +8,6 @@ StyledRect {
     property string iconName: ""
     property int iconSize: Theme.iconSize - 4
     property color iconColor: Theme.surfaceText
-    property color hoverColor: Theme.primaryHover
     property color backgroundColor: "transparent"
     property bool circular: true
     property int buttonSize: 32
@@ -30,8 +29,6 @@ StyledRect {
     StateLayer {
         stateColor: Theme.primary
         cornerRadius: root.radius
-        onClicked: {
-            root.clicked()
-        }
+        onClicked: root.clicked()
     }
 }

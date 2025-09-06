@@ -1,6 +1,6 @@
 import QtQuick
-import QtQuick.Controls
 import qs.Common
+import qs.Modals.Common
 import qs.Services
 import qs.Widgets
 
@@ -14,58 +14,56 @@ DankModal {
         wifiPasswordSSID = ssid
         wifiPasswordInput = ""
         open()
-        Qt.callLater(function () {
-            if (contentLoader.item && contentLoader.item.passwordInput) {
-                contentLoader.item.passwordInput.forceActiveFocus()
-            }
-        })
+        Qt.callLater(() => {
+                         if (contentLoader.item && contentLoader.item.passwordInput)
+                         contentLoader.item.passwordInput.forceActiveFocus()
+                     })
     }
 
     shouldBeVisible: false
     width: 420
     height: 230
-    onShouldBeVisibleChanged: {
-        if (!shouldBeVisible)
-            wifiPasswordInput = ""
-    }
+    onShouldBeVisibleChanged: () => {
+                                  if (!shouldBeVisible)
+                                  wifiPasswordInput = ""
+                              }
     onOpened: {
-        Qt.callLater(function () {
-            if (contentLoader.item && contentLoader.item.passwordInput) {
-                contentLoader.item.passwordInput.forceActiveFocus()
-            }
-        })
+        Qt.callLater(() => {
+                         if (contentLoader.item && contentLoader.item.passwordInput)
+                         contentLoader.item.passwordInput.forceActiveFocus()
+                     })
     }
-    onBackgroundClicked: {
-        close()
-        wifiPasswordInput = ""
-    }
+    onBackgroundClicked: () => {
+                             close()
+                             wifiPasswordInput = ""
+                         }
 
     Connections {
+        target: NetworkService
+
         function onPasswordDialogShouldReopenChanged() {
-            if (NetworkService.passwordDialogShouldReopen
-                    && NetworkService.connectingSSID !== "") {
+            if (NetworkService.passwordDialogShouldReopen && NetworkService.connectingSSID !== "") {
                 wifiPasswordSSID = NetworkService.connectingSSID
                 wifiPasswordInput = ""
                 open()
                 NetworkService.passwordDialogShouldReopen = false
             }
         }
-
-        target: NetworkService
     }
 
     content: Component {
         FocusScope {
             id: wifiContent
+
             property alias passwordInput: passwordInput
 
             anchors.fill: parent
             focus: true
-            Keys.onEscapePressed: function (event) {
-                close()
-                wifiPasswordInput = ""
-                event.accepted = true
-            }
+            Keys.onEscapePressed: event => {
+                                      close()
+                                      wifiPasswordInput = ""
+                                      event.accepted = true
+                                  }
 
             Column {
                 anchors.centerIn: parent
@@ -87,7 +85,7 @@ DankModal {
                         }
 
                         StyledText {
-                            text: "Enter password for \"" + wifiPasswordSSID + "\""
+                            text: `Enter password for "${wifiPasswordSSID}"`
                             font.pixelSize: Theme.fontSizeMedium
                             color: Theme.surfaceTextMedium
                             width: parent.width
@@ -99,11 +97,10 @@ DankModal {
                         iconName: "close"
                         iconSize: Theme.iconSize - 4
                         iconColor: Theme.surfaceText
-                        hoverColor: Theme.errorHover
-                        onClicked: {
-                            close()
-                            wifiPasswordInput = ""
-                        }
+                        onClicked: () => {
+                                       close()
+                                       wifiPasswordInput = ""
+                                   }
                     }
                 }
 
@@ -117,9 +114,9 @@ DankModal {
 
                     MouseArea {
                         anchors.fill: parent
-                        onClicked: {
-                            passwordInput.forceActiveFocus()
-                        }
+                        onClicked: () => {
+                                       passwordInput.forceActiveFocus()
+                                   }
                     }
 
                     DankTextField {
@@ -134,40 +131,37 @@ DankModal {
                         backgroundColor: "transparent"
                         focus: true
                         enabled: root.shouldBeVisible
-                        onTextEdited: {
-                            wifiPasswordInput = text
-                        }
-                        onAccepted: {
-                            NetworkService.connectToWifiWithPassword(
-                                        wifiPasswordSSID, passwordInput.text)
-                            close()
-                            wifiPasswordInput = ""
-                            passwordInput.text = ""
-                        }
-
-                        Component.onCompleted: {
-                            if (root.shouldBeVisible) {
-                                focusDelayTimer.start()
-                            }
-                        }
+                        onTextEdited: () => {
+                                          wifiPasswordInput = text
+                                      }
+                        onAccepted: () => {
+                                        NetworkService.connectToWifi(wifiPasswordSSID, passwordInput.text)
+                                        close()
+                                        wifiPasswordInput = ""
+                                        passwordInput.text = ""
+                                    }
+                        Component.onCompleted: () => {
+                                                   if (root.shouldBeVisible)
+                                                   focusDelayTimer.start()
+                                               }
 
                         Timer {
                             id: focusDelayTimer
+
                             interval: 100
                             repeat: false
-                            onTriggered: {
-                                if (root.shouldBeVisible) {
-                                    passwordInput.forceActiveFocus()
-                                }
-                            }
+                            onTriggered: () => {
+                                             if (root.shouldBeVisible)
+                                             passwordInput.forceActiveFocus()
+                                         }
                         }
 
                         Connections {
                             target: root
+
                             function onShouldBeVisibleChanged() {
-                                if (root.shouldBeVisible) {
+                                if (root.shouldBeVisible)
                                     focusDelayTimer.start()
-                                }
                             }
                         }
                     }
@@ -200,9 +194,9 @@ DankModal {
                             anchors.fill: parent
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
-                            onClicked: {
-                                showPasswordCheckbox.checked = !showPasswordCheckbox.checked
-                            }
+                            onClicked: () => {
+                                           showPasswordCheckbox.checked = !showPasswordCheckbox.checked
+                                       }
                         }
                     }
 
@@ -224,9 +218,7 @@ DankModal {
                         spacing: Theme.spacingM
 
                         Rectangle {
-                            width: Math.max(
-                                       70,
-                                       cancelText.contentWidth + Theme.spacingM * 2)
+                            width: Math.max(70, cancelText.contentWidth + Theme.spacingM * 2)
                             height: 36
                             radius: Theme.cornerRadius
                             color: cancelArea.containsMouse ? Theme.surfaceTextHover : "transparent"
@@ -249,22 +241,18 @@ DankModal {
                                 anchors.fill: parent
                                 hoverEnabled: true
                                 cursorShape: Qt.PointingHandCursor
-                                onClicked: {
-                                    close()
-                                    wifiPasswordInput = ""
-                                }
+                                onClicked: () => {
+                                               close()
+                                               wifiPasswordInput = ""
+                                           }
                             }
                         }
 
                         Rectangle {
-                            width: Math.max(
-                                       80,
-                                       connectText.contentWidth + Theme.spacingM * 2)
+                            width: Math.max(80, connectText.contentWidth + Theme.spacingM * 2)
                             height: 36
                             radius: Theme.cornerRadius
-                            color: connectArea.containsMouse ? Qt.darker(
-                                                                   Theme.primary,
-                                                                   1.1) : Theme.primary
+                            color: connectArea.containsMouse ? Qt.darker(Theme.primary, 1.1) : Theme.primary
                             enabled: passwordInput.text.length > 0
                             opacity: enabled ? 1 : 0.5
 
@@ -285,14 +273,12 @@ DankModal {
                                 hoverEnabled: true
                                 cursorShape: Qt.PointingHandCursor
                                 enabled: parent.enabled
-                                onClicked: {
-                                    NetworkService.connectToWifiWithPassword(
-                                                wifiPasswordSSID,
-                                                passwordInput.text)
-                                    close()
-                                    wifiPasswordInput = ""
-                                    passwordInput.text = ""
-                                }
+                                onClicked: () => {
+                                               NetworkService.connectToWifi(wifiPasswordSSID, passwordInput.text)
+                                               close()
+                                               wifiPasswordInput = ""
+                                               passwordInput.text = ""
+                                           }
                             }
 
                             Behavior on color {

@@ -55,7 +55,5 @@ if [[ ! -r "${wallpaper}" ]]; then
   exit 2
 fi
 
-# Run walset and propagate its exit code
+# Run walset
 walset "$wallpaper" --mode "$mode"
-exit_code=$?
-exit $exit_code

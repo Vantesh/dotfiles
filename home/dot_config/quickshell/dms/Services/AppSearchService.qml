@@ -1,84 +1,106 @@
 pragma Singleton
+
 pragma ComponentBehavior: Bound
 
 import QtQuick
 import Quickshell
-import Quickshell.Io
-import Quickshell.Widgets
-import "../Common/fuzzysort.js" as Fuzzy
+import "../Common/fzf.js" as Fzf
 
 Singleton {
     id: root
 
     property var applications: DesktopEntries.applications.values.filter(app => !app.noDisplay && !app.runInTerminal)
 
-    property var preppedApps: applications.map(app => ({
-                                                           "name": Fuzzy.prepare(
-                                                                       app.name
-                                                                       || ""),
-                                                           "comment": Fuzzy.prepare(
-                                                                          app.comment
-                                                                          || ""),
-                                                           "entry": app
-                                                       }))
-
     function searchApplications(query) {
-        if (!query || query.length === 0) {
+        if (!query || query.length === 0)
             return applications
-        }
-
-        if (preppedApps.length === 0) {
+        if (applications.length === 0)
             return []
+
+        const queryLower = query.toLowerCase().trim()
+        const scoredApps = []
+
+        for (const app of applications) {
+            const name = (app.name || "").toLowerCase()
+            const genericName = (app.genericName || "").toLowerCase()
+            const comment = (app.comment || "").toLowerCase()
+            const keywords = app.keywords ? app.keywords.map(k => k.toLowerCase()) : []
+
+            let score = 0
+            let matched = false
+
+            const nameWords = name.trim().split(/\s+/).filter(w => w.length > 0)
+            const containsAsWord = nameWords.includes(queryLower)
+            const startsWithAsWord = nameWords.some(word => word.startsWith(queryLower))
+
+            if (name === queryLower) {
+                score = 10000
+                matched = true
+            } else if (containsAsWord) {
+                score = 9500 + (100 - Math.min(name.length, 100))
+                matched = true
+            } else if (name.startsWith(queryLower)) {
+                score = 9000 + (100 - Math.min(name.length, 100))
+                matched = true
+            } else if (startsWithAsWord) {
+                score = 8500 + (100 - Math.min(name.length, 100))
+                matched = true
+            } else if (name.includes(queryLower)) {
+                score = 8000 + (100 - Math.min(name.length, 100))
+                matched = true
+            } else if (keywords.length > 0) {
+                for (const keyword of keywords) {
+                    if (keyword === queryLower) {
+                        score = 6000
+                        matched = true
+                        break
+                    } else if (keyword.startsWith(queryLower)) {
+                        score = 5500
+                        matched = true
+                        break
+                    } else if (keyword.includes(queryLower)) {
+                        score = 5000
+                        matched = true
+                        break
+                    }
+                }
+            }
+            if (!matched && genericName.includes(queryLower)) {
+                score = 4000
+                matched = true
+            } else if (!matched && comment.includes(queryLower)) {
+                score = 3000
+                matched = true
+            } else if (!matched) {
+                const nameFinder = new Fzf.Finder([app], {
+                                                      "selector": a => a.name || "",
+                                                      "casing": "case-insensitive",
+                                                      "fuzzy": "v2"
+                                                  })
+                const fuzzyResults = nameFinder.find(query)
+                if (fuzzyResults.length > 0 && fuzzyResults[0].score > 0) {
+                    score = Math.min(fuzzyResults[0].score, 2000)
+                    matched = true
+                }
+            }
+
+            if (matched) {
+                scoredApps.push({
+                                    "app": app,
+                                    "score": score
+                                })
+            }
         }
 
-        var results = Fuzzy.go(query, preppedApps, {
-                                   "all": false,
-                                   "keys": ["name", "comment"],
-                                   "scoreFn": r => {
-                                       var nameScore = r[0] ? r[0].score : 0
-                                       var commentScore = r[1] ? r[1].score : 0
-                                       var appName = r.obj.entry.name || ""
-                                       var finalScore = 0
-
-                                       if (nameScore > 0) {
-                                           var queryLower = query.toLowerCase()
-                                           var nameLower = appName.toLowerCase()
-
-                                           if (nameLower === queryLower) {
-                                               finalScore = nameScore * 100
-                                           } else if (nameLower.startsWith(
-                                                          queryLower)) {
-                                               finalScore = nameScore * 50
-                                           } else if (nameLower.includes(
-                                                          " " + queryLower)
-                                                      || nameLower.includes(
-                                                          queryLower + " ")
-                                                      || nameLower.endsWith(
-                                                          " " + queryLower)) {
-                                               finalScore = nameScore * 25
-                                           } else if (nameLower.includes(
-                                                          queryLower)) {
-                                               finalScore = nameScore * 10
-                                           } else {
-                                               finalScore = nameScore * 2 + commentScore * 0.1
-                                           }
-                                       } else {
-                                           finalScore = commentScore * 0.1
-                                       }
-
-                                       return finalScore
-                                   },
-                                   "limit": 50
-                               })
-
-        return results.map(r => r.obj.entry)
+        scoredApps.sort((a, b) => b.score - a.score)
+        return scoredApps.slice(0, 50).map(item => item.app)
     }
 
     function getCategoriesForApp(app) {
-        if (!app || !app.categories)
+        if (!app?.categories)
             return []
 
-        var categoryMap = {
+        const categoryMap = {
             "AudioVideo": "Media",
             "Audio": "Media",
             "Video": "Media",
@@ -105,19 +127,16 @@ Singleton {
             "TerminalEmulator": "Utilities"
         }
 
-        var mappedCategories = new Set()
+        const mappedCategories = new Set()
 
-        for (var i = 0; i < app.categories.length; i++) {
-            var cat = app.categories[i]
-            if (categoryMap[cat]) {
+        for (const cat of app.categories) {
+            if (categoryMap[cat])
                 mappedCategories.add(categoryMap[cat])
-            }
         }
 
         return Array.from(mappedCategories)
     }
 
-    // Category icon mappings
     property var categoryIcons: ({
                                      "All": "apps",
                                      "Media": "music_video",
@@ -136,10 +155,10 @@ Singleton {
     }
 
     function getAllCategories() {
-        var categories = new Set(["All"])
+        const categories = new Set(["All"])
 
-        for (var i = 0; i < applications.length; i++) {
-            var appCategories = getCategoriesForApp(applications[i])
+        for (const app of applications) {
+            const appCategories = getCategoriesForApp(app)
             appCategories.forEach(cat => categories.add(cat))
         }
 
@@ -152,8 +171,7 @@ Singleton {
         }
 
         return applications.filter(app => {
-                                       var appCategories = getCategoriesForApp(
-                                           app)
+                                       const appCategories = getCategoriesForApp(app)
                                        return appCategories.includes(category)
                                    })
     }
