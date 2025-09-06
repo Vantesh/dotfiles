@@ -21,8 +21,11 @@ ensure_spicetify_theme() {
 }
 
 trigger_spicetify_refresh() {
-
-  (timeout 5s spicetify -q watch -s || true) &>/dev/null &
+  (
+    timeout 10s spicetify -q watch -s &
+    sleep 1
+    pkill -x spicetify || true
+  ) &>/dev/null &
 }
 
 main() {

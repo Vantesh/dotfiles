@@ -3,7 +3,7 @@
 
 if [ -f /tmp/gamemode-enabled ]; then
   hyprctl reload
-  qs -c dms ipc call bar show
+  qs -c dms ipc call bar reveal
   rm /tmp/gamemode-enabled
   notify-send --icon=dialog-information "Gamemode deactivated" "Default settings restored"
 else
