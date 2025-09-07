@@ -42,18 +42,28 @@ fi
 # Ensure local bin is in PATH for walset to be found
 export PATH="$HOME/.local/bin:$PATH"
 
-# If no wallpaper path is available, exit with code 2 so the caller treats it as
-# "wallpaper/color not found" (Theme.qml treats exit code 2 as expected/skip).
-
-# Treat empty/null or unreadable wallpaper as 'not found' (exit 2)
+# Treat empty/null as 'not found' (exit 2)
 if [[ -z "${wallpaper:-}" || "${wallpaper}" == "null" ]]; then
   exit 2
 fi
 
+# Unreadable path -> skip (exit 2)
 if [[ ! -r "${wallpaper}" ]]; then
-  # If the wallpaper path is not a readable file, return 2 to indicate skip
   exit 2
 fi
 
+# Ensure walset is available; if missing, it's an error for this worker
+if ! command -v walset >/dev/null 2>&1; then
+  echo "Error: 'walset' not found in PATH (tried with PATH='$PATH')" >&2
+  exit 1
+fi
+
+# Build args, only pass --mode when provided
+args=("${wallpaper}")
+if [[ -n "${mode:-}" && "${mode}" != "null" ]]; then
+  args+=(--mode "${mode}")
+fi
+
 # Run walset
-walset "$wallpaper" --mode "$mode"
+walset "${args[@]}"
+exit $?

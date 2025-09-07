@@ -7,7 +7,6 @@ set -euo pipefail
 readonly CACHE_DIR="$HOME/.cache/walset"
 readonly CURRENT_FILE="$CACHE_DIR/walset.current"
 readonly MATUGEN_SCRIPTS_DIR="$HOME/.config/matugen/scripts"
-export MODE=${MODE:-dark}
 
 # =============================================================================
 # Logging
@@ -127,7 +126,7 @@ main() {
       exit 0
     fi
   fi
-
+  export MODE=${MODE}
   write_current "$wallpaper" "$MATUGEN_SCHEME" "$MODE"
 
   matugen image "$wallpaper" --type "$MATUGEN_SCHEME" --mode "$MODE" ${JSON_ARG:+$JSON_ARG "$JSON_VALUE"} >/dev/null || {
@@ -139,7 +138,7 @@ main() {
 
   # Run update scripts
   update_script "terminal" &
-  update_script "gtk" &
+  update_script "gtk"
   update_script "folders" &
   update_script "hyprlock_icon" &
   update_script "services" &
