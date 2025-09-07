@@ -64,11 +64,15 @@
   ],
   "topBarRightWidgets": [
     {
-      "id": "memUsage",
+      "id": "systemTray",
       "enabled": true
     },
     {
-      "id": "systemTray",
+      "id": "idleInhibitor",
+      "enabled": true
+    },
+    {
+      "id": "memUsage",
       "enabled": true
     },
     {

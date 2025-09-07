@@ -1,5 +1,4 @@
 pragma Singleton
-
 pragma ComponentBehavior: Bound
 
 import QtCore
@@ -19,27 +18,28 @@ Singleton {
     readonly property string dynamic: "dynamic"
 
     readonly property string homeDir: {
-        const url = StandardPaths.writableLocation(StandardPaths.HomeLocation).toString()
-        return url.startsWith("file://") ? url.substring(7) : url
+        const url = StandardPaths.writableLocation(StandardPaths.HomeLocation).toString();
+        return url.startsWith("file://") ? url.substring(7) : url;
     }
     readonly property string configDir: {
-        const url = StandardPaths.writableLocation(StandardPaths.ConfigLocation).toString()
-        return url.startsWith("file://") ? url.substring(7) : url
+        const url = StandardPaths.writableLocation(StandardPaths.ConfigLocation).toString();
+        return url.startsWith("file://") ? url.substring(7) : url;
     }
     readonly property string shellDir: Qt.resolvedUrl(".").toString().replace("file://", "").replace("/Common/", "")
     readonly property string wallpaperPath: {
-        if (typeof SessionData === "undefined") return ""
+        if (typeof SessionData === "undefined")
+            return "";
 
         if (SessionData.perMonitorWallpaper) {
             // Use first monitor's wallpaper for dynamic theming
-            var screens = Quickshell.screens
+            var screens = Quickshell.screens;
             if (screens.length > 0) {
-                var firstMonitorWallpaper = SessionData.getMonitorWallpaper(screens[0].name)
-                return firstMonitorWallpaper || SessionData.wallpaperPath
+                var firstMonitorWallpaper = SessionData.getMonitorWallpaper(screens[0].name);
+                return firstMonitorWallpaper || SessionData.wallpaperPath;
             }
         }
 
-        return SessionData.wallpaperPath
+        return SessionData.wallpaperPath;
     }
 
     property bool matugenAvailable: false
@@ -50,26 +50,26 @@ Singleton {
     property var customThemeData: null
 
     readonly property string stateDir: {
-        const cacheHome = StandardPaths.writableLocation(StandardPaths.CacheLocation).toString()
-        const path = cacheHome.startsWith("file://") ? cacheHome.substring(7) : cacheHome
-        return path + "/dankshell"
+        const cacheHome = StandardPaths.writableLocation(StandardPaths.CacheLocation).toString();
+        const path = cacheHome.startsWith("file://") ? cacheHome.substring(7) : cacheHome;
+        return path + "/dankshell";
     }
 
     function getMatugenColor(path, fallback) {
-        colorUpdateTrigger
-        const colorMode = (typeof SessionData !== "undefined" && SessionData.isLightMode) ? "light" : "dark"
-        let cur = matugenColors && matugenColors.colors && matugenColors.colors[colorMode]
+        colorUpdateTrigger;
+        const colorMode = (typeof SessionData !== "undefined" && SessionData.isLightMode) ? "light" : "dark";
+        let cur = matugenColors && matugenColors.colors && matugenColors.colors[colorMode];
         for (const part of path.split(".")) {
             if (!cur || typeof cur !== "object" || !(part in cur))
-                return fallback
-            cur = cur[part]
+                return fallback;
+            cur = cur[part];
         }
-        return cur || fallback
+        return cur || fallback;
     }
 
     readonly property var currentThemeData: {
         if (currentTheme === "custom") {
-            return customThemeData || StockThemes.getThemeByName("blue", isLightMode)
+            return customThemeData || StockThemes.getThemeByName("blue", isLightMode);
         } else if (currentTheme === dynamic) {
             return {
                 "primary": getMatugenColor("primary", "#42a5f5"),
@@ -90,9 +90,9 @@ Singleton {
                 "warning": "#FF9800",
                 "info": "#2196F3",
                 "success": "#4CAF50"
-            }
+            };
         } else {
-            return StockThemes.getThemeByName(currentTheme, isLightMode)
+            return StockThemes.getThemeByName(currentTheme, isLightMode);
         }
     }
 
@@ -175,74 +175,80 @@ Singleton {
 
     function switchTheme(themeName, savePrefs = true) {
         if (themeName === dynamic) {
-            currentTheme = dynamic
-            extractColors()
+            currentTheme = dynamic;
+            extractColors();
         } else if (themeName === "custom") {
-            currentTheme = "custom"
+            currentTheme = "custom";
             if (typeof SettingsData !== "undefined" && SettingsData.customThemeFile) {
-                loadCustomThemeFromFile(SettingsData.customThemeFile)
+                loadCustomThemeFromFile(SettingsData.customThemeFile);
             }
         } else {
-            currentTheme = themeName
+            currentTheme = themeName;
         }
         if (savePrefs && typeof SettingsData !== "undefined")
-            SettingsData.setTheme(currentTheme)
+            SettingsData.setTheme(currentTheme);
 
-        generateSystemThemesFromCurrentTheme()
+        generateSystemThemesFromCurrentTheme();
     }
 
     function setLightMode(light, savePrefs = true) {
-        isLightMode = light
-        if (savePrefs && typeof SessionData !== "undefined")
-            SessionData.setLightMode(isLightMode)
-        PortalService.setLightMode(isLightMode)
-        generateSystemThemesFromCurrentTheme()
+        isLightMode = light;
+        // If we update SessionData, it will emit isLightModeChanged which calls
+        // onLightModeChanged() that already triggers theme generation. To avoid
+        // double invocations, only generate immediately when we are NOT
+        // updating SessionData.
+        if (savePrefs && typeof SessionData !== "undefined") {
+            SessionData.setLightMode(isLightMode);
+        } else {
+            generateSystemThemesFromCurrentTheme();
+        }
+        PortalService.setLightMode(isLightMode);
     }
 
     function toggleLightMode(savePrefs = true) {
-        setLightMode(!isLightMode, savePrefs)
+        setLightMode(!isLightMode, savePrefs);
     }
 
     function forceGenerateSystemThemes() {
         if (!matugenAvailable) {
             if (typeof ToastService !== "undefined") {
-                ToastService.showWarning("matugen not available - cannot generate system themes")
+                ToastService.showWarning("matugen not available - cannot generate system themes");
             }
-            return
+            return;
         }
-        generateSystemThemesFromCurrentTheme()
+        generateSystemThemesFromCurrentTheme();
     }
 
     function getAvailableThemes() {
-        return StockThemes.getAllThemeNames()
+        return StockThemes.getAllThemeNames();
     }
 
     function getThemeDisplayName(themeName) {
-        const themeData = StockThemes.getThemeByName(themeName, isLightMode)
-        return themeData.name
+        const themeData = StockThemes.getThemeByName(themeName, isLightMode);
+        return themeData.name;
     }
 
     function getThemeColors(themeName) {
         if (themeName === "custom" && customThemeData) {
-            return customThemeData
+            return customThemeData;
         }
-        return StockThemes.getThemeByName(themeName, isLightMode)
+        return StockThemes.getThemeByName(themeName, isLightMode);
     }
 
     function loadCustomTheme(themeData) {
         if (themeData.dark || themeData.light) {
-            const colorMode = (typeof SessionData !== "undefined" && SessionData.isLightMode) ? "light" : "dark"
-            const selectedTheme = themeData[colorMode] || themeData.dark || themeData.light
-            customThemeData = selectedTheme
+            const colorMode = (typeof SessionData !== "undefined" && SessionData.isLightMode) ? "light" : "dark";
+            const selectedTheme = themeData[colorMode] || themeData.dark || themeData.light;
+            customThemeData = selectedTheme;
         } else {
-            customThemeData = themeData
+            customThemeData = themeData;
         }
 
-        generateSystemThemesFromCurrentTheme()
+        generateSystemThemesFromCurrentTheme();
     }
 
     function loadCustomThemeFromFile(filePath) {
-        customThemeFileView.path = filePath
+        customThemeFileView.path = filePath;
     }
 
     property alias availableThemeNames: root._availableThemeNames
@@ -250,147 +256,153 @@ Singleton {
     property string currentThemeName: currentTheme
 
     function popupBackground() {
-        return Qt.rgba(surfaceContainer.r, surfaceContainer.g, surfaceContainer.b, popupTransparency)
+        return Qt.rgba(surfaceContainer.r, surfaceContainer.g, surfaceContainer.b, popupTransparency);
     }
 
     function contentBackground() {
-        return Qt.rgba(surfaceContainer.r, surfaceContainer.g, surfaceContainer.b, popupTransparency)
+        return Qt.rgba(surfaceContainer.r, surfaceContainer.g, surfaceContainer.b, popupTransparency);
     }
 
     function panelBackground() {
-        return Qt.rgba(surfaceContainer.r, surfaceContainer.g, surfaceContainer.b, panelTransparency)
+        return Qt.rgba(surfaceContainer.r, surfaceContainer.g, surfaceContainer.b, panelTransparency);
     }
 
     function widgetBackground() {
-        return Qt.rgba(surfaceContainer.r, surfaceContainer.g, surfaceContainer.b, widgetTransparency)
+        return Qt.rgba(surfaceContainer.r, surfaceContainer.g, surfaceContainer.b, widgetTransparency);
     }
 
     function getPopupBackgroundAlpha() {
-        return popupTransparency
+        return popupTransparency;
     }
 
     function getContentBackgroundAlpha() {
-        return popupTransparency
+        return popupTransparency;
     }
 
     function isColorDark(c) {
-        return (0.299 * c.r + 0.587 * c.g + 0.114 * c.b) < 0.5
+        return (0.299 * c.r + 0.587 * c.g + 0.114 * c.b) < 0.5;
     }
 
     function getBatteryIcon(level, isCharging, batteryAvailable) {
         if (!batteryAvailable)
-            return _getBatteryPowerProfileIcon()
+            return _getBatteryPowerProfileIcon();
 
         if (isCharging) {
             if (level >= 90)
-                return "battery_charging_full"
+                return "battery_charging_full";
             if (level >= 80)
-                return "battery_charging_90"
+                return "battery_charging_90";
             if (level >= 60)
-                return "battery_charging_80"
+                return "battery_charging_80";
             if (level >= 50)
-                return "battery_charging_60"
+                return "battery_charging_60";
             if (level >= 30)
-                return "battery_charging_50"
+                return "battery_charging_50";
             if (level >= 20)
-                return "battery_charging_30"
-            return "battery_charging_20"
+                return "battery_charging_30";
+            return "battery_charging_20";
         } else {
             if (level >= 95)
-                return "battery_full"
+                return "battery_full";
             if (level >= 85)
-                return "battery_6_bar"
+                return "battery_6_bar";
             if (level >= 70)
-                return "battery_5_bar"
+                return "battery_5_bar";
             if (level >= 55)
-                return "battery_4_bar"
+                return "battery_4_bar";
             if (level >= 40)
-                return "battery_3_bar"
+                return "battery_3_bar";
             if (level >= 25)
-                return "battery_2_bar"
+                return "battery_2_bar";
             if (level >= 10)
-                return "battery_1_bar"
-            return "battery_alert"
+                return "battery_1_bar";
+            return "battery_alert";
         }
     }
 
     function _getBatteryPowerProfileIcon() {
         if (typeof PowerProfiles === "undefined")
-            return "balance"
+            return "balance";
 
         switch (PowerProfiles.profile) {
         case PowerProfile.PowerSaver:
-            return "energy_savings_leaf"
+            return "energy_savings_leaf";
         case PowerProfile.Performance:
-            return "rocket_launch"
+            return "rocket_launch";
         default:
-            return "balance"
+            return "balance";
         }
     }
 
     function getPowerProfileIcon(profile) {
         switch (profile) {
         case PowerProfile.PowerSaver:
-            return "battery_saver"
+            return "battery_saver";
         case PowerProfile.Balanced:
-            return "battery_std"
+            return "battery_std";
         case PowerProfile.Performance:
-            return "flash_on"
+            return "flash_on";
         default:
-            return "settings"
+            return "settings";
         }
     }
 
     function getPowerProfileLabel(profile) {
         switch (profile) {
         case PowerProfile.PowerSaver:
-            return "Power Saver"
+            return "Power Saver";
         case PowerProfile.Balanced:
-            return "Balanced"
+            return "Balanced";
         case PowerProfile.Performance:
-            return "Performance"
+            return "Performance";
         default:
-            return profile.charAt(0).toUpperCase() + profile.slice(1)
+            return profile.charAt(0).toUpperCase() + profile.slice(1);
         }
     }
 
     function getPowerProfileDescription(profile) {
         switch (profile) {
         case PowerProfile.PowerSaver:
-            return "Extend battery life"
+            return "Extend battery life";
         case PowerProfile.Balanced:
-            return "Balance power and performance"
+            return "Balance power and performance";
         case PowerProfile.Performance:
-            return "Prioritize performance"
+            return "Prioritize performance";
         default:
-            return "Custom power profile"
+            return "Custom power profile";
         }
     }
 
     function extractColors() {
-        extractionRequested = true
+        extractionRequested = true;
         if (matugenAvailable)
-            fileChecker.running = true
+            fileChecker.running = true;
         else
-            matugenCheck.running = true
+            matugenCheck.running = true;
     }
 
     function onLightModeChanged() {
         if (matugenColors && Object.keys(matugenColors).length > 0) {
-            colorUpdateTrigger++
+            colorUpdateTrigger++;
         }
 
         if (currentTheme === "custom" && customThemeFileView.path) {
-            customThemeFileView.reload()
+            customThemeFileView.reload();
         }
 
-        generateSystemThemesFromCurrentTheme()
+        generateSystemThemesFromCurrentTheme();
     }
 
     function setDesiredTheme(kind, value, isLight, iconTheme) {
         if (!matugenAvailable) {
-            console.warn("matugen not available - cannot set system theme")
-            return
+            console.warn("matugen not available - cannot set system theme");
+            return;
+        }
+
+        // Skip if a worker run is already in-flight to avoid double invocations
+        if (workerRunning || (typeof systemThemeGenerator !== "undefined" && systemThemeGenerator.running)) {
+            console.log("Theme: worker already running - coalescing duplicate request");
+            return;
         }
 
         const desired = {
@@ -398,151 +410,149 @@ Singleton {
             "value": value,
             "mode": isLight ? "light" : "dark",
             "iconTheme": iconTheme || "System Default"
-        }
+        };
 
-        const json = JSON.stringify(desired)
-        const desiredPath = stateDir + "/matugen.desired.json"
+        const json = JSON.stringify(desired);
+        const desiredPath = stateDir + "/matugen.desired.json";
 
-        Quickshell.execDetached(["sh", "-c", `mkdir -p '${stateDir}' && cat > '${desiredPath}' << 'EOF'\n${json}\nEOF`])
-        workerRunning = true
-        systemThemeGenerator.command = [shellDir + "/scripts/matugen-worker.sh", stateDir, shellDir, "--run"]
-        systemThemeGenerator.running = true
+        Quickshell.execDetached(["sh", "-c", `mkdir -p '${stateDir}' && cat > '${desiredPath}' << 'EOF'\n${json}\nEOF`]);
+        workerRunning = true;
+        systemThemeGenerator.command = [shellDir + "/scripts/matugen-worker.sh", stateDir, shellDir, "--run"];
+        systemThemeGenerator.running = true;
     }
 
     function generateSystemThemesFromCurrentTheme() {
         if (!matugenAvailable)
-            return
-
-        const isLight = (typeof SessionData !== "undefined" && SessionData.isLightMode)
-        const iconTheme = (typeof SettingsData !== "undefined" && SettingsData.iconTheme) ? SettingsData.iconTheme : "System Default"
+            return;
+        const isLight = (typeof SessionData !== "undefined" && SessionData.isLightMode);
+        const iconTheme = (typeof SettingsData !== "undefined" && SettingsData.iconTheme) ? SettingsData.iconTheme : "System Default";
 
         if (currentTheme === dynamic) {
             if (!wallpaperPath) {
-                return
+                return;
             }
             if (wallpaperPath.startsWith("#")) {
-                setDesiredTheme("hex", wallpaperPath, isLight, iconTheme)
+                setDesiredTheme("hex", wallpaperPath, isLight, iconTheme);
             } else {
-                setDesiredTheme("image", wallpaperPath, isLight, iconTheme)
+                setDesiredTheme("image", wallpaperPath, isLight, iconTheme);
             }
         } else {
-            let primaryColor
+            let primaryColor;
             if (currentTheme === "custom") {
                 if (!customThemeData || !customThemeData.primary) {
-                    console.warn("Custom theme data not available for system theme generation")
-                    return
+                    console.warn("Custom theme data not available for system theme generation");
+                    return;
                 }
-                primaryColor = customThemeData.primary
+                primaryColor = customThemeData.primary;
             } else {
-                primaryColor = currentThemeData.primary
+                primaryColor = currentThemeData.primary;
             }
 
             if (!primaryColor) {
-                console.warn("No primary color available for theme:", currentTheme)
-                return
+                console.warn("No primary color available for theme:", currentTheme);
+                return;
             }
-            setDesiredTheme("hex", primaryColor, isLight, iconTheme)
+            setDesiredTheme("hex", primaryColor, isLight, iconTheme);
         }
     }
 
-
     function extractJsonFromText(text) {
         if (!text)
-            return null
+            return null;
 
-        const start = text.search(/[{\[]/)
+        const start = text.search(/[{\[]/);
         if (start === -1)
-            return null
+            return null;
 
-        const open = text[start]
+        const open = text[start];
         const pairs = {
             "{": '}',
             "[": ']'
-        }
-        const close = pairs[open]
+        };
+        const close = pairs[open];
         if (!close)
-            return null
+            return null;
 
-        let inString = false
-        let escape = false
-        const stack = [open]
+        let inString = false;
+        let escape = false;
+        const stack = [open];
 
         for (var i = start + 1; i < text.length; i++) {
-            const ch = text[i]
+            const ch = text[i];
 
             if (inString) {
                 if (escape) {
-                    escape = false
+                    escape = false;
                 } else if (ch === '\\') {
-                    escape = true
+                    escape = true;
                 } else if (ch === '"') {
-                    inString = false
+                    inString = false;
                 }
-                continue
+                continue;
             }
 
             if (ch === '"') {
-                inString = true
-                continue
+                inString = true;
+                continue;
             }
             if (ch === '{' || ch === '[') {
-                stack.push(ch)
-                continue
+                stack.push(ch);
+                continue;
             }
             if (ch === '}' || ch === ']') {
-                const last = stack.pop()
+                const last = stack.pop();
                 if (!last || pairs[last] !== ch) {
-                    return null
+                    return null;
                 }
                 if (stack.length === 0) {
-                    return text.slice(start, i + 1)
+                    return text.slice(start, i + 1);
                 }
             }
         }
-        return null
+        return null;
     }
 
     Process {
         id: matugenCheck
         command: ["which", "matugen"]
         onExited: code => {
-            matugenAvailable = (code === 0)
+            matugenAvailable = (code === 0);
             if (!matugenAvailable) {
                 if (typeof ToastService !== "undefined") {
-                    ToastService.wallpaperErrorStatus = "matugen_missing"
-                    ToastService.showWarning("matugen not found - dynamic theming disabled")
+                    ToastService.wallpaperErrorStatus = "matugen_missing";
+                    ToastService.showWarning("matugen not found - dynamic theming disabled");
                 }
-                return
+                return;
             }
             if (extractionRequested) {
-                fileChecker.running = true
+                fileChecker.running = true;
             }
 
-            const isLight = (typeof SessionData !== "undefined" && SessionData.isLightMode)
-            const iconTheme = (typeof SettingsData !== "undefined" && SettingsData.iconTheme) ? SettingsData.iconTheme : "System Default"
+            const isLight = (typeof SessionData !== "undefined" && SessionData.isLightMode);
+            const iconTheme = (typeof SettingsData !== "undefined" && SettingsData.iconTheme) ? SettingsData.iconTheme : "System Default";
 
             if (currentTheme === dynamic) {
                 if (wallpaperPath) {
-                    Quickshell.execDetached(["rm", "-f", stateDir + "/matugen.key"])
+                    Quickshell.execDetached(["rm", "-f", stateDir + "/matugen.key"]);
                     if (wallpaperPath.startsWith("#")) {
-                        setDesiredTheme("hex", wallpaperPath, isLight, iconTheme)
+                        setDesiredTheme("hex", wallpaperPath, isLight, iconTheme);
                     } else {
-                        setDesiredTheme("image", wallpaperPath, isLight, iconTheme)
+                        setDesiredTheme("image", wallpaperPath, isLight, iconTheme);
                     }
                 }
             } else {
-                let primaryColor
+                let primaryColor;
                 if (currentTheme === "custom") {
                     if (customThemeData && customThemeData.primary) {
-                        primaryColor = customThemeData.primary
+                        primaryColor = customThemeData.primary;
                     }
                 } else {
-                    primaryColor = currentThemeData.primary
+                    primaryColor = currentThemeData.primary;
                 }
 
                 if (primaryColor) {
-                    Quickshell.execDetached(["rm", "-f", stateDir + "/matugen.key"])
-                    setDesiredTheme("hex", primaryColor, isLight, iconTheme)
+                    Quickshell.execDetached(["rm", "-f", stateDir + "/matugen.key"]);
+                    setDesiredTheme("hex", primaryColor, isLight, iconTheme);
                 }
             }
         }
@@ -553,9 +563,9 @@ Singleton {
         command: ["test", "-r", wallpaperPath]
         onExited: code => {
             if (code === 0) {
-                matugenProcess.running = true
+                matugenProcess.running = true;
             } else if (wallpaperPath.startsWith("#")) {
-                colorMatugenProcess.running = true
+                colorMatugenProcess.running = true;
             }
         }
     }
@@ -569,30 +579,30 @@ Singleton {
             onStreamFinished: {
                 if (!matugenCollector.text) {
                     if (typeof ToastService !== "undefined") {
-                        ToastService.wallpaperErrorStatus = "error"
-                        ToastService.showError("Wallpaper Processing Failed: Empty JSON extracted from matugen output.")
+                        ToastService.wallpaperErrorStatus = "error";
+                        ToastService.showError("Wallpaper Processing Failed: Empty JSON extracted from matugen output.");
                     }
-                    return
+                    return;
                 }
-                const extractedJson = extractJsonFromText(matugenCollector.text)
+                const extractedJson = extractJsonFromText(matugenCollector.text);
                 if (!extractedJson) {
                     if (typeof ToastService !== "undefined") {
-                        ToastService.wallpaperErrorStatus = "error"
-                        ToastService.showError("Wallpaper Processing Failed: Invalid JSON extracted from matugen output.")
+                        ToastService.wallpaperErrorStatus = "error";
+                        ToastService.showError("Wallpaper Processing Failed: Invalid JSON extracted from matugen output.");
                     }
-                    console.log("Raw matugen output:", matugenCollector.text)
-                    return
+                    console.log("Raw matugen output:", matugenCollector.text);
+                    return;
                 }
                 try {
-                    root.matugenColors = JSON.parse(extractedJson)
-                    root.colorUpdateTrigger++
+                    root.matugenColors = JSON.parse(extractedJson);
+                    root.colorUpdateTrigger++;
                     if (typeof ToastService !== "undefined") {
-                        ToastService.clearWallpaperError()
+                        ToastService.clearWallpaperError();
                     }
                 } catch (e) {
                     if (typeof ToastService !== "undefined") {
-                        ToastService.wallpaperErrorStatus = "error"
-                        ToastService.showError("Wallpaper processing failed (JSON parse error after extraction)")
+                        ToastService.wallpaperErrorStatus = "error";
+                        ToastService.showError("Wallpaper processing failed (JSON parse error after extraction)");
                     }
                 }
             }
@@ -601,8 +611,8 @@ Singleton {
         onExited: code => {
             if (code !== 0) {
                 if (typeof ToastService !== "undefined") {
-                    ToastService.wallpaperErrorStatus = "error"
-                    ToastService.showError("Matugen command failed with exit code " + code)
+                    ToastService.wallpaperErrorStatus = "error";
+                    ToastService.showError("Matugen command failed with exit code " + code);
                 }
             }
         }
@@ -617,30 +627,30 @@ Singleton {
             onStreamFinished: {
                 if (!colorMatugenCollector.text) {
                     if (typeof ToastService !== "undefined") {
-                        ToastService.wallpaperErrorStatus = "error"
-                        ToastService.showError("Color Processing Failed: Empty JSON extracted from matugen output.")
+                        ToastService.wallpaperErrorStatus = "error";
+                        ToastService.showError("Color Processing Failed: Empty JSON extracted from matugen output.");
                     }
-                    return
+                    return;
                 }
-                const extractedJson = extractJsonFromText(colorMatugenCollector.text)
+                const extractedJson = extractJsonFromText(colorMatugenCollector.text);
                 if (!extractedJson) {
                     if (typeof ToastService !== "undefined") {
-                        ToastService.wallpaperErrorStatus = "error"
-                        ToastService.showError("Color Processing Failed: Invalid JSON extracted from matugen output.")
+                        ToastService.wallpaperErrorStatus = "error";
+                        ToastService.showError("Color Processing Failed: Invalid JSON extracted from matugen output.");
                     }
-                    console.log("Raw matugen output:", colorMatugenCollector.text)
-                    return
+                    console.log("Raw matugen output:", colorMatugenCollector.text);
+                    return;
                 }
                 try {
-                    root.matugenColors = JSON.parse(extractedJson)
-                    root.colorUpdateTrigger++
+                    root.matugenColors = JSON.parse(extractedJson);
+                    root.colorUpdateTrigger++;
                     if (typeof ToastService !== "undefined") {
-                        ToastService.clearWallpaperError()
+                        ToastService.clearWallpaperError();
                     }
                 } catch (e) {
                     if (typeof ToastService !== "undefined") {
-                        ToastService.wallpaperErrorStatus = "error"
-                        ToastService.showError("Color processing failed (JSON parse error after extraction)")
+                        ToastService.wallpaperErrorStatus = "error";
+                        ToastService.showError("Color processing failed (JSON parse error after extraction)");
                     }
                 }
             }
@@ -649,8 +659,8 @@ Singleton {
         onExited: code => {
             if (code !== 0) {
                 if (typeof ToastService !== "undefined") {
-                    ToastService.wallpaperErrorStatus = "error"
-                    ToastService.showError("Matugen color command failed with exit code " + code)
+                    ToastService.wallpaperErrorStatus = "error";
+                    ToastService.showError("Matugen color command failed with exit code " + code);
                 }
             }
         }
@@ -665,25 +675,24 @@ Singleton {
         running: false
 
         onExited: exitCode => {
-            workerRunning = false
+            workerRunning = false;
 
             if (exitCode === 2) {
                 // Exit code 2 means wallpaper/color not found - this is expected on first run
-                console.log("Theme worker: wallpaper/color not found, skipping theme generation")
+                console.log("Theme worker: wallpaper/color not found, skipping theme generation");
             } else if (exitCode !== 0) {
                 if (typeof ToastService !== "undefined") {
-                    ToastService.showError("Theme worker failed (" + exitCode + ")")
+                    ToastService.showError("Theme worker failed (" + exitCode + ")");
                 }
-                console.warn("Theme worker failed with exit code:", exitCode)
+                console.warn("Theme worker failed with exit code:", exitCode);
             }
         }
     }
 
-
     Component.onCompleted: {
-        matugenCheck.running = true
+        matugenCheck.running = true;
         if (typeof SessionData !== "undefined")
-        SessionData.isLightModeChanged.connect(root.onLightModeChanged)
+            SessionData.isLightModeChanged.connect(root.onLightModeChanged);
     }
 
     FileView {
@@ -692,24 +701,24 @@ Singleton {
 
         function parseAndLoadTheme() {
             try {
-                var themeData = JSON.parse(customThemeFileView.text())
-                loadCustomTheme(themeData)
+                var themeData = JSON.parse(customThemeFileView.text());
+                loadCustomTheme(themeData);
             } catch (e) {
-                ToastService.showError("Invalid JSON format: " + e.message)
+                ToastService.showError("Invalid JSON format: " + e.message);
             }
         }
 
         onLoaded: {
-            parseAndLoadTheme()
+            parseAndLoadTheme();
         }
 
         onFileChanged: {
-            customThemeFileView.reload()
+            customThemeFileView.reload();
         }
 
         onLoadFailed: function (error) {
             if (typeof ToastService !== "undefined") {
-                ToastService.showError("Failed to read theme file: " + error)
+                ToastService.showError("Failed to read theme file: " + error);
             }
         }
     }
@@ -718,22 +727,22 @@ Singleton {
         target: "theme"
 
         function toggle(): string {
-            root.toggleLightMode()
-            return root.isLightMode ? "light" : "dark"
+            root.toggleLightMode();
+            return root.isLightMode ? "light" : "dark";
         }
 
         function light(): string {
-            root.setLightMode(true)
-            return "light"
+            root.setLightMode(true);
+            return "light";
         }
 
         function dark(): string {
-            root.setLightMode(false)
-            return "dark"
+            root.setLightMode(false);
+            return "dark";
         }
 
         function getMode(): string {
-            return root.isLightMode ? "light" : "dark"
+            return root.isLightMode ? "light" : "dark";
         }
     }
 }
