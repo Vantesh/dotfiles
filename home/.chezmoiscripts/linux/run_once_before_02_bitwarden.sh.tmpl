@@ -35,12 +35,38 @@ get_bitwarden_email() {
   done
 }
 
-# fix for brave browser
-if [ ! -d "$HOME/.config/google-chrome" ]; then
-  mkdir -p "$HOME/.config/google-chrome"
-  ln -s "$HOME/.config/brave-software/Brave-Browser/NativeMessagingHosts/com.8bitwarden.browser.json" "$HOME/.config/google-chrome/NativeMessagingHosts/com.8bitwarden.browser.json"
-  print_info "Created directory: $HOME/.config/google-chrome"
-fi
+# ==========================================================================
+# FIX FOR BRAVE & CHROMIUM-BASED BROWSERS
+# ==========================================================================
+create_bitwarden_manifest() {
+  local target_dir="$1"
+  local manifest="$target_dir/com.8bit.bitwarden.json"
+
+  mkdir -p "$target_dir"
+
+  cat >"$manifest" <<'EOF'
+{
+  "name": "com.8bit.bitwarden",
+  "description": "Bitwarden desktop <-> browser bridge",
+  "path": "/usr/lib/bitwarden/desktop_proxy",
+  "type": "stdio",
+  "allowed_origins": [
+    "chrome-extension://nngceckbapebfimnlniiiahkandclblb/",
+    "chrome-extension://hccnnhgbibccigepcmlgppchkpfdophk/",
+    "chrome-extension://jbkfoedolllekgbhcbcoahefnbanhhlh/",
+    "chrome-extension://ccnckbpmaceehanjmeomladnmlffdjgn/"
+  ]
+}
+EOF
+  print_info "Created Bitwarden manifest: $manifest"
+}
+
+# Brave
+create_bitwarden_manifest "$HOME/.config/BraveSoftware/Brave-Browser/NativeMessagingHosts"
+
+# Google Chrome
+create_bitwarden_manifest "$HOME/.config/google-chrome/NativeMessagingHosts"
+
 
 if ! rbw login >/dev/null 2>&1; then
   print_step "Logging in to Bitwarden"

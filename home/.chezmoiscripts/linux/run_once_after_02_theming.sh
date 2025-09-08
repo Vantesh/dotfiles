@@ -166,6 +166,31 @@ else
   print_warning "Failed to set GTK theme or icons"
 fi
 
+print_step "Setting up Nautilus"
+
+if gsettings set org.gnome.nautilus.icon-view default-zoom-level 'small-plus' &&
+  gsettings set org.gnome.nautilus.preferences show-delete-permanently true; then
+  print_info "Nautilus preferences set successfully"
+else
+  print_warning "Failed to set Nautilus preferences"
+fi
+
+bookmarks_file="$HOME/.config/gtk-3.0/bookmarks"
+mkdir -p "$(dirname "$bookmarks_file")" && touch "$bookmarks_file"
+
+success=true
+for folder in Downloads Pictures Videos; do
+  bookmark="file://$HOME/$folder"
+  if ! grep -Fxq "$bookmark" "$bookmarks_file"; then
+    echo "$bookmark" >>"$bookmarks_file" || success=false
+  fi
+done
+
+if $success; then
+  print_info "Nautilus bookmarks set successfully"
+else
+  print_warning "Failed to set Nautilus bookmarks"
+fi
 # ==================================================================================
 # QT THEME
 # ==================================================================================
