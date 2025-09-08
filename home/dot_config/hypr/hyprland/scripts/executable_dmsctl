@@ -1,0 +1,183 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+have_cmd() { command -v "$1" >/dev/null 2>&1; }
+using_dms() { have_cmd qs && qs list --all | grep -q '/quickshell/dms/'; }
+
+usage() {
+  cat <<EOF
+Usage:
+  dmsctl brightness <+|-> [amount]
+  dmsctl volume <+|-> [amount] | mute | micmute
+  dmsctl media <next|prev|play-pause>
+  dmsctl lock [launcher...]
+
+Notes:
+- If provided, all args after 'lock' are treated as a launcher prefix used to run the lock command.
+- Examples: "uwsm app" or any other launcher; if omitted, runs the command directly without a launcher.
+EOF
+}
+
+[[ $# -gt 0 ]] || {
+  usage
+  exit 2
+}
+
+subcommand="$1"
+shift
+
+case "$subcommand" in
+brightness)
+  [[ $# -ge 1 ]] || {
+    echo "Error: missing +/- flag" >&2
+    usage
+    exit 2
+  }
+  sign="$1"
+  shift
+  amount="${1:-5}"
+  [[ "$amount" =~ ^[0-9]+$ ]] || {
+    echo "Error: amount must be a positive integer" >&2
+    exit 2
+  }
+
+  if using_dms; then
+    method=$([[ "$sign" == "+" ]] && echo increment || echo decrement)
+    qs -c dms ipc call brightness "$method" "$amount" ""
+  else
+    have_cmd brightnessctl || {
+      echo "Error: brightnessctl not found and dms not running" >&2
+      exit 3
+    }
+    brightnessctl -e4 -n2 set "${amount}%${sign}"
+  fi
+  ;;
+
+volume)
+  [[ $# -ge 1 ]] || {
+    usage
+    exit 2
+  }
+  case "$1" in
+  + | -)
+    sign="$1"
+    shift
+    amount="${1:-5}"
+    [[ "$amount" =~ ^[0-9]+$ ]] || {
+      echo "Error: amount must be a positive integer" >&2
+      exit 2
+    }
+    if using_dms; then
+      method=$([[ "$sign" == "+" ]] && echo increment || echo decrement)
+      qs -c dms ipc call audio "$method" "$amount"
+    else
+      have_cmd wpctl || {
+        echo "Error: wpctl not found and dms not running" >&2
+        exit 3
+      }
+      wpctl set-volume -l 1 @DEFAULT_AUDIO_SINK@ "${amount}%${sign}"
+    fi
+    ;;
+  mute)
+    if using_dms; then
+      qs -c dms ipc call audio mute
+    else
+      have_cmd wpctl || {
+        echo "Error: wpctl not found and dms not running" >&2
+        exit 3
+      }
+      wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle
+    fi
+    ;;
+  micmute)
+    if using_dms; then
+      qs -c dms ipc call audio micmute
+    else
+      have_cmd wpctl || {
+        echo "Error: wpctl not found and dms not running" >&2
+        exit 3
+      }
+      wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle
+    fi
+    ;;
+  *)
+    echo "Error: invalid volume action" >&2
+    usage
+    exit 2
+    ;;
+  esac
+  ;;
+
+media)
+  [[ $# -eq 1 ]] || {
+    usage
+    exit 2
+  }
+  case "$1" in
+  next)
+    if using_dms; then
+      qs -c dms ipc call mpris next
+    else
+      have_cmd playerctl || {
+        echo "Error: playerctl not found and dms not running" >&2
+        exit 3
+      }
+      playerctl next
+    fi
+    ;;
+  prev)
+    if using_dms; then
+      qs -c dms ipc call mpris previous
+    else
+      have_cmd playerctl || {
+        echo "Error: playerctl not found and dms not running" >&2
+        exit 3
+      }
+      playerctl previous
+    fi
+    ;;
+  play-pause)
+    if using_dms; then
+      qs -c dms ipc call mpris playPause
+    else
+      have_cmd playerctl || {
+        echo "Error: playerctl not found and dms not running" >&2
+        exit 3
+      }
+      playerctl play-pause
+    fi
+    ;;
+  *)
+    echo "Error: invalid media action" >&2
+    usage
+    exit 2
+    ;;
+  esac
+  ;;
+
+lock)
+  launcher=("$@")
+  if using_dms; then
+    if [[ ${#launcher[@]} -gt 0 ]]; then
+      "${launcher[@]}" qs -c dms ipc call lock lock
+    else
+      qs -c dms ipc call lock lock
+    fi
+  else
+    if ! pidof hyprlock; then
+      if [[ ${#launcher[@]} -gt 0 ]]; then
+        "${launcher[@]}" hyprlock --no-fade-in
+      else
+        hyprlock --no-fade-in
+      fi
+    fi
+  fi
+
+  ;;
+
+*)
+  echo "Error: unknown subcommand '$subcommand'" >&2
+  usage
+  exit 2
+  ;;
+esac
