@@ -1,22 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# =============================================================================
-# Constants
-# =============================================================================
 readonly CACHE_DIR="$HOME/.cache/walset"
 readonly CURRENT_FILE="$CACHE_DIR/walset.current"
 readonly MATUGEN_SCRIPTS_DIR="$HOME/.config/matugen/scripts"
 
-# =============================================================================
-# Logging
-# =============================================================================
 log_error() { echo "Error: $*" >&2; }
 log_info() { echo "Info: $*"; }
 
-# =============================================================================
-# Helpers
-# =============================================================================
 write_current() {
   printf "%s\n%s\n%s\n" "$1" "$2" "$3" >"$CURRENT_FILE" 2>/dev/null || true
 }
@@ -25,7 +16,7 @@ print_usage() {
   cat <<EOF
 Description: Apply a new colorscheme and update the system theme.
 
-Usage: $(basename "$0") <path_to_wallpaper> [--scheme <matugen_scheme>] [--mode <dark|light>]
+Usage: $(basename "$0") <path_to_wallpaper> [--scheme <matugen_scheme>] [--mode <dark|light>] [--json <json>]
 
 Options:
   -s, --scheme   Matugen scheme type (default: scheme-tonal-spot)
@@ -46,13 +37,13 @@ validate_input() {
     log_error "Wallpaper not found: $wallpaper"
     exit 1
   }
-  file "$wallpaper" | grep -qE "(image|bitmap)" || {
+  file --mime-type -b "$wallpaper" | grep -q '^image/' || {
     log_error "File is not a valid image: $wallpaper"
     exit 1
   }
 }
 
-update_script() {
+run_update_script() {
   local name="$1"
   local script="$MATUGEN_SCRIPTS_DIR/update_${name}.sh"
 
@@ -61,10 +52,17 @@ update_script() {
       chmod +x "$script"
       log_info "Made $script executable"
     fi
-    "$script"
+    if ! "$script"; then
+      log_error "Update script failed: $script"
+    fi
   else
     log_info "Update script missing: $script"
   fi
+}
+
+run_update_script_bg() {
+  run_update_script "$1" &
+  disown
 }
 
 # =============================================================================
@@ -100,7 +98,10 @@ main() {
       shift
       break
       ;;
-    -*) shift ;; # ignore unknown flags
+    -*)
+      log_error "Unknown option: $1"
+      shift
+      ;;
     *)
       wallpaper="$1"
       shift
@@ -126,26 +127,38 @@ main() {
       exit 0
     fi
   fi
-  export MODE=${MODE}
+  export MODE="$MODE"
   write_current "$wallpaper" "$MATUGEN_SCHEME" "$MODE"
 
-  matugen image "$wallpaper" --type "$MATUGEN_SCHEME" --mode "$MODE" ${JSON_ARG:+$JSON_ARG "$JSON_VALUE"} >/dev/null || {
-    log_error "Matugen failed to apply theme"
-    exit 1
-  }
+  # Remove symlink to avoid editing parent gtk.css
+  for gtk_version in 3.0 4.0; do
+    gtk_css_path="$HOME/.config/gtk-$gtk_version/gtk.css"
+    if [[ -L "$gtk_css_path" ]]; then
+      log_info "Removing symlink: $gtk_css_path"
+      rm -f "$gtk_css_path"
+    fi
+  done
 
-  hyprctl reload &>/dev/null || true
+  # Run matugen
+  if ! matugen image "$wallpaper" --type "$MATUGEN_SCHEME" --mode "$MODE" \
+    ${JSON_ARG:+$JSON_ARG "$JSON_VALUE"} >/dev/null; then
+    log_error "Matugen failed to apply theme"
+    rm -f "$CURRENT_FILE"
+    exit 1
+  fi
 
   # Run update scripts
-  update_script "terminal" &
-  update_script "gtk"
-  update_script "folders" &
-  update_script "hyprlock_icon" &
-  update_script "services" &
-  update_script "spotify" &
-  update_script "bat" &
-  wait
+  run_update_script_bg "terminal"
+  run_update_script_bg "folders"
+  run_update_script_bg "hyprlock_icon"
+  run_update_script_bg "services"
+  run_update_script_bg "spotify"
+  run_update_script_bg "bat"
+  run_update_script "gtk"
+  hyprctl reload &>/dev/null
+  wait || true
 
   log_info "Theme application completed successfully"
 }
+
 main "$@"

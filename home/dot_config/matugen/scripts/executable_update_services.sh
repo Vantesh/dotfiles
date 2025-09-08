@@ -8,7 +8,6 @@ for service in "${SERVICES_TO_RESTART[@]}"; do
     systemctl --user restart "$service" &>/dev/null &
   fi
 done
-wait || true
 
 pkill "polkit-gnome-au" >/dev/null || true
 /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1 &>/dev/null &
