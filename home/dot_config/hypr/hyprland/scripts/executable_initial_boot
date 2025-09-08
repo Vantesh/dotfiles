@@ -9,6 +9,7 @@ SENTINEL_NEW="$STATE_DIR/first_setup_done"
 
 # Run only if the sentinel is missing (i.e., first setup not yet done)
 if [[ ! -f "$SENTINEL_NEW" ]]; then
+    sleep 1
     if command -v qs >/dev/null 2>&1; then
         WALLPAPER_DIR="$HOME/Pictures/Wallpapers"
         PROFILE_IMAGE="$HOME/.config/hypr/hyprlock/icon.png"
