@@ -153,7 +153,7 @@ fi
 # Setup Chaotic AUR
 # =============================================================================
 
-if ! is_chaotic_aur; then
+if ! has_chaotic_repo; then
   if confirm "Do you want to install Chaotic AUR?"; then
     print_box "smslant" "Chaotic AUR"
     print_step "Installing Chaotic AUR"
@@ -176,48 +176,23 @@ fi
 # Install Packages
 # =============================================================================
 
-failed_packages=()
-
 print_box "smslant" "Core"
 print_step "Installing core dependencies"
+install_package "${dependencies[@]}"
 
-for pkg in "${dependencies[@]}"; do
-  install_package "$pkg"
-done
 
-# Install drivers
 if confirm "Do you want to install drivers?"; then
   print_box "smslant" "Drivers"
   print_step "Installing drivers"
-  for driver in "${drivers[@]}"; do
-    install_package "$driver"
-  done
+  install_package "${drivers[@]}"
 fi
 
 # Install optional packages
 if confirm "Do you want to install optional packages?"; then
   print_box "smslant" "Optionals"
   print_step "Installing optional packages"
-  for pkg in "${optional[@]}"; do
-    install_package "$pkg"
-  done
+  install_package "${optional[@]}"
 fi
 
-# Handle failed packages
-if [[ ${#failed_packages[@]} -gt 0 ]]; then
-  print_warning "The following packages failed to install:"
-  for failed_pkg in "${failed_packages[@]}"; do
-    echo "  - $failed_pkg"
-  done
+print_box "smslant" "Completed"
 
-  if confirm "Do you want to retry failed packages manually?"; then
-    print_step "Retrying failed packages"
-    for failed_pkg in "${failed_packages[@]}"; do
-      if confirm "Retry installing $failed_pkg?"; then
-        "$AUR_HELPER" -S "$failed_pkg"
-      fi
-    done
-  else
-    print_warning "Skipping failed packages."
-  fi
-fi

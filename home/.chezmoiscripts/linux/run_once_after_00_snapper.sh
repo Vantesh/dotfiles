@@ -44,9 +44,7 @@ if is_btrfs && confirm "Set up Snapper?"; then
     )
   fi
 
-  for package in "${snapper_deps[@]}"; do
-    install_package "$package"
-  done
+  install_package "${snapper_deps[@]}"
 
   for service in "${snapper_services[@]}"; do
     enable_service "$service" "system"

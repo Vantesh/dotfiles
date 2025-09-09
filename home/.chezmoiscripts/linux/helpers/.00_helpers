@@ -158,7 +158,8 @@ update_config() {
 # =============================================================================
 
 has_package() {
-  if pacman -Q "$1" &>/dev/null; then
+  local pkg="$1"
+  if pacman -Qq "$pkg" 2>/dev/null | grep -qx "$pkg"; then
     return 0
   else
     return 1
@@ -181,36 +182,91 @@ install_paru() {
 }
 
 install_package() {
-  local package="$1"
+  local packages=("$@")
+  [[ ${#packages[@]} -eq 0 ]] && return 0
 
-  if has_package "yay"; then
-    export AUR_HELPER="yay"
-  elif has_package "paru"; then
-    export AUR_HELPER="paru"
+  # --- Detect AUR helper ---
+  if has_package "paru" || has_package "paru-bin"; then
+    AUR_HELPER="paru"
+  elif has_package "yay" || has_package "yay-bin"; then
+    AUR_HELPER="yay"
   else
     if install_paru; then
-      export AUR_HELPER="paru"
+      AUR_HELPER="paru"
       print_info "paru installed successfully."
     else
       print_error "Failed to install paru. Please install it manually."
+      return 1
+    fi
+  fi
+
+  # --- Filter out already installed ---
+  local to_install=()
+  for pkg in "${packages[@]}"; do
+    if has_package "$pkg"; then
+      print_info "${STYLE_BOLD}${COLOR_CYAN}$pkg${COLOR_RESET} already installed."
+    else
+      to_install+=("$pkg")
+    fi
+  done
+
+  [[ ${#to_install[@]} -eq 0 ]] && return 0
+
+  local safe_install=()
+  local conflict_install=()
+
+  # --- Detect conflicts (with installed packages or Provides) ---
+  for pkg in "${to_install[@]}"; do
+    local info_cmd=(pacman -Si "$pkg")
+    if ! pacman -Si "$pkg" &>/dev/null; then
+      info_cmd=("$AUR_HELPER" -Si "$pkg")
     fi
 
+    local has_conflict=0
+    local conflicts=()
+    while IFS= read -r conflict; do
+      [[ -z $conflict ]] && continue
+      conflicts+=("$conflict")
+    done < <("${info_cmd[@]}" 2>/dev/null | awk -F': *' '/Conflicts With/ {print $2}' | tr -s ' ' '\n')
+
+    # --- Check against installed packages & their provides ---
+    for conflict in "${conflicts[@]}"; do
+      if pacman -Qq "$conflict" &>/dev/null ||
+        pacman -Qq --info | awk -F': *' '/Provides/ {print $2}' | grep -qw "$conflict"; then
+        has_conflict=1
+        break
+      fi
+    done
+
+    # --- Check against other requested packages ---
+    if [[ " ${to_install[*]} " == *" $conflict "* ]]; then
+      has_conflict=1
+    fi
+
+    if ((has_conflict)); then
+      conflict_install+=("$pkg")
+    else
+      safe_install+=("$pkg")
+    fi
+  done
+
+  # --- Install safe packages (batch, no-confirm) ---
+  if ((${#safe_install[@]})); then
+    if ! "$AUR_HELPER" -S --needed --noconfirm "${safe_install[@]}"; then
+      print_error "Some safe package installs failed: ${safe_install[*]}"
+    fi
   fi
 
-  if has_package "$package"; then
-    print_info "${STYLE_BOLD}${COLOR_CYAN}$package${COLOR_RESET} exists."
-    return 0
-  fi
-  "$AUR_HELPER" -S --noconfirm "$package" &>/dev/null &
-  local install_pid=$!
-
-  spinner "$install_pid" "$package"
-
-  if ! wait "$install_pid"; then
-    failed_packages+=("$package")
-    print_warning "${STYLE_BOLD}${COLOR_CYAN}$package${COLOR_RESET} Failed."
-  else
-    print_info "${STYLE_BOLD}${COLOR_CYAN}$package${COLOR_RESET} Installed."
+  # --- Install conflicting packages (interactive, one by one) ---
+  if ((${#conflict_install[@]})); then
+    print_step "Handling conflicting packages"
+    print_warning "The following packages may conflict and require confirmation: ${conflict_install[*]}"
+    for pkg in "${conflict_install[@]}"; do
+      print_info "Installing $pkg interactively..."
+      if ! "$AUR_HELPER" -S --needed "$pkg"; then
+        print_error "Failed to install $pkg due to conflict resolution."
+      fi
+    done
   fi
 }
 
@@ -229,9 +285,9 @@ initialize_env() {
       print_error "Failed to sync package database."
     }
     print_info "Initializing environment, installing missing dependencies: ${missing_deps[*]}"
-    for dep in "${missing_deps[@]}"; do
-      sudo pacman -S --needed --noconfirm "$dep" &>/dev/null
-    done
+    sudo pacman -S --needed --noconfirm "${missing_deps[@]}" &>/dev/null || {
+      print_error "Failed to install dependencies: ${missing_deps[*]}"
+    }
   fi
 
 }
@@ -404,7 +460,7 @@ update_limine_cmdline() {
     if not has_package "limine-mkinitcpio-hook"; then
       print_info "Installing limine-mkinitcpio-hook for managing Limine drop-ins..."
       install_package "limine-mkinitcpio-hook" || {
-      print_error "Failed to install limine-entry-tool. Cannot manage Limine drop-ins."
+        print_error "Failed to install limine-entry-tool. Cannot manage Limine drop-ins."
 
       }
     fi
@@ -417,15 +473,14 @@ update_limine_cmdline() {
   local escaped
   escaped=$(printf '%s' "$params" | sed 's/"/\\"/g')
 
-  if sudo mkdir -p "$dropin_dir" && \
-   # must include += to append to existing KERNEL_CMDLINE else it will overwrite
-     printf 'KERNEL_CMDLINE[default]+= "%s"\n' "$escaped" | sudo tee "$dropin_file" >/dev/null; then
+  if sudo mkdir -p "$dropin_dir" &&
+    # must include += to append to existing KERNEL_CMDLINE else it will overwrite
+    printf 'KERNEL_CMDLINE[default]+= "%s"\n' "$escaped" | sudo tee "$dropin_file" >/dev/null; then
     sudo chmod 0644 "$dropin_file" || true
   else
     print_error "Failed to write Limine drop-in: $dropin_file"
   fi
 }
-
 
 regenerate_initramfs() {
   if [[ $(detect_bootloader) == "grub" ]]; then

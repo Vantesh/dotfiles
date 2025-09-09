@@ -10,8 +10,12 @@ source "${CHEZMOI_SOURCE_DIR:?env variable missing. Please only run this script 
 print_box "smslant" "Bitwarden"
 print_step "Setting up Bitwarden"
 
-install_package "bitwarden"
-install_package "rbw"
+packages=(
+  "bitwarden"
+  "rbw"
+)
+
+install_package "${packages[@]}"
 
 # ==========================================================================
 # LOGIN
@@ -41,6 +45,11 @@ get_bitwarden_email() {
 create_bitwarden_manifest() {
   local target_dir="$1"
   local manifest="$target_dir/com.8bit.bitwarden.json"
+
+  # Skip if manifest already exists
+  if [[ -f "$manifest" ]]; then
+    return 0
+  fi
 
   mkdir -p "$target_dir"
 
