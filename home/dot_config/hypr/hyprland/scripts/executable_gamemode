@@ -1,14 +1,11 @@
-#!/bin/bash
-# This script toggles gamemode settings in Hyprland.
+#!/usr/bin/env bash
 
-if [ -f /tmp/gamemode-enabled ]; then
-  hyprctl reload
-  qs -c dms ipc call bar reveal
-  rm /tmp/gamemode-enabled
-  notify-send --icon=dialog-information "Gamemode deactivated" "Default settings restored"
-else
+HYPRGAMEMODE=$(hyprctl getoption animations:enabled | awk 'NR==1{print $2}')
+
+if [ "$HYPRGAMEMODE" = 1 ]; then
   hyprctl --batch "\
         keyword animations:enabled 0;\
+        keyword animation borderangle,0; \
         keyword decoration:shadow:enabled 0;\
         keyword decoration:blur:enabled 0;\
         keyword general:gaps_in 0;\
@@ -19,6 +16,11 @@ else
         keyword decoration:rounding 0"
 
   qs -c dms ipc call bar hide
-  touch /tmp/gamemode-enabled
   notify-send --icon=dialog-information "Gamemode activated" "Animations and blur disabled"
+  exit
+else
+  hyprctl reload
+  qs -c dms ipc call bar reveal
+  notify-send --icon=dialog-information "Gamemode deactivated" "Default settings restored"
+  exit 0
 fi
