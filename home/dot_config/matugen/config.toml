@@ -12,7 +12,7 @@
 
 [templates.hyprland]
   input_path  = '~/.config/matugen/templates/hypr/hyprland.conf'
-  output_path = '~/.config/hypr/hyprland/theme/colors.conf'
+  output_path = '~/.config/hypr/hyprland/colors.conf'
 
 [templates.hyprlock-icon]
   input_path  = '~/.config/matugen/templates/hypr/icon.svg'
