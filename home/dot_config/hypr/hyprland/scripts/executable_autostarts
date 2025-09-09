@@ -1,9 +1,8 @@
 #!/bin/bash
 apps=(
-  "clipse -listen"
-  "pypr"
-  "/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1"
   "qs -c dms"
+  "clipse -listen"
+  "/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1"
 )
 
 for app in "${apps[@]}"; do

@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+
+MIN_ZOOM=1
+MAX_ZOOM=5
+ZOOM_STEP_IN=1.1
+ZOOM_STEP_OUT=0.9
+RESET_ZOOM=1
+
+# Get current zoom factor
+current_zoom=$(hyprctl getoption cursor:zoom_factor -j | jq -r '.float')
+
+case "$1" in
+in)
+  # Zoom in, cap at MAX_ZOOM, round to 2 decimals
+  new_zoom=$(jq -n --argjson z "$current_zoom" --argjson step "$ZOOM_STEP_IN" --argjson max "$MAX_ZOOM" \
+    '($z * $step | if . > $max then $max else . end) | (.*100 | round) / 100')
+  ;;
+out)
+  # Zoom out, floor at MIN_ZOOM, round to 2 decimals
+  new_zoom=$(jq -n --argjson z "$current_zoom" --argjson step "$ZOOM_STEP_OUT" --argjson min "$MIN_ZOOM" \
+    '($z * $step | if . < $min then $min else . end) | (.*100 | round) / 100')
+  ;;
+reset | *)
+  # Reset to default zoom
+  new_zoom=$RESET_ZOOM
+  ;;
+esac
+
+# Apply new zoom
+hyprctl -q keyword cursor:zoom_factor "$new_zoom"
