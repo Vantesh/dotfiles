@@ -65,7 +65,6 @@ alias ln="ln -i"
     alias unzip="ouch -q decompress"
 }
 
-
 # --------------------------------------------------------------------
 # UTILITY ALIASES
 # --------------------------------------------------------------------
@@ -92,7 +91,7 @@ fi
 # --------------------------------------------------------------------
 # SPECIAL FUNCTIONS
 # --------------------------------------------------------------------
-up() {
+update() {
     if command -v topgrade &>/dev/null; then
         topgrade -k --only system
     elif command -v yay &>/dev/null; then
@@ -102,7 +101,7 @@ up() {
     fi
 }
 
-upall() {
+update-all() {
     if command -v topgrade &>/dev/null; then
         topgrade -k --no-self-update "$@"
     else

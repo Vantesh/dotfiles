@@ -1,9 +1,16 @@
 function update --wraps='paru -Syu' --description 'alias update=paru -Syu'
-    if type -f topgrade &>/dev/null
+    echo '
+               __     __
+ __ _____  ___/ /__ _/ /____ ___
+/ // / _ \/ _  / _ `/ __/ -_|_-<
+\_,_/ .__/\_,_/\_,_/\__/\__/___/
+   /_/
+    '
+    if type -q topgrade
         topgrade -k --only system
-    else if type -f paru &>/dev/null
+    else if type -q paru
         paru -Syu $argv
     else
-        pacman -Syu $argv
+        sudo pacman -Syu $argv
     end
 end

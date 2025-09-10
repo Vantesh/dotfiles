@@ -72,8 +72,8 @@ if is_btrfs && confirm "Set up Snapper?"; then
     fi
     declare -A limine_entries=(
       ["MAX_SNAPSHOT_ENTRIES"]=15
-      ["TERMINAL"]="kitty"
-      ["TERMINAL_ARG"]="-e"
+      ["TERMINAL"]="xdg-terminal-exec"
+      ["TERMINAL_ARG"]=""
       ["SNAPSHOT_FORMAT_CHOICE"]=0
       ["QUIET_MODE"]="yes"
       ["ENABLE_LIMINE_FALLBACK"]="yes"

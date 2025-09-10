@@ -1,23 +1,31 @@
-#!/usr/bin/bash
+#!/usr/bin/env bash
 
 switch="$1"
-DISPATCH=(hyprctl dispatch exec '[float; size 75% 75% ]')
-TERMINAL="kitty -e"
-UPDATE_CMD="figlet -f smslant updates; update"
+DISPATCH=(hyprctl dispatch exec '[float; size 80% 80% ]')
+TERMINAL="xdg-terminal-exec"
+UPDATE_CMD="update"
+
+# Choose shell: prefer fish, then zsh, else bash
+if command -v fish &>/dev/null; then
+  SHELL_CMD="fish -c"
+elif command -v zsh &>/dev/null; then
+  SHELL_CMD="zsh -ci"
+else
+  SHELL_CMD="bash -ci"
+fi
 
 case "$switch" in
 yazi)
-  "${DISPATCH[@]}" "$TERMINAL --class yazi -e yazi"
+  "${DISPATCH[@]}" "$TERMINAL" yazi
   ;;
-kitty)
+terminal)
   "${DISPATCH[@]}" "$TERMINAL"
   ;;
 update)
-  "${DISPATCH[@]}" "$TERMINAL fish -c '$UPDATE_CMD'"
+  "${DISPATCH[@]}" "$TERMINAL $SHELL_CMD '$UPDATE_CMD'"
   ;;
-
 *)
-  echo "Usage: $0 {yazi|kitty|update}"
+  echo "Usage: $0 {yazi|terminal|update}"
   exit 1
   ;;
 esac
