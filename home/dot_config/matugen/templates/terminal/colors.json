@@ -1,4 +1,14 @@
 {
 	"primary": "{{colors.primary.default.hex}}",
-	"primary_container": "{{colors.primary_container.default.hex}}"
+	"primary_container": "{{colors.primary_container.default.hex}}",
+	"background": "{{colors.surface.default.hex}}",
+	"foreground": "{{colors.on_surface.default.hex}}",
+	"cursor": "{{colors.primary.default.hex}}",
+	"cursor_color": "{{colors.primary.default.hex}}",
+	"cursor-color": "{{colors.primary.default.hex}}",
+	"cursor-text": "{{colors.on_surface.default.hex}}",
+	"selection_background": "{{colors.primary_container.default.hex}}",
+	"selection-background": "{{colors.primary_container.default.hex}}",
+	"selection_foreground": "{{colors.on_surface.default.hex}}",
+	"selection-foreground": "{{colors.on_surface.default.hex}}"
 }
