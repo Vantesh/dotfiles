@@ -158,7 +158,3 @@ fi
 precmd() { precmd() { echo "" } }
 
 alias clear="precmd() { precmd() { echo } } && clear"
-
-
-# instantly rehash all zsh instances
-TRAPUSR1() { rehash }

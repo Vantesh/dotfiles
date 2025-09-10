@@ -26,23 +26,6 @@ export XDG_STATE_HOME="\${XDG_STATE_HOME:-\$HOME/.local/state}"
 export ZDOTDIR="\$XDG_CONFIG_HOME/zsh"
 EOF
 
-  # Pacman hook to reload zsh
-  write_system_config "/etc/pacman.d/hooks/zsh.hook" "ZSH Pacman Hook" <<EOF
-[Trigger]
-Operation = Install
-Operation = Upgrade
-Operation = Remove
-Type = Path
-Target = usr/bin/*
-
-[Action]
-Depends = zsh
-Depends = procps-ng
-Description = Reloading zsh shell...
-When = PostTransaction
-Exec = /usr/bin/pkill zsh --signal=USR1
-EOF
-}
 
 # =============================================================================
 # Detect preferred shell
