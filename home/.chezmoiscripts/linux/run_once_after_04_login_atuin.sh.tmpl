@@ -11,17 +11,12 @@ common_init
 {{- if eq .chezmoi.username "vantesh" }}
 
 if [[ "$(atuin status)" == *"You are not logged in to a sync server"* ]]; then
-print_box "smslant" "Atuin Login"
+print_box "smslant" "Atuin"
 print_step "Logging in to Atuin"
 atuin login \
  --username '{{ (rbw "Atuin").data.username }}' \
  --password '{{ (rbw "Atuin").data.password }}' \
  --key '{{ (rbwFields "Atuin").atuin_key.value }}'
-
-atuin sync
-else
-print_info "Atuin is already logged in. Skipping login step."
-print_info "Syncing Atuin..."
 atuin sync
 fi
 {{- end }}
