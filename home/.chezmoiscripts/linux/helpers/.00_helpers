@@ -9,6 +9,9 @@ readonly COLOR_CYAN='\e[36m'
 readonly STYLE_BOLD='\e[1m'
 readonly COLOR_RESET='\e[0m'
 
+__HELPERS_DIR__="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+readonly __HELPERS_DIR__
+
 #==============================================================================
 # Logging Functions
 #==============================================================================
@@ -159,7 +162,7 @@ update_config() {
 
 has_package() {
   local pkg="$1"
-  if pacman -Qq "$pkg" 2>/dev/null | grep -qx "$pkg"; then
+  if pacman -Q "$pkg" &>/dev/null; then
     return 0
   else
     return 1
@@ -181,25 +184,83 @@ install_paru() {
   rm -rf "$temp_dir"
 }
 
-install_package() {
-  local packages=("$@")
-  [[ ${#packages[@]} -eq 0 ]] && return 0
+build_install_sets() {
+  INSTALL_SAFE=()
+  INSTALL_CONFLICTED=()
 
-  # --- Detect AUR helper ---
-  if has_package "paru" || has_package "paru-bin"; then
-    AUR_HELPER="paru"
-  elif has_package "yay" || has_package "yay-bin"; then
-    AUR_HELPER="yay"
-  else
-    if install_paru; then
-      AUR_HELPER="paru"
-      print_info "paru installed successfully."
+  local input_pkgs=("$@")
+  [[ ${#input_pkgs[@]} -eq 0 ]] && return 0
+
+  # Build candidate list (skip already installed)
+  local candidates=()
+  local pkg
+  for pkg in "${input_pkgs[@]}"; do
+    if has_package "$pkg"; then
+      print_info "$pkg ${COLOR_GREEN}Exists.${COLOR_RESET}"
     else
-      print_error "Failed to install paru. Please install it manually."
+      candidates+=("$pkg")
     fi
+  done
+
+  [[ ${#candidates[@]} -eq 0 ]] && return 0
+
+  local ck_output
+  ck_output=$("${__HELPERS_DIR__}/.03_conflict-check" "${candidates[@]}" 2>/dev/null || true)
+
+  # Extract query names that had conflicts
+  declare -A __conflicted
+  while IFS= read -r line; do
+    [[ -z "$line" ]] && continue
+    local q
+    q=$(printf '%s' "$line" | awk '/ conflicts with / { split($0,a,/(^| )conflicts with /); if (a[2] !~ / /) print a[2] }')
+    [[ -n "$q" ]] && __conflicted["$q"]=1
+  done < <(printf '%s\n' "$ck_output")
+
+  # Classify
+  for pkg in "${candidates[@]}"; do
+    if [[ -n ${__conflicted[$pkg]:-} ]]; then
+      INSTALL_CONFLICTED+=("$pkg")
+    else
+      INSTALL_SAFE+=("$pkg")
+    fi
+  done
+}
+
+# Detect and set AUR_HELPER if not already set; installs paru if needed.
+_ensure_aur_helper() {
+  if [[ -n ${AUR_HELPER:-} ]]; then
+    return 0
   fi
 
-  yes | "$AUR_HELPER" -S --needed --noconfirm "${packages[@]}"
+  for helper in paru yay; do
+    if command -v "$helper" >/dev/null; then
+      export AUR_HELPER=$helper
+      return 0
+    fi
+  done
+
+  install_paru
+  AUR_HELPER=paru
+}
+
+install_package() {
+  local req=("$@")
+  [[ ${#req[@]} -eq 0 ]] && return 0
+  _ensure_aur_helper
+  build_install_sets "${req[@]}"
+
+  # Install SAFE first (quiet path)
+  if [[ ${#INSTALL_SAFE[@]} -gt 0 ]]; then
+    "$AUR_HELPER" -S --needed --noconfirm "${INSTALL_SAFE[@]}"
+  fi
+
+  # Install CONFLICTED next (interactive)
+  if [[ ${#INSTALL_CONFLICTED[@]} -gt 0 ]]; then
+    print_step "Handling conflicted packages"
+    print_info "Conflicted packages detected: ${INSTALL_CONFLICTED[*]}"
+    print_info "Please review and confirm installation."
+    "$AUR_HELPER" -S --needed "${INSTALL_CONFLICTED[@]}"
+  fi
 }
 
 initialize_env() {
