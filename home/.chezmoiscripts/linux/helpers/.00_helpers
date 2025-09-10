@@ -196,78 +196,10 @@ install_package() {
       print_info "paru installed successfully."
     else
       print_error "Failed to install paru. Please install it manually."
-      return 1
     fi
   fi
 
-  # --- Filter out already installed ---
-  local to_install=()
-  for pkg in "${packages[@]}"; do
-    if has_package "$pkg"; then
-      print_info "${STYLE_BOLD}${COLOR_CYAN}$pkg${COLOR_RESET} already installed."
-    else
-      to_install+=("$pkg")
-    fi
-  done
-
-  [[ ${#to_install[@]} -eq 0 ]] && return 0
-
-  local safe_install=()
-  local conflict_install=()
-
-  # --- Detect conflicts (with installed packages or Provides) ---
-  for pkg in "${to_install[@]}"; do
-    local info_cmd=(pacman -Si "$pkg")
-    if ! pacman -Si "$pkg" &>/dev/null; then
-      info_cmd=("$AUR_HELPER" -Si "$pkg")
-    fi
-
-    local has_conflict=0
-    local conflicts=()
-    while IFS= read -r conflict; do
-      [[ -z $conflict ]] && continue
-      conflicts+=("$conflict")
-    done < <("${info_cmd[@]}" 2>/dev/null | awk -F': *' '/Conflicts With/ {print $2}' | tr -s ' ' '\n')
-
-    # --- Check against installed packages & their provides ---
-    for conflict in "${conflicts[@]}"; do
-      if pacman -Qq "$conflict" &>/dev/null ||
-        pacman -Qq --info | awk -F': *' '/Provides/ {print $2}' | grep -qw "$conflict"; then
-        has_conflict=1
-        break
-      fi
-    done
-
-    # --- Check against other requested packages ---
-    if [[ " ${to_install[*]} " == *" $conflict "* ]]; then
-      has_conflict=1
-    fi
-
-    if ((has_conflict)); then
-      conflict_install+=("$pkg")
-    else
-      safe_install+=("$pkg")
-    fi
-  done
-
-  # --- Install safe packages (batch, no-confirm) ---
-  if ((${#safe_install[@]})); then
-    if ! "$AUR_HELPER" -S --needed --noconfirm "${safe_install[@]}"; then
-      print_error "Some safe package installs failed: ${safe_install[*]}"
-    fi
-  fi
-
-  # --- Install conflicting packages (interactive, one by one) ---
-  if ((${#conflict_install[@]})); then
-    print_step "Handling conflicting packages"
-    print_warning "The following packages may conflict and require confirmation: ${conflict_install[*]}"
-    for pkg in "${conflict_install[@]}"; do
-      print_info "Installing $pkg interactively..."
-      if ! "$AUR_HELPER" -S --needed "$pkg"; then
-        print_error "Failed to install $pkg due to conflict resolution."
-      fi
-    done
-  fi
+  yes | "$AUR_HELPER" -S --needed --noconfirm "${packages[@]}"
 }
 
 initialize_env() {

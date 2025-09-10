@@ -65,7 +65,7 @@ install_chaotic_aur() {
 
   # --- Sync repos ---
   print_info "Updating package databases..."
-  if sudo pacman -Sy &>/dev/null; then
+  if sudo pacman -Sy --noconfirm >/dev/null; then
     print_info "Package databases updated successfully"
   else
     print_error "Failed to update package databases"
