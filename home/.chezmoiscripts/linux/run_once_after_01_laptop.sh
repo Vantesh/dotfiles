@@ -6,9 +6,6 @@ source "${CHEZMOI_SOURCE_DIR:?env variable missing. Please only run this script 
 # Initialize Environment
 # =============================================================================
 common_init
-
-readonly TOUCHPAD_RULE_FILE="/etc/udev/rules.d/90-touchpad-access.rules"
-
 #=============================================================================
 # LAPTOP
 #=============================================================================
@@ -16,16 +13,6 @@ readonly TOUCHPAD_RULE_FILE="/etc/udev/rules.d/90-touchpad-access.rules"
 if is_laptop; then
   print_box "smslant" "Laptop"
   print_step "Setting up laptop tweaks"
-
-  write_system_config "$TOUCHPAD_RULE_FILE" "touchpad udev rule" <<'EOF'
-KERNEL=="event*", SUBSYSTEM=="input", ENV{ID_INPUT_TOUCHPAD}=="1", TAG+="uaccess"
-EOF
-
-  reload_udev_rules || {
-    print_error "Failed to reload udev rules"
-  }
-
-  enable_service "libinput-gestures.service" "user"
 
   print_info "Setting up powertop"
   if sudo powertop --auto-tune >/dev/null 2>&1; then

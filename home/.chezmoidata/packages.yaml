@@ -141,4 +141,3 @@ packageGroups:
     - power-profiles-daemon
     - upower
     - powertop
-    - libinput-gestures
