@@ -60,11 +60,6 @@ run_update_script() {
   fi
 }
 
-run_update_script_bg() {
-  run_update_script "$1" &
-  disown
-}
-
 # =============================================================================
 # Main
 # =============================================================================
@@ -147,15 +142,21 @@ main() {
     exit 1
   fi
 
-  # Run update scripts
-  run_update_script_bg "terminal"
-  run_update_script_bg "folders"
-  run_update_script_bg "hyprlock_icon"
-  run_update_script_bg "services"
-  run_update_script_bg "spotify"
-  run_update_script_bg "bat"
+  # Run update scripts in background
   run_update_script "gtk"
-  hyprctl reload &>/dev/null
+  run_update_script "terminal" &
+  run_update_script "folders" &
+  run_update_script "hyprlock_icon"
+  run_update_script "services" &
+  run_update_script "spotify" &
+
+  # Run bat in background, but disown so it won’t be waited on
+  run_update_script "bat" &
+  disown
+
+  hyprctl reload >/dev/null
+
+  # Wait only for non-disowned jobs
   wait || true
 
   log_info "Theme application completed successfully"

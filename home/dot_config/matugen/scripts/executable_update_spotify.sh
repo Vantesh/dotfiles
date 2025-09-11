@@ -1,11 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-log_error() { printf 'Error: %s\n' "$*\n" >&2; }
-
-have_cmd() { command -v "$1" &>/dev/null; }
-is_running() { pgrep -x "$1" &>/dev/null; }
-
 ensure_spicetify_theme() {
   local desired="marketplace"
   local current
@@ -14,7 +9,7 @@ ensure_spicetify_theme() {
 
   if [[ "$current" != "$desired" ]]; then
     if ! spicetify config current_theme "$desired" &>/dev/null; then
-      log_error "Failed to set spicetify theme to '$desired'"
+      echo "Echo: Failed to set spicetify theme to '$desired'"
       return 1
     fi
   fi
@@ -29,12 +24,18 @@ trigger_spicetify_refresh() {
 }
 
 main() {
-  # Exit early if spicetify is not installed or Spotify not running
-  have_cmd spicetify || exit 0
-  is_running spotify || exit 0
+  if ! command -v spicetify &>/dev/null; then
+    echo "Error: spicetify not found in PATH"
+    return 1
+  fi
 
-  ensure_spicetify_theme || exit 1
-  trigger_spicetify_refresh
+  ensure_spicetify_theme || return 1
+
+  if pgrep -x spotify &>/dev/null; then
+    trigger_spicetify_refresh
+  else
+    spicetify apply -q || log_error "spicetify apply failed"
+  fi
 }
 
 main "$@"
