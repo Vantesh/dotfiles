@@ -15,15 +15,16 @@ print_box "smslant" "Services"
 print_step "Enabling necessary services"
 
 readonly USER_SERVICES=(
-  gnome-keyring-daemon.service
-  hypridle.service
+  gnome-keyring-daemon
+  hypridle
+  mpris-proxy
 )
 
 readonly SYSTEM_SERVICES=(
   NetworkManager
-  bluetooth.service
-  udisks2.service
-  ufw.service
+  bluetooth
+  udisks2
+  ufw
   reflector.timer
   pacman-filesdb-refresh.timer
   paccache.timer
