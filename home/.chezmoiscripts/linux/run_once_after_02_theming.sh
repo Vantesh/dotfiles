@@ -141,7 +141,7 @@ fi
 # Mask plymouth-quit-wait.service only if not already masked
 if ! systemctl is-enabled plymouth-quit-wait.service | grep -q masked; then
   sudo systemctl mask plymouth-quit-wait.service
-  sudo systemctl daemon-reload
+  reload_systemd_daemon
 fi
 
 # --- Regenerate Initramfs only if configuration changed ---
