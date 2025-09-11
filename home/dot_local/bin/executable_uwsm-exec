@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+
+if [ "$#" -lt 1 ]; then
+  echo "Usage: $0 <app> [args...]"
+  exit 1
+fi
+
+if command -v app2unit &>/dev/null; then
+  exec app2unit -t service -- "$@"
+elif command -v uwsm-app &>/dev/null; then
+  exec uwsm-app -t service -- "$@"
+else
+  notify-send "Error" "Neither 'app2unit' nor 'uwsm' is installed."
+  exit 1
+fi

@@ -10,11 +10,7 @@ Usage:
   dmsctl brightness <+|-> [amount]
   dmsctl volume <+|-> [amount] | mute | micmute
   dmsctl media <next|prev|play-pause>
-  dmsctl lock [launcher...]
-
-Notes:
-- If provided, all args after 'lock' are treated as a launcher prefix used to run the lock command.
-- Examples: "uwsm app" or any other launcher; if omitted, runs the command directly without a launcher.
+  dmsctl lock
 EOF
 }
 
@@ -156,20 +152,17 @@ media)
   ;;
 
 lock)
-  launcher=("$@")
+  if [[ $# -ne 0 ]]; then
+    echo "Error: 'lock' doesn't accept extra arguments" >&2
+    usage
+    exit 2
+  fi
+
   if using_dms; then
-    if [[ ${#launcher[@]} -gt 0 ]]; then
-      "${launcher[@]}" qs -c dms ipc call lock lock
-    else
-      qs -c dms ipc call lock lock
-    fi
+    uwsm-exec qs -c dms ipc call lock lock
   else
-    if ! pidof hyprlock; then
-      if [[ ${#launcher[@]} -gt 0 ]]; then
-        "${launcher[@]}" hyprlock --no-fade-in
-      else
-        hyprlock --no-fade-in
-      fi
+    if ! pidof hyprlock >/dev/null 2>&1; then
+      uwsm-exec hyprlock --no-fade-in
     fi
   fi
 
