@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 switch="$1"
-DISPATCH=(hyprctl dispatch exec '[float; size 80% 80% ]')
+DISPATCH=(hyprctl dispatch exec '[float; size 80% 80%; center 1]')
 TERMINAL="xdg-terminal-exec"
 UPDATE_CMD="update"
 
