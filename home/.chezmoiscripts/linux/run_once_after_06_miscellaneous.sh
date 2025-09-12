@@ -52,9 +52,6 @@ fi
 
 # setup spicetify
 if command -v spotify >/dev/null 2>&1; then
-  print_info "Setting up spicetify permissions"
-  sudo chmod a+wr /opt/spotify
-  sudo chmod a+wr /opt/spotify/Apps -R
 
   if [[ ! -f "${HOME}/.config/spotify/prefs" ]]; then
     mkdir -p "${HOME}/.config/spotify"
