@@ -7,6 +7,7 @@ packageGroups:
     - hyprlock
     - xdg-desktop-portal-hyprland
     - uwsm
+    - accountsservice
     - polkit-gnome
     - rofi
     - imv
@@ -19,7 +20,6 @@ packageGroups:
     - nautilus
     - gvfs-mtp
     - evince
-    - gnome-calculator
     - ly
     - kitty
     - rofimoji
@@ -98,7 +98,7 @@ packageGroups:
     - qbittorrent
     - mpv
     - neovim
-    - spotify
+    - spotify-launcher
     - spicetify-cli
     - git-delta
     - localsend

@@ -1,6 +1,7 @@
 #!/bin/sh
 export XDG_MENU_PREFIX=arch-
 export XDG_BIN_HOME="$HOME/.local/bin"
+export UWSM_APP_UNIT_TYPE=service
 
 # ###### app2unit Integration ######
 export APP2UNIT_SLICES='a=app-graphical.slice b=background-graphical.slice s=session-graphical.slice'
@@ -15,8 +16,6 @@ export ELECTRON_ARGS="--enable-features=UseOzonePlatform --ozone-platform=waylan
 #cursor
 export XCURSOR_SIZE=24
 export XCURSOR_THEME=macOS-White
-export HYPRCURSOR_SIZE=24
-export HYPRCURSOR_THEME=macOS-hypr
 
 export GDK_BACKEND=wayland,x11
 export GDK_SCALE=1
@@ -29,9 +28,6 @@ export QT_AUTO_SCREEN_SCALE_FACTOR=1
 export QT_WAYLAND_DISABLE_WINDOWDECORATION=1
 export QT_QPA_PLATFORMTHEME=qt6ct
 export QT_QPA_PLATFORMTHEME_QT6=qt6ct
-
-# HYPRLAND VARIABLES
-export HYPRSHOT_DIR="$HOME/Pictures/Screenshots"
 
 #GPU
 # if you have an nvidia gpu, you can uncomment the following lines

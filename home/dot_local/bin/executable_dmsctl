@@ -1,16 +1,21 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Exit codes:
+# 2 = usage error
+# 3 = missing dependency
+
 have_cmd() { command -v "$1" >/dev/null 2>&1; }
 using_dms() { have_cmd qs && qs list --all | grep -q '/quickshell/dms/'; }
 
 usage() {
   cat <<EOF
 Usage:
-  dmsctl brightness <+|-> [amount]
-  dmsctl volume <+|-> [amount] | mute | micmute
+  dmsctl brightness +/- [amount]
+  dmsctl volume +/- [amount] | mute | micmute
   dmsctl media <next|prev|play-pause>
   dmsctl lock
+  dmsctl logout
 EOF
 }
 
@@ -19,7 +24,12 @@ EOF
   exit 2
 }
 
-subcommand="$1"
+if [[ "$(id -u)" -eq 0 ]]; then
+  echo "Error: Do not run this as root" >&2
+  exit 2
+fi
+
+subcommand="${1,,}"
 shift
 
 case "$subcommand" in
@@ -33,7 +43,7 @@ brightness)
   shift
   amount="${1:-5}"
   [[ "$amount" =~ ^[0-9]+$ ]] || {
-    echo "Error: amount must be a positive integer" >&2
+    echo "Error: amount must be integer" >&2
     exit 2
   }
 
@@ -42,10 +52,10 @@ brightness)
     qs -c dms ipc call brightness "$method" "$amount" ""
   else
     have_cmd brightnessctl || {
-      echo "Error: brightnessctl not found and dms not running" >&2
+      echo "Error: brightnessctl not found" >&2
       exit 3
     }
-    brightnessctl -e4 -n2 set "${amount}%${sign}"
+    brightnessctl set "${amount}%${sign}"
   fi
   ;;
 
@@ -60,7 +70,7 @@ volume)
     shift
     amount="${1:-5}"
     [[ "$amount" =~ ^[0-9]+$ ]] || {
-      echo "Error: amount must be a positive integer" >&2
+      echo "Error: amount must be integer" >&2
       exit 2
     }
     if using_dms; then
@@ -68,7 +78,7 @@ volume)
       qs -c dms ipc call audio "$method" "$amount"
     else
       have_cmd wpctl || {
-        echo "Error: wpctl not found and dms not running" >&2
+        echo "Error: wpctl not found" >&2
         exit 3
       }
       wpctl set-volume -l 1 @DEFAULT_AUDIO_SINK@ "${amount}%${sign}"
@@ -79,7 +89,7 @@ volume)
       qs -c dms ipc call audio mute
     else
       have_cmd wpctl || {
-        echo "Error: wpctl not found and dms not running" >&2
+        echo "Error: wpctl not found" >&2
         exit 3
       }
       wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle
@@ -90,7 +100,7 @@ volume)
       qs -c dms ipc call audio micmute
     else
       have_cmd wpctl || {
-        echo "Error: wpctl not found and dms not running" >&2
+        echo "Error: wpctl not found" >&2
         exit 3
       }
       wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle
@@ -110,39 +120,33 @@ media)
     exit 2
   }
   case "$1" in
-  next)
-    if using_dms; then
-      qs -c dms ipc call mpris next
-    else
-      have_cmd playerctl || {
-        echo "Error: playerctl not found and dms not running" >&2
-        exit 3
-      }
-      playerctl next
-    fi
-    ;;
-  prev)
-    if using_dms; then
-      qs -c dms ipc call mpris previous
-    else
-      have_cmd playerctl || {
-        echo "Error: playerctl not found and dms not running" >&2
-        exit 3
-      }
-      playerctl previous
-    fi
-    ;;
-  play-pause)
-    if using_dms; then
-      qs -c dms ipc call mpris playPause
-    else
-      have_cmd playerctl || {
-        echo "Error: playerctl not found and dms not running" >&2
-        exit 3
-      }
-      playerctl play-pause
-    fi
-    ;;
+  next) if using_dms; then
+    qs -c dms ipc call mpris next
+  else
+    have_cmd playerctl || {
+      echo "Error: playerctl not found" >&2
+      exit 3
+    }
+    playerctl next
+  fi ;;
+  prev) if using_dms; then
+    qs -c dms ipc call mpris previous
+  else
+    have_cmd playerctl || {
+      echo "Error: playerctl not found" >&2
+      exit 3
+    }
+    playerctl previous
+  fi ;;
+  play-pause) if using_dms; then
+    qs -c dms ipc call mpris playPause
+  else
+    have_cmd playerctl || {
+      echo "Error: playerctl not found" >&2
+      exit 3
+    }
+    playerctl play-pause
+  fi ;;
   *)
     echo "Error: invalid media action" >&2
     usage
@@ -152,20 +156,30 @@ media)
   ;;
 
 lock)
-  if [[ $# -ne 0 ]]; then
-    echo "Error: 'lock' doesn't accept extra arguments" >&2
+  [[ $# -eq 0 ]] || {
+    echo "Error: 'lock' takes no arguments" >&2
     usage
     exit 2
-  fi
-
+  }
   if using_dms; then
-    uwsm-exec qs -c dms ipc call lock lock
+    qs -c dms ipc call lock lock
   else
-    if ! pidof hyprlock >/dev/null 2>&1; then
-      uwsm-exec hyprlock --no-fade-in
-    fi
+    pidof hyprlock >/dev/null 2>&1 || uwsm-exec hyprlock --no-fade-in
   fi
+  ;;
 
+logout)
+  [[ $# -eq 0 ]] || {
+    echo "Error: 'logout' takes no arguments" >&2
+    usage
+    exit 2
+  }
+  USER_NAME="${USER:?No user detected}"
+  pid=$(hyprctl clients -j | jq -r '.[] | select(.class=="code") | .pid' | head -n1)
+  if [[ -n "$pid" ]]; then
+    kill "$pid" || true
+  fi
+  exec loginctl terminate-user "$USER_NAME"
   ;;
 
 *)

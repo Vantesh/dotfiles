@@ -6,9 +6,9 @@ if [ "$#" -lt 1 ]; then
 fi
 
 if command -v app2unit &>/dev/null; then
-  exec app2unit -t service -- "$@"
+  exec app2unit -- "$@"
 elif command -v uwsm-app &>/dev/null; then
-  exec uwsm-app -t service -- "$@"
+  exec uwsm-app -- "$@"
 else
   notify-send "Error" "Neither 'app2unit' nor 'uwsm' is installed."
   exit 1
