@@ -60,6 +60,7 @@ When = PostTransaction
 Exec = /usr/bin/paccache -rk2
 Depends = pacman-contrib
 EOF
+
 write_system_config "/etc/pacman.d/hooks/01-paccache-uninstalled.hook" "Paccache uninstalled hook" <<EOF
 [Trigger]
 Operation = Remove
