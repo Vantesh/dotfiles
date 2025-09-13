@@ -6,8 +6,8 @@ SCRIPT="$HOME/.config/matugen/scripts/dank16.py"
 
 KITTY_CONFIG_DIR="$HOME/.config/kitty"
 GHOSTTY_CONFIG_DIR="$HOME/.config/ghostty"
-KITTY_THEME_FILE="$KITTY_CONFIG_DIR/themes/Matugen.conf"
-GHOSTTY_THEME_FILE="$GHOSTTY_CONFIG_DIR/dank16.conf"
+KITTY_THEME_FILE="$KITTY_CONFIG_DIR/dank16.conf"
+GHOSTTY_THEME_FILE="$GHOSTTY_CONFIG_DIR/themes/Matugen"
 
 # =============================================================================
 # Kitty
@@ -17,11 +17,7 @@ apply_kitty_theme() {
     return
   fi
 
-  {
-    echo ""
-    echo "# Dank16 Colors"
-    python3 "$SCRIPT" --"$MODE"
-  } >>"$KITTY_THEME_FILE"
+  python3 "$SCRIPT" --"$MODE" >"$KITTY_THEME_FILE"
 
   kitty +kitten themes --reload-in=all matugen &>/dev/null || true
 }
@@ -34,15 +30,21 @@ apply_ghostty_theme() {
     return
   fi
 
-  mkdir -p "$GHOSTTY_CONFIG_DIR"
+  mkdir -p "$GHOSTTY_CONFIG_DIR/themes"
   python3 "$SCRIPT" --"$MODE" --ghostty >"$GHOSTTY_THEME_FILE"
 
   local config_file="$GHOSTTY_CONFIG_DIR/config"
-  if ! grep -q "config-file = ./dank16.conf" "$config_file" 2>/dev/null; then
-    echo "config-file = ./dank16.conf" >>"$config_file"
+  if [[ -f "$config_file" ]]; then
+    if grep -q "^theme =" "$config_file"; then
+      sed -i 's/^theme = .*/theme = Matugen/' "$config_file"
+    else
+      echo "theme = Matugen" >>"$config_file"
+    fi
+  else
+    echo "theme = Matugen" >"$config_file"
   fi
 
-  # Reload Ghostty configs (simulate keypress since no auto-reload support)
+  # Reload Ghostty configs (simulate key press since no auto-reload support)
   if pgrep -x ghostty &>/dev/null; then
     local ghostty_addresses
     ghostty_addresses=$(hyprctl clients -j | jq -r '.[] | select(.class == "com.mitchellh.ghostty") | .address')
@@ -79,7 +81,14 @@ apply_fish_theme() {
 # =============================================================================
 # Main
 # =============================================================================
-apply_kitty_theme
-apply_ghostty_theme
-apply_fish_theme
-exit 0
+main() {
+  [[ ! -f "$SCRIPT" ]] && {
+    echo "Missing theme generator: $SCRIPT" >&2
+    exit 1
+  }
+  apply_kitty_theme
+  apply_ghostty_theme
+  apply_fish_theme
+}
+
+main "$@"
