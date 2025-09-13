@@ -84,8 +84,8 @@ packageGroups:
 
   theming:
     - nwg-look
-    - kvantum
-    - kvantum-qt5
+    - frameworkintegration
+    - darkly-bin
     - qt6ct-kde
     - qt5ct-kde
     - plymouth

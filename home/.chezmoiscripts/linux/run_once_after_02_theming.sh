@@ -211,7 +211,7 @@ color_scheme_path=${HOME}/.local/share/color-schemes/Matugen.colors
 custom_palette=true
 icon_theme=
 standard_dialogs=default
-style=kvantum-dark
+style=Darkly
 
 [Fonts]
 fixed="JetBrainsMono Nerd Font,12,-1,5,50,0,0,0,0,0,Regular"

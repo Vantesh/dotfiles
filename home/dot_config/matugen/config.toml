@@ -1,7 +1,3 @@
-
-[config]
-  mode = "dark"
-
 [templates.kitty]
   input_path  = '~/.config/matugen/templates/terminal/kitty.conf'
   output_path = '~/.config/kitty/themes/Matugen.conf'
@@ -49,14 +45,6 @@
 [templates.fzf]
   input_path  = '~/.config/matugen/templates/terminal/fzf.sh'
   output_path = '~/.cache/zsh/fzf'
-
-[templates.kvantum]
-  input_path  = '~/.config/matugen/templates/kvantum/kvantum.kvconfig'
-  output_path = '~/.config/Kvantum/Matugen/Matugen.kvconfig'
-
-[templates.kvantum-svg]
-  input_path  = "~/.config/matugen/templates/kvantum/kvantum.svg"
-  output_path = "~/.config/Kvantum/Matugen/Matugen.svg"
 
 [templates.gtk4]
   input_path  = '~/.config/matugen/templates/gtk/colors.css'
