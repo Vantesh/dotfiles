@@ -29,13 +29,6 @@ export QT_WAYLAND_DISABLE_WINDOWDECORATION=1
 export QT_QPA_PLATFORMTHEME=qt6ct
 export QT_QPA_PLATFORMTHEME_QT6=qt6ct
 
-#GPU
-# if you have an nvidia gpu, you can uncomment the following lines
-#export GBM_BACKEND=nvidia-drm
-#export LIBVA_DRIVER_NAME=nvidia
-#export __GLX_VENDOR_LIBRARY_NAME=nvidia
-#export __GL_VRR_ALLOWED=0
-
 # Firefox
 export MOZ_DISABLE_RDD_SANDBOX=1
 export EGL_PLATFORM=wayland
