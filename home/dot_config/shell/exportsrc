@@ -1,0 +1,46 @@
+#!/bin/env bash
+# ------------------------------------------------------------------------------
+# CLEANUP HOME DIRECTORY (XDG-compliant env vars)
+# ------------------------------------------------------------------------------
+
+# XDG overrides
+export GTK2_RC_FILES="${XDG_CONFIG_HOME}/gtk-2.0/gtkrc"
+export ANDROID_SDK_HOME="${XDG_CONFIG_HOME}/android"
+export FFMPEG_DATADIR="${XDG_CONFIG_HOME}/ffmpeg"
+export WGETRC="${XDG_CONFIG_HOME}/wget/wgetrc"
+export GIT_CONFIG_GLOBAL="${XDG_CONFIG_HOME:-$HOME/.config}/git/config"
+
+# User data/cache locations
+export CARGO_HOME="${XDG_DATA_HOME}/cargo"
+export RUSTUP_HOME="${XDG_DATA_HOME}/rustup"
+export GOPATH="${XDG_DATA_HOME}/go"
+export LEIN_HOME="${XDG_DATA_HOME}/lein"
+export DOTNET_CLI_HOME="${XDG_DATA_HOME}/dotnet"
+export GNUPGHOME="${XDG_DATA_HOME}/gnupg"
+export GOMODCACHE="${XDG_CACHE_HOME}/go/mod"
+export CUDA_CACHE_PATH="${XDG_CACHE_HOME}/nv"
+export __GL_SHADER_DISK_CACHE_PATH="${XDG_CACHE_HOME}/nv"
+export npm_config_cache="${XDG_CACHE_HOME}/npm"
+
+# wget alias with cache
+alias wget="wget --hsts-file=\"${XDG_CACHE_HOME}/wget-hsts\""
+
+# ------------------------------------------------------------------------------
+# DEFAULT ENVIRONMENT VARIABLES
+# ------------------------------------------------------------------------------
+export EDITOR="${EDITOR:-code}"
+export VISUAL="${VISUAL:-code}"
+export PAGER="${PAGER:-less -R}"
+export LESSHISTFILE="-"
+
+# ------------------------------------------------------------------------------
+# PATH
+# ------------------------------------------------------------------------------
+export PATH="$PATH:$CARGO_HOME/bin:$RUSTUP_HOME/bin:$GOPATH/bin:$HOME/.spicetify"
+
+# ------------------------------------------------------------------------------
+# COLORS
+# ------------------------------------------------------------------------------
+export MANPAGER="sh -c 'sed -u -e \"s/\\x1B\[[0-9;]*m//g; s/.\\x08//g\" | bat -p -lman'"
+export MANROFFOPT="-P -c"
+export LESS='-R --use-color -Dd+r$Du+b$'
