@@ -8,9 +8,6 @@ source "${CHEZMOI_SOURCE_DIR:?env variable missing. Please only run this script 
 # =============================================================================
 common_init
 
-print_box "smslant" "Shell"
-print_step "Setting up default shell"
-
 # =============================================================================
 # ZSH setup
 # =============================================================================
@@ -27,28 +24,18 @@ export ZDOTDIR="\$XDG_CONFIG_HOME/zsh"
 EOF
 }
 
-
 # =============================================================================
 # Detect preferred shell
 # =============================================================================
-{{- if ne .chezmoi.username "vantesh" }}
-PREFERRED_SHELL={{ .default_shell | quote }}
-{{- else }}
-PREFERRED_SHELL={{ .shell.default | quote }}
-{{- end }}
+PREFERRED_SHELL={{ .default_shell }}
+[[ "$PREFERRED_SHELL" == "zsh" ]] && zsh_setup
+
+CURRENT_SHELL=$(getent passwd "$USER" | cut -d: -f7)
+PREFERRED_SHELL_PATH=$(command -v "$PREFERRED_SHELL")
 
 # =============================================================================
 # Main execution
 # =============================================================================
-if [[ "$PREFERRED_SHELL" == "zsh" ]]; then
-  zsh_setup
-fi
-
-
-# Check current default shell
-CURRENT_SHELL=$(getent passwd "$USER" | cut -d: -f7)
-PREFERRED_SHELL_PATH=$(command -v "$PREFERRED_SHELL")
-
 if [[ -z "$PREFERRED_SHELL_PATH" ]]; then
   print_error "Shell binary not found: $PREFERRED_SHELL"
   exit 1
@@ -56,35 +43,19 @@ fi
 
 if [[ "$CURRENT_SHELL" == "$PREFERRED_SHELL_PATH" ]]; then
   print_info "$PREFERRED_SHELL is already your default shell."
-else
-  if confirm "Set $PREFERRED_SHELL as your default shell? (current: $(basename "$CURRENT_SHELL"))"; then
-    print_info "Setting $PREFERRED_SHELL as default shell..."
-    if chsh -s "$PREFERRED_SHELL_PATH"; then
-      print_info "$PREFERRED_SHELL set as default shell."
-    else
-      print_error "Failed to set $PREFERRED_SHELL as default shell."
-    fi
+  exit 0
+fi
+
+print_box "smslant" "Shell"
+print_step "Setting up default shell"
+
+if confirm "Set $PREFERRED_SHELL as your default shell? (current: $(basename "$CURRENT_SHELL"))"; then
+  print_info "Setting $PREFERRED_SHELL as default shell..."
+  if chsh -s "$PREFERRED_SHELL_PATH"; then
+    print_info "$PREFERRED_SHELL set as default shell."
   else
-    print_info "Skipping setting default shell."
+    print_error "Failed to set $PREFERRED_SHELL as default shell."
   fi
+else
+  print_info "Skipping setting default shell."
 fi
-
-# =============================================================================
-# User-specific shell configuration
-# =============================================================================
-{{- if eq .chezmoi.username "vantesh" }}
-if [[ "$PREFERRED_SHELL" == "fish" ]]; then
-  fish -c '
-    if not set -q CHEZMOI_GITHUB_ACCESS_TOKEN
-      set token {{ (rbwFields "github").CHEZMOI_GITHUB_ACCESS_TOKEN.value | quote }}
-      if test -n "$token"
-        set -Ux CHEZMOI_GITHUB_ACCESS_TOKEN $token
-      end
-    end
-
-    if not set -q SSH_AUTH_SOCK
-      set -Ux SSH_AUTH_SOCK ~/.bitwarden-ssh-agent.sock
-    end
-  '
-fi
-{{- end }}

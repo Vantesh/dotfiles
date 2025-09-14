@@ -5,6 +5,14 @@ source "${CHEZMOI_SOURCE_DIR:?env variable missing. Please only run this script 
 source "${CHEZMOI_SOURCE_DIR:?env variable missing. Please only run this script via chezmoi}/.chezmoiscripts/linux/helpers/.01_chaotic_aur"
 source "${CHEZMOI_SOURCE_DIR:?env variable missing. Please only run this script via chezmoi}/.chezmoiscripts/linux/helpers/.02_XDG"
 
+
+# =============================================================================
+# Initialize Environment
+# =============================================================================
+common_init
+print_box "smslant" "Packages"
+
+
 # Package lists from chezmoi data
 dependencies=(
   {{- range .packageGroups.core }}
@@ -107,47 +115,7 @@ if [[ -n $is_laptop ]]; then
 fi
 
 # SHELL
-{{- if ne .chezmoi.username "vantesh" }}
 dependencies+=("{{ .default_shell }}")
-{{- else }}
-dependencies+=("{{ .shell.default }}")
-{{- end }}
-
-
-
-
-# =============================================================================
-# Initialize Environment
-# =============================================================================
-common_init
-
-if [[ $(tty) =~ ^/dev/tty[0-9]+$ ]]; then
-   print_info "setting up tty fonts for visibility"
-   sudo pacman -S --needed --noconfirm terminus-font &>/dev/null
-   sudo setfont ter-122b &>/dev/null
-
-fi
-
-
-# =============================================================================
-# Welcome Message
-# =============================================================================
-clear
-print_box "smslant" "Welcome"
-
-echo -e "\n---------------------------------------------"
-echo -e "Hyprland Dotfiles - Package Installation"
-echo -e "Copyright 2025 Vantesh"
-echo -e "https://github.com/vantesh/dotfiles"
-echo -e "This script will install all required packages."
-echo -e "\nCore packages: ${COLOR_MAGENTA}${#dependencies[@]}${COLOR_RESET}"
-echo -e "Optional packages: ${COLOR_MAGENTA}${#optional[@]}${COLOR_RESET}"
-echo -e "---------------------------------------------\n"
-
-if ! confirm "Do you want to continue with package installation?"; then
-  print_info "Package installation aborted by user."
-  exit 1
-fi
 
 
 # =============================================================================
@@ -167,9 +135,8 @@ fi
 # =============================================================================
 # System Update
 # =============================================================================
-print_info "Updating system......"
+print_step "Updating system first"
 if sudo pacman -Syu --noconfirm; then
-  clear
   print_info "System updated, proceeding with package installation"
 fi
 

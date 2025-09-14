@@ -2,6 +2,3 @@ git:
   username: "Vantesh"
   email: "121645908+Vantesh@users.noreply.github.com"
   signingKey: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAILuKqwzNoOGcWOkFujb2Mjq/4bdycTemz/jpH2/GWtHg"
-
-shell:
-  default: "fish"

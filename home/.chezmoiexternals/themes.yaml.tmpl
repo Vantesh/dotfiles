@@ -1,4 +1,9 @@
+{{ if not (env "OFFLINE") }}
+
+{{- $adw_version := (gitHubLatestRelease "lassekongo83/adw-gtk3").TagName | toString -}}
+
 ".local/share/themes":
-  url: {{ .adwGTKThemeUrl }}
+  url: {{ gitHubLatestReleaseAssetURL "lassekongo83/adw-gtk3" (printf "adw-gtk3%s.tar.xz" $adw_version) }}
   type: "archive"
   refreshPeriod: "168h"
+{{ end }}
