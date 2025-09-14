@@ -9,6 +9,30 @@ source "${CHEZMOI_SOURCE_DIR:?env variable missing. Please only run this script 
 common_init
 
 # =============================================================================
+# Welcome Message
+# =============================================================================
+
+if [[ $(tty) =~ ^/dev/tty[0-9]+$ ]]; then
+  print_info "setting up tty fonts for visibility"
+  sudo pacman -S --needed --noconfirm terminus-font &>/dev/null
+  sudo setfont ter-122b &>/dev/null
+fi
+
+clear
+print_box "smslant" "Welcome"
+
+echo -e "\n------------------------------------------"
+echo -e "Hyprland Dotfiles"
+echo -e "Copyright 2025 Vantesh"
+echo -e "https://github.com/vantesh/dotfiles"
+echo -e "------------------------------------------\n"
+
+if ! confirm "Do you want to continue ?"; then
+  print_info "Script aborted by user."
+  exit 1
+fi
+
+# =============================================================================
 # SETUP PACMAN
 # =============================================================================
 print_box "smslant" "Pacman"
