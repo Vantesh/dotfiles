@@ -1,0 +1,5 @@
+{{- if .personal }}
+{{- range gitHubKeys .git.username }}
+{{ .Key }}
+{{- end }}
+{{- end }}
