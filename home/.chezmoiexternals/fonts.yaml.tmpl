@@ -2,7 +2,7 @@
 {{- if eq .chezmoi.os "linux" }}
   {{- $fontDir = ".local/share/fonts" }}
 {{- else if eq .chezmoi.os "windows" }}
-  {{- $fontDir = "windows/Fonts" }}
+  {{- $fontDir = "AppData/Local/Microsoft/Windows/Fonts" }}
 {{- end }}
 
 {{ if not (env "OFFLINE") }}

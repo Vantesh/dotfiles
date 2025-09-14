@@ -58,7 +58,7 @@ packageGroups:
     - duf
     - fastfetch
     - pkgfile
-    - plocate
+    - locate
     - eza
     - fzf
     - bat
