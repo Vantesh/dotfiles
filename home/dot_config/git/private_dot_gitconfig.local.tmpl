@@ -1,4 +1,4 @@
-{{- if eq .chezmoi.username "vantesh" }}
+{{- if .personal }}
 [user]
     name = "{{ .git.username }}"
     email = "{{ .git.email }}"
@@ -6,7 +6,6 @@
 
 [url "git@github.com:vantesh/"]
 	insteadOf = https://github.com/vantesh/
-
 
 [gpg]
     format = ssh
