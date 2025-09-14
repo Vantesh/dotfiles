@@ -1,4 +1,4 @@
-#!/bin/env bash
+#!/usr/bin/env bash
 # ------------------------------------------------------------------------------
 # CLEANUP HOME DIRECTORY (XDG-compliant env vars)
 # ------------------------------------------------------------------------------
@@ -23,8 +23,9 @@ export __GL_SHADER_DISK_CACHE_PATH="${XDG_CACHE_HOME}/nv"
 export npm_config_cache="${XDG_CACHE_HOME}/npm"
 
 # wget alias with cache
-alias wget="wget --hsts-file=\"${XDG_CACHE_HOME}/wget-hsts\""
-
+wget() {
+  command wget --hsts-file="${XDG_CACHE_HOME}/wget-hsts" "$@"
+}
 # ------------------------------------------------------------------------------
 # DEFAULT ENVIRONMENT VARIABLES
 # ------------------------------------------------------------------------------
