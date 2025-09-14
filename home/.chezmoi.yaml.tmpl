@@ -8,7 +8,7 @@ data:
   {{- end }}
   default_shell: {{ promptChoice "What's your preferred shell?" (list "fish" "zsh") | quote }}
   personal: {{ $personal }}
-  distro: {{ .chezmoi.osRelease.id | quote }}
+  distro: {{ if .chezmoi.osRelease }}{{ .chezmoi.osRelease.id | quote }}{{ else }}{{ .chezmoi.os | quote }}{{ end }}
 
 edit:
   command: "code"
