@@ -1,6 +1,9 @@
+{{ if not (env "OFFLINE") }}
+
 "Pictures/Wallpapers":
   type: archive
-  url: {{ .wallpapersUrl }}
+  url: {{ gitHubLatestReleaseAssetURL "vantesh/wallpapers" "wallpapers.zip" }}
   stripComponents: 1
   refreshPeriod: "336h"
 
+{{ end }}

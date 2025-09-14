@@ -1,50 +1,18 @@
-{{- $wallpaperUrl := gitHubLatestReleaseAssetURL "vantesh/wallpapers" "wallpapers.zip" | quote }}
-{{- $fontAwesomeUrl := gitHubLatestReleaseAssetURL "FortAwesome/Font-Awesome" (printf "fontawesome-free-*-desktop.zip") | quote }}
-{{ $nerd_fonts_version := (gitHubLatestRelease "ryanoasis/nerd-fonts").TagName -}}
-{{- $appleEmojiUrl := gitHubLatestReleaseAssetURL "samuelngs/apple-emoji-linux" "AppleColorEmoji.ttf" | quote }}
-{{- $macOSIconsUrl := gitHubLatestReleaseAssetURL "ful1e5/apple_cursor" "macOS.tar.xz" | quote }}
-{{- $macOSHyprDarkIconsUrl := gitHubLatestReleaseAssetURL "driedpampas/macOS-hyprcursor" "macOS.Hyprcursor.SVG.tar.gz" | quote }}
-{{- $macOSHyprWhiteIconsUrl := gitHubLatestReleaseAssetURL "driedpampas/macOS-hyprcursor" "macOS.Hyprcursor.SVG.White.tar.gz" | quote }}
-
-{{- $adw_version := (gitHubLatestRelease "lassekongo83/adw-gtk3").TagName | toString -}}
-{{- $adwGTKThemeUrl := gitHubLatestReleaseAssetURL "lassekongo83/adw-gtk3" (printf "adw-gtk3%s.tar.xz" $adw_version) | quote -}}
-
-{{- if ne .chezmoi.username "vantesh" }}
-{{- $git_username := promptString "Enter your Git username:" }}
-{{- $git_email := promptString "Enter your Git email:" }}
-{{- $shells := list "zsh" "fish" }}
-{{- $default_shell := promptChoice "What's your preffered shell?" $shells -}}
+{{- $personal := false -}} {{/* true if this machine should have personal secrets */}}
+{{- if eq .chezmoi.username "vantesh" -}} {{- $personal = true -}} {{- end -}}
 
 data:
-  git_username: {{ $git_username | quote }}
-  git_email: {{ $git_email | quote }}
-  default_shell: {{ $default_shell | quote }}
-  wallpapersUrl: {{ $wallpaperUrl }}
-  fontAwesomeUrl: {{ $fontAwesomeUrl }}
-  nerd_fonts_version: {{ $nerd_fonts_version | quote }}
-  appleEmojiUrl: {{ $appleEmojiUrl }}
-  macOSIconsUrl: {{ $macOSIconsUrl }}
-  macOSHyprDarkIconsUrl: {{ $macOSHyprDarkIconsUrl }}
-  macOSHyprWhiteIconsUrl: {{ $macOSHyprWhiteIconsUrl }}
-  adwGTKThemeUrl: {{ $adwGTKThemeUrl }}
-
-{{- else }}
-data:
-  wallpapersUrl: {{ $wallpaperUrl }}
-  fontAwesomeUrl: {{ $fontAwesomeUrl }}
-  nerd_fonts_version: {{ $nerd_fonts_version | quote }}
-  appleEmojiUrl: {{ $appleEmojiUrl }}
-  macOSIconsUrl: {{ $macOSIconsUrl }}
-  macOSHyprDarkIconsUrl: {{ $macOSHyprDarkIconsUrl }}
-  macOSHyprWhiteIconsUrl: {{ $macOSHyprWhiteIconsUrl }}
-  adwGTKThemeUrl: {{ $adwGTKThemeUrl }}
-
-{{- end }}
+  {{- if not $personal }}
+  git_username: {{ promptString "Enter your Git username:" | quote }}
+  git_email: {{ promptString "Enter your Git email:" | quote }}
+  {{- end }}
+  default_shell: {{ promptChoice "What's your preferred shell?" (list "fish" "zsh") | quote }}
+  personal: {{ $personal }}
+  distro: {{ .chezmoi.osRelease.id | quote }}
 
 edit:
   command: "code"
-  args:
-    - "--wait"
+  args: ["--wait"]
 
 merge:
   command: "bash"
@@ -62,9 +30,9 @@ diff:
   exclude:
     - "scripts"
 
-bitwarden:
- unlock: auto
- command: "{{ .chezmoi.homeDir }}/.local/bin/bw"
+bitwarden: {{/* bw cli for secrets */}}
+  unlock: auto
+  command: "{{ .chezmoi.homeDir }}/.local/bin/bw"
 
-github:
-  refreshPeriod: 1h
+github: {{/* api refresh */}}
+  refreshPeriod: 12h
