@@ -251,7 +251,7 @@ install_package() {
 
   # Install SAFE first (quiet path)
   if [[ ${#INSTALL_SAFE[@]} -gt 0 ]]; then
-    "$AUR_HELPER" -S --needed --noconfirm "${INSTALL_SAFE[@]}"
+    "$AUR_HELPER" -S --needed --noconfirm "${INSTALL_SAFE[@]}" --quiet --combinedupgrade --batchinstall
   fi
 
   # Install CONFLICTED next (interactive)
@@ -259,7 +259,7 @@ install_package() {
     print_step "Handling conflicted packages"
     print_info "Conflicted packages detected: ${INSTALL_CONFLICTED[*]}"
     print_info "Please review and confirm installation."
-    "$AUR_HELPER" -S --needed "${INSTALL_CONFLICTED[@]}"
+    "$AUR_HELPER" -S --needed "${INSTALL_CONFLICTED[@]}" --quiet
   fi
 }
 

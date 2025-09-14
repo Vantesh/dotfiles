@@ -92,6 +92,8 @@ packageGroups:
     - tela-circle-icon-theme-all
 
   optional:
+    - rust
+    - go
     - brave-bin
     - atuin
     - visual-studio-code-bin

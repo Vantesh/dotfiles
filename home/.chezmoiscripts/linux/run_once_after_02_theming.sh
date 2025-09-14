@@ -155,7 +155,6 @@ fi
 #===================================================================================
 # GTK Theme
 #===================================================================================
-print_box "smslant" "GTK & QT"
 print_step "Setting up GTK theme"
 
 if gsettings set org.gnome.desktop.interface gtk-theme "adw-gtk3-dark" &&

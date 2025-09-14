@@ -35,7 +35,6 @@ fi
 # =============================================================================
 # SETUP PACMAN
 # =============================================================================
-print_box "smslant" "Pacman"
 print_step "Configuring Pacman settings"
 pacman_conf="/etc/pacman.conf"
 lines_to_edit=(
@@ -43,6 +42,12 @@ lines_to_edit=(
   "VerbosePkgLists"
   "ParrallelDownloads"
 )
+
+if ! has_package "pacman-contrib"; then
+  print_info "Installing pacman-contrib for paccache"
+  sudo pacman -S --noconfirm --needed pacman-contrib
+fi
+
 if create_backup "$pacman_conf"; then
   print_info "Pacman backup created"
 
@@ -102,7 +107,6 @@ EOF
 # SETUP SUDO
 # =============================================================================
 
-print_box "smslant" "Sudo"
 print_step "Setting up sudoers configuration"
 
 write_system_config "/etc/sudoers.d/timeout" "Sudo timeout configuration" <<EOF

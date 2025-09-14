@@ -124,7 +124,6 @@ dependencies+=("{{ .default_shell }}")
 
 if ! has_chaotic_repo; then
   if confirm "Do you want to install Chaotic AUR?"; then
-    print_box "smslant" "Chaotic AUR"
     print_step "Installing Chaotic AUR"
     install_chaotic_aur
   else

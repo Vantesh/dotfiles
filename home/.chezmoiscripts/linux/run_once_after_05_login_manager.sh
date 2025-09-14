@@ -10,13 +10,12 @@ common_init
 #===================================================================================
 # Ly
 #===================================================================================
-print_box "smslant" "Ly"
-print_step "Setting up Ly display manager"
 
+print_step "Setting up Ly display manager"
 # -----------------------------------------------------------------------------
 # Disable any other active display/login managers before enabling ly
 # -----------------------------------------------------------------------------
-print_step "Checking for other display managers to disable"
+print_info "Checking for other display managers to disable"
 
 other_dm_services=(
   gdm.service gdm3.service sddm.service lightdm.service lxdm.service
@@ -64,7 +63,7 @@ for key in "${!ly_config[@]}"; do
   update_config "$LY_CONFIG_FILE" "$key" "${ly_config[$key]}"
 done
 
-write_system_config "$LY_SAVE_FILE" "Ly session save file"  <<EOF
+write_system_config "$LY_SAVE_FILE" "Ly session save file" <<EOF
 user=${USER}
 session_index=2
 EOF
@@ -76,4 +75,3 @@ if sudo systemctl disable getty@tty2.service >/dev/null 2>&1; then
 else
   print_warning "Failed to disable TTY2 service"
 fi
-
