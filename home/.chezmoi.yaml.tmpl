@@ -30,7 +30,8 @@ diff:
   exclude:
     - "scripts"
 
-bitwarden: {{/* bw cli for secrets */}}
+{{/* bw cli for secrets */}}
+bitwarden:
   unlock: auto
   command: "{{ .chezmoi.homeDir }}/.local/bin/bw"
 
