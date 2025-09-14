@@ -27,10 +27,9 @@ Public
 Templates
 
 .local/*
+!.local/share/{icons,fonts,themes}
 !.local/bin
-!.local/share/icons
-!.local/share/fonts
-!.local/share/themes
+
 
 # shell configuration files
 .config/zsh/.history
@@ -55,15 +54,6 @@ Templates
 .config/yazi/plugins/**
 .config/yazi/flavors/**
 
-# bar
-{{- if not (lookPath "waybar") }}
-.config/waybar
-{{- end }}
-
-{{- if not (lookPath "swaync") }}
-.config/swaync
-{{- end }}
-
 {{- if not (lookPath "paru") }}
 .config/paru
 {{- end }}
@@ -71,11 +61,11 @@ Templates
 {{ if eq .chezmoi.os "linux" }}
 .chezmoiscripts/windows/**
 Documents
+
 {{ else if eq .chezmoi.os "windows" }}
 .chezmoiscripts/linux/**
 .config/kitty
 .config/hypr/**
-.config/waybar
 .config/rofi
 .config/matugen
 .config/kvantum
@@ -83,19 +73,18 @@ Documents
 .config/clipse
 .config/gtk*
 .config/
+
 {{ else }}
 .chezmoiscripts/windows/**
 .chezmoiscripts/linux/**
 {{ end }}
 
-{{- if and (eq .chezmoi.username "vantesh") (eq .shell.default "fish") }}
+{{- if and (.personal ) (eq .shell.default "fish") }}
 .config/zsh
 .config/fsh
 {{- end }}
 
-{{- if ne .chezmoi.username "vantesh" }}
-{{- if eq .default_shell "zsh" }}
-.config/fish
-{{- end }}
+{{- if and (not .personal ) (eq .default_shell "zsh") }}
+.config/fish/
 {{- end }}
 
