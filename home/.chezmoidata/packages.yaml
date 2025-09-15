@@ -51,7 +51,6 @@ packageGroups:
     - btop
     - reflector
     - wget
-    - pacman-contrib
     - starship
     - zoxide
     - fd
