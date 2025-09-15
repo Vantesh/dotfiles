@@ -16,6 +16,8 @@ Usage:
   dmsctl media <next|prev|play-pause>
   dmsctl lock
   dmsctl logout
+  dmsctl notepad
+  dmsctl night
 EOF
 }
 
@@ -182,6 +184,37 @@ logout)
   exec loginctl terminate-user "$USER_NAME"
   ;;
 
+notepad)
+  [[ $# -eq 0 ]] || {
+    echo "Error: 'notepad' takes no arguments" >&2
+    usage
+    exit 2
+  }
+  if using_dms; then
+    qs -c dms ipc call notepad toggle
+  fi
+  ;;
+
+night)
+  [[ $# -eq 0 ]] || {
+    echo "Error: 'night' takes no arguments" >&2
+    usage
+    exit 2
+  }
+  if using_dms; then
+    qs -c dms ipc call night toggle
+  else
+    have_cmd gammastep || {
+      echo "Error: gammastep not found" >&2
+      exit 3
+    }
+    if pgrep gammastep >/dev/null 2>&1; then
+      pkill gammastep
+    else
+      gammastep -O 4500 &
+    fi
+  fi
+  ;;
 *)
   echo "Error: unknown subcommand '$subcommand'" >&2
   usage
