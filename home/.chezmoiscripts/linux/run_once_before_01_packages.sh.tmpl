@@ -5,158 +5,102 @@ source "${CHEZMOI_SOURCE_DIR:?env variable missing. Please only run this script 
 source "${CHEZMOI_SOURCE_DIR:?env variable missing. Please only run this script via chezmoi}/.chezmoiscripts/linux/helpers/.01_chaotic_aur"
 source "${CHEZMOI_SOURCE_DIR:?env variable missing. Please only run this script via chezmoi}/.chezmoiscripts/linux/helpers/.02_XDG"
 
-
 # =============================================================================
-# Initialize Environment
+# Setup and initialization
 # =============================================================================
 common_init
 print_box "smslant" "Packages"
 
+install_group() {
+  print_step "Installing $1 packages"
+  shift && install_package "$@"
+}
 
-# Package lists from chezmoi data
-dependencies=(
-  {{- range .packageGroups.core }}
-  "{{ . }}"
-  {{- end }}
-  {{- range .packageGroups.fonts }}
-  "{{ . }}"
-  {{- end }}
-  {{- range .packageGroups.theming }}
-  "{{ . }}"
-  {{- end }}
-)
-
-optional=(
-  {{- range .packageGroups.optional }}
-  "{{ . }}"
-  {{- end }}
-)
-
-# Driver packages
-drivers=(
-  {{- range .packageGroups.drivers.base }}
-  "{{ . }}"
-  {{- end }}
-)
-
-kernel_version=$(uname -r)
-if [[ "$kernel_version" == *"-zen"* ]]; then
-  drivers+=("{{ .packageGroups.drivers.kernelHeaders.zen }}")
-elif [[ "$kernel_version" == *"-lts"* ]]; then
-  drivers+=("{{ .packageGroups.drivers.kernelHeaders.lts }}")
-elif [[ "$kernel_version" == *"-cachyos"* ]]; then
-  drivers+=("{{ .packageGroups.drivers.kernelHeaders.cachyos }}")
-else
-  drivers+=("{{ .packageGroups.drivers.kernelHeaders.default }}")
+# Chaotic AUR setup
+if ! has_chaotic_repo && confirm "Install Chaotic AUR?"; then
+  print_step "Installing Chaotic AUR"
+  install_chaotic_aur
 fi
 
-gpu_info=$(lspci -nn | grep -Ei "VGA compatible controller|3D controller|Display controller")
+# System update
+print_step "Updating system"
+sudo pacman -Syu --noconfirm
 
-# NVIDIA
-if [[ $gpu_info == *"NVIDIA Corporation"* ]]; then
-  # Determine recommended NVIDIA driver package based on GPU generation.
-  # pick nvidia-open-dkms for RTX 20xx/30xx/40xx or GTX 16xx, otherwise fall back to nvidia-dkms.
-  if echo "${gpu_info}" | grep -q -E "RTX [2-9][0-9]|GTX 16"; then
-    NVIDIA_DRIVER_PACKAGE="nvidia-open-dkms"
-  else
-    NVIDIA_DRIVER_PACKAGE="nvidia-dkms"
-  fi
+# =============================================================================
+# Install Groups
+# =============================================================================
 
-  drivers+=(
-    {{- range .packageGroups.drivers.nvidia }}
-    "{{ . }}"
-    {{- end }}
-  )
+# Core packages + default shell
+core_pkgs=({{- range .Arch.core }} "{{ . }}"{{- end }} "{{ .default_shell }}")
+install_group "Core packages" "${core_pkgs[@]}"
 
-  # Add the chosen NVIDIA DKMS package.
-  drivers+=("$NVIDIA_DRIVER_PACKAGE")
+# CLI Tools
+cli_pkgs=({{- range .Arch.cli }} "{{ . }}"{{- end }})
+install_group "CLI Tools" "${cli_pkgs[@]}"
 
-  # On CachyOS remove any DKMS packages (both open and vendor DKMS), since
-  # prebuilt modules are provided by the distribution.
-  if [[ "$kernel_version" == *"-cachyos"* ]] || grep -qi 'cachyos' /etc/os-release 2>/dev/null; then
-    for i in "${!drivers[@]}"; do
-      if [[ ${drivers[i]} == "nvidia-dkms" ]] || [[ ${drivers[i]} == "nvidia-open-dkms" ]]; then
-        unset 'drivers[i]'
-      fi
-    done
-  fi
-fi
+# Theming
+theme_pkgs=({{- range .Arch.theming }} "{{ . }}"{{- end }})
+install_group "Theming" "${theme_pkgs[@]}"
 
-# AMD/ATI
-if [[ $gpu_info == *"AMD/ATI"* ]]; then
-  drivers+=(
-    {{- range .packageGroups.drivers.amd }}
-    "{{ . }}"
-    {{- end }}
-  )
-fi
+# Fonts
+font_pkgs=({{- range .Arch.fonts }} "{{ . }}"{{- end }})
+install_group "Fonts" "${font_pkgs[@]}"
 
-# Intel
-if [[ $gpu_info == *"Intel Corporation"* ]]; then
-  drivers+=(
-    {{- range .packageGroups.drivers.intel }}
-    "{{ . }}"
-    {{- end }}
-  )
-fi
-
-if [[ ! $gpu_info =~ (NVIDIA|AMD/ATI|Intel Corporation) ]]; then
-  print_warning "No supported GPU found, skipping GPU-specific driver installation."
-fi
-
-# Check if the system is a laptop to add power management tools
-is_laptop=$(hostnamectl chassis | grep -i "laptop\|notebook")
-if [[ -n $is_laptop ]]; then
-  dependencies+=(
-    {{- range .packageGroups.laptop }}
-    "{{ . }}"
-    {{- end }}
-  )
-fi
-
-# SHELL
-dependencies+=("{{ .default_shell }}")
+# AUR packages
+aur_pkgs=({{- range .Arch.aur }} "{{ . }}"{{- end }})
+install_group "AUR" "${aur_pkgs[@]}"
 
 
 # =============================================================================
-# Setup Chaotic AUR
+# Drivers
 # =============================================================================
-
-if ! has_chaotic_repo; then
-  if confirm "Do you want to install Chaotic AUR?"; then
-    print_step "Installing Chaotic AUR"
-    install_chaotic_aur
-  else
-    print_warning "Skipping Chaotic AUR installation."
-  fi
-fi
-
-# =============================================================================
-# System Update
-# =============================================================================
-print_step "Updating system first"
-if sudo pacman -Syu --noconfirm; then
-  print_info "System updated, proceeding with package installation"
-fi
-
-# =============================================================================
-# Install Packages
-# =============================================================================
-
-print_box "smslant" "Core"
-print_step "Installing core dependencies"
-install_package "${dependencies[@]}"
-
-
 if confirm "Do you want to install drivers?"; then
-  print_box "smslant" "Drivers"
-  print_step "Installing drivers"
-  install_package "${drivers[@]}"
+  drivers=({{- range .Arch.drivers.base }} "{{ . }}"{{- end }})
+
+  # Add kernel headers
+  kernel_version=$(uname -r)
+  case "$kernel_version" in
+    *-zen*)     drivers+=("{{ .Arch.drivers.kernelHeaders.zen }}") ;;
+    *-lts*)     drivers+=("{{ .Arch.drivers.kernelHeaders.lts }}") ;;
+    *-cachyos*) drivers+=("{{ .Arch.drivers.kernelHeaders.cachyos }}") ;;
+    *)          drivers+=("{{ .Arch.drivers.kernelHeaders.default }}") ;;
+  esac
+
+  # Detect GPU and add drivers
+  gpu_info=$(lspci -nn | grep -Ei "VGA|3D|Display")
+
+  if [[ $gpu_info == *"NVIDIA"* ]]; then
+    drivers+=({{- range .Arch.drivers.nvidia }} "{{ . }}"{{- end }})
+    # Choose NVIDIA driver variant
+    if echo "$gpu_info" | grep -q -E "RTX [2-9][0-9]|GTX 16"; then
+      drivers+=("nvidia-open-dkms")
+    else
+      drivers+=("nvidia-dkms")
+    fi
+    # Skip DKMS for CachyOS
+    if [[ "$kernel_version" == *"-cachyos"* ]]; then
+      drivers=("${drivers[@]/nvidia*-dkms}")
+    fi
+  fi
+
+  [[ $gpu_info == *"AMD/ATI"* ]] && drivers+=({{- range .Arch.drivers.amd }} "{{ . }}"{{- end }})
+  [[ $gpu_info == *"Intel"* ]] && drivers+=({{- range .Arch.drivers.intel }} "{{ . }}"{{- end }})
+
+  install_group "Drivers" "${drivers[@]}"
 fi
 
-# Install optional packages
-if confirm "Do you want to install optional packages?"; then
-  print_box "smslant" "Optionals"
-  print_step "Installing optional packages"
-  install_package "${optional[@]}"
+# =============================================================================
+# Conditional packages
+# =============================================================================
+
+# Laptop packages (auto-detect)
+if hostnamectl chassis | grep -qi "laptop\|notebook"; then
+  laptop_pkgs=({{- range .Arch.laptop }} "{{ . }}"{{- end }})
+  install_group "Laptop" "${laptop_pkgs[@]}"
+fi
+
+# Optional packages (with confirmation)
+if confirm "Install optional packages?"; then
+  opt_pkgs=({{- range .Arch.optional }} "{{ . }}"{{- end }})
+  install_group "Optional" "${opt_pkgs[@]}"
 fi

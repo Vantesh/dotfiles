@@ -1,77 +1,79 @@
-packageGroups:
+Arch:
   core:
     - hyprland
     - hypridle
     - hyprpicker
     - hyprshot
     - hyprlock
-    - xdg-desktop-portal-hyprland
     - uwsm
     - accountsservice
     - polkit-gnome
-    - rofi
-    - imv
-    - libcanberra
-    - brightnessctl
-    - ddcutil
-    - khal
-    - networkmanager-iwd
-    - playerctl
-    - nautilus
-    - gvfs-mtp
-    - evince
-    - ly
-    - kitty
-    - rofimoji
-    - yad # for keybinds popup
+    - xdg-desktop-portal-hyprland
     - xdg-desktop-portal-gtk
     - xdg-autostart
-    - xdg-terminal-exec-git
     - gnome-keyring
     - libgnome-keyring
-    - topgrade
+    - networkmanager-iwd
     - udiskie
     - ntfs-3g
     - exfatprogs
     - dosfstools
     - f2fs-tools
-    - gparted
-    - ufw
-    - usbutils
+    - reflector
+    - wget
     - man-db
-    - xorg-xhost
+    - pkgfile
+    - locate
+    - usbutils
+    - ufw
+    - rofi
+    - rofimoji
+    - kitty
+    - imv
+    - evince
+    - nautilus
+    - gvfs-mtp
+    - wmctrl
+    - khal
+    - playerctl
+    - libcanberra
+    - gammastep
+    - geoclue
+    - ly
+    - yad # keybinds popup
+    - gparted
+    - clipse
+
+  cli:
+    - fastfetch
+    - btop
+    - starship
+    - zoxide
+    - fd
+    - duf
+    - eza
+    - fzf
+    - bat
+    - ripgrep
+    - curlie
+    - shfmt
+    - imagemagick
+    - chafa
+    - topgrade
+    - yazi
+
+  theming:
+    - nwg-look
+    - frameworkintegration
+    - qt6ct-kde
+    - qt5ct-kde
+    - tela-circle-icon-theme-all
+    - plymouth
     - layer-shell-qt
     - layer-shell-qt5
     - qt6-multimedia-ffmpeg
     - qt6-positioning
     - qt6-5compat
-    - gammastep
-    - geoclue
-    - wmctrl
-    - btop
-    - reflector
-    - wget
-    - starship
-    - zoxide
-    - fd
-    - duf
-    - fastfetch
-    - pkgfile
-    - locate
-    - eza
-    - fzf
-    - bat
-    - curlie
-    - ripgrep
-    - imagemagick
-    - chafa
-    - clipse
-    - clipse-gui
-    - matugen-bin
-    - app2unit-git
-    - quickshell-git
-    - dgop-bin
-    - shfmt # shell format tool
 
   fonts:
     - apple-fonts
@@ -81,14 +83,15 @@ packageGroups:
     - ttf-jetbrains-mono-nerd
     - inter-font
 
-  theming:
-    - nwg-look
-    - frameworkintegration
+  aur:
     - darkly-bin
-    - qt6ct-kde
-    - qt5ct-kde
-    - plymouth
-    - tela-circle-icon-theme-all
+    - xdg-terminal-exec-git
+    - app2unit-git
+    - quickshell-git
+    - dgop-bin
+    - clipse-gui
+    - matugen-bin
+    - gpu-screen-recorder-git
 
   optional:
     - rust
@@ -104,8 +107,6 @@ packageGroups:
     - git-delta
     - localsend
     - vesktop-bin
-    - yazi
-    - gpu-screen-recorder-git
 
   drivers:
     base:
