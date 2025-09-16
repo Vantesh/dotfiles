@@ -42,6 +42,8 @@ Arch:
     - ly
     - yad # keybinds popup
     - gparted
+    - brightnessctl
+    - ddcutil
     - clipse
 
   cli:
