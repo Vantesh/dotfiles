@@ -9,7 +9,7 @@ ensure_spicetify_theme() {
 
   if [[ "$current" != "$desired" ]]; then
     if ! spicetify config current_theme "$desired" &>/dev/null; then
-      echo "Echo: Failed to set spicetify theme to '$desired'"
+      echo "Error: Failed to set spicetify theme to '$desired'"
       return 1
     fi
   fi
@@ -34,7 +34,7 @@ main() {
   if pgrep -x spotify &>/dev/null; then
     trigger_spicetify_refresh
   else
-    spicetify apply -q || log_error "spicetify apply failed"
+    spicetify apply -q || echo "Error: spicetify apply failed"
   fi
 }
 

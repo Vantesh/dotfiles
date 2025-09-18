@@ -4,9 +4,15 @@ set -euo pipefail
 readonly CACHE_DIR="$HOME/.cache/walset"
 readonly CURRENT_FILE="$CACHE_DIR/walset.current"
 readonly MATUGEN_SCRIPTS_DIR="$HOME/.config/matugen/scripts"
+readonly -a GTK_VERSIONS=(3.0 4.0)
+readonly -a UPDATE_TARGETS=(terminal folders hyprlock_icon services spotify bat)
 
-log_error() { echo "Error: $*" >&2; }
-log_info() { echo "Info: $*"; }
+log_error() { printf 'Error: %s\n' "$*" >&2; }
+log_info() { printf 'Info: %s\n' "$*"; }
+die() {
+  log_error "$*"
+  exit 1
+}
 
 write_current() {
   printf "%s\n%s\n%s\n" "$1" "$2" "$3" >"$CURRENT_FILE" 2>/dev/null || true
@@ -14,9 +20,10 @@ write_current() {
 
 print_usage() {
   cat <<EOF
-Description: Apply a new colorscheme and update the system theme.
+Description: Apply a new colorscheme and update the system theme from a wallpaper or color.
 
-Usage: $(basename "$0") <path_to_wallpaper> [--scheme <matugen_scheme>] [--mode <dark|light>] [--json <json>]
+Usage: $(basename "$0") image <path_to_wallpaper> [--scheme <matugen_scheme>] [--mode <dark|light>]
+  $(basename "$0") color <hex_color> [--scheme <matugen_scheme>] [--mode <dark|light>]
 
 Options:
   -s, --scheme   Matugen scheme type (default: scheme-tonal-spot)
@@ -24,23 +31,30 @@ Options:
   -h, --help     Show this help and exit
 
 Examples:
-  $(basename "$0") ~/Pictures/wallpaper.jpg
-  $(basename "$0") ~/Pictures/wallpaper.jpg --mode light
-  $(basename "$0") ~/Pictures/wallpaper.jpg --scheme scheme-content --mode dark
-  $(basename "$0") ~/Pictures/wallpaper.jpg --json '{"key": "value"}'
+  $(basename "$0") image ~/Pictures/wallpaper.jpg --mode light/dark
+  $(basename "$0") image ~/Pictures/wallpaper.jpg --scheme scheme-content --mode dark/light
+  $(basename "$0") color "#ff5733"
+  $(basename "$0") color "#ff5733" --mode light
 EOF
 }
 
-validate_input() {
-  local wallpaper="$1"
-  [[ -f "$wallpaper" ]] || {
-    log_error "Wallpaper not found: $wallpaper"
-    exit 1
-  }
-  file --mime-type -b "$wallpaper" | grep -q '^image/' || {
-    log_error "File is not a valid image: $wallpaper"
-    exit 1
-  }
+validate_image() {
+  local file="$1"
+  [[ -f "$file" ]] || die "Wallpaper not found: $file"
+  if ! file --mime-type -b "$file" | grep -q '^image/'; then
+    die "File is not a valid image: $file"
+  fi
+}
+
+validate_color() {
+  local color="$1"
+  if [[ "$color" =~ ^#?([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$ ]]; then return 0; fi
+  die "Invalid hex color format: $color (expected #RRGGBB or #RGB)"
+}
+
+normalize_color() {
+  local color="$1"
+  [[ "$color" =~ ^# ]] && echo "$color" || echo "#$color"
 }
 
 run_update_script() {
@@ -52,29 +66,52 @@ run_update_script() {
       chmod +x "$script"
       log_info "Made $script executable"
     fi
-    if ! "$script"; then
-      log_error "Update script failed: $script"
-    fi
+    if ! "$script"; then log_error "Update script failed: $script"; fi
   else
     log_info "Update script missing: $script"
   fi
 }
 
-# =============================================================================
-# Main
-# =============================================================================
-main() {
-  local MATUGEN_SCHEME="scheme-tonal-spot"
-  local MODE="dark"
-  local JSON_ARG="" JSON_VALUE=""
-  local wallpaper=""
+run_matugen() {
+  local input="$1" scheme="$2" mode="$3" is_color="$4"
+  local -a cmd
+  if [[ "$is_color" == true ]]; then
+    cmd=(matugen color hex "$input" --type "$scheme" --mode "$mode")
+  else
+    cmd=(matugen image "$input" --type "$scheme" --mode "$mode")
+  fi
+  "${cmd[@]}" >/dev/null
+}
 
-  # Parse args
+is_selection_unchanged() {
+  local in="$1" scheme="$2" mode="$3"
+  [[ -f "$CURRENT_FILE" ]] || return 1
+  mapfile -t __cur <"$CURRENT_FILE" || return 1
+  [[ "${__cur[0]:-}" == "$in" && "${__cur[1]:-}" == "$scheme" && "${__cur[2]:-}" == "$mode" ]]
+}
+
+parse_args() {
+  MATUGEN_SCHEME="scheme-tonal-spot"
+  MODE="dark"
+  WALLPAPER=""
+  HEX_COLOR=""
+  IS_COLOR_MODE=false
+
   while [[ $# -gt 0 ]]; do
     case "$1" in
     -h | --help)
       print_usage
       exit 0
+      ;;
+    image)
+      IS_COLOR_MODE=false
+      WALLPAPER="${2:-}"
+      shift 2
+      ;;
+    color)
+      IS_COLOR_MODE=true
+      HEX_COLOR="${2:-}"
+      shift 2
       ;;
     -s | --scheme)
       MATUGEN_SCHEME="${2:-}"
@@ -84,82 +121,72 @@ main() {
       MODE="${2:-}"
       shift 2
       ;;
-    --json)
-      JSON_ARG="--json"
-      JSON_VALUE="${2:-}"
-      shift 2
-      ;;
     --)
       shift
       break
       ;;
-    -*)
-      log_error "Unknown option: $1"
-      shift
-      ;;
-    *)
-      wallpaper="$1"
-      shift
-      ;;
+    -*) die "Unknown option: $1" ;;
+    *) die "Unknown command: $1" ;;
     esac
   done
+}
 
-  [[ -n "$wallpaper" ]] || {
+main() {
+  # Parse args and set defaults
+  parse_args "$@"
+
+  # Input validation and normalization
+  local input_source=""
+  if $IS_COLOR_MODE; then
+    [[ -n "$HEX_COLOR" ]] || die "Missing hex color"
+    validate_color "$HEX_COLOR"
+    input_source=$(normalize_color "$HEX_COLOR")
+    log_info "Applying color theme: $input_source"
+  elif [[ -n "$WALLPAPER" ]]; then
+    validate_image "$WALLPAPER"
+    input_source="$WALLPAPER"
+    log_info "Applying wallpaper theme: $WALLPAPER"
+  else
     print_usage
-    exit 1
-  }
+    die "You must specify either 'image <path>' or 'color <hex>'"
+  fi
+
   [[ "$MODE" =~ ^(dark|light)$ ]] || MODE="dark"
   mkdir -p "$CACHE_DIR"
 
-  validate_input "$wallpaper"
-  log_info "Applying wallpaper and updating theme: $wallpaper"
-
-  # Skip if already applied
-  if [[ -f "$CURRENT_FILE" ]]; then
-    mapfile -t __cur <"$CURRENT_FILE" || true
-    if [[ "${__cur[0]:-}" == "$wallpaper" && "${__cur[1]:-}" == "$MATUGEN_SCHEME" && "${__cur[2]:-}" == "$MODE" ]]; then
-      log_info "Selection unchanged; skipping."
-      exit 0
-    fi
+  if is_selection_unchanged "$input_source" "$MATUGEN_SCHEME" "$MODE"; then
+    log_info "Selection unchanged; skipping."
+    exit 0
   fi
-  export MODE="$MODE"
-  write_current "$wallpaper" "$MATUGEN_SCHEME" "$MODE"
 
-  # Remove symlink to avoid editing parent gtk.css
-  for gtk_version in 3.0 4.0; do
-    gtk_css_path="$HOME/.config/gtk-$gtk_version/gtk.css"
-    if [[ -L "$gtk_css_path" ]]; then
-      log_info "Removing symlink: $gtk_css_path"
-      rm -f "$gtk_css_path"
+  export MODE="$MODE"
+  write_current "$input_source" "$MATUGEN_SCHEME" "$MODE"
+
+  for gtk_version in "${GTK_VERSIONS[@]}"; do
+    local gtk_css="$HOME/.config/gtk-$gtk_version/gtk.css"
+    if [[ -L "$gtk_css" ]]; then
+      log_info "Removing symlink: $gtk_css"
+      rm -f "$gtk_css"
     fi
   done
 
-  # Run matugen
-  if ! matugen image "$wallpaper" --type "$MATUGEN_SCHEME" --mode "$MODE" \
-    ${JSON_ARG:+$JSON_ARG "$JSON_VALUE"} >/dev/null; then
-    log_error "Matugen failed to apply theme"
+  if ! run_matugen "$input_source" "$MATUGEN_SCHEME" "$MODE" "$IS_COLOR_MODE"; then
+    log_error "Matugen failed"
     rm -f "$CURRENT_FILE"
     exit 1
   fi
 
-  # Run update scripts in background
+  # Run update scripts (gtk first, idk why it doesn't work in background)
   run_update_script "gtk"
-  run_update_script "terminal" &
-  run_update_script "folders" &
-  run_update_script "hyprlock_icon"
-  run_update_script "services" &
-  run_update_script "spotify" &
 
-  # Run bat in background, but disown so it won’t be waited on
-  run_update_script "bat" &
-  disown
+  for target in "${UPDATE_TARGETS[@]}"; do
+    run_update_script "$target" &
+  done
 
-  hyprctl reload >/dev/null
-
-  # Wait only for non-disowned jobs
+  hyprctl reload >/dev/null || true
   wait || true
 
-  log_info "Theme application completed successfully"
+  log_info "Theme applied successfully"
 }
 
 main "$@"
