@@ -80,14 +80,17 @@ Rectangle {
                              return
                          }
 
-                         const keyBase = (w.appId || w.class || w.windowClass || "unknown").toLowerCase()
+                         const keyBase = (w.app_id || w.appId || w.class || w.windowClass || "unknown").toLowerCase()
                          const key = isActiveWs ? `${keyBase}_${i}` : keyBase
 
                          if (!byApp[key]) {
-                             const icon = Quickshell.iconPath(DesktopEntries.heuristicLookup(Paths.moddedAppId(keyBase))?.icon, true)
+                             const moddedId = Paths.moddedAppId(keyBase)
+                             const isSteamApp = moddedId.toLowerCase().includes("steam_app")
+                             const icon = isSteamApp ? "" : Quickshell.iconPath(DesktopEntries.heuristicLookup(moddedId)?.icon, true)
                              byApp[key] = {
                                  "type": "icon",
                                  "icon": icon,
+                                 "isSteamApp": isSteamApp,
                                  "active": !!(w.activated || (CompositorService.isNiri && w.is_focused)),
                                  "count": 1,
                                  "windowId": w.address || w.id,
@@ -347,18 +350,29 @@ Rectangle {
                                 anchors.fill: parent
                                 source: modelData.icon
                                 opacity: modelData.active ? 1.0 : appMouseArea.containsMouse ? 0.8 : 0.6
-                                MouseArea {
-                                    id: appMouseArea
-                                    hoverEnabled: true
-                                    anchors.fill: parent
-                                    enabled: isActive
-                                    cursorShape: Qt.PointingHandCursor
-                                    onClicked: {
-                                        if (CompositorService.isHyprland) {
-                                            Hyprland.dispatch(`focuswindow address:${appIcon.windowId}`)
-                                        } else if (CompositorService.isNiri) {
-                                            NiriService.focusWindow(appIcon.windowId)
-                                        }
+                                visible: !modelData.isSteamApp
+                            }
+
+                            DankIcon {
+                                anchors.centerIn: parent
+                                size: 18
+                                name: "sports_esports"
+                                color: Theme.surfaceText
+                                opacity: modelData.active ? 1.0 : appMouseArea.containsMouse ? 0.8 : 0.6
+                                visible: modelData.isSteamApp
+                            }
+
+                            MouseArea {
+                                id: appMouseArea
+                                hoverEnabled: true
+                                anchors.fill: parent
+                                enabled: isActive
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: {
+                                    if (CompositorService.isHyprland) {
+                                        Hyprland.dispatch(`focuswindow address:${appIcon.windowId}`)
+                                    } else if (CompositorService.isNiri) {
+                                        NiriService.focusWindow(appIcon.windowId)
                                     }
                                 }
                             }

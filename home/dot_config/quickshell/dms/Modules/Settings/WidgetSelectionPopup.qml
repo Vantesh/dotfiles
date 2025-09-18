@@ -9,8 +9,66 @@ Popup {
     property var allWidgets: []
     property string targetSection: ""
     property bool isOpening: false
+    property string searchQuery: ""
+    property var filteredWidgets: []
+    property int selectedIndex: -1
+    property bool keyboardNavigationActive: false
 
     signal widgetSelected(string widgetId, string targetSection)
+
+    function updateFilteredWidgets() {
+        if (!searchQuery || searchQuery.length === 0) {
+            filteredWidgets = allWidgets.slice()
+            return
+        }
+        
+        var filtered = []
+        var query = searchQuery.toLowerCase()
+        
+        for (var i = 0; i < allWidgets.length; i++) {
+            var widget = allWidgets[i]
+            var text = widget.text ? widget.text.toLowerCase() : ""
+            var description = widget.description ? widget.description.toLowerCase() : ""
+            var id = widget.id ? widget.id.toLowerCase() : ""
+            
+            if (text.indexOf(query) !== -1 || 
+                description.indexOf(query) !== -1 || 
+                id.indexOf(query) !== -1) {
+                filtered.push(widget)
+            }
+        }
+        
+        filteredWidgets = filtered
+        selectedIndex = -1
+        keyboardNavigationActive = false
+    }
+
+    onAllWidgetsChanged: {
+        updateFilteredWidgets()
+    }
+
+    function selectNext() {
+        if (filteredWidgets.length === 0) return
+        keyboardNavigationActive = true
+        selectedIndex = Math.min(selectedIndex + 1, filteredWidgets.length - 1)
+    }
+
+    function selectPrevious() {
+        if (filteredWidgets.length === 0) return
+        keyboardNavigationActive = true
+        selectedIndex = Math.max(selectedIndex - 1, -1)
+        if (selectedIndex === -1) {
+            keyboardNavigationActive = false
+        }
+    }
+
+    function selectWidget() {
+        if (selectedIndex >= 0 && selectedIndex < filteredWidgets.length) {
+            var widget = filteredWidgets[selectedIndex]
+            root.widgetSelected(widget.id, root.targetSection)
+            root.close()
+        }
+    }
 
     function safeOpen() {
         if (!isOpening && !visible) {
@@ -19,17 +77,52 @@ Popup {
         }
     }
 
-    width: 400
-    height: 450
+    width: 500
+    height: 550
     modal: true
+    focus: true
     closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
     onOpened: {
         isOpening = false
+        Qt.callLater(() => {
+            searchField.forceActiveFocus()
+        })
+    }
+    Keys.onPressed: event => {
+        if (event.key === Qt.Key_Escape) {
+            root.close()
+            event.accepted = true
+        } else if (event.key === Qt.Key_Down) {
+            root.selectNext()
+            event.accepted = true
+        } else if (event.key === Qt.Key_Up) {
+            root.selectPrevious()
+            event.accepted = true
+        } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
+            if (root.keyboardNavigationActive) {
+                root.selectWidget()
+            } else if (root.filteredWidgets.length > 0) {
+                var firstWidget = root.filteredWidgets[0]
+                root.widgetSelected(firstWidget.id, root.targetSection)
+                root.close()
+            }
+            event.accepted = true
+        } else if (event.text && event.text.length > 0 && event.text.match(/[a-zA-Z0-9\\s]/)) {
+            if (!searchField.activeFocus) {
+                searchField.forceActiveFocus()
+            }
+            searchField.insertText(event.text)
+            event.accepted = true
+        }
     }
     onClosed: {
         isOpening = false
         allWidgets = []
         targetSection = ""
+        searchQuery = ""
+        filteredWidgets = []
+        selectedIndex = -1
+        keyboardNavigationActive = false
     }
 
     background: Rectangle {
@@ -91,27 +184,63 @@ Popup {
                 wrapMode: Text.WordWrap
             }
 
+            DankTextField {
+                id: searchField
+                width: parent.width
+                height: 48
+                cornerRadius: Theme.cornerRadius
+                backgroundColor: Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g, Theme.surfaceVariant.b, 0.3)
+                normalBorderColor: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.2)
+                focusedBorderColor: Theme.primary
+                leftIconName: "search"
+                leftIconSize: Theme.iconSize - 2
+                leftIconColor: Theme.outline
+                leftIconFocusedColor: Theme.primary
+                showClearButton: true
+                textColor: Theme.surfaceText
+                font.pixelSize: Theme.fontSizeMedium
+                placeholderText: "Search widgets..."
+                text: root.searchQuery
+                ignoreLeftRightKeys: true
+                keyForwardTargets: [root.contentItem]
+                onTextEdited: {
+                    root.searchQuery = text
+                    updateFilteredWidgets()
+                }
+                Keys.onPressed: event => {
+                    if (event.key === Qt.Key_Escape) {
+                        root.close()
+                        event.accepted = true
+                    } else if (event.key === Qt.Key_Down || event.key === Qt.Key_Up || 
+                               ((event.key === Qt.Key_Return || event.key === Qt.Key_Enter) && text.length === 0)) {
+                        event.accepted = false
+                    }
+                }
+            }
+
             DankListView {
                 id: widgetList
 
                 width: parent.width
                 height: parent.height - y
                 spacing: Theme.spacingS
-                model: root.allWidgets
+                model: root.filteredWidgets
                 clip: true
 
                 delegate: Rectangle {
                     width: widgetList.width
                     height: 60
                     radius: Theme.cornerRadius
-                    color: widgetArea.containsMouse ? Theme.primaryHover : Qt.rgba(
+                    property bool isSelected: root.keyboardNavigationActive && index === root.selectedIndex
+                    color: isSelected ? Theme.primarySelected : 
+                           widgetArea.containsMouse ? Theme.primaryHover : Qt.rgba(
                                                             Theme.surfaceVariant.r,
                                                             Theme.surfaceVariant.g,
                                                             Theme.surfaceVariant.b,
                                                             0.3)
-                    border.color: Qt.rgba(Theme.outline.r, Theme.outline.g,
+                    border.color: isSelected ? Theme.primary : Qt.rgba(Theme.outline.r, Theme.outline.g,
                                             Theme.outline.b, 0.2)
-                    border.width: 1
+                    border.width: isSelected ? 2 : 1
 
                     Row {
                         anchors.fill: parent

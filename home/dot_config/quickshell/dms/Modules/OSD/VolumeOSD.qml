@@ -58,7 +58,6 @@ DankOSD {
                     cursorShape: Qt.PointingHandCursor
                     onClicked: {
                         AudioService.toggleMute()
-                        resetHideTimer()
                     }
                     onContainsMouseChanged: {
                         setChildHovered(containsMouse || volumeSlider.containsMouse)
@@ -69,6 +68,9 @@ DankOSD {
             DankSlider {
                 id: volumeSlider
 
+                readonly property real actualVolumePercent: AudioService.sink && AudioService.sink.audio ? Math.round(AudioService.sink.audio.volume * 100) : 0
+                readonly property real displayPercent: actualVolumePercent
+
                 width: parent.width - Theme.iconSize - parent.gap * 3
                 height: 40
                 x: parent.gap * 2 + Theme.iconSize
@@ -78,17 +80,17 @@ DankOSD {
                 enabled: AudioService.sink && AudioService.sink.audio
                 showValue: true
                 unit: "%"
+                valueOverride: displayPercent
 
                 Component.onCompleted: {
                     if (AudioService.sink && AudioService.sink.audio) {
-                        value = Math.round(AudioService.sink.audio.volume * 100)
+                        value = Math.min(100, Math.round(AudioService.sink.audio.volume * 100))
                     }
                 }
 
                 onSliderValueChanged: newValue => {
                                           if (AudioService.sink && AudioService.sink.audio) {
                                               AudioService.sink.audio.volume = newValue / 100
-                                              resetHideTimer()
                                           }
                                       }
 
@@ -101,7 +103,7 @@ DankOSD {
 
                     function onVolumeChanged() {
                         if (volumeSlider && !volumeSlider.pressed) {
-                            volumeSlider.value = Math.round(AudioService.sink.audio.volume * 100)
+                            volumeSlider.value = Math.min(100, Math.round(AudioService.sink.audio.volume * 100))
                         }
                     }
                 }
@@ -113,7 +115,7 @@ DankOSD {
         if (AudioService.sink && AudioService.sink.audio && contentLoader.item) {
             const slider = contentLoader.item.children[0].children[1]
             if (slider) {
-                slider.value = Math.round(AudioService.sink.audio.volume * 100)
+                slider.value = Math.min(100, Math.round(AudioService.sink.audio.volume * 100))
             }
         }
     }

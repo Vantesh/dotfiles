@@ -113,7 +113,7 @@ Rectangle {
                             const relativeX = globalPos.x - screenX;
                             menuAnchor.menu = trayItem.menu;
                             menuAnchor.anchor.window = parentWindow;
-                            menuAnchor.anchor.rect = Qt.rect(relativeX, Theme.barHeight + Theme.spacingS, parent.width, 1);
+                            menuAnchor.anchor.rect = Qt.rect(relativeX, parentWindow.effectiveBarHeight + SettingsData.topBarSpacing, parent.width, 1);
                             menuAnchor.open();
                         }
                     }

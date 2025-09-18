@@ -72,7 +72,7 @@ Singleton {
             toastTimer.interval = 8000
             toastTimer.start()
         } else {
-            toastTimer.interval = toast.level === levelError ? 5000 : toast.level === levelWarn ? 4000 : 3000
+            toastTimer.interval = toast.level === levelError ? 5000 : toast.level === levelWarn ? 3000 : 1500
             toastTimer.start()
         }
     }

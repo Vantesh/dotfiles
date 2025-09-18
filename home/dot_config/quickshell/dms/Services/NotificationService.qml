@@ -341,9 +341,6 @@ Singleton {
         readonly property string summary: notification.summary
         readonly property string body: notification.body
         readonly property string htmlBody: {
-            if (!popup && !root.popupsDisabled) {
-                return ""
-            }
             if (body && (body.includes('<') && body.includes('>'))) {
                 return body
             }
@@ -365,10 +362,7 @@ Singleton {
             if (!image) {
                 return ""
             }
-            if (image.startsWith("file://")) {
-                return image.substring(7)
-            }
-            return image
+            return Paths.strip(image)
         }
         readonly property int urgency: notification.urgency
         readonly property list<NotificationAction> actions: notification.actions

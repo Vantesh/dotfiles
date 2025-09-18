@@ -143,7 +143,24 @@ Rectangle {
                     }
                     return ""
                 }
+                asynchronous: true
                 visible: status === Image.Ready
+
+                Component.onCompleted: {
+                    backer.sourceSize.width = 128
+                    backer.sourceSize.height = 128
+                }
+            }
+
+            Rectangle {
+                anchors.fill: parent
+                anchors.margins: -2
+                radius: width / 2
+                color: "transparent"
+                border.color: root.color
+                border.width: 5
+                visible: iconContainer.hasNotificationImage
+                antialiasing: true
             }
 
             StyledText {
@@ -408,7 +425,24 @@ Rectangle {
                                     }
                                     return ""
                                 }
+                                asynchronous: true
                                 visible: status === Image.Ready
+
+                                Component.onCompleted: {
+                                    backer.sourceSize.width = 64
+                                    backer.sourceSize.height = 64
+                                }
+                            }
+
+                            Rectangle {
+                                anchors.fill: parent
+                                anchors.margins: -1
+                                radius: width / 2
+                                color: "transparent"
+                                border.color: root.color
+                                border.width: 3
+                                visible: parent.hasNotificationImage
+                                antialiasing: true
                             }
 
                             StyledText {

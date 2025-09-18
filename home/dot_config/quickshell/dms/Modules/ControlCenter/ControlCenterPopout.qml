@@ -11,6 +11,7 @@ import qs.Modules.ControlCenter
 import qs.Modules.ControlCenter.Widgets
 import qs.Modules.ControlCenter.Details
 import qs.Modules.ControlCenter.Details 1.0 as Details
+import qs.Modules.TopBar
 import qs.Services
 import qs.Widgets
 
@@ -51,47 +52,50 @@ DankPopout {
     signal lockRequested
 
     popupWidth: 550
-    popupHeight: Math.min(Screen.height - 100, contentLoader.item && contentLoader.item.implicitHeight > 0 ? contentLoader.item.implicitHeight + 20 : 400)
-    triggerX: Screen.width - 600 - Theme.spacingL
+    popupHeight: Math.min((triggerScreen?.height ?? 1080) - 100, contentLoader.item && contentLoader.item.implicitHeight > 0 ? contentLoader.item.implicitHeight + 20 : 400)
+    triggerX: (triggerScreen?.width ?? 1920) - 600 - Theme.spacingL
     triggerY: Theme.barHeight - 4 + SettingsData.topBarSpacing + Theme.spacingXS
     triggerWidth: 80
     positioning: "center"
-    WlrLayershell.namespace: "quickshell-controlcenter"
     screen: triggerScreen
     shouldBeVisible: false
     visible: shouldBeVisible
 
     onShouldBeVisibleChanged: {
         if (shouldBeVisible) {
-            NetworkService.autoRefreshEnabled = NetworkService.wifiEnabled
-            if (UserInfoService)
-                UserInfoService.getUptime()
+            Qt.callLater(() => {
+                NetworkService.autoRefreshEnabled = NetworkService.wifiEnabled
+                if (UserInfoService)
+                    UserInfoService.getUptime()
+            })
         } else {
-            NetworkService.autoRefreshEnabled = false
-            if (BluetoothService.adapter
-                    && BluetoothService.adapter.discovering)
-                BluetoothService.adapter.discovering = false
+            Qt.callLater(() => {
+                NetworkService.autoRefreshEnabled = false
+                if (BluetoothService.adapter
+                        && BluetoothService.adapter.discovering)
+                    BluetoothService.adapter.discovering = false
+            })
         }
     }
 
     content: Component {
-        Item {
-            implicitHeight: controlContent.implicitHeight
+        Rectangle {
+            id: controlContent
+            
+            implicitHeight: mainColumn.implicitHeight + Theme.spacingM
             property alias bluetoothCodecSelector: bluetoothCodecSelector
             
-            Rectangle {
-                    id: controlContent
-
-                    anchors.fill: parent
-                    implicitHeight: mainColumn.implicitHeight + Theme.spacingM
-
-                    color: Theme.popupBackground()
-                    radius: Theme.cornerRadius
-                    border.color: Qt.rgba(Theme.outline.r, Theme.outline.g,
-                                          Theme.outline.b, 0.08)
-                    border.width: 1
-                    antialiasing: true
-                    smooth: true
+            color: {
+                const transparency = Theme.popupTransparency || 0.92
+                const surface = Theme.surfaceContainer || Qt.rgba(0.1, 0.1, 0.1, 1)
+                return Qt.rgba(surface.r, surface.g, surface.b, transparency)
+            }
+            radius: Theme.cornerRadius
+            border.color: Qt.rgba(Theme.outline.r, Theme.outline.g,
+                                  Theme.outline.b, 0.08)
+            border.width: 1
+            antialiasing: true
+            smooth: true
 
             Column {
                 id: mainColumn
@@ -235,6 +239,24 @@ DankPopout {
                         anchors.verticalCenter: parent.verticalCenter
                         anchors.rightMargin: Theme.spacingL
                         spacing: Theme.spacingS
+
+                        Battery {
+                            widgetHeight: 40
+                            popupTarget: controlCenterBatteryPopout
+                            parentScreen: root.triggerScreen
+                            section: "right"
+                            barHeight: 123
+                            batteryPopupVisible: controlCenterBatteryPopout.shouldBeVisible
+                            visible: BatteryService.batteryAvailable
+
+                            onToggleBatteryPopup: {
+                                if (controlCenterBatteryPopout.shouldBeVisible) {
+                                    controlCenterBatteryPopout.close()
+                                } else {
+                                    controlCenterBatteryPopout.open()
+                                }
+                            }
+                        }
 
                         DankActionButton {
                             buttonSize: 40
@@ -526,12 +548,13 @@ DankPopout {
                         spacing: Theme.spacingM
 
                         AudioSliderRow {
-                            width: (parent.width - Theme.spacingM) / 2
+                            width: SettingsData.hideBrightnessSlider ? parent.width - Theme.spacingM : (parent.width - Theme.spacingM) / 2
                         }
 
                         Item {
                             width: (parent.width - Theme.spacingM) / 2
                             height: parent.height
+                            visible: !SettingsData.hideBrightnessSlider
                             
                             BrightnessSliderRow {
                                 width: parent.width
@@ -705,7 +728,6 @@ DankPopout {
                     }
                 }
             }
-            }
             
             Details.BluetoothCodecSelector {
                 id: bluetoothCodecSelector
@@ -713,6 +735,10 @@ DankPopout {
                 z: 10000
             }
         }
+    }
+
+    BatteryPopout {
+        id: controlCenterBatteryPopout
     }
 
     Component {

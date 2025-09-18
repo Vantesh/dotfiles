@@ -35,6 +35,9 @@ Rectangle {
     
     DankSlider {
         id: volumeSlider
+
+        readonly property real actualVolumePercent: AudioService.source && AudioService.source.audio ? Math.round(AudioService.source.audio.volume * 100) : 0
+
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.top: headerRow.bottom
@@ -42,7 +45,7 @@ Rectangle {
         anchors.rightMargin: Theme.spacingM
         anchors.topMargin: Theme.spacingXS
         height: 35
-        value: AudioService.source && AudioService.source.audio ? Math.round(AudioService.source.audio.volume * 100) : 0
+        value: AudioService.source && AudioService.source.audio ? Math.min(100, Math.round(AudioService.source.audio.volume * 100)) : 0
         minimum: 0
         maximum: 100
         leftIcon: {
@@ -54,8 +57,9 @@ Rectangle {
         enabled: AudioService.source && AudioService.source.audio
         unit: "%"
         showValue: true
+        valueOverride: actualVolumePercent
         visible: AudioService.source && AudioService.source.audio
-        
+
         onSliderValueChanged: function(newValue) {
             if (AudioService.source && AudioService.source.audio) {
                 AudioService.source.audio.volume = newValue / 100

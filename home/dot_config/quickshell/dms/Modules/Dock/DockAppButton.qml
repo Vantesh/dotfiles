@@ -264,13 +264,31 @@ Item {
             if (appData.appId === "__SEPARATOR__") {
                 return ""
             }
-            const desktopEntry = DesktopEntries.heuristicLookup(Paths.moddedAppId(appData.appId))
+            const moddedId = Paths.moddedAppId(appData.appId)
+            if (moddedId.toLowerCase().includes("steam_app")) {
+                return ""
+            }
+            const desktopEntry = DesktopEntries.heuristicLookup(moddedId)
             return desktopEntry && desktopEntry.icon ? Quickshell.iconPath(desktopEntry.icon, true) : ""
         }
         mipmap: true
         smooth: true
         asynchronous: true
         visible: status === Image.Ready
+    }
+
+    DankIcon {
+        anchors.centerIn: parent
+        size: 40
+        name: "sports_esports"
+        color: Theme.surfaceText
+        visible: {
+            if (!appData || !appData.appId || appData.appId === "__SEPARATOR__") {
+                return false
+            }
+            const moddedId = Paths.moddedAppId(appData.appId)
+            return moddedId.toLowerCase().includes("steam_app")
+        }
     }
 
     Rectangle {

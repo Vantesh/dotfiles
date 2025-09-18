@@ -1,3 +1,4 @@
+import QtCore
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Effects
@@ -141,9 +142,31 @@ Item {
                             CachingImage {
                                 anchors.fill: parent
                                 anchors.margins: 1
+                                property var weExtensions: [".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp", ".tga"]
+                                property int weExtIndex: 0
                                 source: {
                                     var currentWallpaper = SessionData.perMonitorWallpaper ? SessionData.getMonitorWallpaper(selectedMonitorName) : SessionData.wallpaperPath
+                                    if (currentWallpaper && currentWallpaper.startsWith("we:")) {
+                                        var sceneId = currentWallpaper.substring(3)
+                                        return StandardPaths.writableLocation(StandardPaths.HomeLocation)
+                                            + "/.local/share/Steam/steamapps/workshop/content/431960/"
+                                            + sceneId + "/preview" + weExtensions[weExtIndex]
+                                    }
                                     return (currentWallpaper !== "" && !currentWallpaper.startsWith("#")) ? "file://" + currentWallpaper : ""
+                                }
+                                onStatusChanged: {
+                                    var currentWallpaper = SessionData.perMonitorWallpaper ? SessionData.getMonitorWallpaper(selectedMonitorName) : SessionData.wallpaperPath
+                                    if (currentWallpaper && currentWallpaper.startsWith("we:") && status === Image.Error) {
+                                        if (weExtIndex < weExtensions.length - 1) {
+                                            weExtIndex++
+                                            source = StandardPaths.writableLocation(StandardPaths.HomeLocation)
+                                                + "/.local/share/Steam/steamapps/workshop/content/431960/"
+                                                + currentWallpaper.substring(3)
+                                                + "/preview" + weExtensions[weExtIndex]
+                                        } else {
+                                            visible = false
+                                        }
+                                    }
                                 }
                                 fillMode: Image.PreserveAspectCrop
                                 visible: {
@@ -233,6 +256,7 @@ Item {
                                             }
                                         }
                                     }
+
 
                                     Rectangle {
                                         width: 32
@@ -347,11 +371,11 @@ Item {
                                     iconSize: Theme.iconSizeSmall
                                     enabled: {
                                         var currentWallpaper = SessionData.perMonitorWallpaper ? SessionData.getMonitorWallpaper(selectedMonitorName) : SessionData.wallpaperPath
-                                        return currentWallpaper && !currentWallpaper.startsWith("#")
+                                        return currentWallpaper && !currentWallpaper.startsWith("#") && !currentWallpaper.startsWith("we")
                                     }
                                     opacity: {
                                         var currentWallpaper = SessionData.perMonitorWallpaper ? SessionData.getMonitorWallpaper(selectedMonitorName) : SessionData.wallpaperPath
-                                        return (currentWallpaper && !currentWallpaper.startsWith("#")) ? 1 : 0.5
+                                        return (currentWallpaper && !currentWallpaper.startsWith("#") && !currentWallpaper.startsWith("we")) ? 1 : 0.5
                                     }
                                     backgroundColor: Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g, Theme.surfaceVariant.b, 0.5)
                                     iconColor: Theme.surfaceText
@@ -370,11 +394,11 @@ Item {
                                     iconSize: Theme.iconSizeSmall
                                     enabled: {
                                         var currentWallpaper = SessionData.perMonitorWallpaper ? SessionData.getMonitorWallpaper(selectedMonitorName) : SessionData.wallpaperPath
-                                        return currentWallpaper && !currentWallpaper.startsWith("#")
+                                        return currentWallpaper && !currentWallpaper.startsWith("#") && !currentWallpaper.startsWith("we")
                                     }
                                     opacity: {
                                         var currentWallpaper = SessionData.perMonitorWallpaper ? SessionData.getMonitorWallpaper(selectedMonitorName) : SessionData.wallpaperPath
-                                        return (currentWallpaper && !currentWallpaper.startsWith("#")) ? 1 : 0.5
+                                        return (currentWallpaper && !currentWallpaper.startsWith("#") && !currentWallpaper.startsWith("we")) ? 1 : 0.5
                                     }
                                     backgroundColor: Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g, Theme.surfaceVariant.b, 0.5)
                                     iconColor: Theme.surfaceText
@@ -556,22 +580,27 @@ Item {
                                     anchors.verticalCenter: parent.verticalCenter
                                 }
 
-                                DankTabBar {
-                                    id: modeTabBar
-
+                                Item {
                                     width: 200
-                                    height: 32
-                                    model: [{
-                                            "text": "Interval",
-                                            "icon": "schedule"
-                                        }, {
-                                            "text": "Time",
-                                            "icon": "access_time"
-                                        }]
-                                    currentIndex: SessionData.wallpaperCyclingMode === "time" ? 1 : 0
-                                    onTabClicked: index => {
-                                                      SessionData.setWallpaperCyclingMode(index === 1 ? "time" : "interval")
-                                                  }
+                                    height: 45 + Theme.spacingM
+                                    
+                                    DankTabBar {
+                                        id: modeTabBar
+
+                                        width: 200
+                                        height: 45
+                                        model: [{
+                                                "text": "Interval",
+                                                "icon": "schedule"
+                                            }, {
+                                                "text": "Time",
+                                                "icon": "access_time"
+                                            }]
+                                        currentIndex: SessionData.wallpaperCyclingMode === "time" ? 1 : 0
+                                        onTabClicked: index => {
+                                                          SessionData.setWallpaperCyclingMode(index === 1 ? "time" : "interval")
+                                                      }
+                                    }
                                 }
                             }
 
@@ -771,6 +800,16 @@ Item {
                                    }
                     }
 
+                    DankToggle {
+                        width: parent.width
+                        text: "Hide Brightness Slider"
+                        description: "Hide the brightness slider in Control Center and make audio slider full width"
+                        checked: SettingsData.hideBrightnessSlider
+                        onToggled: checked => {
+                                       SettingsData.setHideBrightnessSlider(checked)
+                                   }
+                    }
+
                     Rectangle {
                         width: parent.width
                         height: 1
@@ -853,27 +892,41 @@ Item {
                             }
                         }
 
-                        DankTabBar {
-                            id: modeTabBarNight
+                        Item {
                             width: 200
-                            height: 32
-                            model: [{
-                                    "text": "Time",
-                                    "icon": "access_time"
-                                }, {
-                                    "text": "Location",
-                                    "icon": "place"
-                                }]
+                            height: 45 + Theme.spacingM
+                            
+                            DankTabBar {
+                                id: modeTabBarNight
+                                width: 200
+                                height: 45
+                                model: [{
+                                        "text": "Time",
+                                        "icon": "access_time"
+                                    }, {
+                                        "text": "Location",
+                                        "icon": "place"
+                                    }]
 
-                            Component.onCompleted: {
-                                currentIndex = SessionData.nightModeAutoMode === "location" ? 1 : 0
+                                Component.onCompleted: {
+                                    currentIndex = SessionData.nightModeAutoMode === "location" ? 1 : 0
+                                    Qt.callLater(updateIndicator)
+                                }
+
+                                onTabClicked: index => {
+                                                  console.log("Tab clicked:", index, "Setting mode to:", index === 1 ? "location" : "time")
+                                                  DisplayService.setNightModeAutomationMode(index === 1 ? "location" : "time")
+                                                  currentIndex = index
+                                              }
+                                              
+                                Connections {
+                                    target: SessionData
+                                    function onNightModeAutoModeChanged() {
+                                        modeTabBarNight.currentIndex = SessionData.nightModeAutoMode === "location" ? 1 : 0
+                                        Qt.callLater(modeTabBarNight.updateIndicator)
+                                    }
+                                }
                             }
-
-                            onTabClicked: index => {
-                                              console.log("Tab clicked:", index, "Setting mode to:", index === 1 ? "location" : "time")
-                                              DisplayService.setNightModeAutomationMode(index === 1 ? "location" : "time")
-                                              currentIndex = index
-                                          }
                         }
 
                         Column {
@@ -1097,6 +1150,54 @@ Item {
                 }
             }
 
+            // Lock Screen Settings
+            StyledRect {
+                width: parent.width
+                height: lockScreenSection.implicitHeight + Theme.spacingL * 2
+                radius: Theme.cornerRadius
+                color: Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g, Theme.surfaceVariant.b, 0.3)
+                border.color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.2)
+                border.width: 1
+
+                Column {
+                    id: lockScreenSection
+
+                    anchors.fill: parent
+                    anchors.margins: Theme.spacingL
+                    spacing: Theme.spacingM
+
+                    Row {
+                        width: parent.width
+                        spacing: Theme.spacingM
+
+                        DankIcon {
+                            name: "lock"
+                            size: Theme.iconSize
+                            color: Theme.primary
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+
+                        StyledText {
+                            text: "Lock Screen"
+                            font.pixelSize: Theme.fontSizeLarge
+                            font.weight: Font.Medium
+                            color: Theme.surfaceText
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+                    }
+
+                    DankToggle {
+                        width: parent.width
+                        text: "Show Power Actions"
+                        description: "Show power, restart, and logout buttons on the lock screen"
+                        checked: SettingsData.lockScreenShowPowerActions
+                        onToggled: checked => {
+                                       SettingsData.setLockScreenShowPowerActions(checked)
+                                   }
+                    }
+                }
+            }
+
             // Font Settings
             StyledRect {
                 width: parent.width
@@ -1243,6 +1344,90 @@ Item {
                                             SettingsData.setMonoFontFamily(value)
                                         }
                     }
+
+                    Rectangle {
+                        width: parent.width
+                        height: 60
+                        radius: Theme.cornerRadius
+                        color: "transparent"
+
+                        Column {
+                            anchors.left: parent.left
+                            anchors.right: fontScaleControls.left
+                            anchors.verticalCenter: parent.verticalCenter
+                            anchors.leftMargin: Theme.spacingM
+                            anchors.rightMargin: Theme.spacingM
+                            spacing: Theme.spacingXS
+
+                            StyledText {
+                                text: "Font Scale"
+                                font.pixelSize: Theme.fontSizeMedium
+                                font.weight: Font.Medium
+                                color: Theme.surfaceText
+                            }
+
+                            StyledText {
+                                text: "Scale all font sizes"
+                                font.pixelSize: Theme.fontSizeSmall
+                                color: Theme.surfaceVariantText
+                                width: parent.width
+                            }
+                        }
+
+                        Row {
+                            id: fontScaleControls
+
+                            width: 180
+                            height: 36
+                            anchors.right: parent.right
+                            anchors.rightMargin: 0
+                            anchors.verticalCenter: parent.verticalCenter
+                            spacing: Theme.spacingS
+
+                            DankActionButton {
+                                buttonSize: 32
+                                iconName: "remove"
+                                iconSize: Theme.iconSizeSmall
+                                enabled: SettingsData.fontScale > 1.0
+                                backgroundColor: Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g, Theme.surfaceVariant.b, 0.5)
+                                iconColor: Theme.surfaceText
+                                onClicked: {
+                                    var newScale = Math.max(1.0, SettingsData.fontScale - 0.05)
+                                    SettingsData.setFontScale(newScale)
+                                }
+                            }
+
+                            StyledRect {
+                                width: 60
+                                height: 32
+                                radius: Theme.cornerRadius
+                                color: Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g, Theme.surfaceVariant.b, 0.3)
+                                border.color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.2)
+                                border.width: 1
+
+                                StyledText {
+                                    anchors.centerIn: parent
+                                    text: (SettingsData.fontScale * 100).toFixed(0) + "%"
+                                    font.pixelSize: Theme.fontSizeSmall
+                                    font.weight: Font.Medium
+                                    color: Theme.surfaceText
+                                }
+                            }
+
+                            DankActionButton {
+                                buttonSize: 32
+                                iconName: "add"
+                                iconSize: Theme.iconSizeSmall
+                                enabled: SettingsData.fontScale < 2.0
+                                backgroundColor: Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g, Theme.surfaceVariant.b, 0.5)
+                                iconColor: Theme.surfaceText
+                                onClicked: {
+                                    var newScale = Math.min(2.0, SettingsData.fontScale + 0.05)
+                                    SettingsData.setFontScale(newScale)
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -1272,6 +1457,7 @@ Item {
             }
         }
     }
+
 
     DankColorPicker {
         id: colorPicker

@@ -7,6 +7,8 @@ import qs.Common
 PanelWindow {
     id: root
 
+    WlrLayershell.namespace: "quickshell:modal"
+
     property alias content: contentLoader.sourceComponent
     property alias contentLoader: contentLoader
     property real width: 400

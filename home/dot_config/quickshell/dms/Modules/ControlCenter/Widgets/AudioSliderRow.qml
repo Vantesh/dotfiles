@@ -57,12 +57,17 @@ Row {
     }
 
     DankSlider {
+        readonly property real actualVolumePercent: defaultSink ? Math.round(defaultSink.audio.volume * 100) : 0
+
         anchors.verticalCenter: parent.verticalCenter
         width: parent.width - (Theme.iconSize + Theme.spacingS * 2) - Theme.spacingM
         enabled: defaultSink !== null
         minimum: 0
         maximum: 100
-        value: defaultSink ? Math.round(defaultSink.audio.volume * 100) : 0
+        value: defaultSink ? Math.min(100, Math.round(defaultSink.audio.volume * 100)) : 0
+        showValue: true
+        unit: "%"
+        valueOverride: actualVolumePercent
         onSliderValueChanged: function(newValue) {
             if (defaultSink) {
                 defaultSink.audio.volume = newValue / 100.0

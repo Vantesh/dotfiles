@@ -16,15 +16,17 @@ import qs.Widgets
 
 PanelWindow {
     id: root
-
+    
     WlrLayershell.namespace: "quickshell:bar"
 
     property var modelData
     property var notepadVariants: null
 
+    signal colorPickerRequested()
+
     function getNotepadInstanceForScreen() {
         if (!notepadVariants || !notepadVariants.instances) return null
-
+        
         for (var i = 0; i < notepadVariants.instances.length; i++) {
             var loader = notepadVariants.instances[i]
             if (loader.modelData && loader.modelData.name === root.screen?.name) {
@@ -127,7 +129,7 @@ PanelWindow {
         right: true
     }
 
-    exclusiveZone: (!SettingsData.topBarVisible || topBarCore.autoHide) ? -1 : root.effectiveBarHeight + SettingsData.topBarSpacing - 2 + SettingsData.topBarBottomGap
+    exclusiveZone: (!SettingsData.topBarVisible || topBarCore.autoHide) ? -1 : root.effectiveBarHeight + SettingsData.topBarSpacing + SettingsData.topBarBottomGap
 
     mask: Region {
         item: topBarMouseArea
@@ -137,19 +139,32 @@ PanelWindow {
         id: topBarCore
         anchors.fill: parent
 
+
         property real backgroundTransparency: SettingsData.topBarTransparency
         property bool autoHide: SettingsData.topBarAutoHide
-        property bool reveal: SettingsData.topBarVisible && (!autoHide || topBarMouseArea.containsMouse || hasActivePopout)
+        property bool reveal: {
+            // Handle Niri overview state first
+            if (CompositorService.isNiri && NiriService.inOverview) {
+                // If Show on Overview is enabled, show the bar
+                if (SettingsData.topBarOpenOnOverview) {
+                    return true
+                }
+                // If Show on Overview is disabled, hide the bar
+                return false
+            }
+            // Normal visibility logic when not in overview
+            return SettingsData.topBarVisible && (!autoHide || topBarMouseArea.containsMouse || hasActivePopout)
+        }
 
         property var notepadInstance: null
         property bool notepadInstanceVisible: notepadInstance?.notepadVisible ?? false
-
+        
         readonly property bool hasActivePopout: {
             const loaders = [{
                                  "loader": appDrawerLoader,
                                  "prop": "shouldBeVisible"
                              }, {
-                                 "loader": centcomPopoutLoader,
+                                 "loader": dankDashPopoutLoader,
                                  "prop": "shouldBeVisible"
                              }, {
                                  "loader": processListPopoutLoader,
@@ -169,6 +184,9 @@ PanelWindow {
                              }, {
                                  "loader": clipboardHistoryModalPopup,
                                  "prop": "visible"
+                             }, {
+                                 "loader": systemUpdateLoader,
+                                 "prop": "shouldBeVisible"
                              }]
             return notepadInstanceVisible || loaders.some(item => {
                 if (item.loader) {
@@ -235,14 +253,6 @@ PanelWindow {
                         radius: SettingsData.topBarSquareCorners ? 0 : Theme.cornerRadius
                         color: Qt.rgba(Theme.surfaceContainer.r, Theme.surfaceContainer.g, Theme.surfaceContainer.b, topBarCore.backgroundTransparency)
                         layer.enabled: true
-
-                        Rectangle {
-                            anchors.fill: parent
-                            color: "transparent"
-                            border.color: Theme.outlineMedium
-                            border.width: 1
-                            radius: parent.radius
-                        }
 
                         Rectangle {
                             anchors.fill: parent
@@ -358,7 +368,9 @@ PanelWindow {
                                                                  "network_speed_monitor": networkComponent,
                                                                  "keyboard_layout_name": keyboardLayoutNameComponent,
                                                                  "vpn": vpnComponent,
-                                                                 "notepadButton": notepadButtonComponent
+                                                                 "notepadButton": notepadButtonComponent,
+                                                                 "colorPicker": colorPickerComponent,
+                                                                 "systemUpdate": systemUpdateComponent
                                                              })
 
                         function getWidgetComponent(widgetId) {
@@ -403,7 +415,7 @@ PanelWindow {
                             property var centerWidgets: []
                             property int totalWidgets: 0
                             property real totalWidth: 0
-                            property real spacing: SettingsData.topBarNoBackground ? 2 : Theme.spacingS
+                            property real spacing: SettingsData.topBarNoBackground ? 2 : Theme.spacingXS
 
                             function updateLayout() {
                                 if (width <= 0 || height <= 0 || !visible) {
@@ -666,14 +678,15 @@ PanelWindow {
                                 widgetHeight: root.widgetHeight
                                 section: topBarContent.getWidgetSection(parent) || "center"
                                 popupTarget: {
-                                    centcomPopoutLoader.active = true
-                                    return centcomPopoutLoader.item
+                                    dankDashPopoutLoader.active = true
+                                    return dankDashPopoutLoader.item
                                 }
                                 parentScreen: root.screen
                                 onClockClicked: {
-                                    centcomPopoutLoader.active = true
-                                    if (centcomPopoutLoader.item) {
-                                        centcomPopoutLoader.item.calendarVisible = !centcomPopoutLoader.item.calendarVisible
+                                    dankDashPopoutLoader.active = true
+                                    if (dankDashPopoutLoader.item) {
+                                        dankDashPopoutLoader.item.dashVisible = !dankDashPopoutLoader.item.dashVisible
+                                        dankDashPopoutLoader.item.currentTabIndex = 0 // Overview tab
                                     }
                                 }
                             }
@@ -688,14 +701,15 @@ PanelWindow {
                                 widgetHeight: root.widgetHeight
                                 section: topBarContent.getWidgetSection(parent) || "center"
                                 popupTarget: {
-                                    centcomPopoutLoader.active = true
-                                    return centcomPopoutLoader.item
+                                    dankDashPopoutLoader.active = true
+                                    return dankDashPopoutLoader.item
                                 }
                                 parentScreen: root.screen
                                 onClicked: {
-                                    centcomPopoutLoader.active = true
-                                    if (centcomPopoutLoader.item) {
-                                        centcomPopoutLoader.item.calendarVisible = !centcomPopoutLoader.item.calendarVisible
+                                    dankDashPopoutLoader.active = true
+                                    if (dankDashPopoutLoader.item) {
+                                        dankDashPopoutLoader.item.dashVisible = !dankDashPopoutLoader.item.dashVisible
+                                        dankDashPopoutLoader.item.currentTabIndex = 1 // Media tab
                                     }
                                 }
                             }
@@ -709,14 +723,15 @@ PanelWindow {
                                 widgetHeight: root.widgetHeight
                                 section: topBarContent.getWidgetSection(parent) || "center"
                                 popupTarget: {
-                                    centcomPopoutLoader.active = true
-                                    return centcomPopoutLoader.item
+                                    dankDashPopoutLoader.active = true
+                                    return dankDashPopoutLoader.item
                                 }
                                 parentScreen: root.screen
                                 onClicked: {
-                                    centcomPopoutLoader.active = true
-                                    if (centcomPopoutLoader.item) {
-                                        centcomPopoutLoader.item.calendarVisible = !centcomPopoutLoader.item.calendarVisible
+                                    dankDashPopoutLoader.active = true
+                                    if (dankDashPopoutLoader.item) {
+                                        dankDashPopoutLoader.item.dashVisible = !dankDashPopoutLoader.item.dashVisible
+                                        dankDashPopoutLoader.item.currentTabIndex = 2 // Weather tab
                                     }
                                 }
                             }
@@ -971,7 +986,7 @@ PanelWindow {
 
                             NotepadButton {
                                 property var notepadInstance: topBarCore.notepadInstance
-                                isActive: notepadInstance ? notepadInstance.notepadVisible : false
+                                isActive: notepadInstance?.notepadVisible ?? false
                                 widgetHeight: root.widgetHeight
                                 barHeight: root.effectiveBarHeight
                                 section: topBarContent.getWidgetSection(parent) || "right"
@@ -984,9 +999,44 @@ PanelWindow {
                                 }
                             }
                         }
+
+                        Component {
+                            id: colorPickerComponent
+
+                            ColorPicker {
+                                widgetHeight: root.widgetHeight
+                                barHeight: root.effectiveBarHeight
+                                section: topBarContent.getWidgetSection(parent) || "right"
+                                parentScreen: root.screen
+                                onColorPickerRequested: {
+                                    root.colorPickerRequested()
+                                }
+                            }
+                        }
+
+                        Component {
+                            id: systemUpdateComponent
+
+                            SystemUpdate {
+                                isActive: systemUpdateLoader.item ? systemUpdateLoader.item.shouldBeVisible : false
+                                widgetHeight: root.widgetHeight
+                                barHeight: root.effectiveBarHeight
+                                section: topBarContent.getWidgetSection(parent) || "right"
+                                popupTarget: {
+                                    systemUpdateLoader.active = true
+                                    return systemUpdateLoader.item
+                                }
+                                parentScreen: root.screen
+                                onClicked: {
+                                    systemUpdateLoader.active = true
+                                    systemUpdateLoader.item?.toggle()
+                                }
+                            }
+                        }
                     }
                 }
             }
         }
     }
+
 }

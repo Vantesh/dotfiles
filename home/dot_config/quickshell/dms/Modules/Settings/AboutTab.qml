@@ -259,7 +259,7 @@ Item {
                     }
 
                     StyledText {
-                        text: `DankMaterialShell is a modern desktop inspired by <a href="https://m3.material.io/" style="text-decoration:none; color:${Theme.primary};">MUI 3</a>.
+                        text: `DankMaterialShell is a modern desktop with a <a href="https://m3.material.io/" style="text-decoration:none; color:${Theme.primary};">material</a>-ish design.
                         <br /><br/>The goal is to provide a high level of functionality and customization so that it can be a suitable replacement for complete desktop environments like Gnome, KDE, or Cosmic.
                         `
                         textFormat: Text.RichText

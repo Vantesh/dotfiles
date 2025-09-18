@@ -6,6 +6,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import Quickshell.Services.UPower
+import qs.Common
 import qs.Services
 import "StockThemes.js" as StockThemes
 
@@ -13,20 +14,43 @@ Singleton {
     id: root
 
     property string currentTheme: "blue"
+    property string currentThemeCategory: "generic"
     property bool isLightMode: false
 
     readonly property string dynamic: "dynamic"
+    readonly property string custom: "custom"
 
-    readonly property string homeDir: {
-        const url = StandardPaths.writableLocation(StandardPaths.HomeLocation).toString();
-        return url.startsWith("file://") ? url.substring(7) : url;
-    }
-    readonly property string configDir: {
-        const url = StandardPaths.writableLocation(StandardPaths.ConfigLocation).toString();
-        return url.startsWith("file://") ? url.substring(7) : url;
-    }
-    readonly property string shellDir: Qt.resolvedUrl(".").toString().replace("file://", "").replace("/Common/", "")
+    readonly property string homeDir: Paths.strip(StandardPaths.writableLocation(StandardPaths.HomeLocation))
+    readonly property string configDir: Paths.strip(StandardPaths.writableLocation(StandardPaths.ConfigLocation))
+    readonly property string shellDir: Paths.strip(Qt.resolvedUrl(".").toString()).replace("/Common/", "")
     readonly property string wallpaperPath: {
+        if (typeof SessionData === "undefined")
+            return "";
+
+        if (SessionData.perMonitorWallpaper) {
+            // Use first monitor's wallpaper for dynamic theming
+            var screens = Quickshell.screens;
+            if (screens.length > 0) {
+                var firstMonitorWallpaper = SessionData.getMonitorWallpaper(screens[0].name);
+                var wallpaperPath = firstMonitorWallpaper || SessionData.wallpaperPath;
+
+                if (wallpaperPath && wallpaperPath.startsWith("we:")) {
+                    return stateDir + "/we_screenshots/" + wallpaperPath.substring(3) + ".jpg";
+                }
+
+                return wallpaperPath;
+            }
+        }
+
+        var wallpaperPath = SessionData.wallpaperPath;
+        var screens = Quickshell.screens;
+        if (screens.length > 0 && wallpaperPath && wallpaperPath.startsWith("we:")) {
+            return stateDir + "/we_screenshots/" + wallpaperPath.substring(3) + ".jpg";
+        }
+
+        return wallpaperPath;
+    }
+    readonly property string rawWallpaperPath: {
         if (typeof SessionData === "undefined")
             return "";
 
@@ -43,16 +67,25 @@ Singleton {
     }
 
     property bool matugenAvailable: false
+    property bool gtkThemingEnabled: typeof SettingsData !== "undefined" ? SettingsData.gtkAvailable : false
+    property bool qtThemingEnabled: typeof SettingsData !== "undefined" ? (SettingsData.qt5ctAvailable || SettingsData.qt6ctAvailable) : false
     property var workerRunning: false
     property var matugenColors: ({})
     property bool extractionRequested: false
     property int colorUpdateTrigger: 0
     property var customThemeData: null
 
-    readonly property string stateDir: {
-        const cacheHome = StandardPaths.writableLocation(StandardPaths.CacheLocation).toString();
-        const path = cacheHome.startsWith("file://") ? cacheHome.substring(7) : cacheHome;
-        return path + "/dankshell";
+    readonly property string stateDir: Paths.strip(StandardPaths.writableLocation(StandardPaths.CacheLocation).toString()) + "/dankshell"
+
+    Component.onCompleted: {
+        Quickshell.execDetached(["mkdir", "-p", stateDir]);
+        matugenCheck.running = true;
+        if (typeof SessionData !== "undefined")
+            SessionData.isLightModeChanged.connect(root.onLightModeChanged);
+
+        if (typeof SettingsData !== "undefined" && SettingsData.currentThemeName) {
+            switchTheme(SettingsData.currentThemeName, false);
+        }
     }
 
     function getMatugenColor(path, fallback) {
@@ -142,6 +175,7 @@ Singleton {
     property color outlineStrong: Qt.rgba(outline.r, outline.g, outline.b, 0.12)
 
     property color errorHover: Qt.rgba(error.r, error.g, error.b, 0.12)
+    property color errorPressed: Qt.rgba(error.r, error.g, error.b, 0.16)
 
     property color shadowMedium: Qt.rgba(0, 0, 0, 0.08)
     property color shadowStrong: Qt.rgba(0, 0, 0, 0.3)
@@ -160,10 +194,10 @@ Singleton {
     property real spacingM: 12
     property real spacingL: 16
     property real spacingXL: 24
-    property real fontSizeSmall: 12
-    property real fontSizeMedium: 14
-    property real fontSizeLarge: 16
-    property real fontSizeXLarge: 20
+    property real fontSizeSmall: (typeof SettingsData !== "undefined" ? SettingsData.fontScale : 1.0) * 12
+    property real fontSizeMedium: (typeof SettingsData !== "undefined" ? SettingsData.fontScale : 1.0) * 14
+    property real fontSizeLarge: (typeof SettingsData !== "undefined" ? SettingsData.fontScale : 1.0) * 16
+    property real fontSizeXLarge: (typeof SettingsData !== "undefined" ? SettingsData.fontScale : 1.0) * 20
     property real barHeight: 48
     property real iconSize: 24
     property real iconSizeSmall: 16
@@ -176,14 +210,22 @@ Singleton {
     function switchTheme(themeName, savePrefs = true) {
         if (themeName === dynamic) {
             currentTheme = dynamic;
+            currentThemeCategory = dynamic;
             extractColors();
-        } else if (themeName === "custom") {
-            currentTheme = "custom";
+        } else if (themeName === custom) {
+            currentTheme = custom;
+            currentThemeCategory = custom;
             if (typeof SettingsData !== "undefined" && SettingsData.customThemeFile) {
                 loadCustomThemeFromFile(SettingsData.customThemeFile);
             }
         } else {
             currentTheme = themeName;
+            // Determine category based on theme name
+            if (StockThemes.isCatppuccinVariant(themeName)) {
+                currentThemeCategory = "catppuccin";
+            } else {
+                currentThemeCategory = "generic";
+            }
         }
         if (savePrefs && typeof SettingsData !== "undefined")
             SettingsData.setTheme(currentTheme);
@@ -193,16 +235,10 @@ Singleton {
 
     function setLightMode(light, savePrefs = true) {
         isLightMode = light;
-        // If we update SessionData, it will emit isLightModeChanged which calls
-        // onLightModeChanged() that already triggers theme generation. To avoid
-        // double invocations, only generate immediately when we are NOT
-        // updating SessionData.
-        if (savePrefs && typeof SessionData !== "undefined") {
+        if (savePrefs && typeof SessionData !== "undefined")
             SessionData.setLightMode(isLightMode);
-        } else {
-            generateSystemThemesFromCurrentTheme();
-        }
         PortalService.setLightMode(isLightMode);
+        generateSystemThemesFromCurrentTheme();
     }
 
     function toggleLightMode(savePrefs = true) {
@@ -233,6 +269,51 @@ Singleton {
             return customThemeData;
         }
         return StockThemes.getThemeByName(themeName, isLightMode);
+    }
+
+    function switchThemeCategory(category, defaultTheme) {
+        currentThemeCategory = category;
+        switchTheme(defaultTheme);
+    }
+
+    function getCatppuccinColor(variantName) {
+        const catColors = {
+            "cat-rosewater": "#f5e0dc",
+            "cat-flamingo": "#f2cdcd",
+            "cat-pink": "#f5c2e7",
+            "cat-mauve": "#cba6f7",
+            "cat-red": "#f38ba8",
+            "cat-maroon": "#eba0ac",
+            "cat-peach": "#fab387",
+            "cat-yellow": "#f9e2af",
+            "cat-green": "#a6e3a1",
+            "cat-teal": "#94e2d5",
+            "cat-sky": "#89dceb",
+            "cat-sapphire": "#74c7ec",
+            "cat-blue": "#89b4fa",
+            "cat-lavender": "#b4befe"
+        };
+        return catColors[variantName] || "#cba6f7";
+    }
+
+    function getCatppuccinVariantName(variantName) {
+        const catNames = {
+            "cat-rosewater": "Rosewater",
+            "cat-flamingo": "Flamingo",
+            "cat-pink": "Pink",
+            "cat-mauve": "Mauve",
+            "cat-red": "Red",
+            "cat-maroon": "Maroon",
+            "cat-peach": "Peach",
+            "cat-yellow": "Yellow",
+            "cat-green": "Green",
+            "cat-teal": "Teal",
+            "cat-sky": "Sky",
+            "cat-sapphire": "Sapphire",
+            "cat-blue": "Blue",
+            "cat-lavender": "Lavender"
+        };
+        return catNames[variantName] || "Unknown";
     }
 
     function loadCustomTheme(themeData) {
@@ -376,7 +457,11 @@ Singleton {
     function extractColors() {
         extractionRequested = true;
         if (matugenAvailable)
-            fileChecker.running = true;
+            if (rawWallpaperPath.startsWith("we:")) {
+                fileCheckerTimer.start();
+            } else {
+                fileChecker.running = true;
+            }
         else
             matugenCheck.running = true;
     }
@@ -399,9 +484,8 @@ Singleton {
             return;
         }
 
-        // Skip if a worker run is already in-flight to avoid double invocations
-        if (workerRunning || (typeof systemThemeGenerator !== "undefined" && systemThemeGenerator.running)) {
-            console.log("Theme: worker already running - coalescing duplicate request");
+        if (workerRunning) {
+            console.log("matugen worker already running, skipping duplicate call");
             return;
         }
 
@@ -417,7 +501,12 @@ Singleton {
 
         Quickshell.execDetached(["sh", "-c", `mkdir -p '${stateDir}' && cat > '${desiredPath}' << 'EOF'\n${json}\nEOF`]);
         workerRunning = true;
-        systemThemeGenerator.command = [shellDir + "/scripts/matugen-worker.sh", stateDir, shellDir, "--run"];
+        if (rawWallpaperPath.startsWith("we:")) {
+            console.log("calling matugen worker");
+            systemThemeGenerator.command = ["sh", "-c", `sleep 1 && ${shellDir}/scripts/matugen-worker.sh '${stateDir}' '${shellDir}' --run`];
+        } else {
+            systemThemeGenerator.command = [shellDir + "/scripts/matugen-worker.sh", stateDir, shellDir, "--run"];
+        }
         systemThemeGenerator.running = true;
     }
 
@@ -454,6 +543,31 @@ Singleton {
             }
             setDesiredTheme("hex", primaryColor, isLight, iconTheme);
         }
+    }
+
+    function applyGtkColors() {
+        if (!matugenAvailable) {
+            if (typeof ToastService !== "undefined") {
+                ToastService.showError("matugen not available - cannot apply GTK colors");
+            }
+            return;
+        }
+
+        const isLight = (typeof SessionData !== "undefined" && SessionData.isLightMode) ? "true" : "false";
+        gtkApplier.command = [shellDir + "/scripts/gtk.sh", configDir, isLight, shellDir];
+        gtkApplier.running = true;
+    }
+
+    function applyQtColors() {
+        if (!matugenAvailable) {
+            if (typeof ToastService !== "undefined") {
+                ToastService.showError("matugen not available - cannot apply Qt colors");
+            }
+            return;
+        }
+
+        qtApplier.command = [shellDir + "/scripts/qt.sh", configDir];
+        qtApplier.running = true;
     }
 
     function extractJsonFromText(text) {
@@ -525,7 +639,11 @@ Singleton {
                 return;
             }
             if (extractionRequested) {
-                fileChecker.running = true;
+                if (rawWallpaperPath.startsWith("we:")) {
+                    fileCheckerTimer.start();
+                } else {
+                    fileChecker.running = true;
+                }
             }
 
             const isLight = (typeof SessionData !== "undefined" && SessionData.isLightMode);
@@ -567,6 +685,15 @@ Singleton {
             } else if (wallpaperPath.startsWith("#")) {
                 colorMatugenProcess.running = true;
             }
+        }
+    }
+
+    Timer {
+        id: fileCheckerTimer
+        interval: 1000
+        repeat: false
+        onTriggered: {
+            fileChecker.running = true;
         }
     }
 
@@ -689,10 +816,54 @@ Singleton {
         }
     }
 
-    Component.onCompleted: {
-        matugenCheck.running = true;
-        if (typeof SessionData !== "undefined")
-            SessionData.isLightModeChanged.connect(root.onLightModeChanged);
+    Process {
+        id: gtkApplier
+        running: false
+
+        stdout: StdioCollector {
+            id: gtkStdout
+        }
+
+        stderr: StdioCollector {
+            id: gtkStderr
+        }
+
+        onExited: exitCode => {
+            if (exitCode === 0) {
+                if (typeof ToastService !== "undefined") {
+                    ToastService.showInfo("GTK colors applied successfully");
+                }
+            } else {
+                if (typeof ToastService !== "undefined") {
+                    ToastService.showError("Failed to apply GTK colors: " + gtkStderr.text);
+                }
+            }
+        }
+    }
+
+    Process {
+        id: qtApplier
+        running: false
+
+        stdout: StdioCollector {
+            id: qtStdout
+        }
+
+        stderr: StdioCollector {
+            id: qtStderr
+        }
+
+        onExited: exitCode => {
+            if (exitCode === 0) {
+                if (typeof ToastService !== "undefined") {
+                    ToastService.showInfo("Qt colors applied successfully");
+                }
+            } else {
+                if (typeof ToastService !== "undefined") {
+                    ToastService.showError("Failed to apply Qt colors: " + qtStderr.text);
+                }
+            }
+        }
     }
 
     FileView {

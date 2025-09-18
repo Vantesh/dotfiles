@@ -30,6 +30,11 @@ DankModal {
     property string selectedFilePath: ""
     property string selectedFileName: ""
     property bool selectedFileIsDir: false
+    property bool showOverwriteConfirmation: false
+    property string pendingFilePath: ""
+    property bool weAvailable: false
+    property string wePath: ""
+    property bool weMode: false
 
     signal fileSelected(string path)
 
@@ -97,10 +102,62 @@ DankModal {
         keyboardSelectionRequested = true
     }
 
+    function handleSaveFile(filePath) {
+        // Ensure the filePath has the correct file:// protocol format
+        var normalizedPath = filePath
+        if (!normalizedPath.startsWith("file://")) {
+            normalizedPath = "file://" + filePath
+        }
+        
+        // Check if file exists by looking through the folder model
+        var exists = false
+        var fileName = filePath.split('/').pop()
+        
+        for (var i = 0; i < folderModel.count; i++) {
+            if (folderModel.get(i, "fileName") === fileName && !folderModel.get(i, "fileIsDir")) {
+                exists = true
+                break
+            }
+        }
+        
+        if (exists) {
+            pendingFilePath = normalizedPath
+            showOverwriteConfirmation = true
+        } else {
+            fileSelected(normalizedPath)
+            fileBrowserModal.close()
+        }
+    }
+
     objectName: "fileBrowserModal"
     allowStacking: true
     Component.onCompleted: {
         currentPath = getLastPath()
+    }
+    
+    property var steamPaths: [
+        StandardPaths.writableLocation(StandardPaths.HomeLocation) + "/.steam/steam/steamapps/workshop/content/431960",
+        StandardPaths.writableLocation(StandardPaths.HomeLocation) + "/.local/share/Steam/steamapps/workshop/content/431960",
+        StandardPaths.writableLocation(StandardPaths.HomeLocation) + "/.var/app/com.valvesoftware.Steam/.local/share/Steam/steamapps/workshop/content/431960",
+        StandardPaths.writableLocation(StandardPaths.HomeLocation) + "/snap/steam/common/.local/share/Steam/steamapps/workshop/content/431960"
+    ]
+    property int currentPathIndex: 0
+    
+    function discoverWallpaperEngine() {
+        currentPathIndex = 0
+        checkNextPath()
+    }
+    
+    function checkNextPath() {
+        if (currentPathIndex >= steamPaths.length) {
+            return
+        }
+        
+        const wePath = steamPaths[currentPathIndex]
+        const cleanPath = wePath.replace(/^file:\/\//, '')
+        weDiscoveryProcess.command = ["test", "-d", cleanPath]
+        weDiscoveryProcess.wePath = wePath
+        weDiscoveryProcess.running = true
     }
     width: 800
     height: 600
@@ -119,6 +176,9 @@ DankModal {
             selectedIndex = -1
             keyboardNavigationActive = false
             backButtonFocused = false
+            if (browserType === "wallpaper" && !weAvailable) {
+                discoverWallpaperEngine()
+            }
         }
     }
     onCurrentPathChanged: {
@@ -305,6 +365,23 @@ DankModal {
             executeKeyboardSelection(targetIndex)
         }
     }
+    
+    Process {
+        id: weDiscoveryProcess
+        
+        property string wePath: ""
+        running: false
+        
+        onExited: exitCode => {
+            if (exitCode === 0) {
+                fileBrowserModal.weAvailable = true
+                fileBrowserModal.wePath = wePath
+            } else {
+                currentPathIndex++
+                checkNextPath()
+            }
+        }
+    }
 
     content: Component {
         Item {
@@ -344,6 +421,22 @@ DankModal {
                         anchors.verticalCenter: parent.verticalCenter
                         spacing: Theme.spacingS
 
+                        DankActionButton {
+                            circular: false
+                            iconName: "movie"
+                            iconSize: Theme.iconSize - 4
+                            iconColor: weMode ? Theme.primary : Theme.surfaceText
+                            visible: weAvailable && browserType === "wallpaper"
+                            onClicked: {
+                                weMode = !weMode
+                                if (weMode) {
+                                    navigateTo(wePath)
+                                } else {
+                                    navigateTo(getLastPath())
+                                }
+                            }
+                        }
+                        
                         DankActionButton {
                             circular: false
                             iconName: "info"
@@ -410,8 +503,8 @@ DankModal {
                     width: parent.width
                     height: parent.height - 80
                     clip: true
-                    cellWidth: 150
-                    cellHeight: 130
+                    cellWidth: weMode ? 255 : 150
+                    cellHeight: weMode ? 215 : 130
                     cacheBuffer: 260
                     model: folderModel
                     currentIndex: selectedIndex
@@ -437,8 +530,8 @@ DankModal {
                         required property url fileURL
                         required property int index
 
-                        width: 140
-                        height: 120
+                        width: weMode ? 245 : 140
+                        height: weMode ? 205 : 120
                         radius: Theme.cornerRadius
                         color: {
                             if (keyboardNavigationActive && delegateRoot.index === selectedIndex)
@@ -469,16 +562,33 @@ DankModal {
                             spacing: Theme.spacingXS
 
                             Item {
-                                width: 80
-                                height: 60
+                                width: weMode ? 225 : 80
+                                height: weMode ? 165 : 60
                                 anchors.horizontalCenter: parent.horizontalCenter
 
                                 CachingImage {
                                     anchors.fill: parent
-                                    source: (!delegateRoot.fileIsDir && isImageFile(delegateRoot.fileName)) ? ("file://" + delegateRoot.filePath) : ""
+                                    property var weExtensions: [".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp", ".tga"]
+                                    property int weExtIndex: 0
+                                    source: {
+                                        if (weMode && delegateRoot.fileIsDir) {
+                                            return "file://" + delegateRoot.filePath + "/preview" + weExtensions[weExtIndex]
+                                        }
+                                        return (!delegateRoot.fileIsDir && isImageFile(delegateRoot.fileName)) ? ("file://" + delegateRoot.filePath) : ""
+                                    }
+                                    onStatusChanged: {
+                                        if (weMode && delegateRoot.fileIsDir && status === Image.Error) {
+                                            if (weExtIndex < weExtensions.length - 1) {
+                                                weExtIndex++
+                                                source = "file://" + delegateRoot.filePath + "/preview" + weExtensions[weExtIndex]
+                                            } else {
+                                                source = ""
+                                            }
+                                        }
+                                    }
                                     fillMode: Image.PreserveAspectCrop
-                                    visible: !delegateRoot.fileIsDir && isImageFile(delegateRoot.fileName)
-                                    maxCacheSize: 80
+                                    visible: (!delegateRoot.fileIsDir && isImageFile(delegateRoot.fileName)) || (weMode && delegateRoot.fileIsDir)
+                                    maxCacheSize: weMode ? 225 : 80
                                 }
 
                                 DankIcon {
@@ -494,7 +604,7 @@ DankModal {
                                     name: "folder"
                                     size: Theme.iconSizeLarge
                                     color: Theme.primary
-                                    visible: delegateRoot.fileIsDir
+                                    visible: delegateRoot.fileIsDir && !weMode
                                 }
                             }
 
@@ -521,11 +631,15 @@ DankModal {
                                 // Update selected file info and index first
                                 selectedIndex = delegateRoot.index
                                 setSelectedFileData(delegateRoot.filePath, delegateRoot.fileName, delegateRoot.fileIsDir)
-                                if (delegateRoot.fileIsDir) {
+                                if (weMode && delegateRoot.fileIsDir) {
+                                    var sceneId = delegateRoot.filePath.split("/").pop()
+                                    fileSelected("we:" + sceneId)
+                                    fileBrowserModal.close()
+                                } else if (delegateRoot.fileIsDir) {
                                     navigateTo(delegateRoot.filePath)
                                 } else {
                                     fileSelected(delegateRoot.filePath)
-                                    fileBrowserModal.close() // Close modal after file selection
+                                    fileBrowserModal.close()
                                 }
                             }
                         }
@@ -537,7 +651,11 @@ DankModal {
                                     fileBrowserModal.keyboardSelectionRequested = false
                                     selectedIndex = delegateRoot.index
                                     setSelectedFileData(delegateRoot.filePath, delegateRoot.fileName, delegateRoot.fileIsDir)
-                                    if (delegateRoot.fileIsDir) {
+                                    if (weMode && delegateRoot.fileIsDir) {
+                                        var sceneId = delegateRoot.filePath.split("/").pop()
+                                        fileSelected("we:" + sceneId)
+                                        fileBrowserModal.close()
+                                    } else if (delegateRoot.fileIsDir) {
                                         navigateTo(delegateRoot.filePath)
                                     } else {
                                         fileSelected(delegateRoot.filePath)
@@ -582,9 +700,12 @@ DankModal {
                     }
                     onAccepted: {
                         if (text.trim() !== "") {
-                            var fullPath = currentPath + "/" + text.trim()
-                            fileSelected(fullPath)
-                            fileBrowserModal.close()
+                            // Remove file:// protocol from currentPath if present for proper construction
+                            var basePath = currentPath.replace(/^file:\/\//, '')
+                            var fullPath = basePath + "/" + text.trim()
+                            // Ensure consistent path format - remove any double slashes and normalize
+                            fullPath = fullPath.replace(/\/+/g, '/')
+                            handleSaveFile(fullPath)
                         }
                     }
                 }
@@ -610,9 +731,12 @@ DankModal {
                         enabled: fileNameInput.text.trim() !== ""
                         onClicked: {
                             if (fileNameInput.text.trim() !== "") {
-                                var fullPath = currentPath + "/" + fileNameInput.text.trim()
-                                fileSelected(fullPath)
-                                fileBrowserModal.close()
+                                // Remove file:// protocol from currentPath if present for proper construction
+                                var basePath = currentPath.replace(/^file:\/\//, '')
+                                var fullPath = basePath + "/" + fileNameInput.text.trim()
+                                // Ensure consistent path format - remove any double slashes and normalize
+                                fullPath = fullPath.replace(/\/+/g, '/')
+                                handleSaveFile(fullPath)
                             }
                         }
                     }
@@ -648,6 +772,135 @@ DankModal {
 
                     var lastDot = fileBrowserModal.selectedFileName.lastIndexOf('.')
                     return lastDot > 0 ? fileBrowserModal.selectedFileName.substring(lastDot + 1).toLowerCase() : ""
+                }
+            }
+
+            // Overwrite confirmation dialog
+            Item {
+                id: overwriteDialog
+                anchors.fill: parent
+                visible: showOverwriteConfirmation
+                
+                Keys.onEscapePressed: {
+                    showOverwriteConfirmation = false
+                    pendingFilePath = ""
+                }
+                
+                Keys.onReturnPressed: {
+                    showOverwriteConfirmation = false
+                    fileSelected(pendingFilePath)
+                    pendingFilePath = ""
+                    Qt.callLater(() => fileBrowserModal.close())
+                }
+                
+                focus: showOverwriteConfirmation
+                
+                Rectangle {
+                    anchors.fill: parent
+                    color: Theme.shadowStrong
+                    opacity: 0.8
+                    
+                    MouseArea {
+                        anchors.fill: parent
+                        onClicked: {
+                            showOverwriteConfirmation = false
+                            pendingFilePath = ""
+                        }
+                    }
+                }
+                
+                StyledRect {
+                    anchors.centerIn: parent
+                    width: 400
+                    height: 160
+                    color: Theme.surfaceContainer
+                    radius: Theme.cornerRadius
+                    border.color: Theme.outlineMedium
+                    border.width: 1
+                    
+                    Column {
+                        anchors.centerIn: parent
+                        width: parent.width - Theme.spacingL * 2
+                        spacing: Theme.spacingM
+                        
+                        StyledText {
+                            text: qsTr("File Already Exists")
+                            font.pixelSize: Theme.fontSizeLarge
+                            font.weight: Font.Medium
+                            color: Theme.surfaceText
+                            anchors.horizontalCenter: parent.horizontalCenter
+                        }
+                        
+                        StyledText {
+                            text: qsTr("A file with this name already exists. Do you want to overwrite it?")
+                            font.pixelSize: Theme.fontSizeMedium
+                            color: Theme.surfaceTextMedium
+                            width: parent.width
+                            wrapMode: Text.WordWrap
+                            horizontalAlignment: Text.AlignHCenter
+                        }
+                        
+                        Row {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            spacing: Theme.spacingM
+                            
+                            StyledRect {
+                                width: 80
+                                height: 36
+                                radius: Theme.cornerRadius
+                                color: cancelArea.containsMouse ? Theme.surfaceVariantHover : Theme.surfaceVariant
+                                border.color: Theme.outline
+                                border.width: 1
+                                
+                                StyledText {
+                                    anchors.centerIn: parent
+                                    text: qsTr("Cancel")
+                                    font.pixelSize: Theme.fontSizeMedium
+                                    color: Theme.surfaceText
+                                    font.weight: Font.Medium
+                                }
+                                
+                                MouseArea {
+                                    id: cancelArea
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: {
+                                        showOverwriteConfirmation = false
+                                        pendingFilePath = ""
+                                    }
+                                }
+                            }
+                            
+                            StyledRect {
+                                width: 90
+                                height: 36
+                                radius: Theme.cornerRadius
+                                color: overwriteArea.containsMouse ? Qt.darker(Theme.primary, 1.1) : Theme.primary
+                                
+                                StyledText {
+                                    anchors.centerIn: parent
+                                    text: qsTr("Overwrite")
+                                    font.pixelSize: Theme.fontSizeMedium
+                                    color: Theme.background
+                                    font.weight: Font.Medium
+                                }
+                                
+                                MouseArea {
+                                    id: overwriteArea
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: {
+                                        showOverwriteConfirmation = false
+                                        fileSelected(pendingFilePath)
+                                        pendingFilePath = ""
+                                        Qt.callLater(() => fileBrowserModal.close())
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }

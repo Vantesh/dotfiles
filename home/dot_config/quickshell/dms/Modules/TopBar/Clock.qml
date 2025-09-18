@@ -6,7 +6,6 @@ import qs.Widgets
 Rectangle {
     id: root
 
-    property date currentDate: new Date()
     property bool compactMode: false
     property string section: "center"
     property var popupTarget: null
@@ -28,9 +27,6 @@ Rectangle {
         const baseColor = clockMouseArea.containsMouse ? Theme.primaryHover : Theme.surfaceTextHover
         return Qt.rgba(baseColor.r, baseColor.g, baseColor.b, baseColor.a * Theme.widgetTransparency)
     }
-    Component.onCompleted: {
-        root.currentDate = systemClock.date
-    }
 
     Row {
         id: clockRow
@@ -41,7 +37,7 @@ Rectangle {
         StyledText {
             text: {
                 const format = SettingsData.use24HourClock ? "HH:mm" : "h:mm AP"
-                return root.currentDate.toLocaleTimeString(Qt.locale(), format)
+                return systemClock?.date?.toLocaleTimeString(Qt.locale(), format)
             }
             font.pixelSize: Theme.fontSizeMedium - 1
             color: Theme.surfaceText
@@ -59,10 +55,10 @@ Rectangle {
         StyledText {
             text: {
                 if (SettingsData.clockDateFormat && SettingsData.clockDateFormat.length > 0) {
-                    return root.currentDate.toLocaleDateString(Qt.locale(), SettingsData.clockDateFormat)
+                    return systemClock?.date?.toLocaleDateString(Qt.locale(), SettingsData.clockDateFormat)
                 }
 
-                return root.currentDate.toLocaleDateString(Qt.locale(), "ddd d")
+                return systemClock?.date?.toLocaleDateString(Qt.locale(), "ddd d")
             }
             font.pixelSize: Theme.fontSizeMedium - 1
             color: Theme.surfaceText
@@ -73,9 +69,7 @@ Rectangle {
 
     SystemClock {
         id: systemClock
-
         precision: SystemClock.Seconds
-        onDateChanged: root.currentDate = systemClock.date
     }
 
     MouseArea {

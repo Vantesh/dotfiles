@@ -203,7 +203,7 @@ Item {
                             }
 
                             StyledText {
-                                text: "Allow wttr.in to determine location based on IP address"
+                                text: "Automatically determine your location using your IP address"
                                 font.pixelSize: Theme.fontSizeSmall
                                 color: Theme.surfaceVariantText
                                 wrapMode: Text.WordWrap
@@ -240,6 +240,47 @@ Item {
                             font.pixelSize: Theme.fontSizeMedium
                             color: Theme.surfaceText
                             font.weight: Font.Medium
+                        }
+
+                        Row {
+                            width: parent.width
+                            spacing: Theme.spacingM
+
+                            DankTextField {
+                                id: latitudeInput
+                                width: (parent.width - Theme.spacingM) / 2
+                                height: 48
+                                placeholderText: "Latitude"
+                                text: SettingsData.weatherCoordinates ? SettingsData.weatherCoordinates.split(',')[0] : ""
+                                backgroundColor: Theme.surfaceVariant
+                                normalBorderColor: Theme.primarySelected
+                                focusedBorderColor: Theme.primary
+                                onTextEdited: {
+                                    if (text && longitudeInput.text) {
+                                        const coords = text + "," + longitudeInput.text
+                                        const displayName = `${text}, ${longitudeInput.text}`
+                                        SettingsData.setWeatherLocation(displayName, coords)
+                                    }
+                                }
+                            }
+
+                            DankTextField {
+                                id: longitudeInput
+                                width: (parent.width - Theme.spacingM) / 2
+                                height: 48
+                                placeholderText: "Longitude"
+                                text: SettingsData.weatherCoordinates ? SettingsData.weatherCoordinates.split(',')[1] : ""
+                                backgroundColor: Theme.surfaceVariant
+                                normalBorderColor: Theme.primarySelected
+                                focusedBorderColor: Theme.primary
+                                onTextEdited: {
+                                    if (text && latitudeInput.text) {
+                                        const coords = latitudeInput.text + "," + text
+                                        const displayName = `${latitudeInput.text}, ${text}`
+                                        SettingsData.setWeatherLocation(displayName, coords)
+                                    }
+                                }
+                            }
                         }
 
                         DankLocationSearch {

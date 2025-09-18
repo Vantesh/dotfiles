@@ -1,69 +1,50 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [ $# -lt 3 ]; then
+STATE_DIR="${1:-}"
+SHELL_DIR="${2:-}"
+
+die() {
+  local msg="$1"
+  if command -v notify-send >/dev/null 2>&1; then
+    notify-send "matugen-worker" "$msg" -i error -u critical
+  else
+    echo "matugen-worker: $msg" >&2
+  fi
+  exit 1
+}
+
+if [[ $# -ne 3 || "$3" != "--run" ]]; then
   echo "Usage: $0 STATE_DIR SHELL_DIR --run" >&2
   exit 1
 fi
 
-STATE_DIR="$1"
-SHELL_DIR="$2"
-
-if [ ! -d "$STATE_DIR" ]; then
-  echo "Error: STATE_DIR '$STATE_DIR' does not exist" >&2
-  exit 1
-fi
-
-if [ ! -d "$SHELL_DIR" ]; then
-  echo "Error: SHELL_DIR '$SHELL_DIR' does not exist" >&2
-  exit 1
-fi
-
-shift 2 # Remove STATE_DIR and SHELL_DIR from arguments
-
-if [[ "${1:-}" != "--run" ]]; then
-  echo "usage: $0 STATE_DIR SHELL_DIR --run" >&2
-  exit 1
-fi
+[[ -d "$STATE_DIR" ]] || die "STATE_DIR '$STATE_DIR' does not exist"
+[[ -d "$SHELL_DIR" ]] || die "SHELL_DIR '$SHELL_DIR' does not exist"
 
 DESIRED_JSON="$STATE_DIR/matugen.desired.json"
-mode=$(jq -r '.mode // empty' "$DESIRED_JSON")
-kind=$(jq -r '.kind // empty' "$DESIRED_JSON")
-value=$(jq -r '.value // empty' "$DESIRED_JSON")
+[[ -f "$DESIRED_JSON" ]] || exit 2
 
-# Map JSON -> expected variables for downstream tools
-if [[ "$kind" == "image" ]]; then
-  wallpaper="$value"
-else
-  # Not an image request; treat as not-found for this worker
-  wallpaper=""
-fi
+read -r mode kind value < <(jq -r '[.mode // empty, .kind // empty, .value // empty] | @tsv' "$DESIRED_JSON")
 
-# Ensure local bin is in PATH for walset to be found
-export PATH="$HOME/.local/bin:$PATH"
-
-# Treat empty/null as 'not found' (exit 2)
-if [[ -z "${wallpaper:-}" || "${wallpaper}" == "null" ]]; then
+case "$kind" in
+image)
+  [[ -n "$value" && -r "$value" ]] || exit 2
+  args=("image" "$value")
+  ;;
+hex)
+  [[ -n "$value" ]] || exit 2
+  args=("color" "$value")
+  ;;
+*)
   exit 2
+  ;;
+esac
+
+command -v walset >/dev/null 2>&1 || die "'walset' not found. Ensure ~/.local/bin is in PATH."
+
+if [[ "$mode" == "dark" || "$mode" == "light" ]]; then
+  args+=(--mode "$mode")
 fi
 
-# Unreadable path -> skip (exit 2)
-if [[ ! -r "${wallpaper}" ]]; then
-  exit 2
-fi
-
-# Ensure walset is available; if missing, it's an error for this worker
-if ! command -v walset >/dev/null 2>&1; then
-  echo "Error: 'walset' not found in PATH (tried with PATH='$PATH')" >&2
-  exit 1
-fi
-
-# Build args, only pass --mode when provided
-args=("${wallpaper}")
-if [[ -n "${mode:-}" && "${mode}" != "null" ]]; then
-  args+=(--mode "${mode}")
-fi
-
-# Run walset
 walset "${args[@]}"
-exit $?

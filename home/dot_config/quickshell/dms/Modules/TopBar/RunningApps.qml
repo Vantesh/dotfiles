@@ -213,17 +213,40 @@ Rectangle {
                     anchors.verticalCenter: parent.verticalCenter
                     width: 18
                     height: 18
-                    source: Quickshell.iconPath(DesktopEntries.heuristicLookup(Paths.moddedAppId(appId))?.icon, true)
+                    source: {
+                        const moddedId = Paths.moddedAppId(appId)
+                        if (moddedId.toLowerCase().includes("steam_app")) {
+                            return ""
+                        }
+                        return Quickshell.iconPath(DesktopEntries.heuristicLookup(moddedId)?.icon, true)
+                    }
                     smooth: true
                     mipmap: true
                     asynchronous: true
                     visible: status === Image.Ready
                 }
 
+                DankIcon {
+                    anchors.left: parent.left
+                    anchors.leftMargin: SettingsData.runningAppsCompactMode ? (parent.width - 18) / 2 : Theme.spacingXS
+                    anchors.verticalCenter: parent.verticalCenter
+                    size: 18
+                    name: "sports_esports"
+                    color: Theme.surfaceText
+                    visible: {
+                        const moddedId = Paths.moddedAppId(appId)
+                        return moddedId.toLowerCase().includes("steam_app")
+                    }
+                }
+
                 // Fallback text if no icon found
                 Text {
                     anchors.centerIn: parent
-                    visible: !iconImg.visible
+                    visible: {
+                        const moddedId = Paths.moddedAppId(appId)
+                        const isSteamApp = moddedId.toLowerCase().includes("steam_app")
+                        return !iconImg.visible && !isSteamApp
+                    }
                     text: {
                         if (!appId) {
                             return "?";

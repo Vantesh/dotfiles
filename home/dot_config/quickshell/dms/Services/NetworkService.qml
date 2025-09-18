@@ -71,6 +71,8 @@ Singleton {
     property string wifiPassword: ""
     property string forgetSSID: ""
 
+    readonly property var lowPriorityCmd: ["nice", "-n", "19", "ionice", "-c3"]
+
     property string networkInfoSSID: ""
     property string networkInfoDetails: ""
     property bool networkInfoLoading: false
@@ -126,7 +128,7 @@ Singleton {
 
     Process {
         id: nmStateMonitor
-        command: ["gdbus", "monitor", "--system", "--dest", "org.freedesktop.NetworkManager"]
+        command: lowPriorityCmd.concat(["gdbus", "monitor", "--system", "--dest", "org.freedesktop.NetworkManager"])
         running: false
 
         stdout: SplitParser {
@@ -180,7 +182,7 @@ Singleton {
 
     Process {
         id: primaryConnectionQuery
-        command: ["gdbus", "call", "--system", "--dest", "org.freedesktop.NetworkManager", "--object-path", "/org/freedesktop/NetworkManager", "--method", "org.freedesktop.DBus.Properties.Get", "org.freedesktop.NetworkManager", "PrimaryConnection"]
+        command: lowPriorityCmd.concat(["gdbus", "call", "--system", "--dest", "org.freedesktop.NetworkManager", "--object-path", "/org/freedesktop/NetworkManager", "--method", "org.freedesktop.DBus.Properties.Get", "org.freedesktop.NetworkManager", "PrimaryConnection"])
         running: false
 
         stdout: StdioCollector {
@@ -199,7 +201,7 @@ Singleton {
 
     Process {
         id: getPrimaryConnectionType
-        command: root.primaryConnection ? ["gdbus", "call", "--system", "--dest", "org.freedesktop.NetworkManager", "--object-path", root.primaryConnection, "--method", "org.freedesktop.DBus.Properties.Get", "org.freedesktop.NetworkManager.Connection.Active", "Type"] : []
+        command: root.primaryConnection ? lowPriorityCmd.concat(["gdbus", "call", "--system", "--dest", "org.freedesktop.NetworkManager", "--object-path", root.primaryConnection, "--method", "org.freedesktop.DBus.Properties.Get", "org.freedesktop.NetworkManager.Connection.Active", "Type"]) : []
         running: false
 
         stdout: StdioCollector {
@@ -221,7 +223,7 @@ Singleton {
 
     Process {
         id: getEthernetDevice
-        command: ["nmcli", "-t", "-f", "DEVICE,TYPE", "device"]
+        command: lowPriorityCmd.concat(["nmcli", "-t", "-f", "DEVICE,TYPE", "device"])
         running: false
 
         stdout: StdioCollector {
@@ -241,7 +243,7 @@ Singleton {
 
                 if (ethernetInterface) {
                     root.ethernetInterface = ethernetInterface
-                    getEthernetDevicePath.command = ["gdbus", "call", "--system", "--dest", "org.freedesktop.NetworkManager", "--object-path", "/org/freedesktop/NetworkManager", "--method", "org.freedesktop.NetworkManager.GetDeviceByIpIface", ethernetInterface]
+                    getEthernetDevicePath.command = lowPriorityCmd.concat(["gdbus", "call", "--system", "--dest", "org.freedesktop.NetworkManager", "--object-path", "/org/freedesktop/NetworkManager", "--method", "org.freedesktop.NetworkManager.GetDeviceByIpIface", ethernetInterface])
                     getEthernetDevicePath.running = true
                 } else {
                     root.ethernetInterface = ""
@@ -259,7 +261,7 @@ Singleton {
             onStreamFinished: {
                 const match = text.match(/objectpath '([^']+)'/)
                 if (match && match[1] !== '/') {
-                    checkEthernetState.command = ["gdbus", "call", "--system", "--dest", "org.freedesktop.NetworkManager", "--object-path", match[1], "--method", "org.freedesktop.DBus.Properties.Get", "org.freedesktop.NetworkManager.Device", "State"]
+                    checkEthernetState.command = lowPriorityCmd.concat(["gdbus", "call", "--system", "--dest", "org.freedesktop.NetworkManager", "--object-path", match[1], "--method", "org.freedesktop.DBus.Properties.Get", "org.freedesktop.NetworkManager.Device", "State"])
                     checkEthernetState.running = true
                 } else {
                     root.ethernetInterface = ""
@@ -298,7 +300,7 @@ Singleton {
 
     Process {
         id: getEthernetIP
-        command: root.ethernetInterface ? ["ip", "-4", "addr", "show", root.ethernetInterface] : []
+        command: root.ethernetInterface ? lowPriorityCmd.concat(["ip", "-4", "addr", "show", root.ethernetInterface]) : []
         running: false
 
         stdout: StdioCollector {
@@ -313,7 +315,7 @@ Singleton {
 
     Process {
         id: getWifiDevice
-        command: ["nmcli", "-t", "-f", "DEVICE,TYPE", "device"]
+        command: lowPriorityCmd.concat(["nmcli", "-t", "-f", "DEVICE,TYPE", "device"])
         running: false
 
         stdout: StdioCollector {
@@ -333,7 +335,7 @@ Singleton {
 
                 if (wifiInterface) {
                     root.wifiInterface = wifiInterface
-                    getWifiDevicePath.command = ["gdbus", "call", "--system", "--dest", "org.freedesktop.NetworkManager", "--object-path", "/org/freedesktop/NetworkManager", "--method", "org.freedesktop.NetworkManager.GetDeviceByIpIface", wifiInterface]
+                    getWifiDevicePath.command = lowPriorityCmd.concat(["gdbus", "call", "--system", "--dest", "org.freedesktop.NetworkManager", "--object-path", "/org/freedesktop/NetworkManager", "--method", "org.freedesktop.NetworkManager.GetDeviceByIpIface", wifiInterface])
                     getWifiDevicePath.running = true
                 } else {
                     root.wifiInterface = ""
@@ -351,7 +353,7 @@ Singleton {
             onStreamFinished: {
                 const match = text.match(/objectpath '([^']+)'/)
                 if (match && match[1] !== '/') {
-                    checkWifiState.command = ["gdbus", "call", "--system", "--dest", "org.freedesktop.NetworkManager", "--object-path", match[1], "--method", "org.freedesktop.DBus.Properties.Get", "org.freedesktop.NetworkManager.Device", "State"]
+                    checkWifiState.command = lowPriorityCmd.concat(["gdbus", "call", "--system", "--dest", "org.freedesktop.NetworkManager", "--object-path", match[1], "--method", "org.freedesktop.DBus.Properties.Get", "org.freedesktop.NetworkManager.Device", "State"])
                     checkWifiState.running = true
                 } else {
                     root.wifiInterface = ""
@@ -398,7 +400,7 @@ Singleton {
 
     Process {
         id: getWifiIP
-        command: root.wifiInterface ? ["ip", "-4", "addr", "show", root.wifiInterface] : []
+        command: root.wifiInterface ? lowPriorityCmd.concat(["ip", "-4", "addr", "show", root.wifiInterface]) : []
         running: false
 
         stdout: StdioCollector {
@@ -413,7 +415,7 @@ Singleton {
 
     Process {
         id: getCurrentWifiInfo
-        command: root.wifiInterface ? ["nmcli", "-t", "-f", "IN-USE,SIGNAL,SSID", "device", "wifi", "list", "ifname", root.wifiInterface] : []
+        command: root.wifiInterface ? lowPriorityCmd.concat(["nmcli", "-t", "-f", "IN-USE,SIGNAL,SSID", "device", "wifi", "list", "ifname", root.wifiInterface]) : []
         running: false
 
         stdout: SplitParser {
@@ -449,7 +451,7 @@ Singleton {
 
     Process {
         id: getActiveConnections
-        command: ["nmcli", "-t", "-f", "UUID,TYPE,DEVICE,STATE", "connection", "show", "--active"]
+        command: lowPriorityCmd.concat(["nmcli", "-t", "-f", "UUID,TYPE,DEVICE,STATE", "connection", "show", "--active"])
         running: false
 
         stdout: StdioCollector {
@@ -476,7 +478,7 @@ Singleton {
     // Resolve SSID from active WiFi connection UUID when scans don't mark any row as ACTIVE.
     Process {
         id: resolveWifiSSID
-        command: root.wifiConnectionUuid ? ["nmcli", "-g", "802-11-wireless.ssid", "connection", "show", "uuid", root.wifiConnectionUuid] : []
+        command: root.wifiConnectionUuid ? lowPriorityCmd.concat(["nmcli", "-g", "802-11-wireless.ssid", "connection", "show", "uuid", root.wifiConnectionUuid]) : []
         running: false
 
         stdout: StdioCollector {
@@ -492,7 +494,7 @@ Singleton {
     // Fallback 2: Resolve SSID from device info (GENERAL.CONNECTION usually matches SSID for WiFi)
     Process {
         id: resolveWifiSSIDFromDevice
-        command: root.wifiInterface ? ["nmcli", "-t", "-f", "GENERAL.CONNECTION", "device", "show", root.wifiInterface] : []
+        command: root.wifiInterface ? lowPriorityCmd.concat(["nmcli", "-t", "-f", "GENERAL.CONNECTION", "device", "show", root.wifiInterface]) : []
         running: false
 
         stdout: StdioCollector {
@@ -513,7 +515,7 @@ Singleton {
 
     Process {
         id: checkWifiEnabled
-        command: ["gdbus", "call", "--system", "--dest", "org.freedesktop.NetworkManager", "--object-path", "/org/freedesktop/NetworkManager", "--method", "org.freedesktop.DBus.Properties.Get", "org.freedesktop.NetworkManager", "WirelessEnabled"]
+        command: lowPriorityCmd.concat(["gdbus", "call", "--system", "--dest", "org.freedesktop.NetworkManager", "--object-path", "/org/freedesktop/NetworkManager", "--method", "org.freedesktop.DBus.Properties.Get", "org.freedesktop.NetworkManager", "WirelessEnabled"])
         running: false
 
         stdout: StdioCollector {
@@ -535,7 +537,7 @@ Singleton {
 
     Process {
         id: requestWifiScan
-        command: root.wifiInterface ? ["nmcli", "dev", "wifi", "rescan", "ifname", root.wifiInterface] : []
+        command: root.wifiInterface ? lowPriorityCmd.concat(["nmcli", "dev", "wifi", "rescan", "ifname", root.wifiInterface]) : []
         running: false
 
         onExited: exitCode => {
@@ -560,7 +562,7 @@ Singleton {
 
     Process {
         id: getWifiNetworks
-        command: ["nmcli", "-t", "-f", "SSID,SIGNAL,SECURITY,BSSID", "dev", "wifi", "list", "ifname", root.wifiInterface]
+        command: lowPriorityCmd.concat(["nmcli", "-t", "-f", "SSID,SIGNAL,SECURITY,BSSID", "dev", "wifi", "list", "ifname", root.wifiInterface])
         running: false
 
         stdout: StdioCollector {
@@ -599,7 +601,7 @@ Singleton {
 
     Process {
         id: getSavedConnections
-        command: ["bash", "-c", "nmcli -t -f NAME,TYPE connection show | grep ':802-11-wireless$' | cut -d: -f1 | while read name; do ssid=$(nmcli -g 802-11-wireless.ssid connection show \"$name\"); echo \"$ssid:$name\"; done"]
+        command: lowPriorityCmd.concat(["bash", "-c", "nmcli -t -f NAME,TYPE connection show | grep ':802-11-wireless$' | cut -d: -f1 | while read name; do ssid=$(nmcli -g 802-11-wireless.ssid connection show \"$name\"); echo \"$ssid:$name\"; done"])
         running: false
 
         stdout: StdioCollector {
@@ -648,11 +650,11 @@ Singleton {
 
         if (!password && root.ssidToConnectionName[ssid]) {
             const connectionName = root.ssidToConnectionName[ssid]
-            wifiConnector.command = ["nmcli", "connection", "up", connectionName]
+            wifiConnector.command = lowPriorityCmd.concat(["nmcli", "connection", "up", connectionName])
         } else if (password) {
-            wifiConnector.command = ["nmcli", "dev", "wifi", "connect", ssid, "password", password]
+            wifiConnector.command = lowPriorityCmd.concat(["nmcli", "dev", "wifi", "connect", ssid, "password", password])
         } else {
-            wifiConnector.command = ["nmcli", "dev", "wifi", "connect", ssid]
+            wifiConnector.command = lowPriorityCmd.concat(["nmcli", "dev", "wifi", "connect", ssid])
         }
         wifiConnector.running = true
     }
@@ -722,7 +724,7 @@ Singleton {
             return
         }
 
-        wifiDisconnector.command = ["nmcli", "dev", "disconnect", root.wifiInterface]
+        wifiDisconnector.command = lowPriorityCmd.concat(["nmcli", "dev", "disconnect", root.wifiInterface])
         wifiDisconnector.running = true
     }
 
@@ -743,7 +745,7 @@ Singleton {
     function forgetWifiNetwork(ssid) {
         root.forgetSSID = ssid
         const connectionName = root.ssidToConnectionName[ssid] || ssid
-        networkForgetter.command = ["nmcli", "connection", "delete", connectionName]
+        networkForgetter.command = lowPriorityCmd.concat(["nmcli", "connection", "delete", connectionName])
         networkForgetter.running = true
     }
 
@@ -784,7 +786,7 @@ Singleton {
         root.wifiToggling = true
         const targetState = root.wifiEnabled ? "off" : "on"
         wifiRadioToggler.targetState = targetState
-        wifiRadioToggler.command = ["nmcli", "radio", "wifi", targetState]
+        wifiRadioToggler.command = lowPriorityCmd.concat(["nmcli", "radio", "wifi", targetState])
         wifiRadioToggler.running = true
     }
 
@@ -818,9 +820,9 @@ Singleton {
 
     function setConnectionPriority(type) {
         if (type === "wifi") {
-            setRouteMetrics.command = ["bash", "-c", "nmcli -t -f NAME,TYPE connection show | grep 802-11-wireless | cut -d: -f1 | " + "xargs -I {} bash -c 'nmcli connection modify \"{}\" ipv4.route-metric 50 ipv6.route-metric 50'; " + "nmcli -t -f NAME,TYPE connection show | grep 802-3-ethernet | cut -d: -f1 | " + "xargs -I {} bash -c 'nmcli connection modify \"{}\" ipv4.route-metric 100 ipv6.route-metric 100'"]
+            setRouteMetrics.command = lowPriorityCmd.concat(["bash", "-c", "nmcli -t -f NAME,TYPE connection show | grep 802-11-wireless | cut -d: -f1 | " + "xargs -I {} bash -c 'nmcli connection modify \"{}\" ipv4.route-metric 50 ipv6.route-metric 50'; " + "nmcli -t -f NAME,TYPE connection show | grep 802-3-ethernet | cut -d: -f1 | " + "xargs -I {} bash -c 'nmcli connection modify \"{}\" ipv4.route-metric 100 ipv6.route-metric 100'"])
         } else if (type === "ethernet") {
-            setRouteMetrics.command = ["bash", "-c", "nmcli -t -f NAME,TYPE connection show | grep 802-3-ethernet | cut -d: -f1 | " + "xargs -I {} bash -c 'nmcli connection modify \"{}\" ipv4.route-metric 50 ipv6.route-metric 50'; " + "nmcli -t -f NAME,TYPE connection show | grep 802-11-wireless | cut -d: -f1 | " + "xargs -I {} bash -c 'nmcli connection modify \"{}\" ipv4.route-metric 100 ipv6.route-metric 100'"]
+            setRouteMetrics.command = lowPriorityCmd.concat(["bash", "-c", "nmcli -t -f NAME,TYPE connection show | grep 802-3-ethernet | cut -d: -f1 | " + "xargs -I {} bash -c 'nmcli connection modify \"{}\" ipv4.route-metric 50 ipv6.route-metric 50'; " + "nmcli -t -f NAME,TYPE connection show | grep 802-11-wireless | cut -d: -f1 | " + "xargs -I {} bash -c 'nmcli connection modify \"{}\" ipv4.route-metric 100 ipv6.route-metric 100'"])
         }
         setRouteMetrics.running = true
     }
@@ -839,7 +841,7 @@ Singleton {
 
     Process {
         id: restartConnections
-        command: ["bash", "-c", "nmcli -t -f UUID,TYPE connection show --active | " + "grep -E '802-11-wireless|802-3-ethernet' | cut -d: -f1 | " + "xargs -I {} sh -c 'nmcli connection down {} && nmcli connection up {}'"]
+        command: lowPriorityCmd.concat(["bash", "-c", "nmcli -t -f UUID,TYPE connection show --active | " + "grep -E '802-11-wireless|802-3-ethernet' | cut -d: -f1 | " + "xargs -I {} sh -c 'nmcli connection down {} && nmcli connection up {}'"])
         running: false
 
         onExited: {
@@ -871,7 +873,7 @@ Singleton {
 
     Process {
         id: wifiInfoFetcher
-        command: ["nmcli", "-t", "-f", "SSID,SIGNAL,SECURITY,FREQ,RATE,MODE,CHAN,WPA-FLAGS,RSN-FLAGS,ACTIVE,BSSID", "dev", "wifi", "list"]
+        command: lowPriorityCmd.concat(["nmcli", "-t", "-f", "SSID,SIGNAL,SECURITY,FREQ,RATE,MODE,CHAN,WPA-FLAGS,RSN-FLAGS,ACTIVE,BSSID", "dev", "wifi", "list"])
         running: false
 
         stdout: StdioCollector {
@@ -976,7 +978,7 @@ Singleton {
 
     Process {
         id: wifiDeviceEnabler
-        command: ["sh", "-c", "WIFI_DEV=$(nmcli -t -f DEVICE,TYPE device | grep wifi | cut -d: -f1 | head -1); if [ -n \"$WIFI_DEV\" ]; then nmcli device connect \"$WIFI_DEV\"; else echo \"No WiFi device found\"; exit 1; fi"]
+        command: lowPriorityCmd.concat(["sh", "-c", "WIFI_DEV=$(nmcli -t -f DEVICE,TYPE device | grep wifi | cut -d: -f1 | head -1); if [ -n \"$WIFI_DEV\" ]; then nmcli device connect \"$WIFI_DEV\"; else echo \"No WiFi device found\"; exit 1; fi"])
         running: false
 
         onExited: exitCode => {
@@ -1006,7 +1008,7 @@ Singleton {
 
     Process {
         id: ethernetDisconnector
-        command: ["sh", "-c", "nmcli device disconnect $(nmcli -t -f DEVICE,TYPE device | grep ethernet | cut -d: -f1 | head -1)"]
+        command: lowPriorityCmd.concat(["sh", "-c", "nmcli device disconnect $(nmcli -t -f DEVICE,TYPE device | grep ethernet | cut -d: -f1 | head -1)"])
         running: false
 
         onExited: function (exitCode) {
@@ -1016,7 +1018,7 @@ Singleton {
 
     Process {
         id: ethernetConnector
-        command: ["sh", "-c", "ETH_DEV=$(nmcli -t -f DEVICE,TYPE device | grep ethernet | cut -d: -f1 | head -1); if [ -n \"$ETH_DEV\" ]; then nmcli device connect \"$ETH_DEV\"; else echo \"No ethernet device found\"; exit 1; fi"]
+        command: lowPriorityCmd.concat(["sh", "-c", "ETH_DEV=$(nmcli -t -f DEVICE,TYPE device | grep ethernet | cut -d: -f1 | head -1); if [ -n \"$ETH_DEV\" ]; then nmcli device connect \"$ETH_DEV\"; else echo \"No ethernet device found\"; exit 1; fi"])
         running: false
 
         onExited: function (exitCode) {

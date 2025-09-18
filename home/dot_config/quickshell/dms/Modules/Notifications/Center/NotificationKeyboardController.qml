@@ -138,6 +138,22 @@ QtObject {
         ensureVisible()
     }
 
+    function selectNextWrapping() {
+        keyboardNavigationActive = true
+        if (flatNavigation.length === 0)
+            return
+
+        // Re-enable auto-scrolling when arrow keys are used
+        if (listView && listView.enableAutoScroll) {
+            listView.enableAutoScroll()
+        }
+
+        selectedFlatIndex = (selectedFlatIndex + 1) % flatNavigation.length
+        updateSelectedIdFromIndex()
+        selectionVersion++
+        ensureVisible()
+    }
+
     function selectPrevious() {
         keyboardNavigationActive = true
         if (flatNavigation.length === 0)
@@ -407,6 +423,9 @@ QtObject {
                 event.accepted = true
             } else if (event.key === Qt.Key_Delete || event.key === Qt.Key_Backspace) {
                 clearSelected()
+                event.accepted = true
+            } else if (event.key === Qt.Key_Tab) {
+                selectNextWrapping()
                 event.accepted = true
             } else if (event.key >= Qt.Key_1 && event.key <= Qt.Key_9) {
                 const actionIndex = event.key - Qt.Key_1

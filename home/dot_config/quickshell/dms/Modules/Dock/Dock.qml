@@ -10,10 +10,11 @@ import qs.Widgets
 PanelWindow {
     id: dock
 
+    WlrLayershell.namespace: "quickshell:dock"
+
     WlrLayershell.layer: WlrLayershell.Top
     WlrLayershell.exclusiveZone: -1
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
-    WlrLayershell.namespace: "quickshell:dock"
 
     property var modelData
     property var contextMenu

@@ -11,6 +11,8 @@ import qs.Widgets
 PanelWindow {
     id: win
 
+    WlrLayershell.namespace: "quickshell:notification"
+
     required property var notificationData
     required property string notificationId
     readonly property bool hasValidData: notificationData && notificationData.notification
@@ -243,6 +245,22 @@ PanelWindow {
                             return ""
                         }
                         visible: status === Image.Ready
+
+                        Component.onCompleted: {
+                            backer.sourceSize.width = 128
+                            backer.sourceSize.height = 128
+                        }
+                    }
+
+                    Rectangle {
+                        anchors.fill: parent
+                        anchors.margins: 0
+                        radius: width / 2
+                        color: "transparent"
+                        border.color: Theme.popupBackground()
+                        border.width: 3
+                        visible: iconContainer.hasNotificationImage
+                        antialiasing: true
                     }
 
                     StyledText {

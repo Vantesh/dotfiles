@@ -20,6 +20,17 @@ DankModal {
         if (modalKeyboardController && notificationListRef) {
             modalKeyboardController.listView = notificationListRef
             modalKeyboardController.rebuildFlatNavigation()
+            
+            Qt.callLater(() => {
+                modalKeyboardController.keyboardNavigationActive = true
+                modalKeyboardController.selectedFlatIndex = 0
+                modalKeyboardController.updateSelectedIdFromIndex()
+                if (notificationListRef) {
+                    notificationListRef.keyboardActive = true
+                }
+                modalKeyboardController.selectionVersion++
+                modalKeyboardController.ensureVisible()
+            })
         }
     }
 

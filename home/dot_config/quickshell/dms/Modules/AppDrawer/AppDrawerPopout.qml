@@ -36,7 +36,6 @@ DankPopout {
     triggerY: Theme.barHeight - 4 + SettingsData.topBarSpacing + Theme.spacingXS
     triggerWidth: 40
     positioning: "center"
-    WlrLayershell.namespace: "quickshell-launcher"
     screen: triggerScreen
 
     onShouldBeVisibleChanged: {
@@ -416,6 +415,7 @@ DankPopout {
                                             font.pixelSize: Theme.fontSizeMedium
                                             color: Theme.surfaceVariantText
                                             elide: Text.ElideRight
+                                            maximumLineCount: 1
                                             visible: appList.showDescription && model.comment && model.comment.length > 0
                                         }
                                     }

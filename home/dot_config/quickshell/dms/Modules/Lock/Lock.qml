@@ -53,7 +53,6 @@ Item {
             onStreamFinished: {
                 if (text.includes("true")) {
                     console.log("Session is locked on startup, activating lock screen")
-                    LockScreenService.resetState()
                     loader.activeAsync = true
                 }
             }
@@ -77,14 +76,12 @@ Item {
             onRead: line => {
                         if (line.includes("org.freedesktop.login1.Session.Lock")) {
                             console.log("login1: Lock signal received -> show lock")
-                            LockScreenService.resetState()
                             loader.activeAsync = true
                         } else if (line.includes("org.freedesktop.login1.Session.Unlock")) {
                             console.log("login1: Unlock signal received -> hide lock")
                             loader.active = false
                         } else if (line.includes("LockedHint") && line.includes("true")) {
                             console.log("login1: LockedHint=true -> show lock")
-                            LockScreenService.resetState()
                             loader.activeAsync = true
                         } else if (line.includes("LockedHint") && line.includes("false")) {
                             console.log("login1: LockedHint=false -> hide lock")
@@ -137,7 +134,6 @@ Item {
 
         function lock() {
             console.log("Lock screen requested via IPC")
-            LockScreenService.resetState()
             loader.activeAsync = true
         }
 

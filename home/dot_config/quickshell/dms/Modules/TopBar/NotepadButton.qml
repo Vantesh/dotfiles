@@ -1,5 +1,6 @@
 import QtQuick
 import qs.Common
+import qs.Services
 import qs.Widgets
 
 Rectangle {
@@ -45,7 +46,7 @@ Rectangle {
         anchors.top: parent.top
         anchors.rightMargin: SettingsData.topBarNoBackground ? 0 : 4
         anchors.topMargin: SettingsData.topBarNoBackground ? 0 : 4
-        visible: SessionData.notepadContent.length > 0
+        visible: NotepadStorageService.tabs && NotepadStorageService.tabs.length > 0
         opacity: 0.8
     }
 

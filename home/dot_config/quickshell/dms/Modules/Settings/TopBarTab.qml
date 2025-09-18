@@ -157,6 +157,18 @@ Item {
             "description": "Quick access to notepad",
             "icon": "assignment",
             "enabled": true
+        }, {
+            "id": "colorPicker",
+            "text": "Color Picker",
+            "description": "Quick access to color picker",
+            "icon": "palette",
+            "enabled": true
+        }, {
+            "id": "systemUpdate",
+            "text": "System Update",
+            "description": "Check for system updates",
+            "icon": "update",
+            "enabled": SystemUpdateService.distributionSupported
         }]
     property var defaultLeftWidgets: [{
             "id": "launcherButton",
@@ -577,26 +589,13 @@ Item {
                                        }
                         }
                     }
-                }
-            }
 
-            // Manual Visibility Toggle
-            StyledRect {
-                width: parent.width
-                height: topBarVisibilitySection.implicitHeight + Theme.spacingL * 2
-                radius: Theme.cornerRadius
-                color: Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g,
-                               Theme.surfaceVariant.b, 0.3)
-                border.color: Qt.rgba(Theme.outline.r, Theme.outline.g,
-                                      Theme.outline.b, 0.2)
-                border.width: 1
-
-                Column {
-                    id: topBarVisibilitySection
-
-                    anchors.fill: parent
-                    anchors.margins: Theme.spacingL
-                    spacing: Theme.spacingM
+                    Rectangle {
+                        width: parent.width
+                        height: 1
+                        color: Theme.outline
+                        opacity: 0.2
+                    }
 
                     Row {
                         width: parent.width
@@ -642,8 +641,63 @@ Item {
                                        }
                         }
                     }
+
+                    Rectangle {
+                        width: parent.width
+                        height: 1
+                        color: Theme.outline
+                        opacity: 0.2
+                        visible: CompositorService.isNiri
+                    }
+
+                    Row {
+                        width: parent.width
+                        spacing: Theme.spacingM
+                        visible: CompositorService.isNiri
+
+                        DankIcon {
+                            name: "fullscreen"
+                            size: Theme.iconSize
+                            color: Theme.primary
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+
+                        Column {
+                            width: parent.width - Theme.iconSize - Theme.spacingM
+                                   - overviewToggle.width - Theme.spacingM
+                            spacing: Theme.spacingXS
+                            anchors.verticalCenter: parent.verticalCenter
+
+                            StyledText {
+                                text: "Show on Overview"
+                                font.pixelSize: Theme.fontSizeLarge
+                                font.weight: Font.Medium
+                                color: Theme.surfaceText
+                            }
+
+                            StyledText {
+                                text: "Always show the top bar when niri's overview is open"
+                                font.pixelSize: Theme.fontSizeSmall
+                                color: Theme.surfaceVariantText
+                                wrapMode: Text.WordWrap
+                                width: parent.width
+                            }
+                        }
+
+                        DankToggle {
+                            id: overviewToggle
+
+                            anchors.verticalCenter: parent.verticalCenter
+                            checked: SettingsData.topBarOpenOnOverview
+                            onToggled: toggled => {
+                                           return SettingsData.setTopBarOpenOnOverview(
+                                               toggled)
+                                       }
+                        }
+                    }
                 }
             }
+
 
             // Spacing
             StyledRect {

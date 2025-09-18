@@ -15,6 +15,7 @@ Item {
     property bool showValue: true
     property bool isDragging: false
     property bool wheelEnabled: true
+    property real valueOverride: -1
     readonly property bool containsMouse: sliderMouseArea.containsMouse
 
     signal sliderValueChanged(int newValue)
@@ -114,7 +115,7 @@ Item {
                     StyledText {
                         id: tooltipText
 
-                        text: slider.value + slider.unit
+                        text: (slider.valueOverride >= 0 ? Math.round(slider.valueOverride) : slider.value) + slider.unit
                         font.pixelSize: Theme.fontSizeSmall
                         color: Theme.surfaceText
                         font.weight: Font.Medium
@@ -157,8 +158,10 @@ Item {
                     preventStealing: true
                     acceptedButtons: Qt.LeftButton
                     onWheel: wheelEvent => {
-                                 if (!slider.wheelEnabled)
-                                 return
+                                 if (!slider.wheelEnabled) {
+                                     wheelEvent.accepted = false
+                                     return
+                                 }
                                  let step = Math.max(1, (maximum - minimum) / 20)
                                  let newValue = wheelEvent.angleDelta.y > 0 ? Math.min(maximum, value + step) : Math.max(minimum, value - step)
                                  newValue = Math.round(newValue)

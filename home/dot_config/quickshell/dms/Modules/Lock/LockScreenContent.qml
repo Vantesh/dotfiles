@@ -1,3 +1,4 @@
+import QtCore
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Effects
@@ -15,6 +16,9 @@ Item {
     property string passwordBuffer: ""
     property bool demoMode: false
     property string screenName: ""
+    property bool unlocking: false
+    property string pamState: ""
+    property string randomFact: ""
 
     signal unlockRequested
 
@@ -39,9 +43,15 @@ Item {
         powerDialogVisible = false
     }
 
+    property var facts: ["A photon takes 100,000 to 200,000 years bouncing through the Sun's dense core, then races to Earth in just 8 minutes 20 seconds.", "A teaspoon of neutron star matter would weigh a billion metric tons here on Earth.", "Right now, 100 trillion solar neutrinos are passing through your body every second.", "The Sun converts 4 million metric tons of matter into pure energy every second—enough to power Earth for 500,000 years.", "The universe still glows with leftover heat from the Big Bang—just 2.7 degrees above absolute zero.", "There's a nebula out there that's actually colder than empty space itself.", "We've detected black holes crashing together by measuring spacetime stretch by less than 1/10,000th the width of a proton.", "Fast radio bursts can release more energy in 5 milliseconds than our Sun produces in 3 days.", "Our galaxy might be crawling with billions of rogue planets drifting alone in the dark.", "Distant galaxies can move away from us faster than light because space itself is stretching.", "The edge of what we can see is 46.5 billion light-years away, even though the universe is only 13.8 billion years old.", "The universe is mostly invisible: 5% regular matter, 27% dark matter, 68% dark energy.", "A day on Venus lasts longer than its entire year around the Sun.", "On Mercury, the time between sunrises is 176 Earth days long.", "In about 4.5 billion years, our galaxy will smash into Andromeda.", "Most of the gold in your jewelry was forged when neutron stars collided somewhere in space.", "PSR J1748-2446ad, the fastest spinning star, rotates 716 times per second—its equator moves at 24% the speed of light.", "Cosmic rays create particles that shouldn't make it to Earth's surface, but time dilation lets them sneak through.", "Jupiter's magnetic field is so huge that if we could see it, it would look bigger than the Moon in our sky.", "Interstellar space is so empty it's like a cube 32 kilometers wide containing just a single grain of sand.", "Voyager 1 is 24 billion kilometers away but won't leave the Sun's gravitational influence for another 30,000 years.", "Counting to a billion at one number per second would take over 31 years.", "Space is so vast, even speeding at light-speed, you'd never return past the cosmic horizon.", "Astronauts on the ISS age about 0.01 seconds less each year than people on Earth.", "Sagittarius B2, a dust cloud near our galaxy's center, contains ethyl formate—the compound that gives raspberries their flavor and rum its smell.", "Beyond 16 billion light-years, the cosmic event horizon marks where space expands too fast for light to ever reach us again.", "Even at light-speed, you'd never catch up to most galaxies—space expands faster.", "Only around 5% of galaxies are ever reachable—even at light-speed.", "If the Sun vanished, we'd still orbit it for 8 minutes before drifting away.", "If a planet 65 million light-years away looked at Earth now, it'd see dinosaurs.", "Our oldest radio signals will reach the Milky Way's center in 26,000 years.", "Every atom in your body heavier than hydrogen was forged in the nuclear furnace of a dying star.", "The Moon moves 3.8 centimeters farther from Earth every year.", "The universe creates 275 million new stars every single day.", "Jupiter's Great Red Spot is a storm twice the size of Earth that has been raging for at least 350 years.", "If you watched someone fall into a black hole, they'd appear frozen at the event horizon forever—time effectively stops from your perspective.", "The Boötes Supervoid is a cosmic desert 1.8 billion light-years across with 60% fewer galaxies than it should have."]
+
+    function pickRandomFact() {
+        randomFact = facts[Math.floor(Math.random() * facts.length)]
+    }
+
     Component.onCompleted: {
         if (demoMode) {
-            LockScreenService.pickRandomFact()
+            pickRandomFact()
         }
 
         WeatherService.addRef()
@@ -49,7 +59,7 @@ Item {
     }
     onDemoModeChanged: {
         if (demoMode) {
-            LockScreenService.pickRandomFact()
+            pickRandomFact()
         }
     }
     Component.onDestruction: {
@@ -75,6 +85,12 @@ Item {
         anchors.fill: parent
         source: {
             var currentWallpaper = SessionData.getMonitorWallpaper(screenName)
+            if (screenName && currentWallpaper && currentWallpaper.startsWith("we:")) {
+                const cacheHome = StandardPaths.writableLocation(StandardPaths.CacheLocation).toString()
+                const baseDir = Paths.strip(cacheHome)
+                const screenshotPath = baseDir + "/dankshell/we_screenshots" + "/" + currentWallpaper.substring(3) + ".jpg"
+                return screenshotPath
+            }
             return (currentWallpaper && !currentWallpaper.startsWith("#")) ? currentWallpaper : ""
         }
         fillMode: Image.PreserveAspectCrop
@@ -87,7 +103,7 @@ Item {
         layer.effect: MultiEffect {
             autoPaddingEnabled: false
             blurEnabled: true
-            blur: 1.5
+            blur: 0.8
             blurMax: 32
             blurMultiplier: 1
         }
@@ -295,8 +311,9 @@ Item {
                             return margin
                         }
                         opacity: 0
-                        focus: !demoMode
+                        focus: true
                         enabled: !demoMode
+                        activeFocusOnTab: !demoMode
                         echoMode: parent.showPassword ? TextInput.Normal : TextInput.Password
                         onTextChanged: {
                             if (!demoMode) {
@@ -321,12 +338,16 @@ Item {
                                             }
                                         }
 
-                        Timer {
-                            id: focusTimer
+                        Component.onCompleted: {
+                            if (!demoMode) {
+                                forceActiveFocus()
+                            }
+                        }
 
-                            interval: 100
-                            running: !demoMode
-                            onTriggered: passwordField.forceActiveFocus()
+                        onVisibleChanged: {
+                            if (visible && !demoMode) {
+                                forceActiveFocus()
+                            }
                         }
                     }
 
@@ -348,7 +369,7 @@ Item {
                             if (demoMode) {
                                 return ""
                             }
-                            if (LockScreenService.unlocking) {
+                            if (root.unlocking) {
                                 return "Unlocking..."
                             }
                             if (pam.active) {
@@ -356,7 +377,7 @@ Item {
                             }
                             return "Password..."
                         }
-                        color: LockScreenService.unlocking ? Theme.primary : (pam.active ? Theme.primary : Theme.outline)
+                        color: root.unlocking ? Theme.primary : (pam.active ? Theme.primary : Theme.outline)
                         font.pixelSize: Theme.fontSizeMedium
                         opacity: (demoMode || root.passwordBuffer.length === 0) ? 1 : 0
 
@@ -411,7 +432,7 @@ Item {
                         anchors.verticalCenter: parent.verticalCenter
                         iconName: parent.showPassword ? "visibility_off" : "visibility"
                         buttonSize: 32
-                        visible: !demoMode && root.passwordBuffer.length > 0 && !pam.active && !LockScreenService.unlocking
+                        visible: !demoMode && root.passwordBuffer.length > 0 && !pam.active && !root.unlocking
                         enabled: visible
                         onClicked: parent.showPassword = !parent.showPassword
                     }
@@ -423,7 +444,7 @@ Item {
                         anchors.verticalCenter: parent.verticalCenter
                         iconName: "keyboard"
                         buttonSize: 32
-                        visible: !demoMode && !pam.active && !LockScreenService.unlocking
+                        visible: !demoMode && !pam.active && !root.unlocking
                         enabled: visible
                         onClicked: {
                             if (keyboardController.isKeyboardActive) {
@@ -444,17 +465,17 @@ Item {
                         height: 24
                         radius: 12
                         color: "transparent"
-                        visible: !demoMode && (pam.active || LockScreenService.unlocking)
+                        visible: !demoMode && (pam.active || root.unlocking)
 
                         DankIcon {
                             anchors.centerIn: parent
                             name: "check_circle"
                             size: 20
                             color: Theme.primary
-                            visible: LockScreenService.unlocking
+                            visible: root.unlocking
 
                             SequentialAnimation on scale {
-                                running: LockScreenService.unlocking
+                                running: root.unlocking
 
                                 NumberAnimation {
                                     from: 0
@@ -476,7 +497,7 @@ Item {
 
                         Item {
                             anchors.fill: parent
-                            visible: pam.active && !LockScreenService.unlocking
+                            visible: pam.active && !root.unlocking
 
                             Rectangle {
                                 width: 20
@@ -506,7 +527,7 @@ Item {
                                 }
 
                                 RotationAnimation on rotation {
-                                    running: pam.active && !LockScreenService.unlocking
+                                    running: pam.active && !root.unlocking
                                     loops: Animation.Infinite
                                     duration: Anims.durLong
                                     from: 0
@@ -524,7 +545,7 @@ Item {
                         anchors.verticalCenter: parent.verticalCenter
                         iconName: "keyboard_return"
                         buttonSize: 36
-                        visible: (demoMode || (root.passwordBuffer.length > 0 && !pam.active && !LockScreenService.unlocking))
+                        visible: (demoMode || (root.passwordBuffer.length > 0 && !pam.active && !root.unlocking))
                         enabled: !demoMode
                         onClicked: {
                             if (!demoMode) {
@@ -552,15 +573,15 @@ Item {
 
             StyledText {
                 Layout.fillWidth: true
-                Layout.preferredHeight: LockScreenService.pamState ? 20 : 0
+                Layout.preferredHeight: root.pamState ? 20 : 0
                 text: {
-                    if (LockScreenService.pamState === "error") {
+                    if (root.pamState === "error") {
                         return "Authentication error - try again"
                     }
-                    if (LockScreenService.pamState === "max") {
+                    if (root.pamState === "max") {
                         return "Too many attempts - locked out"
                     }
-                    if (LockScreenService.pamState === "fail") {
+                    if (root.pamState === "fail") {
                         return "Incorrect password - try again"
                     }
                     return ""
@@ -568,8 +589,8 @@ Item {
                 color: Theme.error
                 font.pixelSize: Theme.fontSizeSmall
                 horizontalAlignment: Text.AlignHCenter
-                visible: LockScreenService.pamState !== ""
-                opacity: LockScreenService.pamState !== "" ? 1 : 0
+                visible: root.pamState !== ""
+                opacity: root.pamState !== "" ? 1 : 0
 
                 Behavior on opacity {
                     NumberAnimation {
@@ -799,6 +820,7 @@ Item {
             anchors.left: parent.left
             anchors.margins: Theme.spacingXL
             spacing: Theme.spacingL
+            visible: SettingsData.lockScreenShowPowerActions
 
             DankActionButton {
                 iconName: "power_settings_new"
@@ -849,13 +871,13 @@ Item {
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.margins: Theme.spacingL
             width: Math.min(parent.width - Theme.spacingXL * 2, implicitWidth)
-            text: LockScreenService.randomFact
+            text: root.randomFact
             font.pixelSize: Theme.fontSizeSmall
             color: "white"
             opacity: 0.8
             horizontalAlignment: Text.AlignHCenter
             wrapMode: Text.NoWrap
-            visible: LockScreenService.randomFact !== ""
+            visible: root.randomFact !== ""
         }
     }
 
@@ -888,7 +910,7 @@ Item {
                          console.log("PAM authentication completed with result:", res)
                          if (res === PamResult.Success) {
                              console.log("Authentication successful, unlocking")
-                             LockScreenService.setUnlocking(true)
+                             root.unlocking = true
                              passwordField.text = ""
                              root.passwordBuffer = ""
                              root.unlockRequested()
@@ -896,11 +918,11 @@ Item {
                          }
                          console.log("Authentication failed:", res)
                          if (res === PamResult.Error)
-                         LockScreenService.setPamState("error")
+                         root.pamState = "error"
                          else if (res === PamResult.MaxTries)
-                         LockScreenService.setPamState("max")
+                         root.pamState = "max"
                          else if (res === PamResult.Failed)
-                         LockScreenService.setPamState("fail")
+                         root.pamState = "fail"
                          placeholderDelay.restart()
                      }
     }
@@ -909,7 +931,7 @@ Item {
         id: placeholderDelay
 
         interval: 4000
-        onTriggered: LockScreenService.setPamState("")
+        onTriggered: root.pamState = ""
     }
 
     MouseArea {

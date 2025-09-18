@@ -14,11 +14,23 @@ Singleton {
     property string lastError: ""
     property date lastStartDate
     property date lastEndDate
+    property string khalDateFormat: "MM/dd/yyyy"
 
     function checkKhalAvailability() {
         if (!khalCheckProcess.running)
             khalCheckProcess.running = true
     }
+
+    function detectKhalDateFormat() {
+        if (!khalFormatProcess.running)
+            khalFormatProcess.running = true
+    }
+
+    function parseKhalDateFormat(formatExample) {
+        let qtFormat = formatExample.replace("12", "MM").replace("21", "dd").replace("2013", "yyyy")
+        return { format: qtFormat, parser: null }
+    }
+
 
     function loadCurrentMonth() {
         if (!root.khalAvailable)
@@ -46,9 +58,9 @@ Singleton {
         root.lastStartDate = startDate
         root.lastEndDate = endDate
         root.isLoading = true
-        // Format dates for khal (MM/dd/yyyy based on printformats)
-        let startDateStr = Qt.formatDate(startDate, "MM/dd/yyyy")
-        let endDateStr = Qt.formatDate(endDate, "MM/dd/yyyy")
+        // Format dates for khal using detected format
+        let startDateStr = Qt.formatDate(startDate, root.khalDateFormat)
+        let endDateStr = Qt.formatDate(endDate, root.khalDateFormat)
         eventsProcess.requestStartDate = startDate
         eventsProcess.requestEndDate = endDate
         eventsProcess.command = ["khal", "list", "--json", "title", "--json", "description", "--json", "start-date", "--json", "start-time", "--json", "end-date", "--json", "end-time", "--json", "all-day", "--json", "location", "--json", "url", startDateStr, endDateStr]
@@ -67,7 +79,35 @@ Singleton {
 
     // Initialize on component completion
     Component.onCompleted: {
-        checkKhalAvailability()
+        detectKhalDateFormat()
+    }
+
+    // Process for detecting khal date format
+    Process {
+        id: khalFormatProcess
+
+        command: ["khal", "printformats"]
+        running: false
+        onExited: exitCode => {
+            if (exitCode !== 0) {
+                checkKhalAvailability()
+            }
+        }
+
+        stdout: StdioCollector {
+            onStreamFinished: {
+                let lines = text.split('\n')
+                for (let line of lines) {
+                    if (line.startsWith('dateformat:')) {
+                        let formatExample = line.substring(line.indexOf(':') + 1).trim()
+                        let formatInfo = parseKhalDateFormat(formatExample)
+                        root.khalDateFormat = formatInfo.format
+                        break
+                    }
+                }
+                checkKhalAvailability()
+            }
+        }
     }
 
     // Process for checking khal configuration
@@ -114,21 +154,15 @@ Singleton {
                         if (!event.title)
                         continue
 
-                        // Parse start and end dates
+                        // Parse start and end dates using detected format
                         let startDate, endDate
                         if (event['start-date']) {
-                            let startParts = event['start-date'].split('/')
-                            startDate = new Date(parseInt(startParts[2]),
-                                                 parseInt(startParts[0]) - 1,
-                                                 parseInt(startParts[1]))
+                            startDate = Date.fromLocaleString(Qt.locale(), event['start-date'], root.khalDateFormat)
                         } else {
                             startDate = new Date()
                         }
                         if (event['end-date']) {
-                            let endParts = event['end-date'].split('/')
-                            endDate = new Date(parseInt(endParts[2]),
-                                               parseInt(endParts[0]) - 1,
-                                               parseInt(endParts[1]))
+                            endDate = Date.fromLocaleString(Qt.locale(), event['end-date'], root.khalDateFormat)
                         } else {
                             endDate = new Date(startDate)
                         }

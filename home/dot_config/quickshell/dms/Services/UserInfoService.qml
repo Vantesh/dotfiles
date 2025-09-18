@@ -13,6 +13,7 @@ Singleton {
     property string fullName: ""
     property string profilePicture: ""
     property string uptime: ""
+    property string shortUptime: ""
     property string hostname: ""
     property bool profileAvailable: false
 
@@ -95,6 +96,19 @@ Singleton {
                 } else {
                     root.uptime = `up ${seconds} seconds`
                 }
+
+                // Create short uptime format
+                let shortUptime = "up"
+                if (days > 0) {
+                    shortUptime += ` ${days}d`
+                }
+                if (hours > 0) {
+                    shortUptime += ` ${hours}h`
+                }
+                if (minutes > 0) {
+                    shortUptime += ` ${minutes}m`
+                }
+                root.shortUptime = shortUptime
             }
         }
     }

@@ -54,6 +54,8 @@ Singleton {
             return "beeper"
         if (appId === "home assistant desktop")
             return "homeassistant-desktop"
+        if (appId.includes("com.transmissionbt.transmission"))
+            return "transmission-gtk"
         return appId
     }
 }
