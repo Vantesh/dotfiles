@@ -18,6 +18,7 @@ Arch:
     - ntfs-3g
     - exfatprogs
     - dosfstools
+    - mtools
     - f2fs-tools
     - reflector
     - wget
@@ -40,6 +41,7 @@ Arch:
     - gammastep
     - geoclue
     - ly
+    - kdialog
     - yad # keybinds popup
     - gparted
     - brightnessctl
