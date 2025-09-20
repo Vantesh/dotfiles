@@ -11,22 +11,12 @@ common_init
 # FINALIZE
 # ===============================================================================
 print_box "smslant" "Setup Complete"
-print_step "Setup complete. Rebooting system in 10 seconds. Press Ctrl+C to cancel."
-canceled=false
-trap 'canceled=true' INT
+printf "\n"
 
-for i in {10..1}; do
-  printf "\rRebooting in %s... Press Ctrl+C to cancel." "$i"
-  sleep 1 || true
-  if [ "$canceled" = true ]; then
-    break
-  fi
-done
-echo
-trap - INT
-
-if [ "$canceled" = true ]; then
-  print_warning "Reboot canceled. You can reboot later to apply changes."
+# Reboot Prompt
+if confirm "Would you like to reboot now?"; then
+  print_info "Rebooting..."
+  systemctl reboot
 else
-  reboot
+  print_info "Please reboot at your earliest convenience to ensure all changes take effect."
 fi
