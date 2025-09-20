@@ -1,41 +1,69 @@
 #!/bin/sh
-# Bootstrap script for chezmoi
-# Backs up ~/.config once, then runs chezmoi init
+#
+# chezmoi bootstrap script
+#
 
-set -e # Exit on error
+set -e
 
-# Install chezmoi if not found
-if ! command -v chezmoi >/dev/null 2>&1; then
-  bin_dir="$HOME/.local/bin"
-  chezmoi="$bin_dir/chezmoi"
+# --- Logging Functions ---
+log_info() {
+  printf "\033[1;34m==>\033[0m %s\n" "$1"
+}
+
+log_error() {
+  printf "\033[1;31m==> ERROR:\033[0m %s\n" "$1" >&2
+}
+
+# --- Ensure chezmoi is installed ---
+ensure_chezmoi_installed() {
+  if command -v chezmoi >/dev/null 2>&1; then
+    echo "chezmoi"
+    return
+  fi
+
+  bin_dir="${HOME}/.local/bin"
+  chezmoi_path="${bin_dir}/chezmoi"
+  mkdir -p "$bin_dir"
+
+  log_info "chezmoi not found. Installing to ${bin_dir}..."
+
   if command -v curl >/dev/null 2>&1; then
     sh -c "$(curl -fsSL https://git.io/chezmoi)" -- -b "$bin_dir"
   elif command -v wget >/dev/null 2>&1; then
     sh -c "$(wget -qO- https://git.io/chezmoi)" -- -b "$bin_dir"
   else
-    echo "To install chezmoi, you must have curl or wget installed." >&2
+    log_error "To install chezmoi, you must have curl or wget."
     exit 1
   fi
-else
-  chezmoi="chezmoi"
-fi
 
-STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}"
-mkdir -p "$STATE_DIR"
-backup_marker="$STATE_DIR/config-backup-done"
+  echo "$chezmoi_path"
+}
 
-# Backup ~/.config only once if not already done
-if [ ! -f "$backup_marker" ]; then
-  if [ -d "$HOME/.config" ]; then
-    backup_dir="$HOME/.config.backup.$(date +%Y%m%d%H%M%S)"
-    echo "Backing up ~/.config to $backup_dir"
-    mv "$HOME/.config" "$backup_dir"
+# --- Backup .config  ---
+backup_config_if_needed() {
+  state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
+  backup_marker="${state_dir}/backup-done"
+
+  [ -f "$backup_marker" ] && return
+
+  if [ -d "${HOME}/.config" ]; then
+    backup_dir="${HOME}/.config.backup.$(date +%Y%m%d%H%M%S)"
+    log_info "Backing up existing ~/.config to ${backup_dir}"
+    mv "${HOME}/.config" "$backup_dir"
   fi
-  touch "$backup_marker"
-fi
 
-# Get script dir (POSIX way)
+  mkdir -p "$state_dir"
+  touch "$backup_marker"
+}
+
+# --- Main Execution ---
+chezmoi_bin=$(ensure_chezmoi_installed)
+backup_config_if_needed
+
+# Resolve the script directory
 script_dir="$(cd -P -- "$(dirname -- "$(command -v -- "$0")")" && pwd -P)"
 
-# Run chezmoi init
-exec "$chezmoi" init --apply "--source=$script_dir"
+log_info "Initializing dotfiles setup"
+printf "\n"
+
+exec "$chezmoi_bin" init --apply "--source=$script_dir"
