@@ -21,18 +21,6 @@ https://github.com/user-attachments/assets/bd263e88-f2b6-477a-97dc-e8c1afa23669
 
 ## Installation
 
-### Method 1: Direct Installation
-
-Initialize and apply the dotfiles directly:
-
-```bash
-chezmoi init --apply vantesh
-```
-
-### Method 2: Clone and Install
-
-If you prefer to clone the repository first:
-
 ```bash
 # Clone the dotfiles repository
 git clone https://github.com/vantesh/dotfiles.git
@@ -47,8 +35,6 @@ chmod +x install.sh
 ./install.sh
 ```
 
-This method allows you to inspect and modify the configurations before installation.
-
 ### Keybindings
 
 Use **SUPER + F2** to view all available keybindings and shortcuts.
@@ -59,17 +45,23 @@ Super is the **Windows** key
 <details>
 <summary>Click to expand</summary>
 
-- **System Configuration** - Configures sudo, pacman, and installs AUR helper
+- **System Configuration** - Configures sudo, pacman, and installs AUR helper(paru/yay)
 - **Dependencies** - Installs core packages and GPU drivers
 - **Services** - Configures system services and settings
 - **Theming** - Sets up fonts, cursors, and visual themes
 - **Dotfiles** - Applies configuration files
-- **Shell Setup** - Configures ZSH (optional)
+- **Shell Setup** - Configures ZSH/Fish
 - **Snapshots** - Sets up Snapper for BTRFS (optional)
-- **Bootloader** - Configures GRUB or limine theme
+- **Bootloader** - Configures GRUB or limine theme (optional)
 - **Laptop Tweaks** - Applies laptop-specific optimizations if detected
 
 </details>
+
+### Post Installation
+
+- **Capslock** - By default capslock is remapped to escape. To change this, edit the `~/.config/hypr/hyprland/input.conf`
+
+- **Terminal** - `Kitty` is the default terminal. Edit `~/.config/xdg-terminals.list` to set default terminal
 
 ## Credits
 
