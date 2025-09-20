@@ -7,7 +7,7 @@ set -e
 
 # --- Logging Functions ---
 log_info() {
-  printf "\033[1;34m==>\033[0m %s\n" "$1"
+  printf "\033[1;34m==>\033[0m %s\n" "$1" >&2
 }
 
 log_error() {
@@ -16,14 +16,15 @@ log_error() {
 
 # --- Ensure chezmoi is installed ---
 ensure_chezmoi_installed() {
+
+  bin_dir="${HOME}/.local/bin"
+  chezmoi_bin="${bin_dir}/chezmoi"
+  mkdir -p "$bin_dir"
+
   if command -v chezmoi >/dev/null 2>&1; then
     echo "chezmoi"
     return
   fi
-
-  bin_dir="${HOME}/.local/bin"
-  chezmoi_path="${bin_dir}/chezmoi"
-  mkdir -p "$bin_dir"
 
   log_info "chezmoi not found. Installing to ${bin_dir}..."
 
@@ -36,7 +37,7 @@ ensure_chezmoi_installed() {
     exit 1
   fi
 
-  echo "$chezmoi_path"
+  echo "$chezmoi_bin"
 }
 
 # --- Backup .config  ---
