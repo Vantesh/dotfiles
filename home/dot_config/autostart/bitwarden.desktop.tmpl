@@ -1,0 +1,17 @@
+{{- if .personal }}
+{{- $pkg := "bitwarden-bin" -}}
+{{- $exec := "/opt/Bitwarden/bitwarden-app" -}}
+{{- if lookPath "bitwarden-desktop" -}}
+{{- $pkg = "bitwarden" -}}
+{{- $exec = "bitwarden-desktop" -}}
+{{- end -}}
+
+[Desktop Entry]
+Type=Application
+Version={{ output "sh" "-c" (printf "pacman -Q %s | awk '{print $2}' | cut -d'-' -f1" $pkg) | trim }}
+Name=Bitwarden
+Comment=Bitwarden startup script
+Exec={{ $exec }}
+StartupNotify=false
+Terminal=false
+{{- end -}}
