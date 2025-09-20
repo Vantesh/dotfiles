@@ -13,6 +13,26 @@ Rectangle {
     property var selectedDateEvents: []
     property bool hasEvents: selectedDateEvents && selectedDateEvents.length > 0
 
+    function weekStartJs() {
+        return Qt.locale().firstDayOfWeek % 7
+    }
+
+    function startOfWeek(dateObj) {
+        const d = new Date(dateObj)
+        const jsDow = d.getDay()
+        const diff = (jsDow - weekStartJs() + 7) % 7
+        d.setDate(d.getDate() - diff)
+        return d
+    }
+
+    function endOfWeek(dateObj) {
+        const d = new Date(dateObj)
+        const jsDow = d.getDay()
+        const add = (weekStartJs() + 6 - jsDow + 7) % 7
+        d.setDate(d.getDate() + add)
+        return d
+    }
+
     function updateSelectedDateEvents() {
         if (CalendarService && CalendarService.khalAvailable) {
             const events = CalendarService.getEventsForDate(selectedDate)
@@ -27,14 +47,16 @@ Rectangle {
             return
         }
 
-        const firstDay = new Date(calendarGrid.displayDate.getFullYear(), calendarGrid.displayDate.getMonth(), 1)
-        const dayOfWeek = firstDay.getDay()
-        const startDate = new Date(firstDay)
-        startDate.setDate(startDate.getDate() - dayOfWeek - 7)
+        const firstOfMonth = new Date(calendarGrid.displayDate.getFullYear(),
+                                      calendarGrid.displayDate.getMonth(), 1)
+        const lastOfMonth  = new Date(calendarGrid.displayDate.getFullYear(),
+                                      calendarGrid.displayDate.getMonth() + 1, 0)
 
-        const lastDay = new Date(calendarGrid.displayDate.getFullYear(), calendarGrid.displayDate.getMonth() + 1, 0)
-        const endDate = new Date(lastDay)
-        endDate.setDate(endDate.getDate() + (6 - lastDay.getDay()) + 7)
+        const startDate = startOfWeek(firstOfMonth)
+        startDate.setDate(startDate.getDate() - 7)
+
+        const endDate = endOfWeek(lastOfMonth)
+        endDate.setDate(endDate.getDate() + 7)
 
         CalendarService.loadEvents(startDate, endDate)
     }
@@ -195,10 +217,11 @@ Rectangle {
             Repeater {
                 model: {
                     const days = []
-                    const locale = Qt.locale()
-                    for (var i = 0; i < 7; i++) {
-                        const date = new Date(2024, 0, 7 + i)
-                        days.push(locale.dayName(i, Locale.ShortFormat))
+                    const loc = Qt.locale()
+                    const qtFirst = loc.firstDayOfWeek
+                    for (let i = 0; i < 7; ++i) {
+                        const qtDay = ((qtFirst - 1 + i) % 7) + 1
+                        days.push(loc.dayName(qtDay, Locale.ShortFormat))
                     }
                     return days
                 }
@@ -227,10 +250,8 @@ Rectangle {
             property date selectedDate: systemClock.date
             
             readonly property date firstDay: {
-                const date = new Date(displayDate.getFullYear(), displayDate.getMonth(), 1)
-                const dayOfWeek = date.getDay()
-                date.setDate(date.getDate() - dayOfWeek)
-                return date
+                const firstOfMonth = new Date(displayDate.getFullYear(), displayDate.getMonth(), 1)
+                return startOfWeek(firstOfMonth)
             }
 
             width: parent.width

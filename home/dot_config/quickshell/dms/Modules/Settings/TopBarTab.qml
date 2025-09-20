@@ -866,6 +866,17 @@ Item {
                                            checked)
                                    }
                     }
+
+                    DankToggle {
+                        width: parent.width
+                        text: "Goth Corners"
+                        description: "Add curved swooping tips at the bottom of the bar."
+                        checked: SettingsData.topBarGothCornersEnabled
+                        onToggled: checked => {
+                                       SettingsData.setTopBarGothCornersEnabled(
+                                           checked)
+                                   }
+                    }
                 }
             }
 

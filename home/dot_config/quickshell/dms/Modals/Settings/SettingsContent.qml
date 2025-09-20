@@ -115,14 +115,14 @@ Item {
         }
 
         Loader {
-            id: recentAppsLoader
+            id: launcherLoader
 
             anchors.fill: parent
             active: root.currentIndex === 7
             visible: active
             asynchronous: true
 
-            sourceComponent: RecentAppsTab {
+            sourceComponent: LauncherTab {
             }
 
         }
@@ -141,10 +141,23 @@ Item {
         }
 
         Loader {
-            id: aboutLoader
+            id: powerLoader
 
             anchors.fill: parent
             active: root.currentIndex === 9
+            visible: active
+            asynchronous: true
+
+            sourceComponent: PowerSettings {
+            }
+
+        }
+
+        Loader {
+            id: aboutLoader
+
+            anchors.fill: parent
+            active: root.currentIndex === 10
             visible: active
             asynchronous: true
 

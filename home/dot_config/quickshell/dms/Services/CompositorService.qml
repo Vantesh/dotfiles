@@ -162,6 +162,26 @@ Singleton {
         }
     }
 
+    function powerOffMonitors() {
+        if (isNiri) {
+            return NiriService.powerOffMonitors()
+        }
+        if (isHyprland) {
+            return Hyprland.dispatch("dpms off")
+        }
+        console.warn("CompositorService: Cannot power off monitors, unknown compositor")
+    }
+
+    function powerOnMonitors() {
+        if (isNiri) {
+            return NiriService.powerOnMonitors()
+        }
+        if (isHyprland) {
+            return Hyprland.dispatch("dpms on")
+        }
+        console.warn("CompositorService: Cannot power on monitors, unknown compositor")
+    }
+
     Process {
         id: niriSocketCheck
         command: ["test", "-S", root.niriSocket]

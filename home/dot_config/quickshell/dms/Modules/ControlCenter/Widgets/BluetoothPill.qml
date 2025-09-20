@@ -37,10 +37,11 @@ BasePill {
     }
 
     isActive: !!(BluetoothService.available && BluetoothService.adapter && BluetoothService.adapter.enabled)
+    showExpandArea: BluetoothService.available
 
     primaryText: {
         if (!BluetoothService.available) {
-            return "Bluetooth unavailable"
+            return "Bluetooth"
         }
         if (!BluetoothService.adapter) {
             return "No adapter"
@@ -53,7 +54,7 @@ BasePill {
 
     secondaryText: {
         if (!BluetoothService.available) {
-            return "Hardware not found"
+            return "No adapters"
         }
         if (!BluetoothService.adapter || !BluetoothService.adapter.enabled) {
             return "Off"

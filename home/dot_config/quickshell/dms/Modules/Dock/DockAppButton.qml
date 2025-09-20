@@ -225,7 +225,7 @@ Item {
                                                                            "comment": desktopEntry.comment || ""
                                                                        })
                                    }
-                                   desktopEntry.execute()
+                                   SessionService.launchDesktopEntry(desktopEntry)
                                }
                            } else if (appData.type === "window") {
                                const toplevel = getToplevelObject()
@@ -245,7 +245,7 @@ Item {
                                                                        "comment": desktopEntry.comment || ""
                                                                    })
                                }
-                               desktopEntry.execute()
+                             SessionService.launchDesktopEntry(desktopEntry)
                            }
                        } else if (mouse.button === Qt.RightButton) {
                            if (contextMenu) {

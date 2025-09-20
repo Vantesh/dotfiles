@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Effects
 import Quickshell
 import Quickshell.Wayland
 import Quickshell.Widgets
@@ -208,71 +209,40 @@ PanelWindow {
                 anchors.rightMargin: 56
                 height: 98
 
-                Rectangle {
+                DankCircularImage {
                     id: iconContainer
 
                     readonly property bool hasNotificationImage: notificationData && notificationData.image && notificationData.image !== ""
 
-                    width: 55
-                    height: 55
-                    radius: 27.5
-                    color: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.1)
-                    border.color: "transparent"
-                    border.width: 0
+                    width: 63
+                    height: 63
                     anchors.left: parent.left
                     anchors.verticalCenter: parent.verticalCenter
 
-                    IconImage {
-                        id: iconImage
-
-                        anchors.fill: parent
-                        anchors.margins: 2
-                        asynchronous: true
-                        source: {
-                            if (!notificationData)
-                                return ""
-
-                            if (parent.hasNotificationImage)
-                                return notificationData.cleanImage || ""
-
-                            if (notificationData.appIcon) {
-                                const appIcon = notificationData.appIcon
-                                if (appIcon.startsWith("file://") || appIcon.startsWith("http://") || appIcon.startsWith("https://"))
-                                    return appIcon
-
-                                return Quickshell.iconPath(appIcon, true)
-                            }
+                    imageSource: {
+                        if (!notificationData)
                             return ""
-                        }
-                        visible: status === Image.Ready
 
-                        Component.onCompleted: {
-                            backer.sourceSize.width = 128
-                            backer.sourceSize.height = 128
+                        if (hasNotificationImage)
+                            return notificationData.cleanImage || ""
+
+                        if (notificationData.appIcon) {
+                            const appIcon = notificationData.appIcon
+                            if (appIcon.startsWith("file://") || appIcon.startsWith("http://") || appIcon.startsWith("https://"))
+                                return appIcon
+
+                            return Quickshell.iconPath(appIcon, true)
                         }
+                        return ""
                     }
 
-                    Rectangle {
-                        anchors.fill: parent
-                        anchors.margins: 0
-                        radius: width / 2
-                        color: "transparent"
-                        border.color: Theme.popupBackground()
-                        border.width: 3
-                        visible: iconContainer.hasNotificationImage
-                        antialiasing: true
-                    }
-
-                    StyledText {
-                        anchors.centerIn: parent
-                        visible: !parent.hasNotificationImage && (!notificationData || !notificationData.appIcon || notificationData.appIcon === "")
-                        text: {
-                            const appName = notificationData && notificationData.appName ? notificationData.appName : "?"
-                            return appName.charAt(0).toUpperCase()
-                        }
-                        font.pixelSize: 20
-                        font.weight: Font.Bold
-                        color: Theme.primaryText
+                    hasImage: hasNotificationImage
+                    fallbackIcon: notificationData?.appIcon || "notifications"
+                    fallbackText: {
+                        if (hasNotificationImage || (notificationData?.appIcon && notificationData.appIcon !== ""))
+                            return ""
+                        const appName = notificationData?.appName || "?"
+                        return appName.charAt(0).toUpperCase()
                     }
                 }
 

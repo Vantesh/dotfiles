@@ -398,6 +398,11 @@ Singleton {
         nightModeEnabled = SessionData.nightModeEnabled
     }
 
+    Component.onDestruction: {
+        gammaStepProcess.running = false
+        automationProcess.running = false
+    }
+
     SystemClock {
         id: systemClock
         precision: SystemClock.Minutes

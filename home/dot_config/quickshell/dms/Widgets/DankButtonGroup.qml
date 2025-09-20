@@ -9,6 +9,7 @@ Row {
     property int currentIndex: -1
     property string selectionMode: "single"
     property bool multiSelect: selectionMode === "multi"
+    property bool checkEnabled: true
 
     signal selectionChanged(int index, bool selected)
 
@@ -143,7 +144,7 @@ Row {
                         name: "check"
                         size: Theme.iconSizeSmall
                         color: segment.selected ? Theme.surfaceText : Theme.primaryText
-                        visible: segment.selected
+                        visible: root.checkEnabled && segment.selected
                         opacity: segment.selected ? 1 : 0
                         scale: segment.selected ? 1 : 0.6
 

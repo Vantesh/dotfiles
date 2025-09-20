@@ -21,6 +21,7 @@ Singleton {
         detectElogindProcess.running = true
     }
 
+
     Process {
         id: detectUwsmProcess
         running: false
@@ -64,6 +65,21 @@ Singleton {
         }
     }
 
+    // * Apps
+    function launchDesktopEntry(desktopEntry) {
+        let cmd = desktopEntry.command
+        if (SessionData.launchPrefix && SessionData.launchPrefix.length > 0) {
+            const launchPrefix = SessionData.launchPrefix.trim().split(" ")
+            cmd = launchPrefix.concat(cmd)
+        }
+
+        Quickshell.execDetached({
+            command: cmd,
+            workingDirectory: desktopEntry.workingDirectory,
+        });
+    }
+
+    // * Session management
     function logout() {
         if (hasUwsm) {
             uwsmLogout.running = true
@@ -83,6 +99,10 @@ Singleton {
 
     function suspend() {
         Quickshell.execDetached([isElogind ? "loginctl" : "systemctl", "suspend"])
+    }
+
+    function hibernate() {
+        Quickshell.execDetached([isElogind ? "loginctl" : "systemctl", "hibernate"])
     }
 
     function reboot() {

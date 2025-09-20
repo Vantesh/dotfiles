@@ -585,7 +585,18 @@ Item {
                                         width: parent.width - 20 - Theme.spacingM * 2
 
                                         StyledText {
-                                            text: modelData && modelData.identity ? modelData.identity : "Unknown Player"
+                                            text: {
+                                                if (!modelData) return "Unknown Player"
+
+                                                const identity = modelData.identity || "Unknown Player"
+                                                const trackTitle = modelData.trackTitle || ""
+
+                                                if (trackTitle.length > 0) {
+                                                    return identity + " - " + trackTitle
+                                                }
+
+                                                return identity
+                                            }
                                             font.pixelSize: Theme.fontSizeMedium
                                             color: Theme.surfaceText
                                             font.weight: modelData === activePlayer ? Font.Medium : Font.Normal
@@ -595,7 +606,18 @@ Item {
                                         }
 
                                         StyledText {
-                                            text: modelData === activePlayer ? "Active" : "Available"
+                                            text: {
+                                                if (!modelData) return ""
+
+                                                const artist = modelData.trackArtist || ""
+                                                const isActive = modelData === activePlayer
+
+                                                if (artist.length > 0) {
+                                                    return artist + (isActive ? " (Active)" : "")
+                                                }
+
+                                                return isActive ? "Active" : "Available"
+                                            }
                                             font.pixelSize: Theme.fontSizeSmall
                                             color: Theme.surfaceVariantText
                                             elide: Text.ElideRight

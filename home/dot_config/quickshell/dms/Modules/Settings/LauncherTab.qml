@@ -21,6 +21,62 @@ Item {
 
             StyledRect {
                 width: parent.width
+                height: launchPrefixSection.implicitHeight + Theme.spacingL * 2
+                radius: Theme.cornerRadius
+                color: Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g,
+                               Theme.surfaceVariant.b, 0.3)
+                border.color: Qt.rgba(Theme.outline.r, Theme.outline.g,
+                                      Theme.outline.b, 0.2)
+                border.width: 1
+
+                Column {
+                    id: launchPrefixSection
+
+                    anchors.fill: parent
+                    anchors.margins: Theme.spacingL
+                    spacing: Theme.spacingM
+
+                    Row {
+                        width: parent.width
+                        spacing: Theme.spacingM
+
+                        DankIcon {
+                            name: "terminal"
+                            size: Theme.iconSize
+                            color: Theme.primary
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+
+                        StyledText {
+                            text: "Launch Prefix"
+                            font.pixelSize: Theme.fontSizeLarge
+                            font.weight: Font.Medium
+                            color: Theme.surfaceText
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+                    }
+
+                    StyledText {
+                        width: parent.width
+                        text: "Add a custom prefix to all application launches. This can be used for things like 'uwsm-app', 'systemd-run', or other command wrappers."
+                        font.pixelSize: Theme.fontSizeSmall
+                        color: Theme.surfaceVariantText
+                        wrapMode: Text.WordWrap
+                    }
+
+                    DankTextField {
+                        width: parent.width
+                        text: SessionData.launchPrefix
+                        placeholderText: "Enter launch prefix (e.g., 'uwsm-app')"
+                        onTextEdited: {
+                            SessionData.setLaunchPrefix(text)
+                        }
+                    }
+                }
+            }
+
+            StyledRect {
+                width: parent.width
                 height: recentlyUsedSection.implicitHeight + Theme.spacingL * 2
                 radius: Theme.cornerRadius
                 color: Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g,

@@ -46,7 +46,7 @@ Rectangle {
         DankIcon {
             name: root.iconName
             size: Theme.iconSize
-            color: root.isActive ? Theme.primary : Theme.surfaceText
+            color: Theme.primary
             anchors.verticalCenter: parent.verticalCenter
         }
 

@@ -607,11 +607,14 @@ DankPopout {
                         width: (parent.width - Theme.spacingM) / 2
                         expanded: root.expandedSection === "bluetooth"
                         onClicked: {
+                            if (!BluetoothService.available) return
                             if (BluetoothService.adapter)
                                 BluetoothService.adapter.enabled = !BluetoothService.adapter.enabled
                         }
-                        onExpandClicked: root.toggleSection("bluetooth")
-                        visible: BluetoothService.available
+                        onExpandClicked: {
+                            if (!BluetoothService.available) return
+                            root.toggleSection("bluetooth")
+                        }
                     }
                 }
 

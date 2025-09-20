@@ -13,6 +13,7 @@ Rectangle {
     property string secondaryText: ""
     property bool expanded: false
     property bool isActive: false
+    property bool showExpandArea: true
     
     signal clicked()
     signal expandClicked()
@@ -30,12 +31,12 @@ Rectangle {
         anchors.left: parent.left
         anchors.top: parent.top
         anchors.bottom: parent.bottom
-        width: parent.width - expandArea.width
+        width: parent.width - (root.showExpandArea ? expandArea.width : 0)
         topLeftRadius: Theme.cornerRadius
         bottomLeftRadius: Theme.cornerRadius
-        topRightRadius: 0
-        bottomRightRadius: 0
-        color: mainAreaMouse.containsMouse ? 
+        topRightRadius: root.showExpandArea ? 0 : Theme.cornerRadius
+        bottomRightRadius: root.showExpandArea ? 0 : Theme.cornerRadius
+        color: showExpandArea && mainAreaMouse.containsMouse ? 
                Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.08) : 
                "transparent"
         
@@ -54,7 +55,7 @@ Rectangle {
             DankIcon {
                 name: root.iconName
                 size: Theme.iconSize
-                color: root.isActive ? Theme.primary : root.iconColor
+                color: Theme.primary
                 anchors.verticalCenter: parent.verticalCenter
             }
 
@@ -87,6 +88,7 @@ Rectangle {
         
         MouseArea {
             id: mainAreaMouse
+            visible: root.showExpandArea
             anchors.fill: parent
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
@@ -103,6 +105,7 @@ Rectangle {
         anchors.top: parent.top
         anchors.bottom: parent.bottom
         width: Theme.iconSize + Theme.spacingM * 2
+        visible: root.showExpandArea
         topLeftRadius: 0
         bottomLeftRadius: 0
         topRightRadius: Theme.cornerRadius

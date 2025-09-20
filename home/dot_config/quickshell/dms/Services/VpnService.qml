@@ -38,6 +38,10 @@ Singleton {
 
     Component.onCompleted: initialize()
 
+    Component.onDestruction: {
+        nmMonitor.running = false
+    }
+
     function initialize() {
         // Start monitoring NetworkManager for changes
         nmMonitor.running = true

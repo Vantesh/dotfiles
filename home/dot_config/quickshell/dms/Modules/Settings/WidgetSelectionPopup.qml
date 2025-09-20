@@ -85,35 +85,9 @@ Popup {
     onOpened: {
         isOpening = false
         Qt.callLater(() => {
+            contentItem.forceActiveFocus()
             searchField.forceActiveFocus()
         })
-    }
-    Keys.onPressed: event => {
-        if (event.key === Qt.Key_Escape) {
-            root.close()
-            event.accepted = true
-        } else if (event.key === Qt.Key_Down) {
-            root.selectNext()
-            event.accepted = true
-        } else if (event.key === Qt.Key_Up) {
-            root.selectPrevious()
-            event.accepted = true
-        } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
-            if (root.keyboardNavigationActive) {
-                root.selectWidget()
-            } else if (root.filteredWidgets.length > 0) {
-                var firstWidget = root.filteredWidgets[0]
-                root.widgetSelected(firstWidget.id, root.targetSection)
-                root.close()
-            }
-            event.accepted = true
-        } else if (event.text && event.text.length > 0 && event.text.match(/[a-zA-Z0-9\\s]/)) {
-            if (!searchField.activeFocus) {
-                searchField.forceActiveFocus()
-            }
-            searchField.insertText(event.text)
-            event.accepted = true
-        }
     }
     onClosed: {
         isOpening = false
@@ -135,6 +109,35 @@ Popup {
 
     contentItem: Item {
         anchors.fill: parent
+        focus: true
+        
+        Keys.onPressed: event => {
+            if (event.key === Qt.Key_Escape) {
+                root.close()
+                event.accepted = true
+            } else if (event.key === Qt.Key_Down) {
+                root.selectNext()
+                event.accepted = true
+            } else if (event.key === Qt.Key_Up) {
+                root.selectPrevious()
+                event.accepted = true
+            } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
+                if (root.keyboardNavigationActive) {
+                    root.selectWidget()
+                } else if (root.filteredWidgets.length > 0) {
+                    var firstWidget = root.filteredWidgets[0]
+                    root.widgetSelected(firstWidget.id, root.targetSection)
+                    root.close()
+                }
+                event.accepted = true
+            } else if (event.text && event.text.length > 0 && event.text.match(/[a-zA-Z0-9\\s]/)) {
+                if (!searchField.activeFocus) {
+                    searchField.forceActiveFocus()
+                }
+                searchField.insertText(event.text)
+                event.accepted = true
+            }
+        }
 
         DankActionButton {
             iconName: "close"

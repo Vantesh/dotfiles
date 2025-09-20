@@ -406,6 +406,16 @@ Singleton {
         return true
     }
 
+    function doScreenTransition() {
+        return send({
+                        "Action": {
+                            "DoScreenTransition": {
+                                "delay_ms": 100,
+                            }
+                        }
+                    })
+    }
+
     function switchToWorkspace(workspaceIndex) {
         return send({
                         "Action": {
@@ -424,6 +434,22 @@ Singleton {
                             "FocusWindow": {
                                 "id": windowId
                             }
+                        }
+                    })
+    }
+
+    function powerOffMonitors() {
+        return send({
+                        "Action": {
+                            "PowerOffMonitors": {}
+                        }
+                    })
+    }
+
+    function powerOnMonitors() {
+        return send({
+                        "Action": {
+                            "PowerOnMonitors": {}
                         }
                     })
     }

@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Effects
 import Quickshell
 import Quickshell.Widgets
 import Quickshell.Services.Notifications
@@ -115,41 +116,35 @@ Rectangle {
         height: 92
         visible: !expanded
 
-        Rectangle {
+        DankCircularImage {
             id: iconContainer
             readonly property bool hasNotificationImage: notificationGroup?.latestNotification?.image && notificationGroup.latestNotification.image !== ""
 
-            width: 55
-            height: 55
-            radius: 27.5
-            color: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.1)
-            border.color: "transparent"
-            border.width: 0
+            width: 63
+            height: 63
             anchors.left: parent.left
             anchors.top: parent.top
-            anchors.topMargin: 18
+            anchors.topMargin: 14
 
-            IconImage {
-                anchors.fill: parent
-                anchors.margins: 2
-                source: {
-                    if (parent.hasNotificationImage)
-                        return notificationGroup.latestNotification.cleanImage
-                    if (notificationGroup?.latestNotification?.appIcon) {
-                        const appIcon = notificationGroup.latestNotification.appIcon
-                        if (appIcon.startsWith("file://") || appIcon.startsWith("http://") || appIcon.startsWith("https://"))
-                            return appIcon
-                        return Quickshell.iconPath(appIcon, true)
-                    }
+            imageSource: {
+                if (hasNotificationImage)
+                    return notificationGroup.latestNotification.cleanImage
+                if (notificationGroup?.latestNotification?.appIcon) {
+                    const appIcon = notificationGroup.latestNotification.appIcon
+                    if (appIcon.startsWith("file://") || appIcon.startsWith("http://") || appIcon.startsWith("https://"))
+                        return appIcon
+                    return Quickshell.iconPath(appIcon, true)
+                }
+                return ""
+            }
+
+            hasImage: hasNotificationImage
+            fallbackIcon: notificationGroup?.latestNotification?.appIcon || "notifications"  
+            fallbackText: {
+                if (hasNotificationImage || (notificationGroup?.latestNotification?.appIcon && notificationGroup.latestNotification.appIcon !== ""))
                     return ""
-                }
-                asynchronous: true
-                visible: status === Image.Ready
-
-                Component.onCompleted: {
-                    backer.sourceSize.width = 128
-                    backer.sourceSize.height = 128
-                }
+                const appName = notificationGroup?.appName || "?"
+                return appName.charAt(0).toUpperCase()
             }
 
             Rectangle {
@@ -159,20 +154,8 @@ Rectangle {
                 color: "transparent"
                 border.color: root.color
                 border.width: 5
-                visible: iconContainer.hasNotificationImage
+                visible: parent.hasImage
                 antialiasing: true
-            }
-
-            StyledText {
-                anchors.centerIn: parent
-                visible: !parent.hasNotificationImage && (!notificationGroup?.latestNotification?.appIcon || notificationGroup.latestNotification.appIcon === "")
-                text: {
-                    const appName = notificationGroup?.appName || "?"
-                    return appName.charAt(0).toUpperCase()
-                }
-                font.pixelSize: 20
-                font.weight: Font.Bold
-                color: Theme.primaryText
             }
 
             Rectangle {

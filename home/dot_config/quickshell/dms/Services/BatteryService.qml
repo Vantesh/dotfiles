@@ -4,13 +4,16 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import Quickshell
+import Quickshell.Io
 import Quickshell.Services.UPower
 
 Singleton {
     id: root
 
-    readonly property UPowerDevice device: UPower.displayDevice
-    readonly property bool batteryAvailable: device && device.ready && device.isLaptopBattery
+    readonly property UPowerDevice device: {
+        UPower.devices.values.find(dev => dev.isLaptopBattery) || null
+    }
+    readonly property bool batteryAvailable: device && device.ready
     readonly property real batteryLevel: batteryAvailable ? Math.round(device.percentage * 100) : 0
     readonly property bool isCharging: batteryAvailable && device.state === UPowerDeviceState.Charging && device.changeRate > 0
     readonly property bool isPluggedIn: batteryAvailable && (device.state !== UPowerDeviceState.Discharging && device.state !== UPowerDeviceState.Empty)
@@ -22,11 +25,6 @@ Singleton {
 
         if (device.healthSupported && device.healthPercentage > 0) {
             return `${Math.round(device.healthPercentage)}%`
-        }
-
-        if (device.energyCapacity > 0 && device.energy > 0) {
-            const healthPercent = (device.energyCapacity / 90.0045) * 100
-            return `${Math.round(healthPercent)}%`
         }
 
         return "N/A"
