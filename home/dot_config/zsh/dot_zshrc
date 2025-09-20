@@ -96,7 +96,7 @@ setopt PROMPT_SUBST
 # ---------------------------------------------------
 
 SHELL_DIR="$HOME/.config/shell"
-for file in aliasrc exportsrc secretsrc; do
+for file in aliasrc exportsrc; do
   [ -r "$SHELL_DIR/$file" ] && source "$SHELL_DIR/$file"
 done
 
