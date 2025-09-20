@@ -34,7 +34,7 @@ main() {
   if pgrep -x spotify &>/dev/null; then
     trigger_spicetify_refresh
   else
-    spicetify apply -q || echo "Error: spicetify apply failed"
+    spicetify apply -q -n || echo "Error: spicetify apply failed"
   fi
 }
 
