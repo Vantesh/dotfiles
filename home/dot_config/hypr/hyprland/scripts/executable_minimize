@@ -1,14 +1,18 @@
-#!/bin/env sh
+#!/usr/bin/env bash
 
 TMP_FILE="$XDG_RUNTIME_DIR/hyprland-show-desktop"
 
 CURRENT_WORKSPACE=$(hyprctl monitors -j | jq '.[] | .activeWorkspace | .name' | sed 's/"//g')
 
-if [ -s "$TMP_FILE-$CURRENT_WORKSPACE" ]; then
-  readarray -d $'\n' -t ADDRESS_ARRAY <<< $(< "$TMP_FILE-$CURRENT_WORKSPACE")
+# initialize accumulators to avoid accidental "unbound" behavior
+CMDS=""
+TMP_ADDRESS=""
 
-  for address in "${ADDRESS_ARRAY[@]}"
-  do
+if [ -s "$TMP_FILE-$CURRENT_WORKSPACE" ]; then
+  # read each line from the file into ADDRESS_ARRAY
+  readarray -t ADDRESS_ARRAY <"$TMP_FILE-$CURRENT_WORKSPACE"
+
+  for address in "${ADDRESS_ARRAY[@]}"; do
     CMDS+="dispatch movetoworkspacesilent name:$CURRENT_WORKSPACE,address:$address;"
   done
 
@@ -18,20 +22,22 @@ if [ -s "$TMP_FILE-$CURRENT_WORKSPACE" ]; then
 else
   HIDDEN_WINDOWS=$(hyprctl clients -j | jq --arg CW "$CURRENT_WORKSPACE" '.[] | select (.workspace .name == $CW) | .address')
 
-  readarray -d $'\n' -t ADDRESS_ARRAY <<< $HIDDEN_WINDOWS
+  # split the jq output into lines
+  readarray -t ADDRESS_ARRAY <<<"$HIDDEN_WINDOWS"
 
-  for address in "${ADDRESS_ARRAY[@]}"
-  do
-    address=$(sed 's/"//g' <<< $address )
+  for address in "${ADDRESS_ARRAY[@]}"; do
+    # remove double quotes using parameter expansion
+    address=${address//\"/}
 
-    if [[ -n address ]]; then
-      TMP_ADDRESS+="$address\n"
+    # test the variable's value (quoted!)
+    if [[ -n "$address" ]]; then
+      TMP_ADDRESS+="${address}\n"
     fi
 
-    CMDS+="dispatch movetoworkspacesilent special:desktop,address:$address;"
+    CMDS+="dispatch movetoworkspacesilent special:desktop,address:${address};"
   done
 
   hyprctl --batch "$CMDS"
 
-  echo -e "$TMP_ADDRESS" | sed -e '/^$/d' > "$TMP_FILE-$CURRENT_WORKSPACE"
+  echo -e "$TMP_ADDRESS" | sed -e '/^$/d' >"$TMP_FILE-$CURRENT_WORKSPACE"
 fi
