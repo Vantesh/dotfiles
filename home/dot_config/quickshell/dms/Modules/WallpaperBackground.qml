@@ -28,7 +28,7 @@ LazyLoader {
             anchors.left: true
             anchors.right: true
 
-            color: "black"
+            color: "transparent"
 
             Item {
                 id: root
@@ -36,7 +36,22 @@ LazyLoader {
 
                 property string source: SessionData.getMonitorWallpaper(modelData.name) || ""
                 property bool isColorSource: source.startsWith("#")
-                property Image current: one
+                property string transitionType: SessionData.wallpaperTransition
+                property real transitionProgress: 0
+                property real fillMode: 1.0
+                property vector4d fillColor: Qt.vector4d(0, 0, 0, 1)
+                property real edgeSmoothness: 0.1
+
+                property real wipeDirection: 0
+                property real discCenterX: 0.5
+                property real discCenterY: 0.5
+                property real stripesCount: 16
+                property real stripesAngle: 0
+
+                readonly property bool transitioning: transitionAnimation.running
+
+                property bool hasCurrent: currentWallpaper.status === Image.Ready && !!currentWallpaper.source
+                property bool booting: !hasCurrent && nextWallpaper.status === Image.Ready
 
                 WallpaperEngineProc {
                     id: weProc
@@ -49,40 +64,61 @@ LazyLoader {
 
                 onSourceChanged: {
                     const isWE = source.startsWith("we:")
+                    const isColor = source.startsWith("#")
+
                     if (isWE) {
-                        current = null
-                        one.source = ""
-                        two.source = ""
-                        weProc.start(source.substring(3)) // strip "we:"
+                        setWallpaperImmediate("")
+                        weProc.start(source.substring(3))
                     } else {
                         weProc.stop()
                         if (!source) {
-                            current = null
-                            one.source = ""
-                            two.source = ""
-                        } else if (isColorSource) {
-                            current = null
-                            one.source = ""
-                            two.source = ""
+                            setWallpaperImmediate("")
+                        } else if (isColor) {
+                            setWallpaperImmediate("")
                         } else {
-                            if (current === one)
-                                two.update()
-                            else
-                                one.update()
+                            changeWallpaper(source.startsWith("file://") ? source : "file://" + source)
                         }
                     }
                 }
 
-                onIsColorSourceChanged: {
-                    if (isColorSource) {
-                        current = null
-                        one.source = ""
-                        two.source = ""
-                    } else if (source) {
-                        if (current === one)
-                            two.update()
-                        else
-                            one.update()
+                function setWallpaperImmediate(newSource) {
+                    transitionAnimation.stop()
+                    root.transitionProgress = 0.0
+                    currentWallpaper.source = newSource
+                    nextWallpaper.source = ""
+                }
+
+                function changeWallpaper(newPath) {
+                    if (newPath === currentWallpaper.source) return
+                    if (!newPath || newPath.startsWith("#")) return
+
+                    if (root.transitioning) {
+                        transitionAnimation.stop()
+                        root.transitionProgress = 0
+                        currentWallpaper.source = nextWallpaper.source
+                        nextWallpaper.source = ""
+                    }
+
+                    if (root.transitionType === "wipe") {
+                        root.wipeDirection = Math.random() * 4
+                    } else if (root.transitionType === "disc") {
+                        root.discCenterX = Math.random()
+                        root.discCenterY = Math.random()
+                    } else if (root.transitionType === "stripes") {
+                        root.stripesCount = Math.round(Math.random() * 20 + 4)
+                        root.stripesAngle = Math.random() * 360
+                    }
+
+                    nextWallpaper.source = newPath
+
+                    if (currentWallpaper.source) {
+                        if (nextWallpaper.status === Image.Ready) {
+                            transitionAnimation.start()
+                        }
+                    } else {
+                        if (nextWallpaper.status === Image.Ready) {
+                            transitionAnimation.start()
+                        }
                     }
                 }
 
@@ -96,57 +132,172 @@ LazyLoader {
                     }
                 }
 
-                Img {
-                    id: one
-                }
-
-                Img {
-                    id: two
-                }
-
-                component Img: Image {
-                    id: img
-
-                    function update(): void {
-                        source = ""
-                        source = root.source
-                    }
-
+                Rectangle {
+                    id: transparentRect
                     anchors.fill: parent
-                    fillMode: Image.PreserveAspectCrop
-                    smooth: true
-                    asynchronous: true
-                    cache: false
+                    color: "transparent"
+                    visible: false
+                }
 
+                ShaderEffectSource {
+                    id: transparentSource
+                    sourceItem: transparentRect
+                    hideSource: true
+                    live: false
+                }
+
+                Image {
+                    id: currentWallpaper
+                    anchors.fill: parent
+                    visible: true
                     opacity: 0
+                    layer.enabled: true
+                    asynchronous: true
+                    smooth: true
+                    cache: true
+                    fillMode: Image.PreserveAspectCrop
+                }
+
+                Image {
+                    id: nextWallpaper
+                    anchors.fill: parent
+                    visible: true
+                    opacity: 0
+                    layer.enabled: true
+                    asynchronous: true
+                    smooth: true
+                    cache: true
+                    fillMode: Image.PreserveAspectCrop
 
                     onStatusChanged: {
-                        if (status === Image.Ready) {
-                            root.current = this
-                            if (root.current === one && two.source) {
-                                two.source = ""
-                            } else if (root.current === two && one.source) {
-                                one.source = ""
+                        if (status !== Image.Ready) return
+
+                        if (currentWallpaper.source) {
+                            if (!root.transitioning && root.transitionType !== "none") {
+                                transitionAnimation.start()
+                            } else if (root.transitionType === "none") {
+                                currentWallpaper.source = source
+                                nextWallpaper.source = ""
+                                root.transitionProgress = 0.0
+                            }
+                        } else {
+                            if (!root.transitioning && root.transitionType !== "none") {
+                                transitionAnimation.start()
+                            } else if (root.transitionType === "none") {
+                                currentWallpaper.source = source
+                                nextWallpaper.source = ""
+                                root.transitionProgress = 0.0
                             }
                         }
                     }
+                }
 
-                    states: State {
-                        name: "visible"
-                        when: root.current === img
+                ShaderEffect {
+                    id: fadeShader
+                    anchors.fill: parent
+                    visible: (root.transitionType === "fade" || root.transitionType === "none") && (root.hasCurrent || root.booting)
 
-                        PropertyChanges {
-                            img.opacity: 1
-                        }
-                    }
+                    property variant source1: root.hasCurrent ? currentWallpaper : transparentSource
+                    property variant source2: nextWallpaper
+                    property real progress: root.transitionProgress
+                    property real fillMode: root.fillMode
+                    property vector4d fillColor: root.fillColor
+                    property real imageWidth1: Math.max(1, root.hasCurrent ? source1.sourceSize.width : width)
+                    property real imageHeight1: Math.max(1, root.hasCurrent ? source1.sourceSize.height : height)
+                    property real imageWidth2: Math.max(1, source2.sourceSize.width)
+                    property real imageHeight2: Math.max(1, source2.sourceSize.height)
+                    property real screenWidth: width
+                    property real screenHeight: height
 
-                    transitions: Transition {
-                        NumberAnimation {
-                            target: img
-                            properties: "opacity"
-                            duration: Theme.mediumDuration
-                            easing.type: Easing.OutCubic
-                        }
+                    fragmentShader: Qt.resolvedUrl("../Shaders/qsb/wp_fade.frag.qsb")
+                }
+
+                ShaderEffect {
+                    id: wipeShader
+                    anchors.fill: parent
+                    visible: root.transitionType === "wipe" && (root.hasCurrent || root.booting)
+
+                    property variant source1: root.hasCurrent ? currentWallpaper : transparentSource
+                    property variant source2: nextWallpaper
+                    property real progress: root.transitionProgress
+                    property real smoothness: root.edgeSmoothness
+                    property real direction: root.wipeDirection
+                    property real fillMode: root.fillMode
+                    property vector4d fillColor: root.fillColor
+                    property real imageWidth1: Math.max(1, root.hasCurrent ? source1.sourceSize.width : width)
+                    property real imageHeight1: Math.max(1, root.hasCurrent ? source1.sourceSize.height : height)
+                    property real imageWidth2: Math.max(1, source2.sourceSize.width)
+                    property real imageHeight2: Math.max(1, source2.sourceSize.height)
+                    property real screenWidth: width
+                    property real screenHeight: height
+
+                    fragmentShader: Qt.resolvedUrl("../Shaders/qsb/wp_wipe.frag.qsb")
+                }
+
+                ShaderEffect {
+                    id: discShader
+                    anchors.fill: parent
+                    visible: root.transitionType === "disc" && (root.hasCurrent || root.booting)
+
+                    property variant source1: root.hasCurrent ? currentWallpaper : transparentSource
+                    property variant source2: nextWallpaper
+                    property real progress: root.transitionProgress
+                    property real smoothness: root.edgeSmoothness
+                    property real aspectRatio: root.width / root.height
+                    property real centerX: root.discCenterX
+                    property real centerY: root.discCenterY
+                    property real fillMode: root.fillMode
+                    property vector4d fillColor: root.fillColor
+                    property real imageWidth1: Math.max(1, root.hasCurrent ? source1.sourceSize.width : width)
+                    property real imageHeight1: Math.max(1, root.hasCurrent ? source1.sourceSize.height : height)
+                    property real imageWidth2: Math.max(1, source2.sourceSize.width)
+                    property real imageHeight2: Math.max(1, source2.sourceSize.height)
+                    property real screenWidth: width
+                    property real screenHeight: height
+
+                    fragmentShader: Qt.resolvedUrl("../Shaders/qsb/wp_disc.frag.qsb")
+                }
+
+                ShaderEffect {
+                    id: stripesShader
+                    anchors.fill: parent
+                    visible: root.transitionType === "stripes" && (root.hasCurrent || root.booting)
+
+                    property variant source1: root.hasCurrent ? currentWallpaper : transparentSource
+                    property variant source2: nextWallpaper
+                    property real progress: root.transitionProgress
+                    property real smoothness: root.edgeSmoothness
+                    property real aspectRatio: root.width / root.height
+                    property real stripeCount: root.stripesCount
+                    property real angle: root.stripesAngle
+                    property real fillMode: root.fillMode
+                    property vector4d fillColor: root.fillColor
+                    property real imageWidth1: Math.max(1, root.hasCurrent ? source1.sourceSize.width : width)
+                    property real imageHeight1: Math.max(1, root.hasCurrent ? source1.sourceSize.height : height)
+                    property real imageWidth2: Math.max(1, source2.sourceSize.width)
+                    property real imageHeight2: Math.max(1, source2.sourceSize.height)
+                    property real screenWidth: width
+                    property real screenHeight: height
+
+                    fragmentShader: Qt.resolvedUrl("../Shaders/qsb/wp_stripes.frag.qsb")
+                }
+
+                NumberAnimation {
+                    id: transitionAnimation
+                    target: root
+                    property: "transitionProgress"
+                    from: 0.0
+                    to: 1.0
+                    duration: 1000
+                    easing.type: Easing.InOutCubic
+                    onFinished: {
+                        Qt.callLater(() => {
+                            if (nextWallpaper.source && nextWallpaper.status === Image.Ready && !nextWallpaper.source.toString().startsWith("#")) {
+                                currentWallpaper.source = nextWallpaper.source
+                            }
+                            nextWallpaper.source = ""
+                            root.transitionProgress = 0.0
+                        })
                     }
                 }
             }

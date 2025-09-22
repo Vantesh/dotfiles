@@ -227,7 +227,7 @@ Rectangle {
     color: {
         if (SettingsData.topBarNoBackground)
             return "transparent"
-        const baseColor = Theme.surfaceTextHover
+        const baseColor = Theme.widgetBaseBackgroundColor
         return Qt.rgba(baseColor.r, baseColor.g, baseColor.b, baseColor.a * Theme.widgetTransparency)
     }
     visible: CompositorService.isNiri || CompositorService.isHyprland
@@ -444,14 +444,6 @@ Rectangle {
                     }
                 }
 
-                Behavior on color {
-		    // When having more icons, animation becomes clunky
-		    enabled: (!SettingsData.showWorkspaceApps || SettingsData.maxWorkspaceIcons <= 3)
-                    ColorAnimation {
-                        duration: Theme.mediumDuration
-                        easing.type: Theme.emphasizedEasing
-                    }
-                }
             }
         }
     }

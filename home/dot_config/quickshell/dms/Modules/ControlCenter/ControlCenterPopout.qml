@@ -23,6 +23,8 @@ DankPopout {
     property string triggerSection: "right"
     property var triggerScreen: null
 
+    readonly property color _containerBg: Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g, Theme.surfaceVariant.b, Theme.getContentBackgroundAlpha() * 0.60)
+
     function setTriggerPosition(x, y, width, section, screen) {
         triggerX = x
         triggerY = y
@@ -121,100 +123,28 @@ DankPopout {
                         anchors.verticalCenter: parent.verticalCenter
                         anchors.leftMargin: Theme.spacingL
                         anchors.rightMargin: Theme.spacingL
-                        spacing: Theme.spacingL
+                        spacing: Theme.spacingM
 
-                        Item {
+                        DankCircularImage {
                             id: avatarContainer
-
-                            property bool hasImage: profileImageLoader.status === Image.Ready
 
                             width: 64
                             height: 64
+                            imageSource: {
+                                if (PortalService.profileImage === "")
+                                    return ""
 
-                            Rectangle {
-                                anchors.fill: parent
-                                radius: width / 2
-                                color: "transparent"
-                                border.color: Theme.primary
-                                border.width: 1
-                                visible: parent.hasImage
+                                if (PortalService.profileImage.startsWith("/"))
+                                    return "file://" + PortalService.profileImage
+
+                                return PortalService.profileImage
                             }
-
-                            Image {
-                                id: profileImageLoader
-
-                                source: {
-                                    if (PortalService.profileImage === "")
-                                        return ""
-
-                                    if (PortalService.profileImage.startsWith(
-                                                "/"))
-                                        return "file://" + PortalService.profileImage
-
-                                    return PortalService.profileImage
-                                }
-                                smooth: true
-                                asynchronous: true
-                                mipmap: true
-                                cache: true
-                                visible: false
-                            }
-
-                            MultiEffect {
-                                anchors.fill: parent
-                                anchors.margins: 5
-                                source: profileImageLoader
-                                maskEnabled: true
-                                maskSource: circularMask
-                                visible: avatarContainer.hasImage
-                                maskThresholdMin: 0.5
-                                maskSpreadAtMin: 1
-                            }
-
-                            Item {
-                                id: circularMask
-
-                                width: 64 - 10
-                                height: 64 - 10
-                                layer.enabled: true
-                                layer.smooth: true
-                                visible: false
-
-                                Rectangle {
-                                    anchors.fill: parent
-                                    radius: width / 2
-                                    color: "black"
-                                    antialiasing: true
-                                }
-                            }
-
-                            Rectangle {
-                                anchors.fill: parent
-                                radius: width / 2
-                                color: Theme.primary
-                                visible: !parent.hasImage
-
-                                DankIcon {
-                                    anchors.centerIn: parent
-                                    name: "person"
-                                    size: Theme.iconSize + 8
-                                    color: Theme.primaryText
-                                }
-                            }
-
-                            DankIcon {
-                                anchors.centerIn: parent
-                                name: "warning"
-                                size: Theme.iconSize + 8
-                                color: Theme.primaryText
-                                visible: PortalService.profileImage !== ""
-                                         && profileImageLoader.status === Image.Error
-                            }
+                            fallbackIcon: "person"
                         }
 
                         Column {
                             anchors.verticalCenter: parent.verticalCenter
-                            spacing: Theme.spacingXS
+                            spacing: 2
 
                             StyledText {
                                 text: UserInfoService.fullName
@@ -234,75 +164,124 @@ DankPopout {
                         }
                     }
 
-                    Row {
+                    Rectangle {
                         anchors.right: parent.right
                         anchors.verticalCenter: parent.verticalCenter
-                        anchors.rightMargin: Theme.spacingL
-                        spacing: Theme.spacingS
+                        anchors.rightMargin: Theme.spacingM
+                        width: actionButtonsRow.implicitWidth + Theme.spacingM * 2
+                        height: 48
+                        radius: Theme.cornerRadius + 2
+                        color: Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g, Theme.surfaceVariant.b, 0.6)
+                        border.color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.12)
+                        border.width: 1
 
-                        Battery {
-                            widgetHeight: 40
-                            popupTarget: controlCenterBatteryPopout
-                            parentScreen: root.triggerScreen
-                            section: "right"
-                            barHeight: 123
-                            batteryPopupVisible: controlCenterBatteryPopout.shouldBeVisible
-                            visible: BatteryService.batteryAvailable
+                        Row {
+                            id: actionButtonsRow
+                            anchors.centerIn: parent
+                            spacing: Theme.spacingXS
 
-                            onToggleBatteryPopup: {
-                                if (controlCenterBatteryPopout.shouldBeVisible) {
-                                    controlCenterBatteryPopout.close()
-                                } else {
-                                    controlCenterBatteryPopout.open()
+                            Item {
+                                width: batteryContentRow.implicitWidth
+                                height: 36
+                                visible: BatteryService.batteryAvailable
+
+                                Row {
+                                    id: batteryContentRow
+                                    anchors.centerIn: parent
+                                    spacing: Theme.spacingXS
+
+                                    DankIcon {
+                                        name: Theme.getBatteryIcon(BatteryService.batteryLevel, BatteryService.isCharging, BatteryService.batteryAvailable)
+                                        size: Theme.iconSize - 4
+                                        color: {
+                                            if (batteryMouseArea.containsMouse) {
+                                                return Theme.primary
+                                            }
+                                            if (BatteryService.isLowBattery && !BatteryService.isCharging) {
+                                                return Theme.error
+                                            }
+                                            if (BatteryService.isCharging || BatteryService.isPluggedIn) {
+                                                return Theme.primary
+                                            }
+                                            return Theme.surfaceText
+                                        }
+                                        anchors.verticalCenter: parent.verticalCenter
+                                    }
+
+                                    StyledText {
+                                        text: `${BatteryService.batteryLevel}%`
+                                        font.pixelSize: Theme.fontSizeSmall
+                                        font.weight: Font.Medium
+                                        color: {
+                                            if (batteryMouseArea.containsMouse) {
+                                                return Theme.primary
+                                            }
+                                            if (BatteryService.isLowBattery && !BatteryService.isCharging) {
+                                                return Theme.error
+                                            }
+                                            if (BatteryService.isCharging) {
+                                                return Theme.primary
+                                            }
+                                            return Theme.surfaceText
+                                        }
+                                        anchors.verticalCenter: parent.verticalCenter
+                                    }
+                                }
+
+                                MouseArea {
+                                    id: batteryMouseArea
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: {
+                                        const globalPos = mapToGlobal(0, 0)
+                                        const currentScreen = root.triggerScreen || Screen
+                                        const screenX = currentScreen.x || 0
+                                        const relativeX = globalPos.x - screenX
+                                        controlCenterBatteryPopout.setTriggerPosition(relativeX, 123 + Theme.spacingXS, width, "right", currentScreen)
+
+                                        if (controlCenterBatteryPopout.shouldBeVisible) {
+                                            controlCenterBatteryPopout.close()
+                                        } else {
+                                            controlCenterBatteryPopout.open()
+                                        }
+                                    }
                                 }
                             }
-                        }
 
-                        DankActionButton {
-                            buttonSize: 40
-                            iconName: "lock"
-                            iconSize: Theme.iconSize - 2
-                            iconColor: Theme.surfaceText
-                            backgroundColor: Qt.rgba(
-                                                 Theme.surfaceVariant.r,
-                                                 Theme.surfaceVariant.g,
-                                                 Theme.surfaceVariant.b,
-                                                 0.5)
-                            onClicked: {
-                                root.close()
-                                root.lockRequested()
-                            }
-                        }
-
-                        DankActionButton {
-                            buttonSize: 40
-                            iconName: root.powerOptionsExpanded ? "expand_less" : "power_settings_new"
-                            iconSize: Theme.iconSize - 2
-                            iconColor: Theme.surfaceText
-                            backgroundColor: Qt.rgba(
-                                                 Theme.surfaceVariant.r,
-                                                 Theme.surfaceVariant.g,
-                                                 Theme.surfaceVariant.b,
-                                                 0.5)
-                            onClicked: {
-                                root.powerOptionsExpanded = !root.powerOptionsExpanded
+                            DankActionButton {
+                                buttonSize: 36
+                                iconName: "lock"
+                                iconSize: Theme.iconSize - 4
+                                iconColor: Theme.surfaceText
+                                backgroundColor: "transparent"
+                                onClicked: {
+                                    root.close()
+                                    root.lockRequested()
+                                }
                             }
 
-                        }
+                            DankActionButton {
+                                buttonSize: 36
+                                iconName: root.powerOptionsExpanded ? "expand_less" : "power_settings_new"
+                                iconSize: Theme.iconSize - 4
+                                iconColor: root.powerOptionsExpanded ? Theme.primary : Theme.surfaceText
+                                backgroundColor: "transparent"
+                                onClicked: {
+                                    root.powerOptionsExpanded = !root.powerOptionsExpanded
+                                }
+                            }
 
-                        DankActionButton {
-                            buttonSize: 40
-                            iconName: "settings"
-                            iconSize: Theme.iconSize - 2
-                            iconColor: Theme.surfaceText
-                            backgroundColor: Qt.rgba(
-                                                 Theme.surfaceVariant.r,
-                                                 Theme.surfaceVariant.g,
-                                                 Theme.surfaceVariant.b,
-                                                 0.5)
-                            onClicked: {
-                                root.close()
-                                settingsModal.show()
+                            DankActionButton {
+                                buttonSize: 36
+                                iconName: "settings"
+                                iconSize: Theme.iconSize - 4
+                                iconColor: Theme.surfaceText
+                                backgroundColor: "transparent"
+                                onClicked: {
+                                    root.close()
+                                    settingsModal.show()
+                                }
                             }
                         }
                     }
@@ -330,11 +309,11 @@ DankPopout {
 
                     Row {
                         anchors.centerIn: parent
-                        spacing: Theme.spacingL
+                        spacing: SessionService.hibernateSupported ? Theme.spacingS : Theme.spacingL
                         visible: root.powerOptionsExpanded
 
                         Rectangle {
-                            width: 100
+                            width: SessionService.hibernateSupported ? 85 : 100
                             height: 34
                             radius: Theme.cornerRadius
                             color: logoutButton.containsMouse ? Qt.rgba(
@@ -384,7 +363,7 @@ DankPopout {
                         }
 
                         Rectangle {
-                            width: 100
+                            width: SessionService.hibernateSupported ? 85 : 100
                             height: 34
                             radius: Theme.cornerRadius
                             color: rebootButton.containsMouse ? Qt.rgba(
@@ -434,7 +413,7 @@ DankPopout {
                         }
 
                         Rectangle {
-                            width: 100
+                            width: SessionService.hibernateSupported ? 85 : 100
                             height: 34
                             radius: Theme.cornerRadius
                             color: suspendButton.containsMouse ? Qt.rgba(
@@ -484,7 +463,58 @@ DankPopout {
                         }
 
                         Rectangle {
-                            width: 100
+                            width: SessionService.hibernateSupported ? 85 : 100
+                            height: 34
+                            radius: Theme.cornerRadius
+                            color: hibernateButton.containsMouse ? Qt.rgba(
+                                                                       Theme.primary.r,
+                                                                       Theme.primary.g,
+                                                                       Theme.primary.b,
+                                                                       0.12) : Qt.rgba(
+                                                                       Theme.surfaceVariant.r,
+                                                                       Theme.surfaceVariant.g,
+                                                                       Theme.surfaceVariant.b,
+                                                                       0.5)
+                            visible: SessionService.hibernateSupported
+
+                            Row {
+                                anchors.centerIn: parent
+                                spacing: Theme.spacingXS
+
+                                DankIcon {
+                                    name: "ac_unit"
+                                    size: Theme.fontSizeSmall
+                                    color: hibernateButton.containsMouse ? Theme.primary : Theme.surfaceText
+                                    anchors.verticalCenter: parent.verticalCenter
+                                }
+
+                                StyledText {
+                                    text: "Hibernate"
+                                    font.pixelSize: Theme.fontSizeSmall
+                                    color: hibernateButton.containsMouse ? Theme.primary : Theme.surfaceText
+                                    font.weight: Font.Medium
+                                    anchors.verticalCenter: parent.verticalCenter
+                                }
+                            }
+
+                            MouseArea {
+                                id: hibernateButton
+
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onPressed: {
+                                    root.powerOptionsExpanded = false
+                                    root.close()
+                                    root.powerActionRequested(
+                                                "hibernate", "Hibernate",
+                                                "Are you sure you want to hibernate?")
+                                }
+                            }
+                        }
+
+                        Rectangle {
+                            width: SessionService.hibernateSupported ? 85 : 100
                             height: 34
                             radius: Theme.cornerRadius
                             color: shutdownButton.containsMouse ? Qt.rgba(
@@ -548,7 +578,8 @@ DankPopout {
                         spacing: Theme.spacingM
 
                         AudioSliderRow {
-                            width: SettingsData.hideBrightnessSlider ? parent.width - Theme.spacingM : (parent.width - Theme.spacingM) / 2
+                            width: SettingsData.hideBrightnessSlider ? parent.width - Theme.spacingS : (parent.width - Theme.spacingM) / 2
+                            property color sliderTrackColor: root._containerBg
                         }
 
                         Item {
@@ -572,45 +603,12 @@ DankPopout {
                     NetworkPill {
                         width: (parent.width - Theme.spacingM) / 2
                         expanded: root.expandedSection === "network"
-                        onClicked: {
-                            if (NetworkService.wifiToggling) {
-                                return
-                            }
-                            if (NetworkService.networkStatus === "ethernet") {
-                                if (NetworkService.ethernetConnected && !NetworkService.wifiEnabled) {
-                                    NetworkService.toggleWifiRadio()
-                                    return
-                                }
-                                root.toggleSection("network")
-                                return
-                            }
-                            if (NetworkService.networkStatus === "wifi") {
-                                if (NetworkService.ethernetConnected) {
-                                    NetworkService.toggleWifiRadio()
-                                    return
-                                }
-                                NetworkService.disconnectWifi()
-                                return
-                            }
-                            if (!NetworkService.wifiEnabled) {
-                                NetworkService.toggleWifiRadio()
-                                return
-                            }
-                            if (NetworkService.wifiEnabled && NetworkService.networkStatus === "disconnected") {
-                                root.toggleSection("network")
-                            }
-                        }
                         onExpandClicked: root.toggleSection("network")
                     }
 
                     BluetoothPill {
                         width: (parent.width - Theme.spacingM) / 2
                         expanded: root.expandedSection === "bluetooth"
-                        onClicked: {
-                            if (!BluetoothService.available) return
-                            if (BluetoothService.adapter)
-                                BluetoothService.adapter.enabled = !BluetoothService.adapter.enabled
-                        }
                         onExpandClicked: {
                             if (!BluetoothService.available) return
                             root.toggleSection("bluetooth")
@@ -650,22 +648,12 @@ DankPopout {
                     AudioOutputPill {
                         width: (parent.width - Theme.spacingM) / 2
                         expanded: root.expandedSection === "audio_output"
-                        onClicked: {
-                            if (AudioService.sink) {
-                                AudioService.sink.audio.muted = !AudioService.sink.audio.muted
-                            }
-                        }
                         onExpandClicked: root.toggleSection("audio_output")
                     }
 
                     AudioInputPill {
                         width: (parent.width - Theme.spacingM) / 2
                         expanded: root.expandedSection === "audio_input"
-                        onClicked: {
-                            if (AudioService.source) {
-                                AudioService.source.audio.muted = !AudioService.source.audio.muted
-                            }
-                        }
                         onExpandClicked: root.toggleSection("audio_input")
                     }
                 }

@@ -1,94 +1,92 @@
 import QtQuick
-import QtQuick.Effects
 import Quickshell
 import qs.Common
 import qs.Widgets
 
-Rectangle {
+Item {
     id: root
 
     property string imageSource: ""
     property string fallbackIcon: "notifications"
     property string fallbackText: ""
     property bool hasImage: imageSource !== ""
-    property alias imageStatus: internalImage.status
+    property alias imageStatus: sourceImage.status
+    property color borderColor: "transparent"
+    property real borderWidth: 0
+    property real imageOpacity: 1.0
 
-    radius: width / 2
-    color: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.1)
-    border.color: "transparent"
-    border.width: 0
+    width: 64
+    height: 64
 
-    Image {
-        id: internalImage
+    Rectangle {
+        id: background
         anchors.fill: parent
-        anchors.margins: 2
-        asynchronous: true
-        fillMode: Image.PreserveAspectCrop
-        smooth: true
-        mipmap: true
-        cache: true
-        visible: false
-        source: root.imageSource
+        color: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.1)
+        radius: width * 0.5
 
-        Component.onCompleted: {
-            sourceSize.width = 128
-            sourceSize.height = 128
+        Image {
+            id: sourceImage
+            anchors.fill: parent
+            anchors.margins: 2
+            source: root.imageSource
+            visible: false
+            fillMode: Image.PreserveAspectCrop
+            smooth: true
+            mipmap: true
+            asynchronous: true
+            antialiasing: true
+            cache: true
+
+            Component.onCompleted: {
+                sourceSize.width = 128
+                sourceSize.height = 128
+            }
         }
-    }
 
-    MultiEffect {
-        anchors.fill: parent
-        anchors.margins: 2
-        source: internalImage
-        maskEnabled: true
-        maskSource: circularMask
-        visible: internalImage.status === Image.Ready && root.imageSource !== ""
-        maskThresholdMin: 0.5
-        maskSpreadAtMin: 1
-    }
+        ShaderEffect {
+            anchors.fill: parent
+            anchors.margins: 2
+            visible: sourceImage.status === Image.Ready && root.imageSource !== ""
 
-    Item {
-        id: circularMask
-        width: parent.width - 4
-        height: parent.height - 4
-        anchors.centerIn: parent
-        layer.enabled: true
-        layer.smooth: true
-        visible: false
+            property var source: ShaderEffectSource {
+                sourceItem: sourceImage
+                hideSource: true
+                live: true
+                recursive: false
+                format: ShaderEffectSource.RGBA
+            }
+
+            property real imageOpacity: root.imageOpacity
+
+            fragmentShader: Qt.resolvedUrl("../Shaders/qsb/circled_image.frag.qsb")
+            supportsAtlasTextures: false
+            blending: true
+        }
+
+        DankIcon {
+            anchors.centerIn: parent
+            name: root.fallbackIcon
+            size: parent.width * 0.5
+            color: Theme.surfaceVariantText
+            visible: sourceImage.status !== Image.Ready && root.imageSource === "" && root.fallbackIcon !== ""
+        }
+
+        StyledText {
+            anchors.centerIn: parent
+            visible: root.imageSource === "" && root.fallbackIcon === "" && root.fallbackText !== ""
+            text: root.fallbackText
+            font.pixelSize: Math.max(12, parent.width * 0.36)
+            font.weight: Font.Bold
+            color: Theme.primaryText
+        }
 
         Rectangle {
             anchors.fill: parent
             radius: width / 2
-            color: "black"
+            color: "transparent"
+            border.color: root.borderColor !== "transparent" ? root.borderColor : Theme.popupBackground()
+            border.width: root.hasImage && sourceImage.status === Image.Ready ? (root.borderWidth > 0 ? root.borderWidth : 3) : 0
             antialiasing: true
         }
-    }
-
-    DankIcon {
-        anchors.centerIn: parent
-        name: root.fallbackIcon
-        size: parent.width * 0.5
-        color: Theme.surfaceVariantText
-        visible: internalImage.status !== Image.Ready && root.imageSource === "" && root.fallbackIcon !== ""
-    }
-
-    Rectangle {
-        anchors.fill: parent
-        anchors.margins: 0
-        radius: width / 2
-        color: "transparent"
-        border.color: Theme.popupBackground()
-        border.width: 3
-        visible: root.hasImage && internalImage.status === Image.Ready
-        antialiasing: true
-    }
-
-    StyledText {
-        anchors.centerIn: parent
-        visible: root.imageSource === "" && root.fallbackIcon === "" && root.fallbackText !== ""
-        text: root.fallbackText
-        font.pixelSize: Math.max(12, parent.width * 0.36)
-        font.weight: Font.Bold
-        color: Theme.primaryText
     }
 }

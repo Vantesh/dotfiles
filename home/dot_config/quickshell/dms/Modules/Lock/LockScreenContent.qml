@@ -322,7 +322,7 @@ Item {
                             }
                         }
                         onAccepted: {
-                            if (!demoMode && root.passwordBuffer.length > 0 && !pam.active) {
+                            if (!demoMode && !pam.active) {
                                 console.log("Enter pressed, starting PAM authentication")
                                 pam.start()
                             }
@@ -348,6 +348,18 @@ Item {
                         onVisibleChanged: {
                             if (visible && !demoMode) {
                                 forceActiveFocus()
+                            }
+                        }
+
+                        onActiveFocusChanged: {
+                            if (!activeFocus && !demoMode && visible) {
+                                Qt.callLater(() => forceActiveFocus())
+                            }
+                        }
+
+                        onEnabledChanged: {
+                            if (enabled && !demoMode && visible) {
+                                Qt.callLater(() => forceActiveFocus())
                             }
                         }
                     }
@@ -546,7 +558,7 @@ Item {
                         anchors.verticalCenter: parent.verticalCenter
                         iconName: "keyboard_return"
                         buttonSize: 36
-                        visible: (demoMode || (root.passwordBuffer.length > 0 && !pam.active && !root.unlocking))
+                        visible: (demoMode || (!pam.active && !root.unlocking))
                         enabled: !demoMode
                         onClicked: {
                             if (!demoMode) {

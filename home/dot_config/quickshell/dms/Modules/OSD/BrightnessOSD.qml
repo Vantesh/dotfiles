@@ -78,6 +78,7 @@ DankOSD {
                 enabled: DisplayService.brightnessAvailable
                 showValue: true
                 unit: "%"
+                thumbOutlineColor: Theme.surfaceContainer
 
                 Component.onCompleted: {
                     if (DisplayService.brightnessAvailable) {

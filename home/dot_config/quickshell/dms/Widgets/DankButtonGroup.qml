@@ -10,6 +10,11 @@ Row {
     property string selectionMode: "single"
     property bool multiSelect: selectionMode === "multi"
     property bool checkEnabled: true
+    property int buttonHeight: 40
+    property int minButtonWidth: 64
+    property int buttonPadding: Theme.spacingL
+    property int checkIconSize: Theme.iconSizeSmall
+    property int textSize: Theme.fontSizeMedium
 
     signal selectionChanged(int index, bool selected)
 
@@ -54,8 +59,8 @@ Row {
             property bool prevSelected: index > 0 ? root.isSelected(index - 1) : false
             property bool nextSelected: index < repeater.count - 1 ? root.isSelected(index + 1) : false
 
-            width: Math.max(contentItem.implicitWidth + Theme.spacingL * 2, 64) + (selected ? 4 : 0)
-            height: 40
+            width: Math.max(contentItem.implicitWidth + root.buttonPadding * 2, root.minButtonWidth) + (selected ? 4 : 0)
+            height: root.buttonHeight
 
             color: selected ? Theme.primaryContainer : Theme.primary
             border.color: "transparent"
@@ -142,11 +147,12 @@ Row {
                     DankIcon {
                         id: checkIcon
                         name: "check"
-                        size: Theme.iconSizeSmall
+                        size: root.checkIconSize
                         color: segment.selected ? Theme.surfaceText : Theme.primaryText
                         visible: root.checkEnabled && segment.selected
                         opacity: segment.selected ? 1 : 0
                         scale: segment.selected ? 1 : 0.6
+                        anchors.verticalCenter: parent.verticalCenter
 
                         Behavior on opacity {
                             NumberAnimation {
@@ -166,10 +172,10 @@ Row {
                     StyledText {
                         id: buttonText
                         text: typeof modelData === "string" ? modelData : modelData.text || ""
-                        font.pixelSize: Theme.fontSizeMedium
+                        font.pixelSize: root.textSize
                         font.weight: segment.selected ? Font.Medium : Font.Normal
                         color: segment.selected ? Theme.surfaceText : Theme.primaryText
-                        verticalAlignment: Text.AlignVCenter
+                        anchors.verticalCenter: parent.verticalCenter
                     }
                 }
             }

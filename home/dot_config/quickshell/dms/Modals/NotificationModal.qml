@@ -27,6 +27,7 @@ DankModal {
                 modalKeyboardController.updateSelectedIdFromIndex()
                 if (notificationListRef) {
                     notificationListRef.keyboardActive = true
+                    notificationListRef.currentIndex = 0
                 }
                 modalKeyboardController.selectionVersion++
                 modalKeyboardController.ensureVisible()

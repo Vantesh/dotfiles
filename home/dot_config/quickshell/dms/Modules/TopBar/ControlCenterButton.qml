@@ -28,7 +28,7 @@ Rectangle {
             return "transparent";
         }
 
-        const baseColor = controlCenterArea.containsMouse || root.isActive ? Theme.primaryPressed : Theme.secondaryHover;
+        const baseColor = controlCenterArea.containsMouse ? Theme.widgetBaseHoverColor : Theme.widgetBaseBackgroundColor;
         return Qt.rgba(baseColor.r, baseColor.g, baseColor.b, baseColor.a * Theme.widgetTransparency);
     }
 
@@ -63,13 +63,6 @@ Rectangle {
             anchors.verticalCenter: parent.verticalCenter
             visible: root.showNetworkIcon
 
-            RotationAnimation on rotation {
-                running: NetworkService.wifiToggling
-                loops: Animation.Infinite
-                from: 0
-                to: 360
-                duration: 1000
-            }
 
         }
 
@@ -173,12 +166,5 @@ Rectangle {
         }
     }
 
-    Behavior on color {
-        ColorAnimation {
-            duration: Theme.shortDuration
-            easing.type: Theme.standardEasing
-        }
-
-    }
 
 }

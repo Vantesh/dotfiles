@@ -25,7 +25,7 @@ Rectangle {
             return "transparent";
         }
 
-        const baseColor = Theme.secondaryHover;
+        const baseColor = Theme.widgetBaseBackgroundColor;
         return Qt.rgba(baseColor.r, baseColor.g, baseColor.b, baseColor.a * Theme.widgetTransparency);
     }
     visible: SystemTray.items.values.length > 0
@@ -68,15 +68,6 @@ Rectangle {
                     radius: Theme.cornerRadius
                     color: trayItemArea.containsMouse ? Theme.primaryHover : "transparent"
 
-                    Behavior on color {
-                        enabled: trayItemArea.containsMouse !== undefined
-
-                        ColorAnimation {
-                            duration: Theme.shortDuration
-                            easing.type: Theme.standardEasing
-                        }
-
-                    }
 
                 }
 

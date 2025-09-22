@@ -255,11 +255,9 @@ Rectangle {
                         DankIcon {
                             name: {
                                 let strength = modelData.signal || 0
-                                if (strength >= 70) return "signal_wifi_4_bar"
-                                if (strength >= 50) return "network_wifi_3_bar"
-                                if (strength >= 25) return "network_wifi_2_bar"
-                                if (strength >= 10) return "network_wifi_1_bar"
-                                return "signal_wifi_bad"
+                                if (strength >= 50) return "wifi"
+                                if (strength >= 25) return "wifi_2_bar"
+                                return "wifi_1_bar"
                             }
                             size: Theme.iconSize - 4
                             color: modelData.ssid === NetworkService.currentWifiSSID ? Theme.primary : Theme.surfaceText

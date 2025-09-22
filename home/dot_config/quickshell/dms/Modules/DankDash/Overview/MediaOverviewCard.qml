@@ -17,7 +17,8 @@ Card {
 
     readonly property real ratio: {
         if (!activePlayer || activePlayer.length <= 0) return 0
-        const calculatedRatio = displayPosition / activePlayer.length
+        const pos = displayPosition % Math.max(1, activePlayer.length)
+        const calculatedRatio = pos / activePlayer.length
         return Math.max(0, Math.min(1, calculatedRatio))
     }
 

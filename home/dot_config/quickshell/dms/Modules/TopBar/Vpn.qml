@@ -25,8 +25,8 @@ Rectangle {
             return "transparent";
         }
 
-        const base = clickArea.containsMouse || (popupTarget && popupTarget.shouldBeVisible) ? Theme.primaryPressed : Theme.secondaryHover;
-        return Qt.rgba(base.r, base.g, base.b, base.a * Theme.widgetTransparency);
+        const baseColor = clickArea.containsMouse ? Theme.widgetBaseHoverColor : Theme.widgetBaseBackgroundColor;
+        return Qt.rgba(baseColor.r, baseColor.g, baseColor.b, baseColor.a * Theme.widgetTransparency);
     }
 
     DankIcon {
@@ -71,7 +71,7 @@ Rectangle {
         width: Math.max(120, tooltipText.contentWidth + Theme.spacingM * 2)
         height: tooltipText.contentHeight + Theme.spacingS * 2
         radius: Theme.cornerRadius
-        color: Theme.surfaceContainer
+        color: Theme.widgetBaseBackgroundColor
         border.color: Theme.surfaceVariantAlpha
         border.width: 1
         visible: clickArea.containsMouse && !(popupTarget && popupTarget.shouldBeVisible)

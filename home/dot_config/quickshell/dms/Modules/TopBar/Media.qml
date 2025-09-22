@@ -45,7 +45,7 @@ Rectangle {
             return "transparent";
         }
 
-        const baseColor = Theme.surfaceTextHover;
+        const baseColor = Theme.widgetBaseBackgroundColor;
         return Qt.rgba(baseColor.r, baseColor.g, baseColor.b, baseColor.a * Theme.widgetTransparency);
     }
     states: [
@@ -324,13 +324,6 @@ Rectangle {
 
     }
 
-    Behavior on color {
-        ColorAnimation {
-            duration: Theme.shortDuration
-            easing.type: Theme.standardEasing
-        }
-
-    }
 
     Behavior on width {
         NumberAnimation {

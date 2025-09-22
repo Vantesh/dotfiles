@@ -21,10 +21,11 @@ Rectangle {
     height: widgetHeight
     radius: SettingsData.topBarNoBackground ? 0 : Theme.cornerRadius
     color: {
-        if (SettingsData.topBarNoBackground)
+        if (SettingsData.topBarNoBackground) {
             return "transparent";
+        }
 
-        const baseColor = batteryArea.containsMouse || batteryPopupVisible ? Theme.primaryPressed : Theme.secondaryHover;
+        const baseColor = batteryArea.containsMouse ? Theme.widgetBaseHoverColor : Theme.widgetBaseBackgroundColor;
         return Qt.rgba(baseColor.r, baseColor.g, baseColor.b, baseColor.a * Theme.widgetTransparency);
     }
     visible: true
@@ -146,21 +147,7 @@ Rectangle {
             text: `${BatteryService.batteryLevel}%`
             font.pixelSize: Theme.fontSizeSmall
             font.weight: Font.Medium
-            color: {
-                if (!BatteryService.batteryAvailable) {
-                    return Theme.surfaceText;
-                }
-
-                if (BatteryService.isLowBattery && !BatteryService.isCharging) {
-                    return Theme.error;
-                }
-
-                if (BatteryService.isCharging) {
-                    return Theme.primary;
-                }
-
-                return Theme.surfaceText;
-            }
+            color: Theme.surfaceText
             anchors.verticalCenter: parent.verticalCenter
             visible: BatteryService.batteryAvailable
         }
@@ -191,7 +178,7 @@ Rectangle {
         width: Math.max(120, tooltipText.contentWidth + Theme.spacingM * 2)
         height: tooltipText.contentHeight + Theme.spacingS * 2
         radius: Theme.cornerRadius
-        color: Theme.surfaceContainer
+        color: Theme.widgetBaseBackgroundColor
         border.color: Theme.surfaceVariantAlpha
         border.width: 1
         visible: batteryArea.containsMouse && !batteryPopupVisible
@@ -248,12 +235,5 @@ Rectangle {
 
     }
 
-    Behavior on color {
-        ColorAnimation {
-            duration: Theme.shortDuration
-            easing.type: Theme.standardEasing
-        }
-
-    }
 
 }

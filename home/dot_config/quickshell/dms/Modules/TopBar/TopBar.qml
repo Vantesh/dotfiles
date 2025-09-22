@@ -27,7 +27,7 @@ PanelWindow {
     property real wingtipsRadius: Theme.cornerRadius
     readonly property real _wingR: Math.max(0, wingtipsRadius)
     readonly property color _bgColor: Qt.rgba(Theme.surfaceContainer.r, Theme.surfaceContainer.g, Theme.surfaceContainer.b, topBarCore.backgroundTransparency)
-    readonly property color _tintColor: Qt.rgba(Theme.surfaceTint.r, Theme.surfaceTint.g, Theme.surfaceTint.b, 0.04)
+    readonly property color _tintColor: Qt.rgba(Theme.surfaceTint.r, Theme.surfaceTint.g, Theme.surfaceTint.b, 0.04 * topBarCore.backgroundTransparency)
 
     signal colorPickerRequested()
 
@@ -138,22 +138,49 @@ PanelWindow {
 
     exclusiveZone: (!SettingsData.topBarVisible || topBarCore.autoHide) ? -1 : root.effectiveBarHeight + SettingsData.topBarSpacing + SettingsData.topBarBottomGap - 2
 
-    mask: Region {
-        item: barShape
+    Item {
+        id: inputMask
+        anchors {
+            top: parent.top
+            left: parent.left
+            right: parent.right
+        }
+        height: {
+            if (topBarCore.autoHide && !topBarCore.reveal) {
+                return 8
+            }
+            if (CompositorService.isNiri && NiriService.inOverview && SettingsData.topBarOpenOnOverview) {
+                return root.effectiveBarHeight + SettingsData.topBarSpacing
+            }
+            return SettingsData.topBarVisible ? (root.effectiveBarHeight + SettingsData.topBarSpacing) : 0
+        }
     }
+
+    mask: Region {
+        item: inputMask
+    }
+
 
     Item {
         id: topBarCore
         anchors.fill: parent
 
-
         property real backgroundTransparency: SettingsData.topBarTransparency
         property bool autoHide: SettingsData.topBarAutoHide
+        property bool revealSticky: false
+
+        Timer {
+            id: revealHold
+            interval: 250
+            repeat: false
+            onTriggered: topBarCore.revealSticky = false
+        }
+
         property bool reveal: {
             if (CompositorService.isNiri && NiriService.inOverview) {
                 return SettingsData.topBarOpenOnOverview
             }
-            return SettingsData.topBarVisible && (!autoHide || topBarMouseArea.containsMouse || hasActivePopout)
+            return SettingsData.topBarVisible && (!autoHide || topBarMouseArea.containsMouse || hasActivePopout || revealSticky)
         }
 
         property var notepadInstance: null
@@ -208,10 +235,31 @@ PanelWindow {
             target: SettingsData
         }
 
+        Connections {
+            target: topBarMouseArea
+            function onContainsMouseChanged() {
+                if (topBarMouseArea.containsMouse) {
+                    topBarCore.revealSticky = true
+                    revealHold.stop()
+                } else {
+                    if (topBarCore.autoHide && !topBarCore.hasActivePopout) {
+                        revealHold.restart()
+                    }
+                }
+            }
+        }
+
+        onHasActivePopoutChanged: {
+            if (!hasActivePopout && autoHide && !topBarMouseArea.containsMouse) {
+                revealSticky = true
+                revealHold.restart()
+            }
+        }
+
         MouseArea {
             id: topBarMouseArea
             y: 0
-            height: topBarCore.reveal ? (root.effectiveBarHeight + SettingsData.topBarSpacing) : 4
+            height: root.effectiveBarHeight + SettingsData.topBarSpacing
             anchors {
                 top: parent.top
                 left: parent.left
@@ -219,13 +267,7 @@ PanelWindow {
             }
             hoverEnabled: true
             acceptedButtons: Qt.NoButton
-
-            Behavior on height {
-                NumberAnimation {
-                    duration: 200
-                    easing.type: Easing.OutCubic
-                }
-            }
+            enabled: true
 
             Item {
                 id: topBarContainer
@@ -233,7 +275,7 @@ PanelWindow {
 
                 transform: Translate {
                     id: topBarSlide
-                    y: Math.round(topBarCore.reveal ? 0 : -(root.effectiveBarHeight - 4))
+                    y: Math.round(topBarCore.reveal ? 0 : -root.implicitHeight)
 
                     Behavior on y {
                         NumberAnimation {
@@ -265,7 +307,6 @@ PanelWindow {
                             property real rb : SettingsData.topBarGothCornersEnabled ? root._wingR : 0
                             property real rt : SettingsData.topBarSquareCorners ? 0 : Theme.cornerRadius
 
-                            onHChanged: requestPaint()
                             onRbChanged: requestPaint()
                             onRtChanged: requestPaint()
 
@@ -323,7 +364,6 @@ PanelWindow {
 
                             Connections {
                                 target: barShape
-                                function onHChanged() { barTint.requestPaint() }
                                 function onRbChanged() { barTint.requestPaint() }
                                 function onRtChanged() { barTint.requestPaint() }
                             }
@@ -480,7 +520,7 @@ PanelWindow {
                                     property int spacerSize: model.size || 20
 
                                     anchors.verticalCenter: parent ? parent.verticalCenter : undefined
-                                    active: topBarContent.getWidgetVisible(model.widgetId)
+                                    active: topBarContent.getWidgetVisible(model.widgetId) && (model.widgetId !== "music" || MprisController.activePlayer !== null)
                                     sourceComponent: topBarContent.getWidgetComponent(model.widgetId)
                                     opacity: topBarContent.getWidgetEnabled(model.enabled) ? 1 : 0
                                     asynchronous: false
@@ -603,7 +643,7 @@ PanelWindow {
                                     property int spacerSize: model.size || 20
 
                                     anchors.verticalCenter: parent ? parent.verticalCenter : undefined
-                                    active: topBarContent.getWidgetVisible(model.widgetId)
+                                    active: topBarContent.getWidgetVisible(model.widgetId) && (model.widgetId !== "music" || MprisController.activePlayer !== null)
                                     sourceComponent: topBarContent.getWidgetComponent(model.widgetId)
                                     opacity: topBarContent.getWidgetEnabled(model.enabled) ? 1 : 0
                                     asynchronous: false
@@ -650,7 +690,7 @@ PanelWindow {
                                     property int spacerSize: model.size || 20
 
                                     anchors.verticalCenter: parent ? parent.verticalCenter : undefined
-                                    active: topBarContent.getWidgetVisible(model.widgetId)
+                                    active: topBarContent.getWidgetVisible(model.widgetId) && (model.widgetId !== "music" || MprisController.activePlayer !== null)
                                     sourceComponent: topBarContent.getWidgetComponent(model.widgetId)
                                     opacity: topBarContent.getWidgetEnabled(model.enabled) ? 1 : 0
                                     asynchronous: false
@@ -670,7 +710,7 @@ PanelWindow {
                                     if (SettingsData.topBarNoBackground) {
                                         return "transparent"
                                     }
-                                    const baseColor = clipboardArea.containsMouse ? Theme.primaryHover : Theme.secondaryHover
+                                    const baseColor = clipboardArea.containsMouse ? Theme.widgetBaseHoverColor : Theme.widgetBaseBackgroundColor
                                     return Qt.rgba(baseColor.r, baseColor.g, baseColor.b, baseColor.a * Theme.widgetTransparency)
                                 }
 
@@ -693,12 +733,6 @@ PanelWindow {
                                     }
                                 }
 
-                                Behavior on color {
-                                    ColorAnimation {
-                                        duration: Theme.shortDuration
-                                        easing.type: Theme.standardEasing
-                                    }
-                                }
                             }
                         }
 
@@ -1117,5 +1151,6 @@ PanelWindow {
                 }
             }
         }
+
 
 }

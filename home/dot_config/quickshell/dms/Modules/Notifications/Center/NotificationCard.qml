@@ -377,67 +377,46 @@ Rectangle {
                         anchors.margins: 12
                         anchors.bottomMargin: 8
 
-                        Rectangle {
+                        DankCircularImage {
                             id: messageIcon
 
                             readonly property bool hasNotificationImage: modelData?.image && modelData.image !== ""
 
-                            width: 32
-                            height: 32
-                            radius: 16
+                            width: 48
+                            height: 48
                             anchors.left: parent.left
                             anchors.top: parent.top
                             anchors.topMargin: 32
-                            color: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.1)
-                            border.color: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.2)
-                            border.width: 1
 
-                            IconImage {
-                                anchors.fill: parent
-                                anchors.margins: 1
-                                source: {
-                                    if (parent.hasNotificationImage)
-                                        return modelData.cleanImage
+                            imageSource: {
+                                if (hasNotificationImage)
+                                    return modelData.cleanImage
 
-                                    if (modelData?.appIcon) {
-                                        const appIcon = modelData.appIcon
-                                        if (appIcon.startsWith("file://") || appIcon.startsWith("http://") || appIcon.startsWith("https://"))
-                                            return appIcon
+                                if (modelData?.appIcon) {
+                                    const appIcon = modelData.appIcon
+                                    if (appIcon.startsWith("file://") || appIcon.startsWith("http://") || appIcon.startsWith("https://"))
+                                        return appIcon
 
-                                        return Quickshell.iconPath(appIcon, true)
-                                    }
-                                    return ""
+                                    return Quickshell.iconPath(appIcon, true)
                                 }
-                                asynchronous: true
-                                visible: status === Image.Ready
-
-                                Component.onCompleted: {
-                                    backer.sourceSize.width = 64
-                                    backer.sourceSize.height = 64
-                                }
+                                return ""
                             }
 
-                            Rectangle {
-                                anchors.fill: parent
-                                anchors.margins: -1
-                                radius: width / 2
-                                color: "transparent"
-                                border.color: root.color
-                                border.width: 3
-                                visible: parent.hasNotificationImage
-                                antialiasing: true
+                            fallbackIcon: {
+                                if (modelData?.appIcon && !hasNotificationImage) {
+                                    const appIcon = modelData.appIcon
+                                    if (!appIcon.startsWith("file://") && !appIcon.startsWith("http://") && !appIcon.startsWith("https://"))
+                                        return appIcon
+                                }
+                                return "notifications"
                             }
 
-                            StyledText {
-                                anchors.centerIn: parent
-                                visible: !parent.hasNotificationImage && (!modelData?.appIcon || modelData.appIcon === "")
-                                text: {
+                            fallbackText: {
+                                if (!hasNotificationImage && (!modelData?.appIcon || modelData.appIcon === "")) {
                                     const appName = modelData?.appName || "?"
                                     return appName.charAt(0).toUpperCase()
                                 }
-                                font.pixelSize: 12
-                                font.weight: Font.Bold
-                                color: Theme.primaryText
+                                return ""
                             }
                         }
 

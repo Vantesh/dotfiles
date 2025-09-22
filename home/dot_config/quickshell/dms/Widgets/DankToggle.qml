@@ -87,7 +87,7 @@ Item {
         anchors.right: parent.right
         anchors.rightMargin: showText ? Theme.spacingM : 0
         anchors.verticalCenter: parent.verticalCenter
-        radius: height / 2
+        radius: Theme.cornerRadius
 
         color: (checked && enabled) ? Theme.primary : Theme.surfaceVariantAlpha
         opacity: toggling ? 0.6 : (enabled ? 1 : 0.4)
@@ -103,7 +103,7 @@ Item {
 
             width: (checked && enabled) ? insetCircle : insetCircle - 4
             height: (checked && enabled) ? insetCircle : insetCircle - 4
-            radius: width / 2
+            radius: Theme.cornerRadius
             anchors.verticalCenter: parent.verticalCenter
 
             color: (checked && enabled) ? Theme.surface : Theme.outline

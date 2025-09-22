@@ -63,26 +63,100 @@ Column {
         saveCurrentTabContent()
     }
 
+    function setTextDocumentLineHeight() {
+        return
+    }
+
+    property string lastTextForLineModel: ""
+    property var lineModel: []
+    
+    function updateLineModel() {
+        if (!SettingsData.notepadShowLineNumbers) {
+            lineModel = []
+            lastTextForLineModel = ""
+            return
+        }
+        
+        if (textArea.text !== lastTextForLineModel || lineModel.length === 0) {
+            lastTextForLineModel = textArea.text
+            lineModel = textArea.text.split('\n')
+        }
+    }
+
     spacing: Theme.spacingM
 
     StyledRect {
         width: parent.width
         height: parent.height - bottomControls.height - Theme.spacingM
-        color: Theme.surface
+        color: Qt.rgba(Theme.surface.r, Theme.surface.g, Theme.surface.b, Theme.notepadTransparency)
         border.color: Theme.outlineMedium
         border.width: 1
         radius: Theme.cornerRadius
 
-        ScrollView {
+        DankFlickable {
+            id: flickable
             anchors.fill: parent
             anchors.margins: 1
             clip: true
+            contentWidth: width - 11
 
-            TextArea {
+            Rectangle {
+                id: lineNumberArea
+                anchors.left: parent.left
+                anchors.top: parent.top
+                width: SettingsData.notepadShowLineNumbers ? Math.max(30, 32 + Theme.spacingXS) : 0
+                height: textArea.contentHeight + textArea.topPadding + textArea.bottomPadding
+                color: "transparent"
+                visible: SettingsData.notepadShowLineNumbers
+
+                ListView {
+                    id: lineNumberList
+                    anchors.top: parent.top
+                    anchors.topMargin: textArea.topPadding
+                    anchors.right: parent.right
+                    anchors.rightMargin: 2
+                    width: 32
+                    height: textArea.contentHeight
+                    model: SettingsData.notepadShowLineNumbers ? root.lineModel : []
+                    interactive: false
+                    spacing: 0
+
+                    delegate: Item {
+                        id: lineDelegate
+                        required property int index
+                        required property string modelData
+                        width: 32
+                        height: measuringText.contentHeight
+
+                        Text {
+                            id: measuringText
+                            width: textArea.width - textArea.leftPadding - textArea.rightPadding
+                            text: modelData || " "
+                            font: textArea.font
+                            wrapMode: Text.Wrap
+                            visible: false
+                        }
+
+                        StyledText {
+                            anchors.right: parent.right
+                            anchors.rightMargin: 4
+                            anchors.top: parent.top
+                            text: index + 1
+                            font.family: textArea.font.family
+                            font.pixelSize: textArea.font.pixelSize
+                            color: Qt.rgba(Theme.surfaceText.r, Theme.surfaceText.g, Theme.surfaceText.b, 0.4)
+                            horizontalAlignment: Text.AlignRight
+                        }
+                    }
+                }
+            }
+
+            TextArea.flickable: TextArea {
                 id: textArea
                 placeholderText: qsTr("Start typing your notes here...")
                 font.family: SettingsData.notepadUseMonospace ? SettingsData.monoFontFamily : (SettingsData.notepadFontFamily || SettingsData.fontFamily)
                 font.pixelSize: SettingsData.notepadFontSize * SettingsData.fontScale
+                font.letterSpacing: 0
                 color: Theme.surfaceText
                 selectByMouse: true
                 selectByKeyboard: true
@@ -93,13 +167,15 @@ Column {
                 inputMethodHints: Qt.ImhNoPredictiveText | Qt.ImhNoAutoUppercase
                 persistentSelection: true
                 tabStopDistance: 40
-                leftPadding: Theme.spacingM
+                leftPadding: (SettingsData.notepadShowLineNumbers ? lineNumberArea.width + Theme.spacingXS : Theme.spacingM)
                 topPadding: Theme.spacingM
                 rightPadding: Theme.spacingM
                 bottomPadding: Theme.spacingM
 
                 Component.onCompleted: {
                     loadCurrentTabContent()
+                    setTextDocumentLineHeight()
+                    root.updateLineModel()
                 }
 
                 Connections {
@@ -114,11 +190,19 @@ Column {
                     }
                 }
 
+                Connections {
+                    target: SettingsData
+                    function onNotepadShowLineNumbersChanged() {
+                        root.updateLineModel()
+                    }
+                }
+
                 onTextChanged: {
                     if (contentLoaded && text !== lastSavedContent) {
                         autoSaveTimer.restart()
                     }
                     root.contentChanged()
+                    root.updateLineModel()
                 }
 
                 Keys.onEscapePressed: (event) => {
@@ -245,6 +329,7 @@ Column {
                 font.pixelSize: Theme.fontSizeSmall
                 color: Theme.surfaceTextMedium
                 visible: textArea.text.length > 0
+                opacity: 1.0
             }
 
             StyledText {
@@ -275,7 +360,7 @@ Column {
                         return Theme.success
                     }
                 }
-                opacity: textArea.text.length > 0 ? 1 : 0
+                opacity: textArea.text.length > 0 ? 1.0 : 0.0
             }
         }
     }

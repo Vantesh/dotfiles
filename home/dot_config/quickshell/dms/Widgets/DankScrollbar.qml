@@ -12,7 +12,7 @@ ScrollBar {
 
     policy: (parent && parent.contentHeight > parent.height) ? ScrollBar.AsNeeded : ScrollBar.AlwaysOff
     minimumSize: 0.08
-    implicitWidth: 10
+    implicitWidth: 8
     interactive: true
     hoverEnabled: true
     z: 1000

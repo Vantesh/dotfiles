@@ -11,7 +11,7 @@ Item {
     property MprisPlayer activePlayer
     property string artUrl: (activePlayer?.trackArtUrl) || ""
     property string lastValidArtUrl: ""
-    property alias albumArtStatus: albumArt.status
+    property alias albumArtStatus: albumArt.imageStatus
     property real albumSize: Math.min(width, height) * 0.88
     property bool showAnimation: true
     property real animationScale: 1.0
@@ -150,71 +150,22 @@ Item {
         }
     }
 
-    Rectangle {
+    DankCircularImage {
+        id: albumArt
         width: albumSize
-        height: width
-        radius: width / 2
-        color: Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g, Theme.surfaceVariant.b, 0.3)
-        border.color: Theme.primary
-        border.width: 2
+        height: albumSize
         anchors.centerIn: parent
         z: 1
 
-        Image {
-            id: albumArt
-            source: artUrl || lastValidArtUrl || ""
-            anchors.fill: parent
-            anchors.margins: 2
-            fillMode: Image.PreserveAspectCrop
-            smooth: true
-            mipmap: true
-            cache: true
-            asynchronous: true
-            visible: false
-            onStatusChanged: {
-                if (status === Image.Error) {
-                    console.warn("Failed to load album art:", source)
-                    source = ""
-                    if (activePlayer?.trackArtUrl === source) {
-                        root.lastValidArtUrl = ""
-                    }
-                }
+        imageSource: artUrl || lastValidArtUrl || ""
+        fallbackIcon: "album"
+        borderColor: Theme.primary
+        borderWidth: 2
+
+        onImageSourceChanged: {
+            if (imageSource && imageStatus !== Image.Error) {
+                lastValidArtUrl = imageSource
             }
-        }
-
-        MultiEffect {
-            anchors.fill: parent
-            anchors.margins: 2
-            source: albumArt
-            maskEnabled: true
-            maskSource: circularMask
-            visible: albumArt.status === Image.Ready
-            maskThresholdMin: 0.5
-            maskSpreadAtMin: 1
-        }
-
-        Item {
-            id: circularMask
-            width: parent.width - 4
-            height: parent.height - 4
-            layer.enabled: true
-            layer.smooth: true
-            visible: false
-
-            Rectangle {
-                anchors.fill: parent
-                radius: width / 2
-                color: "black"
-                antialiasing: true
-            }
-        }
-
-        DankIcon {
-            anchors.centerIn: parent
-            name: "album"
-            size: parent.width * 0.3
-            color: Theme.surfaceVariantText
-            visible: albumArt.status !== Image.Ready
         }
     }
 }

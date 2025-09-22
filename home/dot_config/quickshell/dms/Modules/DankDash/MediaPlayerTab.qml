@@ -90,7 +90,8 @@ Item {
         if (!activePlayer || !activePlayer.length || activePlayer.length <= 0) {
             return 0
         }
-        const calculatedRatio = (activePlayer.position || 0) / activePlayer.length
+        const pos = (activePlayer.position || 0) % Math.max(1, activePlayer.length)
+        const calculatedRatio = pos / activePlayer.length
         return Math.max(0, Math.min(1, calculatedRatio))
     }
 
@@ -760,7 +761,8 @@ Item {
                             anchors.verticalCenter: parent.verticalCenter
                             text: {
                                 if (!activePlayer) return "0:00"
-                                const pos = Math.max(0, activePlayer.position || 0)
+                                const rawPos = Math.max(0, activePlayer.position || 0)
+                                const pos = activePlayer.length ? rawPos % Math.max(1, activePlayer.length) : rawPos
                                 const minutes = Math.floor(pos / 60)
                                 const seconds = Math.floor(pos % 60)
                                 const timeStr = minutes + ":" + (seconds < 10 ? "0" : "") + seconds
@@ -1056,7 +1058,8 @@ Item {
                     }
                 }
                 onWheel: wheelEvent => {
-                    adjustVolume(wheelEvent.angleDelta.y > 0 ? 3 : -3)
+                    const step = Math.max(0.5, 100 / 100)
+                    adjustVolume(wheelEvent.angleDelta.y > 0 ? step : -step)
                     volumeButton.volumeExpanded = true
                     wheelEvent.accepted = true
                 }
@@ -1093,31 +1096,115 @@ Item {
                 anchors.margins: Theme.spacingS
 
                 Item {
-                    width: parent.width * 0.6
-                    height: parent.height - Theme.spacingXL * 2  
+                    id: volumeSlider
+                    width: parent.width * 0.5
+                    height: parent.height - Theme.spacingXL * 2
                     anchors.top: parent.top
                     anchors.topMargin: Theme.spacingS
                     anchors.horizontalCenter: parent.horizontalCenter
-                    
+
                     property bool dragging: false
                     property bool containsMouse: volumeSliderArea.containsMouse
-                    
+                    property bool active: volumeSliderArea.containsMouse || volumeSliderArea.pressed || dragging
+
+                    function withAlpha(c, a) { return Qt.rgba(c.r, c.g, c.b, a) }
+
                     Rectangle {
+                        id: sliderTrack
                         width: parent.width
                         height: parent.height
                         anchors.centerIn: parent
                         color: Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g, Theme.surfaceVariant.b, 0.5)
-                        radius: width / 2
+                        radius: Theme.cornerRadius
                     }
-                    
+
                     Rectangle {
+                        id: sliderFill
                         width: parent.width
                         height: defaultSink ? (Math.min(1.0, defaultSink.audio.volume) * parent.height) : 0
                         anchors.bottom: parent.bottom
                         anchors.horizontalCenter: parent.horizontalCenter
                         color: Theme.primary
-                        radius: width / 2
+                        bottomLeftRadius: Theme.cornerRadius
+                        bottomRightRadius: Theme.cornerRadius
+                        topLeftRadius: 0
+                        topRightRadius: 0
+                    }
 
+                    Rectangle {
+                        id: sliderHandle
+                        width: parent.width + 8
+                        height: 8
+                        radius: Theme.cornerRadius
+                        y: {
+                            const ratio = defaultSink ? Math.min(1.0, defaultSink.audio.volume) : 0
+                            const travel = parent.height - height
+                            return Math.max(0, Math.min(travel, travel * (1 - ratio)))
+                        }
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        color: Theme.primary
+                        border.width: 3
+                        border.color: Qt.rgba(Theme.surfaceContainer.r, Theme.surfaceContainer.g, Theme.surfaceContainer.b, 1.0)
+
+                        Rectangle {
+                            anchors.fill: parent
+                            radius: Theme.cornerRadius
+                            color: Theme.onPrimary
+                            opacity: volumeSliderArea.pressed ? 0.16 : (volumeSliderArea.containsMouse ? 0.08 : 0)
+                            visible: opacity > 0
+                        }
+
+                        Rectangle {
+                            id: ripple
+                            anchors.centerIn: parent
+                            width: 0
+                            height: 0
+                            radius: width / 2
+                            color: Theme.onPrimary
+                            opacity: 0
+
+                            function start() {
+                                opacity = 0.16
+                                width = 0
+                                height = 0
+                                rippleAnimation.start()
+                            }
+
+                            SequentialAnimation {
+                                id: rippleAnimation
+                                NumberAnimation {
+                                    target: ripple
+                                    properties: "width,height"
+                                    to: 28
+                                    duration: 180
+                                }
+                                NumberAnimation {
+                                    target: ripple
+                                    property: "opacity"
+                                    to: 0
+                                    duration: 150
+                                }
+                            }
+                        }
+
+                        TapHandler {
+                            acceptedButtons: Qt.LeftButton
+                            onPressedChanged: {
+                                if (pressed) {
+                                    ripple.start()
+                                }
+                            }
+                        }
+
+                        scale: active ? 1.05 : 1.0
+
+                        Behavior on scale {
+                            NumberAnimation {
+                                duration: Anims.durShort
+                                easing.type: Easing.BezierSpline
+                                easing.bezierCurve: Anims.standard
+                            }
+                        }
                     }
                     
                     MouseArea {
@@ -1126,6 +1213,7 @@ Item {
                         anchors.margins: -12
                         enabled: defaultSink !== null
                         hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
                         preventStealing: true
                         
                         onEntered: {
@@ -1155,7 +1243,11 @@ Item {
                             updateVolume(mouse)
                         }
                         
-                        onWheel: wheel => adjustVolume(wheel.angleDelta.y > 0 ? 3 : -3)
+                        onWheel: wheelEvent => {
+                            const step = Math.max(0.5, 100 / 100)
+                            adjustVolume(wheelEvent.angleDelta.y > 0 ? step : -step)
+                            wheelEvent.accepted = true
+                        }
                         
                         function updateVolume(mouse) {
                             if (defaultSink) {

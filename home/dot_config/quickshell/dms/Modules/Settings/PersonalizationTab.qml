@@ -677,6 +677,33 @@ Item {
                             }
                         }
                     }
+
+                    Rectangle {
+                        width: parent.width
+                        height: 1
+                        color: Theme.outline
+                        opacity: 0.2
+                    }
+
+                    DankDropdown {
+                        width: parent.width
+                        text: "Transition Effect"
+                        description: "Visual effect used when wallpaper changes"
+                        currentValue: {
+                            switch (SessionData.wallpaperTransition) {
+                            case "fade": return "Fade"
+                            case "wipe": return "Wipe"
+                            case "disc": return "Disc"
+                            case "stripes": return "Stripes"
+                            default: return "Fade"
+                            }
+                        }
+                        options: ["Fade", "Wipe", "Disc", "Stripes"]
+                        onValueChanged: value => {
+                            var transition = value.toLowerCase()
+                            SessionData.setWallpaperTransition(transition)
+                        }
+                    }
                 }
             }
 

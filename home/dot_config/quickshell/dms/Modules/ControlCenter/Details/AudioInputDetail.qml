@@ -33,11 +33,8 @@ Rectangle {
         }
     }
     
-    DankSlider {
+    Row {
         id: volumeSlider
-
-        readonly property real actualVolumePercent: AudioService.source && AudioService.source.audio ? Math.round(AudioService.source.audio.volume * 100) : 0
-
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.top: headerRow.bottom
@@ -45,35 +42,63 @@ Rectangle {
         anchors.rightMargin: Theme.spacingM
         anchors.topMargin: Theme.spacingXS
         height: 35
-        value: AudioService.source && AudioService.source.audio ? Math.min(100, Math.round(AudioService.source.audio.volume * 100)) : 0
-        minimum: 0
-        maximum: 100
-        leftIcon: {
-            if (!AudioService.source || !AudioService.source.audio) return "mic_off"
-            let muted = AudioService.source.audio.muted
-            return muted ? "mic_off" : "mic"
-        }
-        rightIcon: "volume_up"
-        enabled: AudioService.source && AudioService.source.audio
-        unit: "%"
-        showValue: true
-        valueOverride: actualVolumePercent
-        visible: AudioService.source && AudioService.source.audio
+        spacing: 0
 
-        onSliderValueChanged: function(newValue) {
-            if (AudioService.source && AudioService.source.audio) {
-                AudioService.source.audio.volume = newValue / 100
+        Rectangle {
+            width: Theme.iconSize + Theme.spacingS * 2
+            height: Theme.iconSize + Theme.spacingS * 2
+            anchors.verticalCenter: parent.verticalCenter
+            radius: (Theme.iconSize + Theme.spacingS * 2) / 2
+            color: iconArea.containsMouse ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.12) : "transparent"
+
+            Behavior on color {
+                ColorAnimation { duration: Theme.shortDuration }
+            }
+
+            MouseArea {
+                id: iconArea
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: {
+                    if (AudioService.source && AudioService.source.audio) {
+                        AudioService.source.audio.muted = !AudioService.source.audio.muted
+                    }
+                }
+            }
+
+            DankIcon {
+                anchors.centerIn: parent
+                name: {
+                    if (!AudioService.source || !AudioService.source.audio) return "mic_off"
+                    let muted = AudioService.source.audio.muted
+                    return muted ? "mic_off" : "mic"
+                }
+                size: Theme.iconSize
+                color: AudioService.source && AudioService.source.audio && !AudioService.source.audio.muted && AudioService.source.audio.volume > 0 ? Theme.primary : Theme.surfaceText
             }
         }
-        
-        MouseArea {
-            anchors.left: parent.left
+
+        DankSlider {
+            readonly property real actualVolumePercent: AudioService.source && AudioService.source.audio ? Math.round(AudioService.source.audio.volume * 100) : 0
+
             anchors.verticalCenter: parent.verticalCenter
-            width: Theme.iconSize + Theme.spacingS * 2
-            height: parent.height
-            onClicked: {
+            width: parent.width - (Theme.iconSize + Theme.spacingS * 2)
+            enabled: AudioService.source && AudioService.source.audio
+            minimum: 0
+            maximum: 100
+            value: AudioService.source && AudioService.source.audio ? Math.min(100, Math.round(AudioService.source.audio.volume * 100)) : 0
+            showValue: true
+            unit: "%"
+            valueOverride: actualVolumePercent
+            thumbOutlineColor: Theme.surfaceVariant
+
+            onSliderValueChanged: function(newValue) {
                 if (AudioService.source && AudioService.source.audio) {
-                    AudioService.source.audio.muted = !AudioService.source.audio.muted
+                    AudioService.source.audio.volume = newValue / 100
+                    if (newValue > 0 && AudioService.source.audio.muted) {
+                        AudioService.source.audio.muted = false
+                    }
                 }
             }
         }

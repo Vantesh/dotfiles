@@ -12,6 +12,7 @@ DankModal {
     id: settingsModal
 
     property Component settingsContent
+    property alias profileBrowser: profileBrowser
 
     signal closingModal()
 

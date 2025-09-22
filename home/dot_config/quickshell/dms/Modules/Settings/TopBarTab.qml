@@ -757,6 +757,7 @@ Item {
                             unit: ""
                             showValue: true
                             wheelEnabled: false
+                            thumbOutlineColor: Theme.surfaceContainer
                             onSliderValueChanged: newValue => {
                                                       SettingsData.setTopBarSpacing(
                                                           newValue)
@@ -784,6 +785,7 @@ Item {
                             unit: ""
                             showValue: true
                             wheelEnabled: false
+                            thumbOutlineColor: Theme.surfaceContainer
                             onSliderValueChanged: newValue => {
                                                       SettingsData.setTopBarBottomGap(
                                                           newValue)
@@ -811,6 +813,7 @@ Item {
                             unit: ""
                             showValue: true
                             wheelEnabled: false
+                            thumbOutlineColor: Theme.surfaceContainer
                             onSliderValueChanged: newValue => {
                                                       SettingsData.setTopBarInnerPadding(
                                                           newValue)
@@ -818,32 +821,6 @@ Item {
                         }
                     }
 
-                    Column {
-                        width: parent.width
-                        spacing: Theme.spacingS
-
-                        StyledText {
-                            text: "Corner Radius (0 = square corners)"
-                            font.pixelSize: Theme.fontSizeSmall
-                            color: Theme.surfaceText
-                            font.weight: Font.Medium
-                        }
-
-                        DankSlider {
-                            width: parent.width
-                            height: 24
-                            value: SettingsData.cornerRadius
-                            minimum: 0
-                            maximum: 32
-                            unit: ""
-                            showValue: true
-                            wheelEnabled: false
-                            onSliderValueChanged: newValue => {
-                                                      SettingsData.setCornerRadius(
-                                                          newValue)
-                                                  }
-                        }
-                    }
 
                     DankToggle {
                         width: parent.width

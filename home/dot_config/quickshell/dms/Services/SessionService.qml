@@ -13,12 +13,14 @@ Singleton {
 
     property bool hasUwsm: false
     property bool isElogind: false
+    property bool hibernateSupported: false
     property bool inhibitorAvailable: true
     property bool idleInhibited: false
     property string inhibitReason: "Keep system awake"
 
     Component.onCompleted: {
         detectElogindProcess.running = true
+        detectHibernateProcess.running = true
     }
 
 
@@ -40,6 +42,16 @@ Singleton {
         onExited: function (exitCode) {
             console.log("SessionService: Elogind detection exited with code", exitCode)
             isElogind = (exitCode === 0)
+        }
+    }
+
+    Process {
+        id: detectHibernateProcess
+        running: false
+        command: ["grep", "-q", "disk", "/sys/power/state"]
+
+        onExited: function (exitCode) {
+            hibernateSupported = (exitCode === 0)
         }
     }
 

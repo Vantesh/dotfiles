@@ -46,13 +46,13 @@ Rectangle {
         if (windowCount === 0) {
             return "transparent";
         }
-        
+
         if (SettingsData.topBarNoBackground) {
             return "transparent";
         }
-        const baseColor = Theme.secondaryHover;
-        return Qt.rgba(baseColor.r, baseColor.g, baseColor.b,
-                       baseColor.a * Theme.widgetTransparency);
+
+        const baseColor = Theme.widgetBaseBackgroundColor;
+        return Qt.rgba(baseColor.r, baseColor.g, baseColor.b, baseColor.a * Theme.widgetTransparency);
     }
 
     MouseArea {
@@ -197,12 +197,6 @@ Rectangle {
                         }
                     }
 
-                    Behavior on color {
-                        ColorAnimation {
-                            duration: Theme.shortDuration
-                            easing.type: Theme.standardEasing
-                        }
-                    }
                 }
 
                 // App icon

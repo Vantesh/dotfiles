@@ -203,6 +203,9 @@ ShellRoot {
                                                 case "suspend":
                                                     SessionService.suspend()
                                                     break
+                                                case "hibernate":
+                                                    SessionService.hibernate()
+                                                    break
                                                 case "reboot":
                                                     SessionService.reboot()
                                                     break
@@ -296,6 +299,7 @@ ShellRoot {
             slideoutWidth: 480
             expandable: true
             expandedWidthValue: 960
+            customTransparency: SettingsData.notepadTransparencyOverride
 
             content: Component {
                 Notepad {

@@ -8,7 +8,7 @@ Rectangle {
     anchors.bottom: parent.bottom
     anchors.left: parent.left
     anchors.right: parent.right
-    color: Theme.widgetBackground()
+    color: Theme.widgetBackground
 
     property double rowSpacing: 0.01 * width  // horizontal spacing between keyboard
     property double columnSpacing: 0.02 * height // vertical   spacing between keyboard

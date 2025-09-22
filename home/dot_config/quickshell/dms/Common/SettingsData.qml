@@ -87,9 +87,21 @@ Singleton {
     property bool notepadUseMonospace: true
     property string notepadFontFamily: ""
     property real notepadFontSize: 14
+    property bool notepadShowLineNumbers: false
+    property real notepadTransparencyOverride: -1
+    property real notepadLastCustomTransparency: 0.7
+
     onNotepadUseMonospaceChanged: saveSettings()
     onNotepadFontFamilyChanged: saveSettings()
     onNotepadFontSizeChanged: saveSettings()
+    onNotepadShowLineNumbersChanged: saveSettings()
+    onNotepadTransparencyOverrideChanged: {
+        if (notepadTransparencyOverride > 0) {
+            notepadLastCustomTransparency = notepadTransparencyOverride
+        }
+        saveSettings()
+    }
+    onNotepadLastCustomTransparencyChanged: saveSettings()
     property bool gtkThemingEnabled: false
     property bool qtThemingEnabled: false
     property bool showDock: false
@@ -107,6 +119,7 @@ Singleton {
     property bool topBarGothCornersEnabled: false
     property bool lockScreenShowPowerActions: true
     property bool hideBrightnessSlider: false
+    property string widgetBackgroundColor: "sth"
     property int notificationTimeoutLow: 5000
     property int notificationTimeoutNormal: 5000
     property int notificationTimeoutCritical: 0
@@ -264,6 +277,9 @@ Singleton {
                 notepadUseMonospace = settings.notepadUseMonospace !== undefined ? settings.notepadUseMonospace : true
                 notepadFontFamily = settings.notepadFontFamily !== undefined ? settings.notepadFontFamily : ""
                 notepadFontSize = settings.notepadFontSize !== undefined ? settings.notepadFontSize : 14
+                notepadShowLineNumbers = settings.notepadShowLineNumbers !== undefined ? settings.notepadShowLineNumbers : false
+                notepadTransparencyOverride = settings.notepadTransparencyOverride !== undefined ? settings.notepadTransparencyOverride : -1
+                notepadLastCustomTransparency = settings.notepadLastCustomTransparency !== undefined ? settings.notepadLastCustomTransparency : 0.95
                 gtkThemingEnabled = settings.gtkThemingEnabled !== undefined ? settings.gtkThemingEnabled : false
                 qtThemingEnabled = settings.qtThemingEnabled !== undefined ? settings.qtThemingEnabled : false
                 showDock = settings.showDock !== undefined ? settings.showDock : false
@@ -284,6 +300,7 @@ Singleton {
                 topBarGothCornersEnabled = settings.topBarGothCornersEnabled !== undefined ? settings.topBarGothCornersEnabled : false
                 lockScreenShowPowerActions = settings.lockScreenShowPowerActions !== undefined ? settings.lockScreenShowPowerActions : true
                 hideBrightnessSlider = settings.hideBrightnessSlider !== undefined ? settings.hideBrightnessSlider : false
+                widgetBackgroundColor = settings.widgetBackgroundColor !== undefined ? settings.widgetBackgroundColor : "sth"
                 screenPreferences = settings.screenPreferences !== undefined ? settings.screenPreferences : ({})
                 applyStoredTheme()
                 detectAvailableIconThemes()
@@ -370,6 +387,9 @@ Singleton {
                                                 "notepadUseMonospace": notepadUseMonospace,
                                                 "notepadFontFamily": notepadFontFamily,
                                                 "notepadFontSize": notepadFontSize,
+                                                "notepadShowLineNumbers": notepadShowLineNumbers,
+                                                "notepadTransparencyOverride": notepadTransparencyOverride,
+                                                "notepadLastCustomTransparency": notepadLastCustomTransparency,
                                                 "gtkThemingEnabled": gtkThemingEnabled,
                                                 "qtThemingEnabled": qtThemingEnabled,
                                                 "showDock": showDock,
@@ -387,6 +407,7 @@ Singleton {
                                                 "topBarGothCornersEnabled": topBarGothCornersEnabled,
                                                 "lockScreenShowPowerActions": lockScreenShowPowerActions,
                                                 "hideBrightnessSlider": hideBrightnessSlider,
+                                                "widgetBackgroundColor": widgetBackgroundColor,
                                                 "notificationTimeoutLow": notificationTimeoutLow,
                                                 "notificationTimeoutNormal": notificationTimeoutNormal,
                                                 "notificationTimeoutCritical": notificationTimeoutCritical,
@@ -977,6 +998,11 @@ Singleton {
 
     function setHideBrightnessSlider(enabled) {
         hideBrightnessSlider = enabled
+        saveSettings()
+    }
+
+    function setWidgetBackgroundColor(color) {
+        widgetBackgroundColor = color
         saveSettings()
     }
 

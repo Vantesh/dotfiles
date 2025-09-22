@@ -116,25 +116,8 @@ const StockThemes = {
             name: "Blue",
             primary: "#42a5f5",
             primaryText: "#000000",
-            primaryContainer: "#1976d2",
+            primaryContainer: "#0d47a1",
             secondary: "#8ab4f8",
-            surface: "#1a1c1e",
-            surfaceText: "#e3e8ef",
-            surfaceVariant: "#44464f",
-            surfaceVariantText: "#c4c7c5",
-            surfaceTint: "#8ab4f8",
-            background: "#1a1c1e",
-            backgroundText: "#e3e8ef",
-            outline: "#8e918f",
-            surfaceContainer: "#1e2023",
-            surfaceContainerHigh: "#292b2f"
-        },
-        deepBlue: {
-            name: "Deep Blue",
-            primary: "#0061a4",
-            primaryText: "#000000",
-            primaryContainer: "#004881",
-            secondary: "#42a5f5",
             surface: "#1a1c1e",
             surfaceText: "#e3e8ef",
             surfaceVariant: "#44464f",
@@ -167,7 +150,7 @@ const StockThemes = {
             name: "Green",
             primary: "#4caf50",
             primaryText: "#000000",
-            primaryContainer: "#388e3c",
+            primaryContainer: "#1b5e20",
             secondary: "#81c995",
             surface: "#0f1411",
             surfaceText: "#e1f5e3",
@@ -184,7 +167,7 @@ const StockThemes = {
             name: "Orange",
             primary: "#ff6d00",
             primaryText: "#000000",
-            primaryContainer: "#e65100",
+            primaryContainer: "#3e2723",
             secondary: "#ffb74d",
             surface: "#1c1410",
             surfaceText: "#f5f1ea",
@@ -201,7 +184,7 @@ const StockThemes = {
             name: "Red",
             primary: "#f44336",
             primaryText: "#000000",
-            primaryContainer: "#d32f2f",
+            primaryContainer: "#4a0e0e",
             secondary: "#f28b82",
             surface: "#1c1011",
             surfaceText: "#f5e8ea",
@@ -218,7 +201,7 @@ const StockThemes = {
             name: "Cyan",
             primary: "#00bcd4",
             primaryText: "#000000",
-            primaryContainer: "#0097a7",
+            primaryContainer: "#004d5c",
             secondary: "#4dd0e1",
             surface: "#0f1617",
             surfaceText: "#e8f4f5",
@@ -235,7 +218,7 @@ const StockThemes = {
             name: "Pink",
             primary: "#e91e63",
             primaryText: "#000000",
-            primaryContainer: "#c2185b",
+            primaryContainer: "#4a0e2f",
             secondary: "#f8bbd9",
             surface: "#1a1014",
             surfaceText: "#f3e8ee",
@@ -252,7 +235,7 @@ const StockThemes = {
             name: "Amber",
             primary: "#ffc107",
             primaryText: "#000000",
-            primaryContainer: "#ff8f00",
+            primaryContainer: "#4a3c00",
             secondary: "#ffd54f",
             surface: "#1a1710",
             surfaceText: "#f3f0e8",
@@ -281,6 +264,27 @@ const StockThemes = {
             outline: "#968b8a",
             surfaceContainer: "#201a19",
             surfaceContainerHigh: "#2b2221"
+        },
+        monochrome: {
+            name: "Monochrome",
+            primary: "#ffffff",
+            primaryText: "#2b303c",
+            primaryContainer: "#424753",
+            secondary: "#c4c6d0",
+            surface: "#2a2a2a",
+            surfaceText: "#e4e2e3",
+            surfaceVariant: "#474648",
+            surfaceVariantText: "#c8c6c7",
+            surfaceTint: "#c2c6d6",
+            background: "#131315",
+            backgroundText: "#e4e2e3",
+            outline: "#929092",
+            surfaceContainer: "#2a2a2a",
+            surfaceContainerHigh: "#2a2a2b",
+            error: "#ffb4ab",
+            warning: "#3f4759",
+            info: "#595e6c",
+            matugen_type: "scheme-monochrome"
         }
     },
     LIGHT: {
@@ -295,23 +299,6 @@ const StockThemes = {
             surfaceVariant: "#e7e0ec",
             surfaceVariantText: "#49454f",
             surfaceTint: "#1976d2",
-            background: "#fefefe",
-            backgroundText: "#1a1c1e",
-            outline: "#79747e",
-            surfaceContainer: "#f3f3f3",
-            surfaceContainerHigh: "#ececec"
-        },
-        deepBlue: {
-            name: "Deep Blue Light",
-            primary: "#0061a4",
-            primaryText: "#ffffff",
-            primaryContainer: "#cfe5ff",
-            secondary: "#1976d2",
-            surface: "#fefefe",
-            surfaceText: "#1a1c1e",
-            surfaceVariant: "#e7e0ec",
-            surfaceVariantText: "#49454f",
-            surfaceTint: "#0061a4",
             background: "#fefefe",
             backgroundText: "#1a1c1e",
             outline: "#79747e",
@@ -453,6 +440,27 @@ const StockThemes = {
             outline: "#79747e",
             surfaceContainer: "#f3f3f3",
             surfaceContainerHigh: "#ececec"
+        },
+        monochrome: {
+            name: "Monochrome Light",
+            primary: "#2b303c",
+            primaryText: "#ffffff",
+            primaryContainer: "#d6d7dc",
+            secondary: "#4a4d56",
+            surface: "#f5f5f6",
+            surfaceText: "#2a2a2a",
+            surfaceVariant: "#e0e0e2",
+            surfaceVariantText: "#424242",
+            surfaceTint: "#5a5f6e",
+            background: "#ffffff",
+            backgroundText: "#1a1a1a",
+            outline: "#757577",
+            surfaceContainer: "#f5f5f6",
+            surfaceContainerHigh: "#eaeaeb",
+            error: "#ba1a1a",
+            warning: "#f9e79f",
+            info: "#5d6475",
+            matugen_type: "scheme-monochrome"
         }
     }
 }
@@ -460,7 +468,7 @@ const StockThemes = {
 const ThemeCategories = {
     GENERIC: {
         name: "Generic",
-        variants: ["blue", "deepBlue", "purple", "green", "orange", "red", "cyan", "pink", "amber", "coral"]
+        variants: ["blue", "purple", "green", "orange", "red", "cyan", "pink", "amber", "coral", "monochrome"]
     },
     CATPPUCCIN: {
         name: "Catppuccin",
@@ -470,7 +478,6 @@ const ThemeCategories = {
 
 const ThemeNames = {
     BLUE: "blue",
-    DEEP_BLUE: "deepBlue",
     PURPLE: "purple",
     GREEN: "green",
     ORANGE: "orange",
@@ -479,6 +486,7 @@ const ThemeNames = {
     PINK: "pink",
     AMBER: "amber",
     CORAL: "coral",
+    MONOCHROME: "monochrome",
     DYNAMIC: "dynamic"
 }
 

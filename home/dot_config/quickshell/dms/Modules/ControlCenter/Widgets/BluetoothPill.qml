@@ -6,14 +6,14 @@ import qs.Services
 import qs.Widgets
 import qs.Modules.ControlCenter.Widgets
 
-BasePill {
+CompoundPill {
     id: root
 
     property var primaryDevice: {
         if (!BluetoothService.adapter || !BluetoothService.adapter.devices) {
             return null
         }
-        
+
         let devices = [...BluetoothService.adapter.devices.values.filter(dev => dev && (dev.paired || dev.trusted))]
         for (let device of devices) {
             if (device && device.connected) {
@@ -63,5 +63,11 @@ BasePill {
             return primaryDevice.name || primaryDevice.alias || primaryDevice.deviceName || "Connected Device"
         }
         return "No devices"
+    }
+
+    onToggled: {
+        if (BluetoothService.available && BluetoothService.adapter) {
+            BluetoothService.adapter.enabled = !BluetoothService.adapter.enabled
+        }
     }
 }

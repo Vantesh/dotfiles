@@ -10,7 +10,8 @@ Item {
     property MprisPlayer activePlayer
     property real value: {
         if (!activePlayer || activePlayer.length <= 0) return 0
-        const calculatedRatio = (activePlayer.position || 0) / activePlayer.length
+        const pos = (activePlayer.position || 0) % Math.max(1, activePlayer.length)
+        const calculatedRatio = pos / activePlayer.length
         return Math.max(0, Math.min(1, calculatedRatio))
     }
     property bool isSeeking: false

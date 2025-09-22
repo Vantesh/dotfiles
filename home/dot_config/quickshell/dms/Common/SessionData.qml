@@ -45,6 +45,7 @@ Singleton {
     property string wallpaperCyclingTime: "06:00" // HH:mm format
     property string lastBrightnessDevice: ""
     property string launchPrefix: ""
+    property string wallpaperTransition: "fade"
 
     // Power management settings - AC Power
     property int acMonitorTimeout: 0 // Never
@@ -114,6 +115,7 @@ Singleton {
                 wallpaperCyclingTime = settings.wallpaperCyclingTime !== undefined ? settings.wallpaperCyclingTime : "06:00"
                 lastBrightnessDevice = settings.lastBrightnessDevice !== undefined ? settings.lastBrightnessDevice : ""
                 launchPrefix = settings.launchPrefix !== undefined ? settings.launchPrefix : ""
+                wallpaperTransition = settings.wallpaperTransition !== undefined ? settings.wallpaperTransition : "fade"
 
                 acMonitorTimeout = settings.acMonitorTimeout !== undefined ? settings.acMonitorTimeout : 0
                 acLockTimeout = settings.acLockTimeout !== undefined ? settings.acLockTimeout : 0
@@ -166,6 +168,7 @@ Singleton {
                                                 "wallpaperCyclingTime": wallpaperCyclingTime,
                                                 "lastBrightnessDevice": lastBrightnessDevice,
                                                 "launchPrefix": launchPrefix,
+                                                "wallpaperTransition": wallpaperTransition,
                                                 "acMonitorTimeout": acMonitorTimeout,
                                                 "acLockTimeout": acLockTimeout,
                                                 "acSuspendTimeout": acSuspendTimeout,
@@ -256,7 +259,6 @@ Singleton {
         saveSettings()
 
         if (typeof Theme !== "undefined") {
-            Theme.screenTransition()
             if (Theme.currentTheme === Theme.dynamic) {
                 Theme.extractColors()
             }
@@ -418,6 +420,11 @@ Singleton {
 
     function setLaunchPrefix(prefix) {
         launchPrefix = prefix
+        saveSettings()
+    }
+
+    function setWallpaperTransition(transition) {
+        wallpaperTransition = transition
         saveSettings()
     }
 

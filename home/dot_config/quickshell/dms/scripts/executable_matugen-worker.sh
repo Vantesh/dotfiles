@@ -25,7 +25,11 @@ fi
 DESIRED_JSON="$STATE_DIR/matugen.desired.json"
 [[ -f "$DESIRED_JSON" ]] || exit 2
 
-read -r mode kind value < <(jq -r '[.mode // empty, .kind // empty, .value // empty] | @tsv' "$DESIRED_JSON")
+read -r mode kind value scheme < <(jq -r '[.mode // empty, .kind // empty, .value // empty, .matugenType // empty] | @tsv' "$DESIRED_JSON")
+
+[[ -n "$kind" && -n "$value" ]] || exit 2
+[[ "$kind" == "image" || "$kind" == "hex" ]] || exit 2
+[[ -z "$mode" || "$mode" == "dark" || "$mode" == "light" ]] || exit 2
 
 case "$kind" in
 image)
@@ -43,8 +47,12 @@ esac
 
 command -v walset >/dev/null 2>&1 || die "'walset' not found. Ensure ~/.local/bin is in PATH."
 
+if [[ -n "$scheme" ]]; then
+  args+=("--scheme" "$scheme")
+fi
+
 if [[ "$mode" == "dark" || "$mode" == "light" ]]; then
   args+=(--mode "$mode")
 fi
 
-walset "${args[@]}"
+exec walset "${args[@]}"

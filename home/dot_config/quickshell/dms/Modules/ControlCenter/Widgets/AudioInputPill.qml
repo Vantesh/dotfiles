@@ -7,17 +7,17 @@ import qs.Services
 import qs.Widgets
 import qs.Modules.ControlCenter.Widgets
 
-BasePill {
+CompoundPill {
     id: root
 
     property var defaultSource: AudioService.source
 
     iconName: {
         if (!defaultSource) return "mic_off"
-        
+
         let volume = defaultSource.audio.volume
         let muted = defaultSource.audio.muted
-        
+
         if (muted || volume === 0.0) return "mic_off"
         return "mic"
     }
@@ -39,6 +39,12 @@ BasePill {
             return "Muted"
         }
         return Math.round(defaultSource.audio.volume * 100) + "%"
+    }
+
+    onToggled: {
+        if (defaultSource && defaultSource.audio) {
+            defaultSource.audio.muted = !defaultSource.audio.muted
+        }
     }
 
     onWheelEvent: function (wheelEvent) {

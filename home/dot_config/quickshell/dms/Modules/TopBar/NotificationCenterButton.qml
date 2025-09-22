@@ -24,7 +24,7 @@ Rectangle {
             return "transparent";
         }
 
-        const baseColor = notificationArea.containsMouse || root.isActive ? Theme.primaryPressed : Theme.secondaryHover;
+        const baseColor = notificationArea.containsMouse ? Theme.widgetBaseHoverColor : Theme.widgetBaseBackgroundColor;
         return Qt.rgba(baseColor.r, baseColor.g, baseColor.b, baseColor.a * Theme.widgetTransparency);
     }
 
@@ -67,12 +67,5 @@ Rectangle {
         }
     }
 
-    Behavior on color {
-        ColorAnimation {
-            duration: Theme.shortDuration
-            easing.type: Theme.standardEasing
-        }
-
-    }
 
 }

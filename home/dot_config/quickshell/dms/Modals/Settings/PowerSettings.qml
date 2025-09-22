@@ -192,8 +192,8 @@ Item {
 
                         width: parent.width
                         text: "Hibernate system after"
-                        description: "Requires swap space or a hibernation file"
                         options: timeoutOptions
+                        visible: SessionService.hibernateSupported
 
                         Connections {
                             target: powerCategory

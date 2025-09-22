@@ -140,8 +140,16 @@ Singleton {
     property color background: currentThemeData.background
     property color backgroundText: currentThemeData.backgroundText
     property color outline: currentThemeData.outline
+    property color outlineVariant: currentThemeData.outlineVariant || Qt.rgba(outline.r, outline.g, outline.b, 0.6)
     property color surfaceContainer: currentThemeData.surfaceContainer
     property color surfaceContainerHigh: currentThemeData.surfaceContainerHigh
+
+    property color onSurface: surfaceText
+    property color onSurfaceVariant: surfaceVariantText
+    property color onPrimary: primaryText
+    property color onSurface_12: Qt.rgba(onSurface.r, onSurface.g, onSurface.b, 0.12)
+    property color onSurface_38: Qt.rgba(onSurface.r, onSurface.g, onSurface.b, 0.38)
+    property color onSurfaceVariant_30: Qt.rgba(onSurfaceVariant.r, onSurfaceVariant.g, onSurfaceVariant.b, 0.30)
 
     property color error: currentThemeData.error || "#F2B8B5"
     property color warning: currentThemeData.warning || "#FF9800"
@@ -210,8 +218,10 @@ Singleton {
         CompositorService.isNiri && NiriService.doScreenTransition()
     }
 
-    function switchTheme(themeName, savePrefs = true) {
-        screenTransition()
+    function switchTheme(themeName, savePrefs = true, enableTransition = true) {
+        if (enableTransition) {
+            screenTransition()
+        }
         if (themeName === dynamic) {
             currentTheme = dynamic
             currentThemeCategory = dynamic
@@ -279,7 +289,7 @@ Singleton {
 
     function switchThemeCategory(category, defaultTheme) {
         currentThemeCategory = category
-        switchTheme(defaultTheme)
+        switchTheme(defaultTheme, true, false)
     }
 
     function getCatppuccinColor(variantName) {
@@ -335,8 +345,42 @@ Singleton {
         return Qt.rgba(surfaceContainer.r, surfaceContainer.g, surfaceContainer.b, panelTransparency)
     }
 
-    function widgetBackground() {
-        return Qt.rgba(surfaceContainer.r, surfaceContainer.g, surfaceContainer.b, widgetTransparency)
+    property real notepadTransparency: SettingsData.notepadTransparencyOverride >= 0 ? SettingsData.notepadTransparencyOverride : popupTransparency
+
+    property var widgetBaseBackgroundColor: {
+        const colorMode = typeof SettingsData !== "undefined" ? SettingsData.widgetBackgroundColor : "sth"
+        switch (colorMode) {
+            case "s":
+                return surface
+            case "sc":
+                return surfaceContainer
+            case "sch":
+                return surfaceContainerHigh
+            case "sth":
+            default:
+                return surfaceTextHover
+        }
+    }
+
+    property var widgetBaseHoverColor: {
+        const baseColor = widgetBaseBackgroundColor
+        const factor = 1.2
+        return isLightMode ? Qt.darker(baseColor, factor) : Qt.lighter(baseColor, factor)
+    }
+
+    property var widgetBackground: {
+        const colorMode = typeof SettingsData !== "undefined" ? SettingsData.widgetBackgroundColor : "sth"
+        switch (colorMode) {
+            case "s":
+                return Qt.rgba(surface.r, surface.g, surface.b, widgetTransparency)
+            case "sc":
+                return Qt.rgba(surfaceContainer.r, surfaceContainer.g, surfaceContainer.b, widgetTransparency)
+            case "sch":
+                return Qt.rgba(surfaceContainerHigh.r, surfaceContainerHigh.g, surfaceContainerHigh.b, widgetTransparency)
+            case "sth":
+            default:
+                return Qt.rgba(surfaceContainer.r, surfaceContainer.g, surfaceContainer.b, widgetTransparency)
+        }
     }
 
     function getPopupBackgroundAlpha() {
@@ -463,17 +507,22 @@ Singleton {
         }
     }
 
-    function setDesiredTheme(kind, value, isLight, iconTheme) {
+    function setDesiredTheme(kind, value, isLight, iconTheme, matugenType) {
         if (!matugenAvailable) {
             console.warn("matugen not available - cannot set system theme")
             return
+        }
+
+        if (typeof NiriService !== "undefined" && CompositorService.isNiri) {
+            NiriService.suppressNextToast()
         }
 
         const desired = {
             "kind": kind,
             "value": value,
             "mode": isLight ? "light" : "dark",
-            "iconTheme": iconTheme || "System Default"
+            "iconTheme": iconTheme || "System Default",
+            "matugenType": matugenType || "scheme-tonal-spot"
         }
 
         const json = JSON.stringify(desired)
@@ -511,21 +560,24 @@ Singleton {
             }
         } else {
             let primaryColor
+            let matugenType
             if (currentTheme === "custom") {
                 if (!customThemeData || !customThemeData.primary) {
                     console.warn("Custom theme data not available for system theme generation")
                     return
                 }
                 primaryColor = customThemeData.primary
+                matugenType = customThemeData.matugen_type
             } else {
                 primaryColor = currentThemeData.primary
+                matugenType = currentThemeData.matugen_type
             }
 
             if (!primaryColor) {
                 console.warn("No primary color available for theme:", currentTheme)
                 return
             }
-            setDesiredTheme("hex", primaryColor, isLight, iconTheme)
+            setDesiredTheme("hex", primaryColor, isLight, iconTheme, matugenType)
         }
     }
 
@@ -644,17 +696,20 @@ Singleton {
                 }
             } else {
                 let primaryColor
+                let matugenType
                 if (currentTheme === "custom") {
                     if (customThemeData && customThemeData.primary) {
                         primaryColor = customThemeData.primary
+                        matugenType = customThemeData.matugen_type
                     }
                 } else {
                     primaryColor = currentThemeData.primary
+                    matugenType = currentThemeData.matugen_type
                 }
 
                 if (primaryColor) {
                     Quickshell.execDetached(["rm", "-f", stateDir + "/matugen.key"])
-                    setDesiredTheme("hex", primaryColor, isLight, iconTheme)
+                    setDesiredTheme("hex", primaryColor, isLight, iconTheme, matugenType)
                 }
             }
         }
@@ -814,7 +869,7 @@ Singleton {
 
         onExited: exitCode => {
             if (exitCode === 0) {
-                if (typeof ToastService !== "undefined") {
+                if (typeof ToastService !== "undefined" && typeof NiriService !== "undefined" && !NiriService.matugenSuppression) {
                     ToastService.showInfo("GTK colors applied successfully")
                 }
             } else {

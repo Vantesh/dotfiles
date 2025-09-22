@@ -5,7 +5,6 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import Quickshell.Io
-import Quickshell.Services.Notifications
 import qs.Common
 
 Singleton {
@@ -18,25 +17,10 @@ Singleton {
     property string pkgManager: ""
     property string distribution: ""
     property bool distributionSupported: false
-    property bool waitingForUpdateCompletion: false
 
     readonly property list<string> supportedDistributions: ["arch", "cachyos", "manjaro", "endeavouros"]
     readonly property int updateCount: availableUpdates.length
     readonly property bool helperAvailable: pkgManager !== "" && distributionSupported
-
-    // Listen for update completion notifications
-    NotificationServer {
-        id: notificationListener
-        onNotification: (notif) => {
-            if (root.waitingForUpdateCompletion &&
-                notif.summary && notif.summary.toLowerCase().includes("topgrade") &&
-                notif.summary.toLowerCase().includes("finished")) {
-                // Update completed, refresh the update list
-                root.waitingForUpdateCompletion = false
-                Qt.callLater(() => root.checkForUpdates())
-            }
-        }
-    }
 
     Process {
         id: distributionDetection
@@ -136,12 +120,10 @@ Singleton {
     function runUpdates() {
         if (!distributionSupported || !pkgManager || updateCount === 0) return
 
-        const updateCommand = `~/.config/hypr/hyprland/scripts/floating update`
+        const terminal = Quickshell.env("TERMINAL") || "xterm"
+        const updateCommand = `${pkgManager} -Syu && echo "Updates complete! Press Enter to close..." && read`
 
-        // Set flag to listen for completion notification
-        waitingForUpdateCompletion = true
-
-        updater.command = ["sh", "-c", updateCommand]
+        updater.command = [terminal, "-e", "sh", "-c", updateCommand]
         updater.running = true
     }
 

@@ -85,7 +85,7 @@ Item {
         width: 360
         height: settingsColumn.implicitHeight + Theme.spacingXL * 2
         radius: Theme.cornerRadius
-        color: Theme.popupBackground()
+        color: Qt.rgba(Theme.surfaceContainer.r, Theme.surfaceContainer.g, Theme.surfaceContainer.b, Theme.notepadTransparency)
         border.color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.08)
         border.width: 1
         z: 100
@@ -140,6 +140,18 @@ Item {
                 checked: SettingsData.notepadUseMonospace
                 onToggled: checked => {
                     SettingsData.notepadUseMonospace = checked
+                }
+            }
+
+            DankToggle {
+                anchors.left: parent.left
+                anchors.leftMargin: -Theme.spacingM
+                width: parent.width + Theme.spacingM
+                text: "Show Line Numbers"
+                description: "Display line numbers in editor"
+                checked: SettingsData.notepadShowLineNumbers
+                onToggled: checked => {
+                    SettingsData.notepadShowLineNumbers = checked
                 }
             }
 
@@ -247,6 +259,53 @@ Item {
                             onClicked: {
                                 var newSize = Math.min(48, SettingsData.notepadFontSize + 1)
                                 SettingsData.notepadFontSize = newSize
+                            }
+                        }
+                    }
+                }
+            }
+
+            Rectangle {
+                width: parent.width
+                height: transparencySliderColumn.height + Theme.spacingS
+                color: "transparent"
+
+                Column {
+                    id: transparencySliderColumn
+                    width: parent.width
+                    spacing: Theme.spacingS
+
+                    DankToggle {
+                        anchors.left: parent.left
+                        anchors.leftMargin: -Theme.spacingM
+                        width: parent.width + Theme.spacingM
+                        text: "Custom Transparency"
+                        description: "Override global transparency for Notepad"
+                        checked: SettingsData.notepadTransparencyOverride >= 0
+                        onToggled: checked => {
+                            if (checked) {
+                                SettingsData.notepadTransparencyOverride = SettingsData.notepadLastCustomTransparency
+                            } else {
+                                SettingsData.notepadTransparencyOverride = -1
+                            }
+                        }
+                    }
+
+                    DankSlider {
+                        anchors.left: parent.left
+                        anchors.leftMargin: -Theme.spacingM
+                        width: parent.width + Theme.spacingM
+                        height: 24
+                        visible: SettingsData.notepadTransparencyOverride >= 0
+                        value: Math.round((SettingsData.notepadTransparencyOverride >= 0 ? SettingsData.notepadTransparencyOverride : SettingsData.popupTransparency) * 100)
+                        minimum: 0
+                        maximum: 100
+                        unit: ""
+                        showValue: true
+                        wheelEnabled: false
+                        onSliderValueChanged: newValue => {
+                            if (SettingsData.notepadTransparencyOverride >= 0) {
+                                SettingsData.notepadTransparencyOverride = newValue / 100
                             }
                         }
                     }

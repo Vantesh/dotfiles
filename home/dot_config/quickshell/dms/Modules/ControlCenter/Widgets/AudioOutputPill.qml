@@ -7,17 +7,17 @@ import qs.Services
 import qs.Widgets
 import qs.Modules.ControlCenter.Widgets
 
-BasePill {
+CompoundPill {
     id: root
 
     property var defaultSink: AudioService.sink
 
     iconName: {
         if (!defaultSink) return "volume_off"
-        
+
         let volume = defaultSink.audio.volume
         let muted = defaultSink.audio.muted
-        
+
         if (muted || volume === 0.0) return "volume_off"
         if (volume <= 0.33) return "volume_down"
         if (volume <= 0.66) return "volume_up"
@@ -41,6 +41,12 @@ BasePill {
             return "Muted"
         }
         return Math.round(defaultSink.audio.volume * 100) + "%"
+    }
+
+    onToggled: {
+        if (defaultSink && defaultSink.audio) {
+            defaultSink.audio.muted = !defaultSink.audio.muted
+        }
     }
 
     onWheelEvent: function (wheelEvent) {

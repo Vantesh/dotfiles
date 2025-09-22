@@ -29,7 +29,7 @@ Rectangle {
             return "transparent";
         }
 
-        const baseColor = mouseArea.containsMouse ? Theme.primaryHover : Theme.surfaceTextHover;
+        const baseColor = mouseArea.containsMouse ? Theme.widgetBaseHoverColor : Theme.widgetBaseBackgroundColor;
         return Qt.rgba(baseColor.r, baseColor.g, baseColor.b, baseColor.a * Theme.widgetTransparency);
     }
     clip: true
@@ -110,13 +110,6 @@ Rectangle {
         hoverEnabled: true
     }
 
-    Behavior on color {
-        ColorAnimation {
-            duration: Theme.shortDuration
-            easing.type: Theme.standardEasing
-        }
-
-    }
 
     Behavior on width {
         NumberAnimation {

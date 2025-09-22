@@ -9,7 +9,7 @@ Row {
     id: root
 
     height: 40
-    spacing: Theme.spacingS
+    spacing: 0
 
     Rectangle {
         width: Theme.iconSize + Theme.spacingS * 2
@@ -17,9 +17,9 @@ Row {
         anchors.verticalCenter: parent.verticalCenter
         radius: (Theme.iconSize + Theme.spacingS * 2) / 2
         color: iconArea.containsMouse
-               ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.12) 
+               ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.12)
                : "transparent"
-        
+
         Behavior on color {
             ColorAnimation { duration: Theme.shortDuration }
         }
@@ -29,7 +29,7 @@ Row {
             anchors.fill: parent
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
-            
+
             onClicked: function(event) {
                 if (DisplayService.devices.length > 1) {
                     if (deviceMenu.visible) {
@@ -40,26 +40,26 @@ Row {
                     event.accepted = true
                 }
             }
-        }
 
-        DankIcon {
-            anchors.centerIn: parent
-            name: {
-                if (!DisplayService.brightnessAvailable) return "brightness_low"
-                
-                let brightness = DisplayService.brightnessLevel
-                if (brightness <= 33) return "brightness_low"
-                if (brightness <= 66) return "brightness_medium"
-                return "brightness_high"
+            DankIcon {
+                anchors.centerIn: parent
+                name: {
+                    if (!DisplayService.brightnessAvailable) return "brightness_low"
+
+                    let brightness = DisplayService.brightnessLevel
+                    if (brightness <= 33) return "brightness_low"
+                    if (brightness <= 66) return "brightness_medium"
+                    return "brightness_high"
+                }
+                size: Theme.iconSize
+                color: DisplayService.brightnessAvailable && DisplayService.brightnessLevel > 0 ? Theme.primary : Theme.surfaceText
             }
-            size: Theme.iconSize
-            color: DisplayService.brightnessAvailable && DisplayService.brightnessLevel > 0 ? Theme.primary : Theme.surfaceText
         }
     }
 
     DankSlider {
         anchors.verticalCenter: parent.verticalCenter
-        width: parent.width - (Theme.iconSize + Theme.spacingS * 2) - Theme.spacingM
+        width: parent.width - (Theme.iconSize + Theme.spacingS * 2)
         enabled: DisplayService.brightnessAvailable
         minimum: 1
         maximum: 100
@@ -79,6 +79,8 @@ Row {
                 DisplayService.setBrightness(newValue)
             }
         }
+        thumbOutlineColor: Theme.surfaceContainer
+        trackColor: Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g, Theme.surfaceVariant.b, Theme.getContentBackgroundAlpha() * 0.60)
     }
 
     Menu {

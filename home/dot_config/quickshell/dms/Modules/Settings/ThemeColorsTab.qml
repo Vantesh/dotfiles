@@ -208,11 +208,11 @@ Item {
                                         else if (ToastService.wallpaperErrorStatus === "error")
                                             ToastService.showError("Wallpaper processing failed - check wallpaper path")
                                         else
-                                            Theme.switchTheme(Theme.dynamic)
+                                            Theme.switchTheme(Theme.dynamic, true, false)
                                         break
                                     case 3:
                                         if (Theme.currentThemeName !== "custom") {
-                                            Theme.switchTheme("custom")
+                                            Theme.switchTheme("custom", true, false)
                                         }
                                         break
                                 }
@@ -229,7 +229,7 @@ Item {
                                 anchors.horizontalCenter: parent.horizontalCenter
 
                                 Repeater {
-                                    model: ["blue", "deepBlue", "purple", "green", "orange"]
+                                    model: ["blue", "purple", "green", "orange", "red"]
 
                                     Rectangle {
                                         property string themeName: modelData
@@ -294,7 +294,7 @@ Item {
                                 anchors.horizontalCenter: parent.horizontalCenter
 
                                 Repeater {
-                                    model: ["red", "cyan", "pink", "amber", "coral"]
+                                    model: ["cyan", "pink", "amber", "coral", "monochrome"]
 
                                     Rectangle {
                                         property string themeName: modelData
@@ -687,7 +687,7 @@ Item {
                         }
 
                         StyledText {
-                            text: "Transparency Settings"
+                            text: "Widget Styling"
                             font.pixelSize: Theme.fontSizeLarge
                             font.weight: Font.Medium
                             color: Theme.surfaceText
@@ -727,11 +727,51 @@ Item {
                         width: parent.width
                         spacing: Theme.spacingS
 
-                        StyledText {
-                            text: "Top Bar Widget Transparency"
-                            font.pixelSize: Theme.fontSizeSmall
-                            color: Theme.surfaceText
-                            font.weight: Font.Medium
+                        Item {
+                            width: parent.width
+                            height: Math.max(transparencyLabel.height, widgetColorGroup.height)
+
+                            StyledText {
+                                id: transparencyLabel
+                                text: "Top Bar Widget Transparency"
+                                font.pixelSize: Theme.fontSizeSmall
+                                color: Theme.surfaceText
+                                font.weight: Font.Medium
+                                anchors.left: parent.left
+                                anchors.verticalCenter: parent.verticalCenter
+                            }
+
+                            DankButtonGroup {
+                                id: widgetColorGroup
+                                property int currentColorIndex: {
+                                    switch (SettingsData.widgetBackgroundColor) {
+                                        case "sth": return 0
+                                        case "s": return 1
+                                        case "sc": return 2
+                                        case "sch": return 3
+                                        default: return 0
+                                    }
+                                }
+
+                                model: ["sth", "s", "sc", "sch"]
+                                currentIndex: currentColorIndex
+                                selectionMode: "single"
+                                anchors.right: parent.right
+                                anchors.verticalCenter: parent.verticalCenter
+
+                                buttonHeight: 20
+                                minButtonWidth: 32
+                                buttonPadding: Theme.spacingS
+                                checkIconSize: Theme.iconSizeSmall - 2
+                                textSize: Theme.fontSizeSmall - 2
+                                spacing: 1
+
+                                onSelectionChanged: (index, selected) => {
+                                    if (!selected) return
+                                    const colorOptions = ["sth", "s", "sc", "sch"]
+                                    SettingsData.setWidgetBackgroundColor(colorOptions[index])
+                                }
+                            }
                         }
 
                         DankSlider {
@@ -775,6 +815,40 @@ Item {
                             onSliderValueChanged: newValue => {
                                                       SettingsData.setPopupTransparency(
                                                           newValue / 100)
+                                                  }
+                        }
+                    }
+
+                    Rectangle {
+                        width: parent.width
+                        height: 1
+                        color: Theme.outline
+                        opacity: 0.2
+                    }
+
+                    Column {
+                        width: parent.width
+                        spacing: Theme.spacingS
+
+                        StyledText {
+                            text: "Corner Radius (0 = square corners)"
+                            font.pixelSize: Theme.fontSizeSmall
+                            color: Theme.surfaceText
+                            font.weight: Font.Medium
+                        }
+
+                        DankSlider {
+                            width: parent.width
+                            height: 24
+                            value: SettingsData.cornerRadius
+                            minimum: 0
+                            maximum: 32
+                            unit: ""
+                            showValue: true
+                            wheelEnabled: false
+                            onSliderValueChanged: newValue => {
+                                                      SettingsData.setCornerRadius(
+                                                          newValue)
                                                   }
                         }
                     }

@@ -23,25 +23,31 @@ Rectangle {
     border.width: 1
     opacity: enabled ? 1.0 : 0.6
 
+    function hoverTint(base) {
+        const factor = 1.2
+        return Theme.isLightMode ? Qt.darker(base, factor) : Qt.lighter(base, factor)
+    }
+
+    readonly property color _containerBg:
+        Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g, Theme.surfaceVariant.b,
+                Theme.getContentBackgroundAlpha() * 0.60)
+
     Rectangle {
         anchors.fill: parent
         radius: Theme.cornerRadius
-        color: mouseArea.containsMouse ? 
-               Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.08) : 
-               "transparent"
-        
-        Behavior on color {
-            ColorAnimation { duration: Theme.shortDuration }
+        color: mouseArea.containsMouse ? hoverTint(_containerBg) : "transparent"
+        opacity: mouseArea.containsMouse ? 0.08 : 0.0
+
+        Behavior on opacity {
+            NumberAnimation { duration: Theme.shortDuration }
         }
     }
 
     Row {
-        anchors.left: parent.left
-        anchors.verticalCenter: parent.verticalCenter
-        anchors.right: parent.right
-        anchors.leftMargin: Theme.spacingM
+        anchors.fill: parent
+        anchors.leftMargin: Theme.spacingL + 2
         anchors.rightMargin: Theme.spacingM
-        spacing: Theme.spacingS
+        spacing: Theme.spacingM
 
         DankIcon {
             name: root.iconName
@@ -50,29 +56,35 @@ Rectangle {
             anchors.verticalCenter: parent.verticalCenter
         }
 
-        Column {
-            anchors.verticalCenter: parent.verticalCenter
-            width: parent.width - Theme.iconSize - Theme.spacingS
-            spacing: 2
+        Item {
+            width: parent.width - Theme.iconSize - parent.spacing
+            height: parent.height
 
-            StyledText {
-                width: parent.width
-                text: root.text
-                font.pixelSize: Theme.fontSizeMedium
-                color: Theme.surfaceText
-                font.weight: Font.Medium
-                elide: Text.ElideRight
-                wrapMode: Text.NoWrap
-            }
+            Column {
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: 2
 
-            StyledText {
-                width: parent.width
-                text: root.secondaryText
-                font.pixelSize: Theme.fontSizeSmall
-                color: Theme.surfaceVariantText
-                visible: text.length > 0
-                elide: Text.ElideRight
-                wrapMode: Text.NoWrap
+                StyledText {
+                    width: parent.width
+                    text: root.text
+                    font.pixelSize: Theme.fontSizeMedium
+                    color: Theme.surfaceText
+                    font.weight: Font.Medium
+                    elide: Text.ElideRight
+                    wrapMode: Text.NoWrap
+                }
+
+                StyledText {
+                    width: parent.width
+                    text: root.secondaryText
+                    font.pixelSize: Theme.fontSizeSmall
+                    color: Theme.surfaceVariantText
+                    visible: text.length > 0
+                    elide: Text.ElideRight
+                    wrapMode: Text.NoWrap
+                }
             }
         }
     }

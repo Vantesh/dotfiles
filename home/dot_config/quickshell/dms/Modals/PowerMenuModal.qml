@@ -1,45 +1,51 @@
 import QtQuick
 import qs.Common
 import qs.Modals.Common
+import qs.Services
 import qs.Widgets
 
 DankModal {
     id: root
 
     property int selectedIndex: 0
-    property int optionCount: 4
+    property int optionCount: SessionService.hibernateSupported ? 5 : 4
 
     signal powerActionRequested(string action, string title, string message)
 
-    function selectOption() {
+    function selectOption(action) {
         close();
-        const actions = [{
-            "action": "logout",
-            "title": "Log Out",
-            "message": "Are you sure you want to log out?"
-        }, {
-            "action": "suspend",
-            "title": "Suspend",
-            "message": "Are you sure you want to suspend the system?"
-        }, {
-            "action": "reboot",
-            "title": "Reboot",
-            "message": "Are you sure you want to reboot the system?"
-        }, {
-            "action": "poweroff",
-            "title": "Power Off",
-            "message": "Are you sure you want to power off the system?"
-        }];
-        const selected = actions[selectedIndex];
+        const actions = {
+            "logout": {
+                "title": "Log Out",
+                "message": "Are you sure you want to log out?"
+            },
+            "suspend": {
+                "title": "Suspend",
+                "message": "Are you sure you want to suspend the system?"
+            },
+            "hibernate": {
+                "title": "Hibernate",
+                "message": "Are you sure you want to hibernate the system?"
+            },
+            "reboot": {
+                "title": "Reboot",
+                "message": "Are you sure you want to reboot the system?"
+            },
+            "poweroff": {
+                "title": "Power Off",
+                "message": "Are you sure you want to power off the system?"
+            }
+        }
+        const selected = actions[action]
         if (selected) {
-            root.powerActionRequested(selected.action, selected.title, selected.message);
+            root.powerActionRequested(action, selected.title, selected.message);
         }
 
     }
 
     shouldBeVisible: false
     width: 320
-    height: 300
+    height: contentLoader.item ? contentLoader.item.implicitHeight : 300
     enableShadow: true
     onBackgroundClicked: () => {
         return close();
@@ -64,7 +70,12 @@ DankModal {
             break;
         case Qt.Key_Return:
         case Qt.Key_Enter:
-            selectOption();
+            const actions = ["logout", "suspend"];
+            if (SessionService.hibernateSupported) actions.push("hibernate");
+            actions.push("reboot", "poweroff");
+            if (selectedIndex < actions.length) {
+                selectOption(actions[selectedIndex]);
+            }
             event.accepted = true;
             break;
         }
@@ -73,8 +84,10 @@ DankModal {
     content: Component {
         Item {
             anchors.fill: parent
+            implicitHeight: mainColumn.implicitHeight + Theme.spacingL * 2
 
             Column {
+                id: mainColumn
                 anchors.fill: parent
                 anchors.margins: Theme.spacingL
                 spacing: Theme.spacingM
@@ -157,7 +170,7 @@ DankModal {
                             cursorShape: Qt.PointingHandCursor
                             onClicked: () => {
                                 selectedIndex = 0;
-                                selectOption();
+                                selectOption("logout");
                             }
                         }
 
@@ -210,7 +223,7 @@ DankModal {
                             cursorShape: Qt.PointingHandCursor
                             onClicked: () => {
                                 selectedIndex = 1;
-                                selectOption();
+                                selectOption("suspend");
                             }
                         }
 
@@ -222,15 +235,70 @@ DankModal {
                         radius: Theme.cornerRadius
                         color: {
                             if (selectedIndex === 2) {
-                                return Qt.rgba(Theme.warning.r, Theme.warning.g, Theme.warning.b, 0.12);
-                            } else if (rebootArea.containsMouse) {
-                                return Qt.rgba(Theme.warning.r, Theme.warning.g, Theme.warning.b, 0.08);
+                                return Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.12);
+                            } else if (hibernateArea.containsMouse) {
+                                return Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.08);
                             } else {
                                 return Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g, Theme.surfaceVariant.b, 0.08);
                             }
                         }
-                        border.color: selectedIndex === 2 ? Theme.warning : "transparent"
+                        border.color: selectedIndex === 2 ? Theme.primary : "transparent"
                         border.width: selectedIndex === 2 ? 1 : 0
+                        visible: SessionService.hibernateSupported
+
+                        Row {
+                            anchors.left: parent.left
+                            anchors.leftMargin: Theme.spacingM
+                            anchors.verticalCenter: parent.verticalCenter
+                            spacing: Theme.spacingM
+
+                            DankIcon {
+                                name: "ac_unit"
+                                size: Theme.iconSize
+                                color: Theme.surfaceText
+                                anchors.verticalCenter: parent.verticalCenter
+                            }
+
+                            StyledText {
+                                text: "Hibernate"
+                                font.pixelSize: Theme.fontSizeMedium
+                                color: Theme.surfaceText
+                                font.weight: Font.Medium
+                                anchors.verticalCenter: parent.verticalCenter
+                            }
+
+                        }
+
+                        MouseArea {
+                            id: hibernateArea
+
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: () => {
+                                selectedIndex = 2;
+                                selectOption("hibernate");
+                            }
+                        }
+
+                    }
+
+                    Rectangle {
+                        width: parent.width
+                        height: 50
+                        radius: Theme.cornerRadius
+                        color: {
+                            const rebootIndex = SessionService.hibernateSupported ? 3 : 2;
+                            if (selectedIndex === rebootIndex) {
+                                return Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.12);
+                            } else if (rebootArea.containsMouse) {
+                                return Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.08);
+                            } else {
+                                return Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g, Theme.surfaceVariant.b, 0.08);
+                            }
+                        }
+                        border.color: selectedIndex === (SessionService.hibernateSupported ? 3 : 2) ? Theme.primary : "transparent"
+                        border.width: selectedIndex === (SessionService.hibernateSupported ? 3 : 2) ? 1 : 0
 
                         Row {
                             anchors.left: parent.left
@@ -262,8 +330,8 @@ DankModal {
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
                             onClicked: () => {
-                                selectedIndex = 2;
-                                selectOption();
+                                selectedIndex = SessionService.hibernateSupported ? 3 : 2;
+                                selectOption("reboot");
                             }
                         }
 
@@ -274,16 +342,17 @@ DankModal {
                         height: 50
                         radius: Theme.cornerRadius
                         color: {
-                            if (selectedIndex === 3) {
-                                return Qt.rgba(Theme.error.r, Theme.error.g, Theme.error.b, 0.12);
+                            const powerOffIndex = SessionService.hibernateSupported ? 4 : 3;
+                            if (selectedIndex === powerOffIndex) {
+                                return Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.12);
                             } else if (powerOffArea.containsMouse) {
-                                return Qt.rgba(Theme.error.r, Theme.error.g, Theme.error.b, 0.08);
+                                return Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.08);
                             } else {
                                 return Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g, Theme.surfaceVariant.b, 0.08);
                             }
                         }
-                        border.color: selectedIndex === 3 ? Theme.error : "transparent"
-                        border.width: selectedIndex === 3 ? 1 : 0
+                        border.color: selectedIndex === (SessionService.hibernateSupported ? 4 : 3) ? Theme.primary : "transparent"
+                        border.width: selectedIndex === (SessionService.hibernateSupported ? 4 : 3) ? 1 : 0
 
                         Row {
                             anchors.left: parent.left
@@ -315,8 +384,8 @@ DankModal {
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
                             onClicked: () => {
-                                selectedIndex = 3;
-                                selectOption();
+                                selectedIndex = SessionService.hibernateSupported ? 4 : 3;
+                                selectOption("poweroff");
                             }
                         }
 
@@ -326,14 +395,6 @@ DankModal {
 
                 Item {
                     height: Theme.spacingS
-                }
-
-                StyledText {
-                    text: "↑↓ Navigate • Tab Cycle • Enter Select • Esc Close"
-                    font.pixelSize: Theme.fontSizeSmall
-                    color: Theme.surfaceVariantText
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    opacity: 0.7
                 }
 
             }

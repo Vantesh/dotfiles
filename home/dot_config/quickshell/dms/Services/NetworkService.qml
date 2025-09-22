@@ -36,21 +36,15 @@ Singleton {
     }
     property var wifiSignalIcon: {
         if (!wifiConnected || networkStatus !== "wifi") {
-            return "signal_wifi_off"
-        }
-        if (wifiSignalStrength >= 70) {
-            return "signal_wifi_4_bar"
+            return "wifi_off"
         }
         if (wifiSignalStrength >= 50) {
-            return "network_wifi_3_bar"
+            return "wifi"
         }
         if (wifiSignalStrength >= 25) {
-            return "network_wifi_2_bar"
+            return "wifi_2_bar"
         }
-        if (wifiSignalStrength >= 10) {
-            return "network_wifi_1_bar"
-        }
-        return "signal_wifi_bad"
+        return "wifi_1_bar"
     }
 
     property string userPreference: "auto" // "auto", "wifi", "ethernet"

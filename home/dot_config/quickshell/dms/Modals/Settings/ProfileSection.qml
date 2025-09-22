@@ -25,25 +25,15 @@ Rectangle {
         Item {
             id: profileImageContainer
 
-            property bool hasImage: profileImageSource.status === Image.Ready
-
             width: 80
             height: 80
             anchors.verticalCenter: parent.verticalCenter
 
-            Rectangle {
+            DankCircularImage {
+                id: profileImage
+
                 anchors.fill: parent
-                radius: width / 2
-                color: "transparent"
-                border.color: Theme.primary
-                border.width: 1
-                visible: parent.hasImage
-            }
-
-            Image {
-                id: profileImageSource
-
-                source: {
+                imageSource: {
                     if (PortalService.profileImage === "") {
                         return "";
                     }
@@ -52,55 +42,7 @@ Rectangle {
                     }
                     return PortalService.profileImage;
                 }
-                smooth: true
-                asynchronous: true
-                mipmap: true
-                cache: true
-                visible: false
-            }
-
-            MultiEffect {
-                anchors.fill: parent
-                anchors.margins: 5
-                source: profileImageSource
-                maskEnabled: true
-                maskSource: profileCircularMask
-                visible: profileImageContainer.hasImage
-                maskThresholdMin: 0.5
-                maskSpreadAtMin: 1
-            }
-
-            Item {
-                id: profileCircularMask
-
-                width: 70
-                height: 70
-                layer.enabled: true
-                layer.smooth: true
-                visible: false
-
-                Rectangle {
-                    anchors.fill: parent
-                    radius: width / 2
-                    color: "black"
-                    antialiasing: true
-                }
-
-            }
-
-            Rectangle {
-                anchors.fill: parent
-                radius: width / 2
-                color: Theme.primary
-                visible: !parent.hasImage
-
-                DankIcon {
-                    anchors.centerIn: parent
-                    name: "person"
-                    size: Theme.iconSizeLarge
-                    color: Theme.primaryText
-                }
-
+                fallbackIcon: "person"
             }
 
             Rectangle {
@@ -147,7 +89,7 @@ Rectangle {
                         height: 28
                         radius: 14
                         color: Qt.rgba(255, 255, 255, 0.9)
-                        visible: profileImageContainer.hasImage
+                        visible: profileImage.hasImage
 
                         DankIcon {
                             anchors.centerIn: parent
