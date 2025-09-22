@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 theme="$HOME/.config/rofi/scripts/screenshot/style.rasi"
 XDG_PICTURES_DIR="${XDG_PICTURES_DIR:-$HOME/Pictures}"
