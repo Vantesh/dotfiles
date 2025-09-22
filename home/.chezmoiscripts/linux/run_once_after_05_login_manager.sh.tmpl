@@ -75,3 +75,20 @@ if sudo systemctl disable getty@tty2.service >/dev/null 2>&1; then
 else
   print_warning "Failed to disable TTY2 service"
 fi
+
+{{- if eq .compositor "niri" }}
+if ! grep -q "niri-uwsm.desktop" /usr/share/wayland-sessions/*; then
+  print_info "Adding niri (uwsm managed) to list of available sessions"
+  write_system_config "/usr/share/wayland-sessions/niri-uwsm.desktop" "niri (uwsm managed) session file" <<EOF
+[Desktop Entry]
+Name=Niri (uwsm-managed)
+Comment=A scrollable-tiling Wayland compositor
+Exec=uwsm start -- niri.desktop
+TryExec=uwsm
+Type=Application
+DesktopNames=niri
+EOF
+else
+  print_info "niri (uwsm managed) already in list of available sessions"
+fi
+{{- end }}
