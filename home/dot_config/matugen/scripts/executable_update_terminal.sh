@@ -44,24 +44,10 @@ apply_ghostty_theme() {
     echo "theme = Matugen" >"$config_file"
   fi
 
-  # Reload Ghostty configs (simulate key press since no auto-reload support)
   if pgrep -x ghostty &>/dev/null; then
-    local ghostty_addresses
-    ghostty_addresses=$(hyprctl clients -j | jq -r '.[] | select(.class == "com.mitchellh.ghostty") | .address')
-
-    if [[ -n "$ghostty_addresses" ]]; then
-      local current_window
-      current_window=$(hyprctl activewindow -j | jq -r '.address')
-
-      while IFS= read -r address; do
-        hyprctl dispatch focuswindow "address:$address" >/dev/null || true
-        sleep 0.1
-        hyprctl dispatch sendshortcut "CTRL SHIFT, comma, address:$address" >/dev/null || true
-      done <<<"$ghostty_addresses"
-
-      [[ -n "$current_window" ]] && hyprctl dispatch focuswindow "address:$current_window" >/dev/null || true
-    fi
+    pkill -USR2 -x ghostty
   fi
+
 }
 
 # =============================================================================
