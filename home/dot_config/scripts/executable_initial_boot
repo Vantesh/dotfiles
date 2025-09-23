@@ -4,7 +4,7 @@
 # Sentinel file follows XDG Base Directory spec and lives in XDG_STATE_HOME
 
 # Determine sentinel location
-STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/hypr"
+STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/${XDG_CURRENT_DESKTOP,,:-hyprland}"
 SENTINEL_NEW="$STATE_DIR/first_setup_done"
 
 # Run only if the sentinel is missing (i.e., first setup not yet done)
@@ -12,7 +12,7 @@ if [[ ! -f "$SENTINEL_NEW" ]]; then
     sleep 1
     if command -v qs >/dev/null 2>&1; then
         WALLPAPER_DIR="$HOME/Pictures/Wallpapers"
-        PROFILE_IMAGE="$HOME/.config/hypr/hyprlock/icon.png"
+        PROFILE_IMAGE="$HOME/.cache/wal/icon.png"
 
         if [[ ! -d "$WALLPAPER_DIR" ]] || ! find "$WALLPAPER_DIR" -type f -print -quit | grep -q .; then
             if command -v notify-send >/dev/null 2>&1; then
@@ -26,12 +26,6 @@ if [[ ! -f "$SENTINEL_NEW" ]]; then
         qs -c dms ipc call wallpaper set "$RANDOM_WALLPAPER" >/dev/null 2>&1 &
         qs -c dms ipc call profile setImage "$PROFILE_IMAGE" >/dev/null 2>&1 &
         wait
-    fi
-
-    # Remove nvim cache folder created by matugen to prevent Nvim issues on first launch
-    NVIM_CACHE_DIR="$HOME/.local/share/nvim"
-    if [[ -d "$NVIM_CACHE_DIR" ]]; then
-        rm -rf "$NVIM_CACHE_DIR"
     fi
 
     # Create the new sentinel to mark first-setup completion

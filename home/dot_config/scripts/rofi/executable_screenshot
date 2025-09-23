@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
-theme="$HOME/.config/rofi/scripts/screenshot/style.rasi"
+theme="$HOME/.config/rofi/style.rasi"
+screenrecord_script="$HOME/.config/scripts/rofi/screenrecord"
 XDG_PICTURES_DIR="${XDG_PICTURES_DIR:-$HOME/Pictures}"
 
 if ! pgrep -x "gpu-screen-reco" >/dev/null; then
@@ -38,7 +39,7 @@ case $selected in
 "$option3")
   # If gpu-screen-recorder is not running, start recording, else stop recording.
   if ! pgrep -x "gpu-screen-reco" >/dev/null; then
-    ~/.config/hypr/hyprland/scripts/screenrecord
+    "$screenrecord_script"
   else
     killall -SIGINT gpu-screen-recorder
     notify-send "Recording stopped" "Video saved in $XDG_PICTURES_DIR/ScreenRecordings" -i ~/.config/rofi/images/movie.svg

@@ -30,6 +30,7 @@ format_special_key() {
   "51") echo "\\" ;;
   "XF86AudioRaiseVolume") echo "Volume Up" ;;
   "XF86AudioLowerVolume") echo "Volume Down" ;;
+  "XF86RFKill") echo "Airplane Mode" ;;
   "XF86AudioMute") echo "Mute" ;;
   "XF86AudioMicMute") echo "Mic Mute" ;;
   "XF86MonBrightnessUp") echo "Brightness Up" ;;

@@ -3,7 +3,7 @@
 set -euo pipefail
 
 # Minimal menu: window, fullscreen, area, countdown-fullscreen
-theme="$HOME/.config/rofi/scripts/screenshot/style.rasi"
+theme="$HOME/.config/rofi/style.rasi"
 dir="${XDG_VIDEOS_DIR:-$HOME/Videos/ScreenRecordings}"
 mkdir -p "$dir"
 datetime="$(date +%Y-%m-%d-%H:%M:%S)"
