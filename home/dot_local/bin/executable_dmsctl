@@ -177,7 +177,19 @@ logout)
     exit 2
   }
   USER_NAME="${USER:?No user detected}"
-  pid=$(hyprctl clients -j | jq -r '.[] | select(.class=="code") | .pid' | head -n1)
+  case "$XDG_CURRENT_DESKTOP" in
+  Hyprland)
+    pid=$(hyprctl clients -j | jq -r '.[] | select(.class=="code") | .pid' | head -n1)
+    ;;
+  niri)
+    pid=$(niri msg --json windows | jq -r '.[] | select(.app_id=="code") | .pid' | head -n1)
+    ;;
+  *)
+    echo "Unsupported compositor: $XDG_CURRENT_DESKTOP" >&2
+    exit 1
+    ;;
+  esac
+
   if [[ -n "$pid" ]]; then
     kill "$pid" || true
   fi
