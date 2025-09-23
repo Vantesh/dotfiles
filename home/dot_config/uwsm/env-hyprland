@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/env sh
 export HYPRCURSOR_SIZE=24
 export HYPRCURSOR_THEME=macOS-hypr
 
