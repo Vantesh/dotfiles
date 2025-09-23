@@ -22,10 +22,6 @@ export CUDA_CACHE_PATH="${XDG_CACHE_HOME}/nv"
 export __GL_SHADER_DISK_CACHE_PATH="${XDG_CACHE_HOME}/nv"
 export npm_config_cache="${XDG_CACHE_HOME}/npm"
 
-# wget alias with cache
-wget() {
-  command wget --hsts-file="${XDG_CACHE_HOME}/wget-hsts" "$@"
-}
 # ------------------------------------------------------------------------------
 # DEFAULT ENVIRONMENT VARIABLES
 # ------------------------------------------------------------------------------
