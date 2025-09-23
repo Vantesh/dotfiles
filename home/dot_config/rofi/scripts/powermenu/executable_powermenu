@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # variables
 uptime="$(uptime -p | sed -e 's/up //g')"
