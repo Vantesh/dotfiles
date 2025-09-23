@@ -68,6 +68,16 @@ Documents/*
 .chezmoiscripts/{windows,linux}/**
 {{ end }}
 
+# compositor-specific
+{{- if eq .compositor "niri" }}
+.config/hypr/{hyprland*,variables*}
+.config/uwsm/env-hypr*
+{{- end }}
+
+{{- if eq .compositor "hyprland" }}
+.config/niri/**
+{{- end }}
+
 # user-specific
 {{- if and .personal (eq .default_shell "fish") }}
 .config/zsh
