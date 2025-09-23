@@ -76,6 +76,7 @@ Arch:
 
   theming:
     - nwg-look
+    - apple_cursor
     - frameworkintegration
     - qt6ct-kde
     - qt5ct-kde
