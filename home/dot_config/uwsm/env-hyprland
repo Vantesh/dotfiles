@@ -1,6 +1,8 @@
-#!/bin/env sh
+#!/usr/bin/env sh
 export HYPRCURSOR_SIZE=24
 export HYPRCURSOR_THEME=macOS-hypr
+export XCURSOR_SIZE=24
+export XCURSOR_THEME="macOS-White"
 
 # HYPRLAND VARIABLES
 export HYPRSHOT_DIR="$HOME/Pictures/Screenshots"
