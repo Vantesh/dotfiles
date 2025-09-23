@@ -19,7 +19,7 @@ apply_kitty_theme() {
 
   python3 "$SCRIPT" --"$MODE" >"$KITTY_THEME_FILE"
 
-  kitty +kitten themes --reload-in=all matugen &>/dev/null || true
+  kitty +kitten themes --reload-in=all matugen || true
 }
 
 # =============================================================================
@@ -47,7 +47,6 @@ apply_ghostty_theme() {
   if pgrep -x ghostty &>/dev/null; then
     pkill -USR2 -x ghostty
   fi
-
 }
 
 # =============================================================================
