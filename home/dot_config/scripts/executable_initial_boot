@@ -13,6 +13,11 @@ if [[ ! -f "$SENTINEL_NEW" ]]; then
     if command -v qs >/dev/null 2>&1; then
         WALLPAPER_DIR="$HOME/Pictures/Wallpapers"
         PROFILE_IMAGE="$HOME/.cache/wal/icon.png"
+        OLD_PROFILE_IMAGE="$HOME/.cache/hyprlock/profile.png"
+        # Migrate old profile image if it exists and new one does not
+        if [[ -f "$OLD_PROFILE_IMAGE" && ! -f "$PROFILE_IMAGE" ]]; then
+            mv "$OLD_PROFILE_IMAGE" "$PROFILE_IMAGE"
+        fi
 
         if [[ ! -d "$WALLPAPER_DIR" ]] || ! find "$WALLPAPER_DIR" -type f -print -quit | grep -q .; then
             if command -v notify-send >/dev/null 2>&1; then
