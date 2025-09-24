@@ -1,4 +1,4 @@
-#!/bin/env sh
+#!/usr/bin/env sh
 export XDG_MENU_PREFIX=arch-
 export XDG_BIN_HOME="$HOME/.local/bin"
 export UWSM_APP_UNIT_TYPE=service
@@ -12,10 +12,6 @@ export SDL_VIDEODRIVER=wayland
 
 # Electron
 export ELECTRON_ARGS="--enable-features=UseOzonePlatform --ozone-platform=wayland"
-
-#cursor
-export XCURSOR_SIZE=24
-export XCURSOR_THEME=macOS-White
 
 export GDK_BACKEND=wayland,x11
 export GDK_SCALE=1

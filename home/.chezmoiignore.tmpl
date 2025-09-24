@@ -45,7 +45,7 @@ Templates
 .config/gtk-4.0/{colors.css,assets}
 .config/rofi/colors.rasi
 .config/hypr/hyprland/colors.conf
-.config/hypr/hyprlock/icon*
+.config/niri/dank*
 .config/kitty/{dank*,colors-wallust.conf,current-theme.conf,kitty.conf.bak}
 
 # yazi
@@ -67,6 +67,16 @@ Documents/*
 {{ else }}
 .chezmoiscripts/{windows,linux}/**
 {{ end }}
+
+# compositor-specific
+{{- if eq .compositor "niri" }}
+.config/hypr/{hyprland*,variables*}
+.config/uwsm/env-hypr*
+{{- end }}
+
+{{- if eq .compositor "hyprland" }}
+.config/niri/**
+{{- end }}
 
 # user-specific
 {{- if and .personal (eq .default_shell "fish") }}
