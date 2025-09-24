@@ -37,23 +37,21 @@ confirm() {
   gum confirm --no-show-help --default=true "$1"
 }
 
-spinner() {
-  local pid=$1
-  local pkg="$2"
-
-  gum spin --spinner line --title "Installing $pkg" -- sh -c "while kill -0 $pid 2>/dev/null; do sleep 0.1; done"
-}
-
 ask_for_sudo() {
-  sudo -n true 2>/dev/null || {
+  # Ask for password upfront if not cached
+  if ! sudo -n true 2>/dev/null; then
     print_info "This script requires sudo privileges\n"
     sudo -v
-  }
-  while true; do
-    sudo -n true
-    sleep 60
-    kill -0 "$$" || exit
-  done 2>/dev/null &
+  fi
+
+  (
+    while true; do
+      sudo -n true 2>/dev/null || exit
+      sleep 60
+    done
+  ) &
+  SUDO_REFRESH_PID=$!
+  trap 'kill "$SUDO_REFRESH_PID" 2>/dev/null' EXIT
 }
 
 # =============================================================================
