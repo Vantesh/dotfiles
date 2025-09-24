@@ -48,6 +48,7 @@ run_cmd() {
       systemctl reboot
     elif [[ $1 == '--suspend' ]]; then
       mpc -q pause
+      dmsctl lock
       systemctl suspend
     elif [[ $1 == '--logout' ]]; then
       dmsctl logout
