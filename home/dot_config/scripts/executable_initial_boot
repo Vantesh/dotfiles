@@ -4,7 +4,7 @@
 # Sentinel file follows XDG Base Directory spec and lives in XDG_STATE_HOME
 
 # Determine sentinel location
-STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/${XDG_CURRENT_DESKTOP,,:-hyprland}"
+STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/${XDG_CURRENT_DESKTOP:-unknown}"
 SENTINEL_NEW="$STATE_DIR/first_setup_done"
 
 # Run only if the sentinel is missing (i.e., first setup not yet done)
