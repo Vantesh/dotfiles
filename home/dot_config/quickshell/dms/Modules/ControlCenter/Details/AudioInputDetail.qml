@@ -7,7 +7,12 @@ import qs.Services
 import qs.Widgets
 
 Rectangle {
-    implicitHeight: headerRow.height + volumeSlider.height + audioContent.height + Theme.spacingM
+    property bool hasInputVolumeSliderInCC: {
+        const widgets = SettingsData.controlCenterWidgets || []
+        return widgets.some(widget => widget.id === "inputVolumeSlider")
+    }
+
+    implicitHeight: headerRow.height + (hasInputVolumeSliderInCC ? 0 : volumeSlider.height) + audioContent.height + Theme.spacingM
     radius: Theme.cornerRadius
     color: Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g, Theme.surfaceVariant.b, Theme.getContentBackgroundAlpha() * 0.6)
     border.color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.08)
@@ -43,6 +48,7 @@ Rectangle {
         anchors.topMargin: Theme.spacingXS
         height: 35
         spacing: 0
+        visible: !hasInputVolumeSliderInCC
 
         Rectangle {
             width: Theme.iconSize + Theme.spacingS * 2
@@ -106,12 +112,12 @@ Rectangle {
     
     DankFlickable {
         id: audioContent
-        anchors.top: volumeSlider.bottom
+        anchors.top: hasInputVolumeSliderInCC ? headerRow.bottom : volumeSlider.bottom
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.bottom: parent.bottom
         anchors.margins: Theme.spacingM
-        anchors.topMargin: Theme.spacingS
+        anchors.topMargin: hasInputVolumeSliderInCC ? Theme.spacingM : Theme.spacingS
         contentHeight: audioColumn.height
         clip: true
         

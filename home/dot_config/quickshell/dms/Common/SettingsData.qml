@@ -45,6 +45,16 @@ Singleton {
     property bool controlCenterShowNetworkIcon: true
     property bool controlCenterShowBluetoothIcon: true
     property bool controlCenterShowAudioIcon: true
+    property var controlCenterWidgets: [
+        {"id": "volumeSlider", "enabled": true, "width": 50},
+        {"id": "brightnessSlider", "enabled": true, "width": 50},
+        {"id": "wifi", "enabled": true, "width": 50},
+        {"id": "bluetooth", "enabled": true, "width": 50},
+        {"id": "audioOutput", "enabled": true, "width": 50},
+        {"id": "audioInput", "enabled": true, "width": 50},
+        {"id": "nightMode", "enabled": true, "width": 50},
+        {"id": "darkMode", "enabled": true, "width": 50}
+    ]
     property bool showWorkspaceIndex: false
     property bool showWorkspacePadding: false
     property bool showWorkspaceApps: false
@@ -226,6 +236,16 @@ Singleton {
                 controlCenterShowNetworkIcon = settings.controlCenterShowNetworkIcon !== undefined ? settings.controlCenterShowNetworkIcon : true
                 controlCenterShowBluetoothIcon = settings.controlCenterShowBluetoothIcon !== undefined ? settings.controlCenterShowBluetoothIcon : true
                 controlCenterShowAudioIcon = settings.controlCenterShowAudioIcon !== undefined ? settings.controlCenterShowAudioIcon : true
+                controlCenterWidgets = settings.controlCenterWidgets !== undefined ? settings.controlCenterWidgets : [
+                    {"id": "volumeSlider", "enabled": true, "width": 50},
+                    {"id": "brightnessSlider", "enabled": true, "width": 50},
+                    {"id": "wifi", "enabled": true, "width": 50},
+                    {"id": "bluetooth", "enabled": true, "width": 50},
+                    {"id": "audioOutput", "enabled": true, "width": 50},
+                    {"id": "audioInput", "enabled": true, "width": 50},
+                    {"id": "nightMode", "enabled": true, "width": 50},
+                    {"id": "darkMode", "enabled": true, "width": 50}
+                ]
                 showWorkspaceIndex = settings.showWorkspaceIndex !== undefined ? settings.showWorkspaceIndex : false
                 showWorkspacePadding = settings.showWorkspacePadding !== undefined ? settings.showWorkspacePadding : false
                 showWorkspaceApps = settings.showWorkspaceApps !== undefined ? settings.showWorkspaceApps : false
@@ -354,6 +374,7 @@ Singleton {
                                                 "controlCenterShowNetworkIcon": controlCenterShowNetworkIcon,
                                                 "controlCenterShowBluetoothIcon": controlCenterShowBluetoothIcon,
                                                 "controlCenterShowAudioIcon": controlCenterShowAudioIcon,
+                                                "controlCenterWidgets": controlCenterWidgets,
                                                 "showWorkspaceIndex": showWorkspaceIndex,
                                                 "showWorkspacePadding": showWorkspacePadding,
                                                 "showWorkspaceApps": showWorkspaceApps,
@@ -679,6 +700,10 @@ Singleton {
 
     function setControlCenterShowAudioIcon(enabled) {
         controlCenterShowAudioIcon = enabled
+        saveSettings()
+    }
+    function setControlCenterWidgets(widgets) {
+        controlCenterWidgets = widgets
         saveSettings()
     }
 

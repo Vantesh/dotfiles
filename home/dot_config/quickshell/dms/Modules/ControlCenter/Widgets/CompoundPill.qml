@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Controls
 import Quickshell
 import qs.Common
 import qs.Widgets
@@ -40,8 +39,11 @@ Rectangle {
     readonly property color _labelPrimary: Theme.surfaceText
     readonly property color _labelSecondary: Theme.surfaceVariantText
     readonly property color _tileBgActive: Theme.primary
-    readonly property color _tileBgInactive:
-        Qt.rgba(Theme.surface.r, Theme.surface.g, Theme.surface.b, 0.85)
+    readonly property color _tileBgInactive: {
+        const transparency = Theme.popupTransparency || 0.92
+        const surface = Theme.surfaceContainer || Qt.rgba(0.1, 0.1, 0.1, 1)
+        return Qt.rgba(surface.r, surface.g, surface.b, transparency)
+    }
     readonly property color _tileRingActive:
         Qt.rgba(Theme.primaryText.r, Theme.primaryText.g, Theme.primaryText.b, 0.22)
     readonly property color _tileRingInactive:

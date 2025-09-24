@@ -243,55 +243,140 @@ Item {
                         }
 
                         Row {
-                            width: parent.width
-                            spacing: Theme.spacingM
+                                width: parent.width
+                                spacing: Theme.spacingM
 
-                            DankTextField {
-                                id: latitudeInput
-                                width: (parent.width - Theme.spacingM) / 2
-                                height: 48
-                                placeholderText: "Latitude"
-                                text: SettingsData.weatherCoordinates ? SettingsData.weatherCoordinates.split(',')[0] : ""
-                                backgroundColor: Theme.surfaceVariant
-                                normalBorderColor: Theme.primarySelected
-                                focusedBorderColor: Theme.primary
-                                onTextEdited: {
-                                    if (text && longitudeInput.text) {
-                                        const coords = text + "," + longitudeInput.text
-                                        const displayName = `${text}, ${longitudeInput.text}`
-                                        SettingsData.setWeatherLocation(displayName, coords)
+                                Column {
+                                    width: (parent.width - Theme.spacingM) / 2
+                                    spacing: Theme.spacingXS
+
+                                    StyledText {
+                                        text: "Latitude"
+                                        font.pixelSize: Theme.fontSizeSmall
+                                        color: Theme.surfaceVariantText
                                     }
-                                }
-                            }
 
-                            DankTextField {
-                                id: longitudeInput
-                                width: (parent.width - Theme.spacingM) / 2
-                                height: 48
-                                placeholderText: "Longitude"
-                                text: SettingsData.weatherCoordinates ? SettingsData.weatherCoordinates.split(',')[1] : ""
-                                backgroundColor: Theme.surfaceVariant
-                                normalBorderColor: Theme.primarySelected
-                                focusedBorderColor: Theme.primary
-                                onTextEdited: {
-                                    if (text && latitudeInput.text) {
-                                        const coords = latitudeInput.text + "," + text
-                                        const displayName = `${latitudeInput.text}, ${text}`
-                                        SettingsData.setWeatherLocation(displayName, coords)
-                                    }
-                                }
-                            }
-                        }
+                                    DankTextField {
+                                        id: latitudeInput
+                                        width: parent.width
+                                        height: 48
+                                        placeholderText: "40.7128"
+                                        backgroundColor: Theme.surfaceVariant
+                                        normalBorderColor: Theme.primarySelected
+                                        focusedBorderColor: Theme.primary
+                                        keyNavigationTab: longitudeInput
 
-                        DankLocationSearch {
-                            width: parent.width
-                            currentLocation: SettingsData.weatherLocation
-                            placeholderText: "New York, NY"
-                            onLocationSelected: (displayName, coordinates) => {
-                                                    SettingsData.setWeatherLocation(
-                                                        displayName,
-                                                        coordinates)
+                                        Component.onCompleted: {
+                                            if (SettingsData.weatherCoordinates) {
+                                                const coords = SettingsData.weatherCoordinates.split(',')
+                                                if (coords.length > 0) {
+                                                    text = coords[0].trim()
                                                 }
+                                            }
+                                        }
+
+                                        Connections {
+                                            target: SettingsData
+                                            function onWeatherCoordinatesChanged() {
+                                                if (SettingsData.weatherCoordinates) {
+                                                    const coords = SettingsData.weatherCoordinates.split(',')
+                                                    if (coords.length > 0) {
+                                                        latitudeInput.text = coords[0].trim()
+                                                    }
+                                                }
+                                            }
+                                        }
+
+                                        onTextEdited: {
+                                            if (text && longitudeInput.text) {
+                                                const coords = text + "," + longitudeInput.text
+                                                SettingsData.weatherCoordinates = coords
+                                                SettingsData.saveSettings()
+                                            }
+                                        }
+                                    }
+                                }
+
+                                Column {
+                                    width: (parent.width - Theme.spacingM) / 2
+                                    spacing: Theme.spacingXS
+
+                                    StyledText {
+                                        text: "Longitude"
+                                        font.pixelSize: Theme.fontSizeSmall
+                                        color: Theme.surfaceVariantText
+                                    }
+
+                                    DankTextField {
+                                        id: longitudeInput
+                                        width: parent.width
+                                        height: 48
+                                        placeholderText: "-74.0060"
+                                        backgroundColor: Theme.surfaceVariant
+                                        normalBorderColor: Theme.primarySelected
+                                        focusedBorderColor: Theme.primary
+                                        keyNavigationTab: locationSearchInput
+                                        keyNavigationBacktab: latitudeInput
+
+                                        Component.onCompleted: {
+                                            if (SettingsData.weatherCoordinates) {
+                                                const coords = SettingsData.weatherCoordinates.split(',')
+                                                if (coords.length > 1) {
+                                                    text = coords[1].trim()
+                                                }
+                                            }
+                                        }
+
+                                        Connections {
+                                            target: SettingsData
+                                            function onWeatherCoordinatesChanged() {
+                                                if (SettingsData.weatherCoordinates) {
+                                                    const coords = SettingsData.weatherCoordinates.split(',')
+                                                    if (coords.length > 1) {
+                                                        longitudeInput.text = coords[1].trim()
+                                                    }
+                                                }
+                                            }
+                                        }
+
+                                        onTextEdited: {
+                                            if (text && latitudeInput.text) {
+                                                const coords = latitudeInput.text + "," + text
+                                                SettingsData.weatherCoordinates = coords
+                                                SettingsData.saveSettings()
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                        Column {
+                            width: parent.width
+                            spacing: Theme.spacingXS
+
+                            StyledText {
+                                text: "Location Search"
+                                font.pixelSize: Theme.fontSizeSmall
+                                color: Theme.surfaceVariantText
+                                font.weight: Font.Medium
+                            }
+
+                            DankLocationSearch {
+                                id: locationSearchInput
+                                width: parent.width
+                                currentLocation: ""
+                                placeholderText: "New York, NY"
+                                keyNavigationBacktab: longitudeInput
+                                onLocationSelected: (displayName, coordinates) => {
+                                                        SettingsData.setWeatherLocation(displayName, coordinates)
+
+                                                        const coords = coordinates.split(',')
+                                                        if (coords.length >= 2) {
+                                                            latitudeInput.text = coords[0].trim()
+                                                            longitudeInput.text = coords[1].trim()
+                                                        }
+                                                    }
+                            }
                         }
                     }
                 }

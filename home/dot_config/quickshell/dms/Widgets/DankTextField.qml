@@ -6,6 +6,17 @@ import qs.Widgets
 StyledRect {
     id: root
 
+    activeFocusOnTab: true
+
+    KeyNavigation.tab: keyNavigationTab
+    KeyNavigation.backtab: keyNavigationBacktab
+
+    onActiveFocusChanged: {
+        if (activeFocus) {
+            textInput.forceActiveFocus()
+        }
+    }
+
     property alias text: textInput.text
     property string placeholderText: ""
     property alias font: textInput.font
@@ -32,6 +43,8 @@ StyledRect {
     property real bottomPadding: Theme.spacingM
     property bool ignoreLeftRightKeys: false
     property var keyForwardTargets: []
+    property Item keyNavigationTab: null
+    property Item keyNavigationBacktab: null
 
     signal textEdited
     signal editingFinished
@@ -89,6 +102,9 @@ StyledRect {
         verticalAlignment: TextInput.AlignVCenter
         selectByMouse: !root.ignoreLeftRightKeys
         clip: true
+        activeFocusOnTab: true
+        KeyNavigation.tab: root.keyNavigationTab
+        KeyNavigation.backtab: root.keyNavigationBacktab
         onTextChanged: root.textEdited()
         onEditingFinished: root.editingFinished()
         onAccepted: root.accepted()

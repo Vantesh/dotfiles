@@ -546,67 +546,161 @@ PanelWindow {
                                 totalWidgets = 0
                                 totalWidth = 0
 
+                                let configuredWidgets = 0
                                 for (var i = 0; i < centerRepeater.count; i++) {
                                     const item = centerRepeater.itemAt(i)
-                                    if (item?.active && item.item) {
-                                        centerWidgets.push(item.item)
-                                        totalWidgets++
-                                        totalWidth += item.item.width
+                                    if (item && topBarContent.getWidgetVisible(item.widgetId)) {
+                                        configuredWidgets++
+                                        if (item.active && item.item) {
+                                            centerWidgets.push(item.item)
+                                            totalWidgets++
+                                            totalWidth += item.item.width
+                                        }
                                     }
                                 }
 
                                 if (totalWidgets > 1) {
                                     totalWidth += spacing * (totalWidgets - 1)
                                 }
-                                positionWidgets()
+                                positionWidgets(configuredWidgets)
                             }
 
-                            function positionWidgets() {
+                            function positionWidgets(configuredWidgets) {
                                 if (totalWidgets === 0 || width <= 0) {
                                     return
                                 }
 
                                 const parentCenterX = width / 2
-                                const isOdd = totalWidgets % 2 === 1
+                                const isOdd = configuredWidgets % 2 === 1
 
                                 centerWidgets.forEach(widget => widget.anchors.horizontalCenter = undefined)
 
                                 if (isOdd) {
-                                    const middleIndex = Math.floor(totalWidgets / 2)
-                                    const middleWidget = centerWidgets[middleIndex]
-                                    middleWidget.x = parentCenterX - (middleWidget.width / 2)
+                                    const middleIndex = Math.floor(configuredWidgets / 2)
+                                    let currentActiveIndex = 0
+                                    let middleWidget = null
 
-                                    let currentX = middleWidget.x
-                                    for (var i = middleIndex - 1; i >= 0; i--) {
-                                        currentX -= (spacing + centerWidgets[i].width)
-                                        centerWidgets[i].x = currentX
+                                    for (var i = 0; i < centerRepeater.count; i++) {
+                                        const item = centerRepeater.itemAt(i)
+                                        if (item && topBarContent.getWidgetVisible(item.widgetId)) {
+                                            if (currentActiveIndex === middleIndex && item.active && item.item) {
+                                                middleWidget = item.item
+                                                break
+                                            }
+                                            currentActiveIndex++
+                                        }
                                     }
 
-                                    currentX = middleWidget.x + middleWidget.width
-                                    for (var i = middleIndex + 1; i < totalWidgets; i++) {
-                                        currentX += spacing
-                                        centerWidgets[i].x = currentX
-                                        currentX += centerWidgets[i].width
+                                    if (middleWidget) {
+                                        middleWidget.x = parentCenterX - (middleWidget.width / 2)
+
+                                        let leftWidgets = []
+                                        let rightWidgets = []
+                                        let foundMiddle = false
+
+                                        for (var i = 0; i < centerWidgets.length; i++) {
+                                            if (centerWidgets[i] === middleWidget) {
+                                                foundMiddle = true
+                                                continue
+                                            }
+                                            if (!foundMiddle) {
+                                                leftWidgets.push(centerWidgets[i])
+                                            } else {
+                                                rightWidgets.push(centerWidgets[i])
+                                            }
+                                        }
+
+                                        let currentX = middleWidget.x
+                                        for (var i = leftWidgets.length - 1; i >= 0; i--) {
+                                            currentX -= (spacing + leftWidgets[i].width)
+                                            leftWidgets[i].x = currentX
+                                        }
+
+                                        currentX = middleWidget.x + middleWidget.width
+                                        for (var i = 0; i < rightWidgets.length; i++) {
+                                            currentX += spacing
+                                            rightWidgets[i].x = currentX
+                                            currentX += rightWidgets[i].width
+                                        }
                                     }
                                 } else {
-                                    const leftIndex = (totalWidgets / 2) - 1
-                                    const rightIndex = totalWidgets / 2
+                                    let configuredLeftIndex = (configuredWidgets / 2) - 1
+                                    let configuredRightIndex = configuredWidgets / 2
                                     const halfSpacing = spacing / 2
 
-                                    centerWidgets[leftIndex].x = parentCenterX - halfSpacing - centerWidgets[leftIndex].width
-                                    centerWidgets[rightIndex].x = parentCenterX + halfSpacing
+                                    let leftWidget = null
+                                    let rightWidget = null
+                                    let leftWidgets = []
+                                    let rightWidgets = []
 
-                                    let currentX = centerWidgets[leftIndex].x
-                                    for (var i = leftIndex - 1; i >= 0; i--) {
-                                        currentX -= (spacing + centerWidgets[i].width)
-                                        centerWidgets[i].x = currentX
+                                    let currentConfigIndex = 0
+                                    for (var i = 0; i < centerRepeater.count; i++) {
+                                        const item = centerRepeater.itemAt(i)
+                                        if (item && topBarContent.getWidgetVisible(item.widgetId)) {
+                                            if (item.active && item.item) {
+                                                if (currentConfigIndex < configuredLeftIndex) {
+                                                    leftWidgets.push(item.item)
+                                                } else if (currentConfigIndex === configuredLeftIndex) {
+                                                    leftWidget = item.item
+                                                } else if (currentConfigIndex === configuredRightIndex) {
+                                                    rightWidget = item.item
+                                                } else {
+                                                    rightWidgets.push(item.item)
+                                                }
+                                            }
+                                            currentConfigIndex++
+                                        }
                                     }
 
-                                    currentX = centerWidgets[rightIndex].x + centerWidgets[rightIndex].width
-                                    for (var i = rightIndex + 1; i < totalWidgets; i++) {
-                                        currentX += spacing
-                                        centerWidgets[i].x = currentX
-                                        currentX += centerWidgets[i].width
+                                    if (leftWidget && rightWidget) {
+                                        leftWidget.x = parentCenterX - halfSpacing - leftWidget.width
+                                        rightWidget.x = parentCenterX + halfSpacing
+
+                                        let currentX = leftWidget.x
+                                        for (var i = leftWidgets.length - 1; i >= 0; i--) {
+                                            currentX -= (spacing + leftWidgets[i].width)
+                                            leftWidgets[i].x = currentX
+                                        }
+
+                                        currentX = rightWidget.x + rightWidget.width
+                                        for (var i = 0; i < rightWidgets.length; i++) {
+                                            currentX += spacing
+                                            rightWidgets[i].x = currentX
+                                            currentX += rightWidgets[i].width
+                                        }
+                                    } else if (leftWidget && !rightWidget) {
+                                        leftWidget.x = parentCenterX - halfSpacing - leftWidget.width
+
+                                        let currentX = leftWidget.x
+                                        for (var i = leftWidgets.length - 1; i >= 0; i--) {
+                                            currentX -= (spacing + leftWidgets[i].width)
+                                            leftWidgets[i].x = currentX
+                                        }
+
+                                        currentX = leftWidget.x + leftWidget.width + spacing
+                                        for (var i = 0; i < rightWidgets.length; i++) {
+                                            currentX += spacing
+                                            rightWidgets[i].x = currentX
+                                            currentX += rightWidgets[i].width
+                                        }
+                                    } else if (!leftWidget && rightWidget) {
+                                        rightWidget.x = parentCenterX + halfSpacing
+
+                                        let currentX = rightWidget.x - spacing
+                                        for (var i = leftWidgets.length - 1; i >= 0; i--) {
+                                            currentX -= leftWidgets[i].width
+                                            leftWidgets[i].x = currentX
+                                            currentX -= spacing
+                                        }
+
+                                        currentX = rightWidget.x + rightWidget.width
+                                        for (var i = 0; i < rightWidgets.length; i++) {
+                                            currentX += spacing
+                                            rightWidgets[i].x = currentX
+                                            currentX += rightWidgets[i].width
+                                        }
+                                    } else if (totalWidgets === 1 && centerWidgets[0]) {
+                                        centerWidgets[0].x = parentCenterX - (centerWidgets[0].width / 2)
                                     }
                                 }
                             }

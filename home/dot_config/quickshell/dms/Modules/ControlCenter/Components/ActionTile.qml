@@ -1,5 +1,4 @@
 import QtQuick
-import Quickshell
 import qs.Common
 import qs.Widgets
 
@@ -8,11 +7,13 @@ Rectangle {
 
     property string iconName: ""
     property string text: ""
+    property string secondaryText: ""
     property bool isActive: false
     property bool enabled: true
-    property string secondaryText: ""
-    property real iconRotation: 0
-    
+    property int widgetIndex: 0
+    property var widgetData: null
+    property bool editMode: false
+
     signal clicked()
 
     width: parent ? parent.width : 200
@@ -39,14 +40,10 @@ Rectangle {
         return Theme.isLightMode ? Qt.darker(base, factor) : Qt.lighter(base, factor)
     }
 
-    readonly property color _containerBg:
-        Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g, Theme.surfaceVariant.b,
-                Theme.getContentBackgroundAlpha() * 0.60)
-
     Rectangle {
         anchors.fill: parent
         radius: Theme.cornerRadius
-        color: mouseArea.containsMouse ? hoverTint(_containerBg) : "transparent"
+        color: mouseArea.containsMouse ? hoverTint(root.color) : "transparent"
         opacity: mouseArea.containsMouse ? 0.08 : 0.0
 
         Behavior on opacity {
@@ -65,7 +62,6 @@ Rectangle {
             size: Theme.iconSize
             color: isActive ? Theme.primaryContainer : Theme.primary
             anchors.verticalCenter: parent.verticalCenter
-            rotation: root.iconRotation
         }
 
         Item {
@@ -78,20 +74,19 @@ Rectangle {
                 anchors.verticalCenter: parent.verticalCenter
                 spacing: 2
 
-                StyledText {
+                Typography {
                     width: parent.width
                     text: root.text
-                    font.pixelSize: Theme.fontSizeMedium
+                    style: Typography.Style.Body
                     color: isActive ? Theme.primaryContainer : Theme.surfaceText
-                    font.weight: Font.Medium
                     elide: Text.ElideRight
                     wrapMode: Text.NoWrap
                 }
 
-                StyledText {
+                Typography {
                     width: parent.width
                     text: root.secondaryText
-                    font.pixelSize: Theme.fontSizeSmall
+                    style: Typography.Style.Caption
                     color: isActive ? Theme.primaryContainer : Theme.surfaceVariantText
                     visible: text.length > 0
                     elide: Text.ElideRight

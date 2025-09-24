@@ -144,7 +144,8 @@ Card {
                     
                     property real availableWidth: parent.parent.parent.parent.width - avatarContainer.width - Theme.spacingM * 3 - 16 - Theme.spacingS
                     property real longTextWidth: {
-                        const testMetrics = Qt.createQmlObject('import QtQuick; TextMetrics { font.pixelSize: ' + Theme.fontSizeSmall + ' }', uptimeText)
+                        const fontSize = Math.round(Theme.fontSizeSmall || 12)
+                        const testMetrics = Qt.createQmlObject('import QtQuick; TextMetrics { font.pixelSize: ' + fontSize + ' }', uptimeText)
                         testMetrics.text = UserInfoService.uptime || "up 1 hour, 23 minutes"
                         const result = testMetrics.width
                         testMetrics.destroy()
