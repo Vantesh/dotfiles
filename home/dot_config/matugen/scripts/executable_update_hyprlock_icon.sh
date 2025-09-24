@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-readonly HYPRLOCK_PNG="$HOME/.config/hypr/hyprlock/icon.png"
+readonly HYPRLOCK_PNG="$HOME/.cache/wal/icon.png"
 readonly HYPRLOCK_SVG="$HOME/.cache/wal/icon.svg"
 
 # Hyprlock icon

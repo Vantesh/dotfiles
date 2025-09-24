@@ -1,0 +1,432 @@
+
+input {
+    keyboard {
+        xkb {
+            layout "us"
+            options "ctrl:nocaps"
+        }
+    }
+
+    touchpad {
+
+        tap
+        natural-scroll
+        accel-speed 0.5
+        // accel-profile "flat"
+        scroll-method "two-finger"
+        // disabled-on-external-mouse
+    }
+
+    mouse {
+        // off
+        // natural-scroll
+        // accel-speed 0.2
+        // accel-profile "flat"
+        // scroll-method "no-scroll"
+    }
+
+    trackpoint {
+        // off
+        // natural-scroll
+        // accel-speed 0.2
+        // accel-profile "flat"
+        // scroll-method "on-button-down"
+        // scroll-button 273
+        // scroll-button-lock
+        // middle-emulation
+    }
+
+    warp-mouse-to-focus
+    focus-follows-mouse max-scroll-amount="0%"
+}
+
+
+/-output "eDP-1" {
+    // off
+    mode "1920x1080@120.030"
+    scale 2
+    transform "normal"
+    position x=1280 y=0
+}
+
+layout {
+    gaps 10
+    center-focused-column "on-overflow"
+    background-color "transparent"
+    always-center-single-column
+    default-column-width { proportion 0.66667; }
+
+    preset-column-widths {
+        proportion 0.33333
+        proportion 0.5
+        proportion 0.66667
+        proportion 0.9
+    }
+    preset-window-heights {
+        proportion 0.33333
+        proportion 0.5
+        proportion 0.66667
+        proportion 1.0
+    }
+
+
+    focus-ring {
+        width 2
+        active-color "#7fc8ff"
+        inactive-color "#505050"
+    }
+
+    struts {
+        left 2
+        right 2
+        top 2
+        bottom 2
+    }
+
+    tab-indicator {
+        // off
+        hide-when-single-tab
+        place-within-column
+        gap 5
+        width 4
+        length total-proportion=1.0
+        position "right"
+        gaps-between-tabs 2
+        corner-radius 8
+        active-color "red"
+        inactive-color "gray"
+        urgent-color "blue"
+    }
+}
+
+
+hotkey-overlay {
+     skip-at-startup
+     hide-not-bound
+}
+
+prefer-no-csd
+
+
+screenshot-path "~/Pictures/Screenshots/%Y-%m-%d %H-%M-%S-Screenshot.png"
+
+animations {
+    // Uncomment to turn off all animations.
+    // off
+
+    // Slow down all animations by this factor. Values below 1 speed them up instead.
+    // slowdown 3.0
+}
+
+gestures {
+    dnd-edge-view-scroll {
+        trigger-width 30
+        delay-ms 100
+        max-speed 1500
+    }
+    dnd-edge-workspace-switch {
+        trigger-height 50
+        delay-ms 100
+        max-speed 1500
+    }
+    hot-corners {
+        off
+    }
+}
+
+clipboard {
+    disable-primary
+}
+
+
+binds {
+    Mod+F2 { show-hotkey-overlay; }
+    Mod+Return hotkey-overlay-title="Open a Terminal" { spawn "xdg-terminal-exec"; }
+    Mod+Space hotkey-overlay-title="Run an Application" { spawn-sh "rofi -show drun -run-command 'uwsm-exec {cmd}'"; }
+    Mod+B hotkey-overlay-title="Open a Web Browser" { spawn "uwsm-exec" "brave"; }
+    Mod+E hotkey-overlay-title="Open a File Manager" { spawn "uwsm-exec" "nautilus"; }
+    Mod+V hotkey-overlay-title="Open a clipboard Manager" { spawn "uwsm-exec" "clipse-gui"; }
+    Mod+N hotkey-overlay-title="Open a Note Taking App" { spawn "dmsctl" "notepad"; }
+    Mod+K hotkey-overlay-title="Open a Password Manager" { spawn "uwsm-exec" "bitwarden.desktop"; }
+    mod+W hotkey-overlay-title="Open a Wallpaper picker" { spawn-sh "uwsm-exec qs -c dms ipc call file browse wallpaper"; }
+    Mod+Comma hotkey-overlay-title="Open emoji Picker" { spawn "uwsm-exec" "rofimoji"; }
+    Mod+L hotkey-overlay-title="Lock the Screen" { spawn "dmsctl" "lock"; }
+    Mod+Shift+Return { spawn-sh "$HOME/.config/scripts/floating terminal"; }
+    Mod+U { spawn-sh "$HOME/.config/scripts/floating update"; }
+    Mod+Y { spawn-sh "$HOME/.config/scripts/floating yazi"; }
+
+
+    XF86AudioRaiseVolume allow-when-locked=true { spawn "dmsctl" "volume" "+" "5"; }
+    XF86AudioLowerVolume allow-when-locked=true { spawn "dmsctl" "volume" "-" "5"; }
+    XF86AudioMute        allow-when-locked=true { spawn "dmsctl" "volume" "mute"; }
+    XF86AudioMicMute     allow-when-locked=true { spawn "dmsctl" "volume" "micmute"; }
+
+    // Brightness
+    XF86MonBrightnessUp allow-when-locked=true { spawn "dmsctl" "brightness" "+" "5"; }
+    XF86MonBrightnessDown allow-when-locked=true { spawn "dmsctl" "brightness" "-" "5"; }
+
+    Mod+O repeat=false { toggle-overview; }
+    Mod+Q repeat=false { close-window; }
+
+    Mod+Left  { focus-column-left; }
+    Mod+Down  { focus-window-down; }
+    Mod+Up    { focus-window-up; }
+    Mod+Right { focus-column-right; }
+
+    Mod+Ctrl+Left  { move-column-left; }
+    Mod+Ctrl+Down  { move-window-down; }
+    Mod+Ctrl+Up    { move-window-up; }
+    Mod+Ctrl+Right { move-column-right; }
+    Mod+Ctrl+H     { move-column-left; }
+    Mod+Ctrl+J     { move-window-down; }
+    Mod+Ctrl+K     { move-window-up; }
+    Mod+Ctrl+L     { move-column-right; }
+
+    Mod+Home { focus-column-first; }
+    Mod+End  { focus-column-last; }
+    Mod+Ctrl+Home { move-column-to-first; }
+    Mod+Ctrl+End  { move-column-to-last; }
+
+    Mod+Shift+Ctrl+Left  { move-column-to-monitor-left; }
+    Mod+Shift+Ctrl+Down  { move-column-to-monitor-down; }
+    Mod+Shift+Ctrl+Up    { move-column-to-monitor-up; }
+    Mod+Shift+Ctrl+Right { move-column-to-monitor-right; }
+    Mod+Shift+Ctrl+H     { move-column-to-monitor-left; }
+    Mod+Shift+Ctrl+J     { move-column-to-monitor-down; }
+    Mod+Shift+Ctrl+K     { move-column-to-monitor-up; }
+    Mod+Shift+Ctrl+L     { move-column-to-monitor-right; }
+
+    Mod+Alt+Down      { focus-workspace-down; }
+    Mod+Alt+Up        { focus-workspace-up; }
+    Mod+Ctrl+Page_Down { move-column-to-workspace-down; }
+    Mod+Ctrl+Page_Up   { move-column-to-workspace-up; }
+    Mod+Ctrl+U         { move-column-to-workspace-down; }
+    Mod+Ctrl+I         { move-column-to-workspace-up; }
+
+    Mod+Shift+Page_Down { move-workspace-down; }
+    Mod+Shift+Page_Up   { move-workspace-up; }
+    Mod+Shift+U         { move-workspace-down; }
+    Mod+Shift+I         { move-workspace-up; }
+
+    Mod+WheelScrollDown      cooldown-ms=150 { focus-workspace-down; }
+    Mod+WheelScrollUp        cooldown-ms=150 { focus-workspace-up; }
+    Mod+Ctrl+WheelScrollDown cooldown-ms=150 { move-column-to-workspace-down; }
+    Mod+Ctrl+WheelScrollUp   cooldown-ms=150 { move-column-to-workspace-up; }
+
+    Mod+WheelScrollRight      { focus-column-right; }
+    Mod+WheelScrollLeft       { focus-column-left; }
+    Mod+Ctrl+WheelScrollRight { move-column-right; }
+    Mod+Ctrl+WheelScrollLeft  { move-column-left; }
+
+    Mod+Shift+WheelScrollDown      { focus-column-right; }
+    Mod+Shift+WheelScrollUp        { focus-column-left; }
+    Mod+Ctrl+Shift+WheelScrollDown { move-column-right; }
+    Mod+Ctrl+Shift+WheelScrollUp   { move-column-left; }
+
+    Mod+1 { focus-workspace 1; }
+    Mod+2 { focus-workspace 2; }
+    Mod+3 { focus-workspace 3; }
+    Mod+4 { focus-workspace 4; }
+    Mod+5 { focus-workspace 5; }
+    Mod+6 { focus-workspace 6; }
+    Mod+7 { focus-workspace 7; }
+    Mod+8 { focus-workspace 8; }
+    Mod+9 { focus-workspace 9; }
+    Mod+0 { focus-workspace 10; }
+
+    Mod+Shift+1 { move-window-to-workspace 1; }
+    Mod+Shift+2 { move-window-to-workspace 2; }
+    Mod+Shift+3 { move-window-to-workspace 3; }
+    Mod+Shift+4 { move-window-to-workspace 4; }
+    Mod+Shift+5 { move-window-to-workspace 5; }
+    Mod+Shift+6 { move-window-to-workspace 6; }
+    Mod+Shift+7 { move-window-to-workspace 7; }
+    Mod+Shift+8 { move-window-to-workspace 8; }
+    Mod+Shift+9 { move-window-to-workspace 9; }
+    Mod+Shift+0 { move-window-to-workspace 10; }
+
+
+    // The following binds move the focused window in and out of a column.
+    // If the window is alone, they will consume it into the nearby column to the side.
+    // If the window is already in a column, they will expel it out.
+    Mod+BracketLeft  { consume-or-expel-window-left; }
+    Mod+BracketRight { consume-or-expel-window-right; }
+
+    // Consume one window from the right to the bottom of the focused column.
+    Mod+Slash  { consume-window-into-column; }
+    // Expel the bottom window from the focused column to the right.
+    Mod+Period { expel-window-from-column; }
+
+    Mod+R { switch-preset-column-width; }
+    // Cycling through the presets in reverse order is also possible.
+    // Mod+R { switch-preset-column-width-back; }
+    Mod+Shift+R { switch-preset-window-height; }
+    Mod+Ctrl+R { reset-window-height; }
+    Mod+F { maximize-column; }
+    Mod+Shift+F { fullscreen-window; }
+
+    // Expand the focused column to space not taken up by other fully visible columns.
+    // Makes the column "fill the rest of the space".
+    Mod+Ctrl+F { expand-column-to-available-width; }
+
+    Mod+C { center-column; }
+
+    // Center all fully visible columns on screen.
+    Mod+Ctrl+C { center-visible-columns; }
+
+    Mod+Minus { set-column-width "-10%"; }
+    Mod+Equal { set-column-width "+10%"; }
+
+    // Finer height adjustments when in column with other windows.
+    Mod+Shift+Minus { set-window-height "-10%"; }
+    Mod+Shift+Equal { set-window-height "+10%"; }
+
+    // Move the focused window between the floating and the tiling layout.
+    Mod+A       { toggle-window-floating; }
+    Mod+Shift+A { switch-focus-between-floating-and-tiling; }
+
+    // Toggle tabbed column display mode.
+    // Windows in this column will appear as vertical tabs,
+    // rather than stacked on top of each other.
+    Mod+Shift+W { toggle-column-tabbed-display; }
+
+
+    Print { screenshot; }
+    Shift+Print { screenshot-screen; }
+    Alt+Print { screenshot-window; }
+    Mod+Escape allow-inhibiting=false { toggle-keyboard-shortcuts-inhibit; }
+    Mod+Alt+Delete hotkey-overlay-title="Exit Niri" { spawn "dmsctl" "logout"; }
+    Mod+Shift+P { power-off-monitors; }
+    Mod+Shift+S hotkey-overlay-title="Toggle Dark/Light Style" { spawn "qs" "-c" "dms" "ipc" "call" "theme" "toggle"; }
+}
+
+cursor {
+    xcursor-theme "macOS-White"
+    xcursor-size 24
+    hide-when-typing
+    hide-after-inactive-ms 10000
+}
+
+
+
+
+config-notification {
+    disable-failed
+}
+
+spawn-at-startup "qs" "-c" "dms"
+spawn-at-startup "clipse -listen"
+spawn-at-startup "/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1"
+spawn-sh-at-startup "uwsm-exec ~/.config/scripts/initial_boot"
+spawn-at-startup "xwayland-satellite"
+
+
+window-rule {
+    match is-window-cast-target=true
+
+    focus-ring {
+        active-color "#f38ba8"
+        inactive-color "#7d0d2d"
+    }
+
+    border {
+        inactive-color "#7d0d2d"
+    }
+
+    shadow {
+        color "#7d0d2d70"
+    }
+
+    tab-indicator {
+        active-color "#f38ba8"
+        inactive-color "#7d0d2d"
+    }
+}
+
+window-rule {
+    geometry-corner-radius 12
+    clip-to-geometry true
+}
+
+window-rule {
+    match app-id="steam" title=r#"^notificationtoasts_\d+_desktop$"#
+    default-floating-position x=10 y=10 relative-to="bottom-right"
+}
+
+window-rule {
+    draw-border-with-background false
+}
+
+
+window-rule {
+    match app-id="brave"
+    exclude title="Sign in"
+    open-maximized true
+}
+
+
+window-rule {
+    match app-id="clipse-gui"
+    open-floating true
+    default-column-width { fixed 800; }
+    default-window-height { fixed 550; }
+}
+
+// block screen capture for some apps
+window-rule {
+    match app-id="Bitwarden"
+    match app-id="^org\\.keepassxc\\.KeePassXC$"
+    match app-id="^org\\.gnome\\.World\\.Secrets$"
+    match app-id="Proton Pass"
+    open-floating true
+    default-column-width { proportion 0.70; }
+    default-window-height { proportion 0.70; }
+    block-out-from "screencast"
+}
+
+// floating
+window-rule {
+    match app-id="firefox$" title="^Picture-in-Picture$"
+    match app-id="brave-browser$" title="^Picture-in-Picture$"
+    match app-id="Vivaldi-stable$" title="^Picture-in-Picture$"
+    match app-id="org.gnome.Nautilus$" title="^Open File$"
+    match app-id="org.gnome.Nautilus$" title="^Select Export Location$"
+    match app-id="python3$" title="^Buzz$"
+    match app-id="com.github.tenderowl.frog$"
+    match app-id="xdg-desktop-portal-gtk"
+    match app-id="org.pulseaudio.pavucontrol"
+    match app-id="zenity"
+    match title="Special Offers"
+    match title="Friends List"
+    match title="Steam Settings"
+    match app-id="steam" title="Brawlhalla"
+    match app-id="galculator"
+    match app-id="org.kde.kcalc"
+    match app-id="blueman-manager"
+    match app-id="org.kde.kdeconnect.app"
+    match app-id="nm-connection-editor"
+    match app-id="org.kde.polkit-kde-authentication-agent-1"
+    match app-id="polkit-gnome-authentication-agent-1"
+    match title="gtk*"
+    match app-id="GParted"
+    match app-id="nwg-look"
+    match app-id="qt6ct"
+    match app-id="qt5ct"
+    match title="popup title with spaces"
+    match title="zoom"
+    match title="Picture-in-Picture"
+
+
+
+    open-floating true
+    default-column-width { }
+    default-window-height { }
+}
+
+window-rule {
+	match app-id="FloatingTerm"
+    default-column-width { proportion 0.70; }
+    default-window-height { proportion 0.70; }
+	open-floating true
+}
+

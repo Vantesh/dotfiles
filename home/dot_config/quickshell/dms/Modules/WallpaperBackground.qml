@@ -37,6 +37,9 @@ LazyLoader {
                 property string source: SessionData.getMonitorWallpaper(modelData.name) || ""
                 property bool isColorSource: source.startsWith("#")
                 property string transitionType: SessionData.wallpaperTransition
+                onTransitionTypeChanged: {
+                    currentWallpaper.visible = (transitionType === "none")
+                }
                 property real transitionProgress: 0
                 property real fillMode: 1.0
                 property vector4d fillColor: Qt.vector4d(0, 0, 0, 1)
@@ -58,6 +61,7 @@ LazyLoader {
                     monitor: modelData.name
                 }
 
+
                 Component.onDestruction: {
                     weProc.stop()
                 }
@@ -76,7 +80,12 @@ LazyLoader {
                         } else if (isColor) {
                             setWallpaperImmediate("")
                         } else {
-                            changeWallpaper(source.startsWith("file://") ? source : "file://" + source)
+                            // Always set immediately if there's no current wallpaper (startup)
+                            if (!currentWallpaper.source) {
+                                setWallpaperImmediate(source.startsWith("file://") ? source : "file://" + source)
+                            } else {
+                                changeWallpaper(source.startsWith("file://") ? source : "file://" + source)
+                            }
                         }
                     }
                 }
@@ -88,8 +97,8 @@ LazyLoader {
                     nextWallpaper.source = ""
                 }
 
-                function changeWallpaper(newPath) {
-                    if (newPath === currentWallpaper.source) return
+                function changeWallpaper(newPath, force) {
+                    if (!force && newPath === currentWallpaper.source) return
                     if (!newPath || newPath.startsWith("#")) return
 
                     if (root.transitioning) {
@@ -97,6 +106,18 @@ LazyLoader {
                         root.transitionProgress = 0
                         currentWallpaper.source = nextWallpaper.source
                         nextWallpaper.source = ""
+                    }
+
+                    // If no current wallpaper, set immediately to avoid scaling issues
+                    if (!currentWallpaper.source) {
+                        setWallpaperImmediate(newPath)
+                        return
+                    }
+
+                    // If transition is "none", set immediately
+                    if (root.transitionType === "none") {
+                        setWallpaperImmediate(newPath)
+                        return
                     }
 
                     if (root.transitionType === "wipe") {
@@ -111,16 +132,11 @@ LazyLoader {
 
                     nextWallpaper.source = newPath
 
-                    if (currentWallpaper.source) {
-                        if (nextWallpaper.status === Image.Ready) {
-                            transitionAnimation.start()
-                        }
-                    } else {
-                        if (nextWallpaper.status === Image.Ready) {
-                            transitionAnimation.start()
-                        }
+                    if (nextWallpaper.status === Image.Ready) {
+                        transitionAnimation.start()
                     }
                 }
+
 
                 Loader {
                     anchors.fill: parent
@@ -149,9 +165,9 @@ LazyLoader {
                 Image {
                     id: currentWallpaper
                     anchors.fill: parent
-                    visible: true
-                    opacity: 0
-                    layer.enabled: true
+                    visible: root.transitionType === "none"
+                    opacity: 1
+                    layer.enabled: false
                     asynchronous: true
                     smooth: true
                     cache: true
@@ -161,9 +177,9 @@ LazyLoader {
                 Image {
                     id: nextWallpaper
                     anchors.fill: parent
-                    visible: true
+                    visible: false
                     opacity: 0
-                    layer.enabled: true
+                    layer.enabled: false
                     asynchronous: true
                     smooth: true
                     cache: true
@@ -172,21 +188,16 @@ LazyLoader {
                     onStatusChanged: {
                         if (status !== Image.Ready) return
 
-                        if (currentWallpaper.source) {
-                            if (!root.transitioning && root.transitionType !== "none") {
-                                transitionAnimation.start()
-                            } else if (root.transitionType === "none") {
-                                currentWallpaper.source = source
-                                nextWallpaper.source = ""
-                                root.transitionProgress = 0.0
-                            }
+                        if (root.transitionType === "none") {
+                            currentWallpaper.source = source
+                            nextWallpaper.source = ""
+                            root.transitionProgress = 0.0
                         } else {
-                            if (!root.transitioning && root.transitionType !== "none") {
+                            currentWallpaper.layer.enabled = true
+                            layer.enabled = true
+                            visible = true
+                            if (!root.transitioning) {
                                 transitionAnimation.start()
-                            } else if (root.transitionType === "none") {
-                                currentWallpaper.source = source
-                                nextWallpaper.source = ""
-                                root.transitionProgress = 0.0
                             }
                         }
                     }
@@ -195,19 +206,19 @@ LazyLoader {
                 ShaderEffect {
                     id: fadeShader
                     anchors.fill: parent
-                    visible: (root.transitionType === "fade" || root.transitionType === "none") && (root.hasCurrent || root.booting)
+                    visible: root.transitionType === "fade" && (root.hasCurrent || root.booting)
 
                     property variant source1: root.hasCurrent ? currentWallpaper : transparentSource
                     property variant source2: nextWallpaper
                     property real progress: root.transitionProgress
                     property real fillMode: root.fillMode
                     property vector4d fillColor: root.fillColor
-                    property real imageWidth1: Math.max(1, root.hasCurrent ? source1.sourceSize.width : width)
-                    property real imageHeight1: Math.max(1, root.hasCurrent ? source1.sourceSize.height : height)
+                    property real imageWidth1: Math.max(1, root.hasCurrent ? source1.sourceSize.width : modelData.width)
+                    property real imageHeight1: Math.max(1, root.hasCurrent ? source1.sourceSize.height : modelData.height)
                     property real imageWidth2: Math.max(1, source2.sourceSize.width)
                     property real imageHeight2: Math.max(1, source2.sourceSize.height)
-                    property real screenWidth: width
-                    property real screenHeight: height
+                    property real screenWidth: modelData.width
+                    property real screenHeight: modelData.height
 
                     fragmentShader: Qt.resolvedUrl("../Shaders/qsb/wp_fade.frag.qsb")
                 }
@@ -224,12 +235,12 @@ LazyLoader {
                     property real direction: root.wipeDirection
                     property real fillMode: root.fillMode
                     property vector4d fillColor: root.fillColor
-                    property real imageWidth1: Math.max(1, root.hasCurrent ? source1.sourceSize.width : width)
-                    property real imageHeight1: Math.max(1, root.hasCurrent ? source1.sourceSize.height : height)
+                    property real imageWidth1: Math.max(1, root.hasCurrent ? source1.sourceSize.width : modelData.width)
+                    property real imageHeight1: Math.max(1, root.hasCurrent ? source1.sourceSize.height : modelData.height)
                     property real imageWidth2: Math.max(1, source2.sourceSize.width)
                     property real imageHeight2: Math.max(1, source2.sourceSize.height)
-                    property real screenWidth: width
-                    property real screenHeight: height
+                    property real screenWidth: modelData.width
+                    property real screenHeight: modelData.height
 
                     fragmentShader: Qt.resolvedUrl("../Shaders/qsb/wp_wipe.frag.qsb")
                 }
@@ -248,12 +259,12 @@ LazyLoader {
                     property real centerY: root.discCenterY
                     property real fillMode: root.fillMode
                     property vector4d fillColor: root.fillColor
-                    property real imageWidth1: Math.max(1, root.hasCurrent ? source1.sourceSize.width : width)
-                    property real imageHeight1: Math.max(1, root.hasCurrent ? source1.sourceSize.height : height)
+                    property real imageWidth1: Math.max(1, root.hasCurrent ? source1.sourceSize.width : modelData.width)
+                    property real imageHeight1: Math.max(1, root.hasCurrent ? source1.sourceSize.height : modelData.height)
                     property real imageWidth2: Math.max(1, source2.sourceSize.width)
                     property real imageHeight2: Math.max(1, source2.sourceSize.height)
-                    property real screenWidth: width
-                    property real screenHeight: height
+                    property real screenWidth: modelData.width
+                    property real screenHeight: modelData.height
 
                     fragmentShader: Qt.resolvedUrl("../Shaders/qsb/wp_disc.frag.qsb")
                 }
@@ -272,14 +283,86 @@ LazyLoader {
                     property real angle: root.stripesAngle
                     property real fillMode: root.fillMode
                     property vector4d fillColor: root.fillColor
-                    property real imageWidth1: Math.max(1, root.hasCurrent ? source1.sourceSize.width : width)
-                    property real imageHeight1: Math.max(1, root.hasCurrent ? source1.sourceSize.height : height)
+                    property real imageWidth1: Math.max(1, root.hasCurrent ? source1.sourceSize.width : modelData.width)
+                    property real imageHeight1: Math.max(1, root.hasCurrent ? source1.sourceSize.height : modelData.height)
                     property real imageWidth2: Math.max(1, source2.sourceSize.width)
                     property real imageHeight2: Math.max(1, source2.sourceSize.height)
-                    property real screenWidth: width
-                    property real screenHeight: height
+                    property real screenWidth: modelData.width
+                    property real screenHeight: modelData.height
 
                     fragmentShader: Qt.resolvedUrl("../Shaders/qsb/wp_stripes.frag.qsb")
+                }
+
+                ShaderEffect {
+                    id: irisBloomShader
+                    anchors.fill: parent
+                    visible: root.transitionType === "iris bloom" && (root.hasCurrent || root.booting)
+
+                    property variant source1: root.hasCurrent ? currentWallpaper : transparentSource
+                    property variant source2: nextWallpaper
+                    property real progress: root.transitionProgress
+                    property real smoothness: root.edgeSmoothness
+                    property real centerX: 0.5
+                    property real centerY: 0.5
+                    property real aspectRatio: root.width / root.height
+                    property real fillMode: root.fillMode
+                    property vector4d fillColor: root.fillColor
+                    property real imageWidth1: Math.max(1, root.hasCurrent ? source1.sourceSize.width : modelData.width)
+                    property real imageHeight1: Math.max(1, root.hasCurrent ? source1.sourceSize.height : modelData.height)
+                    property real imageWidth2: Math.max(1, source2.sourceSize.width)
+                    property real imageHeight2: Math.max(1, source2.sourceSize.height)
+                    property real screenWidth: modelData.width
+                    property real screenHeight: modelData.height
+
+                    fragmentShader: Qt.resolvedUrl("../Shaders/qsb/wp_iris_bloom.frag.qsb")
+                }
+
+                ShaderEffect {
+                    id: pixelateShader
+                    anchors.fill: parent
+                    visible: root.transitionType === "pixelate" && (root.hasCurrent || root.booting)
+
+                    property variant source1: root.hasCurrent ? currentWallpaper : transparentSource
+                    property variant source2: nextWallpaper
+                    property real progress: root.transitionProgress
+                    property real smoothness: root.edgeSmoothness   // controls starting block size
+                    property real fillMode: root.fillMode
+                    property vector4d fillColor: root.fillColor
+                    property real imageWidth1: Math.max(1, root.hasCurrent ? source1.sourceSize.width : modelData.width)
+                    property real imageHeight1: Math.max(1, root.hasCurrent ? source1.sourceSize.height : modelData.height)
+                    property real imageWidth2: Math.max(1, source2.sourceSize.width)
+                    property real imageHeight2: Math.max(1, source2.sourceSize.height)
+                    property real screenWidth: modelData.width
+                    property real screenHeight: modelData.height
+                    property real centerX: root.discCenterX
+                    property real centerY: root.discCenterY
+                    property real aspectRatio: root.width / root.height
+
+                    fragmentShader: Qt.resolvedUrl("../Shaders/qsb/wp_pixelate.frag.qsb")
+                }
+
+                ShaderEffect {
+                    id: portalShader
+                    anchors.fill: parent
+                    visible: root.transitionType === "portal" && (root.hasCurrent || root.booting)
+
+                    property variant source1: root.hasCurrent ? currentWallpaper : transparentSource
+                    property variant source2: nextWallpaper
+                    property real progress: root.transitionProgress
+                    property real smoothness: root.edgeSmoothness
+                    property real aspectRatio: root.width / root.height
+                    property real centerX: root.discCenterX
+                    property real centerY: root.discCenterY
+                    property real fillMode: root.fillMode
+                    property vector4d fillColor: root.fillColor
+                    property real imageWidth1: Math.max(1, root.hasCurrent ? source1.sourceSize.width : modelData.width)
+                    property real imageHeight1: Math.max(1, root.hasCurrent ? source1.sourceSize.height : modelData.height)
+                    property real imageWidth2: Math.max(1, source2.sourceSize.width)
+                    property real imageHeight2: Math.max(1, source2.sourceSize.height)
+                    property real screenWidth: modelData.width
+                    property real screenHeight: modelData.height
+
+                    fragmentShader: Qt.resolvedUrl("../Shaders/qsb/wp_portal.frag.qsb")
                 }
 
                 NumberAnimation {
@@ -288,7 +371,7 @@ LazyLoader {
                     property: "transitionProgress"
                     from: 0.0
                     to: 1.0
-                    duration: 1000
+                    duration: root.transitionType === "none" ? 0 : 1000
                     easing.type: Easing.InOutCubic
                     onFinished: {
                         Qt.callLater(() => {
@@ -296,6 +379,10 @@ LazyLoader {
                                 currentWallpaper.source = nextWallpaper.source
                             }
                             nextWallpaper.source = ""
+                            nextWallpaper.visible = false
+                            currentWallpaper.visible = root.transitionType === "none"
+                            currentWallpaper.layer.enabled = false
+                            nextWallpaper.layer.enabled = false
                             root.transitionProgress = 0.0
                         })
                     }

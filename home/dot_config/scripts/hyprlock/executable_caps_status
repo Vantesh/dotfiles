@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
 # Requires hyprctl and jq
 # Checks if Caps Lock is active on the main keyboard

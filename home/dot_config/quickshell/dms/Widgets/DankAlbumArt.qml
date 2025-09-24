@@ -159,8 +159,8 @@ Item {
 
         imageSource: artUrl || lastValidArtUrl || ""
         fallbackIcon: "album"
-        borderColor: Theme.primary
-        borderWidth: 2
+        border.color: Theme.primary
+        border.width: 2
 
         onImageSourceChanged: {
             if (imageSource && imageStatus !== Image.Error) {

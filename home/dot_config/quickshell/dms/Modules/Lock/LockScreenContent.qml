@@ -352,14 +352,22 @@ Item {
                         }
 
                         onActiveFocusChanged: {
-                            if (!activeFocus && !demoMode && visible) {
-                                Qt.callLater(() => forceActiveFocus())
+                            if (!activeFocus && !demoMode && visible && passwordField) {
+                                Qt.callLater(() => {
+                                    if (passwordField && passwordField.forceActiveFocus) {
+                                        passwordField.forceActiveFocus()
+                                    }
+                                })
                             }
                         }
 
                         onEnabledChanged: {
-                            if (enabled && !demoMode && visible) {
-                                Qt.callLater(() => forceActiveFocus())
+                            if (enabled && !demoMode && visible && passwordField) {
+                                Qt.callLater(() => {
+                                    if (passwordField && passwordField.forceActiveFocus) {
+                                        passwordField.forceActiveFocus()
+                                    }
+                                })
                             }
                         }
                     }

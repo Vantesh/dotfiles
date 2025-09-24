@@ -191,9 +191,6 @@ Item {
             "enabled": true
         }]
     property var defaultRightWidgets: [{
-            "id": "privacyIndicator",
-            "enabled": true
-        }, {
             "id": "systemTray",
             "enabled": true
         }, {

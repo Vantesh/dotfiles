@@ -511,13 +511,13 @@ Item {
                         height: 1
                         color: Theme.outline
                         opacity: 0.2
-                        visible: SessionData.wallpaperPath !== "" && !SessionData.perMonitorWallpaper
+                        visible: SessionData.wallpaperPath !== "" || SessionData.perMonitorWallpaper
                     }
 
                     Column {
                         width: parent.width
                         spacing: Theme.spacingM
-                        visible: SessionData.wallpaperPath !== "" && !SessionData.perMonitorWallpaper
+                        visible: SessionData.wallpaperPath !== "" || SessionData.perMonitorWallpaper
 
                         Row {
                             width: parent.width
@@ -554,11 +554,23 @@ Item {
                                 id: cyclingToggle
 
                                 anchors.verticalCenter: parent.verticalCenter
-                                checked: SessionData.wallpaperCyclingEnabled
-                                enabled: !SessionData.perMonitorWallpaper
+                                checked: SessionData.perMonitorWallpaper ? SessionData.getMonitorCyclingSettings(selectedMonitorName).enabled : SessionData.wallpaperCyclingEnabled
                                 onToggled: toggled => {
-                                               return SessionData.setWallpaperCyclingEnabled(toggled)
+                                               if (SessionData.perMonitorWallpaper) {
+                                                   return SessionData.setMonitorCyclingEnabled(selectedMonitorName, toggled)
+                                               } else {
+                                                   return SessionData.setWallpaperCyclingEnabled(toggled)
+                                               }
                                            }
+
+                                Connections {
+                                    target: personalizationTab
+                                    function onSelectedMonitorNameChanged() {
+                                        cyclingToggle.checked = Qt.binding(() => {
+                                            return SessionData.perMonitorWallpaper ? SessionData.getMonitorCyclingSettings(selectedMonitorName).enabled : SessionData.wallpaperCyclingEnabled
+                                        })
+                                    }
+                                }
                             }
                         }
 
@@ -566,7 +578,7 @@ Item {
                         Column {
                             width: parent.width
                             spacing: Theme.spacingS
-                            visible: SessionData.wallpaperCyclingEnabled
+                            visible: SessionData.perMonitorWallpaper ? SessionData.getMonitorCyclingSettings(selectedMonitorName).enabled : SessionData.wallpaperCyclingEnabled
                             leftPadding: Theme.iconSize + Theme.spacingM
 
                             Row {
@@ -596,40 +608,104 @@ Item {
                                                 "text": "Time",
                                                 "icon": "access_time"
                                             }]
-                                        currentIndex: SessionData.wallpaperCyclingMode === "time" ? 1 : 0
+                                        currentIndex: {
+                                            if (SessionData.perMonitorWallpaper) {
+                                                return SessionData.getMonitorCyclingSettings(selectedMonitorName).mode === "time" ? 1 : 0
+                                            } else {
+                                                return SessionData.wallpaperCyclingMode === "time" ? 1 : 0
+                                            }
+                                        }
                                         onTabClicked: index => {
-                                                          SessionData.setWallpaperCyclingMode(index === 1 ? "time" : "interval")
+                                                          if (SessionData.perMonitorWallpaper) {
+                                                              SessionData.setMonitorCyclingMode(selectedMonitorName, index === 1 ? "time" : "interval")
+                                                          } else {
+                                                              SessionData.setWallpaperCyclingMode(index === 1 ? "time" : "interval")
+                                                          }
                                                       }
+
+                                        Connections {
+                                            target: personalizationTab
+                                            function onSelectedMonitorNameChanged() {
+                                                modeTabBar.currentIndex = Qt.binding(() => {
+                                                    if (SessionData.perMonitorWallpaper) {
+                                                        return SessionData.getMonitorCyclingSettings(selectedMonitorName).mode === "time" ? 1 : 0
+                                                    } else {
+                                                        return SessionData.wallpaperCyclingMode === "time" ? 1 : 0
+                                                    }
+                                                })
+                                                Qt.callLater(modeTabBar.updateIndicator)
+                                            }
+                                        }
                                     }
                                 }
                             }
 
                             // Interval settings
                             DankDropdown {
+                                id: intervalDropdown
                                 property var intervalOptions: ["1 minute", "5 minutes", "15 minutes", "30 minutes", "1 hour", "1.5 hours", "2 hours", "3 hours", "4 hours", "6 hours", "8 hours", "12 hours"]
                                 property var intervalValues: [60, 300, 900, 1800, 3600, 5400, 7200, 10800, 14400, 21600, 28800, 43200]
 
                                 width: parent.width - parent.leftPadding
-                                visible: SessionData.wallpaperCyclingMode === "interval"
+                                visible: {
+                                    if (SessionData.perMonitorWallpaper) {
+                                        return SessionData.getMonitorCyclingSettings(selectedMonitorName).mode === "interval"
+                                    } else {
+                                        return SessionData.wallpaperCyclingMode === "interval"
+                                    }
+                                }
                                 text: "Interval"
                                 description: "How often to change wallpaper"
                                 options: intervalOptions
                                 currentValue: {
-                                    const currentSeconds = SessionData.wallpaperCyclingInterval
+                                    var currentSeconds
+                                    if (SessionData.perMonitorWallpaper) {
+                                        currentSeconds = SessionData.getMonitorCyclingSettings(selectedMonitorName).interval
+                                    } else {
+                                        currentSeconds = SessionData.wallpaperCyclingInterval
+                                    }
                                     const index = intervalValues.indexOf(currentSeconds)
                                     return index >= 0 ? intervalOptions[index] : "5 minutes"
                                 }
                                 onValueChanged: value => {
                                                     const index = intervalOptions.indexOf(value)
-                                                    if (index >= 0)
-                                                    SessionData.setWallpaperCyclingInterval(intervalValues[index])
+                                                    if (index >= 0) {
+                                                        if (SessionData.perMonitorWallpaper) {
+                                                            SessionData.setMonitorCyclingInterval(selectedMonitorName, intervalValues[index])
+                                                        } else {
+                                                            SessionData.setWallpaperCyclingInterval(intervalValues[index])
+                                                        }
+                                                    }
                                                 }
+
+                                Connections {
+                                    target: personalizationTab
+                                    function onSelectedMonitorNameChanged() {
+                                        // Force dropdown to refresh its currentValue
+                                        Qt.callLater(() => {
+                                            var currentSeconds
+                                            if (SessionData.perMonitorWallpaper) {
+                                                currentSeconds = SessionData.getMonitorCyclingSettings(selectedMonitorName).interval
+                                            } else {
+                                                currentSeconds = SessionData.wallpaperCyclingInterval
+                                            }
+                                            const index = intervalDropdown.intervalValues.indexOf(currentSeconds)
+                                            intervalDropdown.currentValue = index >= 0 ? intervalDropdown.intervalOptions[index] : "5 minutes"
+                                        })
+                                    }
+                                }
                             }
 
                             // Time settings
                             Row {
                                 spacing: Theme.spacingM
-                                visible: SessionData.wallpaperCyclingMode === "time"
+                                visible: {
+                                    if (SessionData.perMonitorWallpaper) {
+                                        return SessionData.getMonitorCyclingSettings(selectedMonitorName).mode === "time"
+                                    } else {
+                                        return SessionData.wallpaperCyclingMode === "time"
+                                    }
+                                }
                                 width: parent.width - parent.leftPadding
 
                                 StyledText {
@@ -640,31 +716,70 @@ Item {
                                 }
 
                                 DankTextField {
+                                    id: timeTextField
                                     width: 100
                                     height: 40
-                                    text: SessionData.wallpaperCyclingTime
+                                    text: {
+                                        if (SessionData.perMonitorWallpaper) {
+                                            return SessionData.getMonitorCyclingSettings(selectedMonitorName).time
+                                        } else {
+                                            return SessionData.wallpaperCyclingTime
+                                        }
+                                    }
                                     placeholderText: "00:00"
                                     maximumLength: 5
                                     topPadding: Theme.spacingS
                                     bottomPadding: Theme.spacingS
                                     onAccepted: {
                                         var isValid = /^([0-1][0-9]|2[0-3]):[0-5][0-9]$/.test(text)
-                                        if (isValid)
-                                            SessionData.setWallpaperCyclingTime(text)
-                                        else
-                                            text = SessionData.wallpaperCyclingTime
+                                        if (isValid) {
+                                            if (SessionData.perMonitorWallpaper) {
+                                                SessionData.setMonitorCyclingTime(selectedMonitorName, text)
+                                            } else {
+                                                SessionData.setWallpaperCyclingTime(text)
+                                            }
+                                        } else {
+                                            if (SessionData.perMonitorWallpaper) {
+                                                text = SessionData.getMonitorCyclingSettings(selectedMonitorName).time
+                                            } else {
+                                                text = SessionData.wallpaperCyclingTime
+                                            }
+                                        }
                                     }
                                     onEditingFinished: {
                                         var isValid = /^([0-1][0-9]|2[0-3]):[0-5][0-9]$/.test(text)
-                                        if (isValid)
-                                            SessionData.setWallpaperCyclingTime(text)
-                                        else
-                                            text = SessionData.wallpaperCyclingTime
+                                        if (isValid) {
+                                            if (SessionData.perMonitorWallpaper) {
+                                                SessionData.setMonitorCyclingTime(selectedMonitorName, text)
+                                            } else {
+                                                SessionData.setWallpaperCyclingTime(text)
+                                            }
+                                        } else {
+                                            if (SessionData.perMonitorWallpaper) {
+                                                text = SessionData.getMonitorCyclingSettings(selectedMonitorName).time
+                                            } else {
+                                                text = SessionData.wallpaperCyclingTime
+                                            }
+                                        }
                                     }
                                     anchors.verticalCenter: parent.verticalCenter
 
                                     validator: RegularExpressionValidator {
                                         regularExpression: /^([0-1][0-9]|2[0-3]):[0-5][0-9]$/
+                                    }
+
+                                    Connections {
+                                        target: personalizationTab
+                                        function onSelectedMonitorNameChanged() {
+                                            // Force text field to refresh its value
+                                            Qt.callLater(() => {
+                                                if (SessionData.perMonitorWallpaper) {
+                                                    timeTextField.text = SessionData.getMonitorCyclingSettings(selectedMonitorName).time
+                                                } else {
+                                                    timeTextField.text = SessionData.wallpaperCyclingTime
+                                                }
+                                            })
+                                        }
                                     }
                                 }
 
@@ -691,14 +806,18 @@ Item {
                         description: "Visual effect used when wallpaper changes"
                         currentValue: {
                             switch (SessionData.wallpaperTransition) {
+                            case "none": return "None"
                             case "fade": return "Fade"
                             case "wipe": return "Wipe"
                             case "disc": return "Disc"
                             case "stripes": return "Stripes"
+                            case "iris bloom": return "Iris Bloom"
+                            case "pixelate": return "Pixelate"
+                            case "portal": return "Portal"
                             default: return "Fade"
                             }
                         }
-                        options: ["Fade", "Wipe", "Disc", "Stripes"]
+                        options: ["None", "Fade", "Wipe", "Disc", "Stripes", "Iris Bloom", "Pixelate", "Portal"]
                         onValueChanged: value => {
                             var transition = value.toLowerCase()
                             SessionData.setWallpaperTransition(transition)
@@ -827,15 +946,6 @@ Item {
                                    }
                     }
 
-                    DankToggle {
-                        width: parent.width
-                        text: "Hide Brightness Slider"
-                        description: "Hide the brightness slider in Control Center and make audio slider full width"
-                        checked: SettingsData.hideBrightnessSlider
-                        onToggled: checked => {
-                                       SettingsData.setHideBrightnessSlider(checked)
-                                   }
-                    }
 
                     Rectangle {
                         width: parent.width

@@ -2,6 +2,7 @@
 
 # variables
 uptime="$(uptime -p | sed -e 's/up //g')"
+theme="$HOME/.config/rofi/style.rasi"
 shutdown='󰐥'
 reboot='󰜉'
 lock=''
@@ -14,7 +15,7 @@ rofi_cmd() {
   rofi -dmenu \
     -p "Uptime: $uptime" \
     -mesg "Uptime: $uptime" \
-    -theme ~/.config/rofi/scripts/powermenu/style.rasi
+    -theme "$theme"
 }
 
 confirm_cmd() {
@@ -26,7 +27,7 @@ confirm_cmd() {
     -dmenu \
     -p 'Confirmation' \
     -mesg 'Are you sure?' \
-    -theme ~/.config/rofi/scripts/powermenu/style.rasi
+    -theme "$theme"
 }
 
 confirm_exit() {
@@ -47,12 +48,12 @@ run_cmd() {
       systemctl reboot
     elif [[ $1 == '--suspend' ]]; then
       mpc -q pause
-      hyprlock
+      dmsctl lock
       systemctl suspend
     elif [[ $1 == '--logout' ]]; then
-      hyprctl dispatch exit
+      dmsctl logout
     elif [[ $1 == '--lock' ]]; then
-      hyprlock
+      dmsctl lock
     fi
   else
     exit 0
@@ -61,20 +62,20 @@ run_cmd() {
 
 # Actions
 chosen="$(run_rofi)"
-case ${chosen} in
-$shutdown)
+case "$chosen" in
+"$shutdown")
   run_cmd --shutdown
   ;;
-$reboot)
+"$reboot")
   run_cmd --reboot
   ;;
-$lock)
+"$lock")
   run_cmd --lock
   ;;
-$suspend)
+"$suspend")
   run_cmd --suspend
   ;;
-$logout)
+"$logout")
   run_cmd --logout
   ;;
 esac

@@ -8,6 +8,7 @@ import qs.Widgets
 
 Card {
     id: root
+    clip: false
 
     signal clicked()
 
@@ -65,13 +66,20 @@ Card {
         spacing: Theme.spacingL
         visible: activePlayer
 
-        DankAlbumArt {
-            width: 110
-            height: 80
+        Item {
+            width: 140
+            height: 110
             anchors.horizontalCenter: parent.horizontalCenter
-            activePlayer: root.activePlayer
-            albumSize: 76
-            animationScale: 1.05
+            clip: false
+
+            DankAlbumArt {
+                width: 110
+                height: 80
+                anchors.centerIn: parent
+                activePlayer: root.activePlayer
+                albumSize: 76
+                animationScale: 1.05
+            }
         }
 
         Column {

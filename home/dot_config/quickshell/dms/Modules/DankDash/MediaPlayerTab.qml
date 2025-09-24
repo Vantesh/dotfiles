@@ -677,6 +677,7 @@ Item {
             Item {
                 width: parent.width
                 height: 200
+                clip: false
 
                 DankAlbumArt {
                     width: Math.min(parent.width * 0.8, parent.height * 0.9)

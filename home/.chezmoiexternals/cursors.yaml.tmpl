@@ -3,7 +3,6 @@
 
 {{- $refresh := "744h" }}
 {{- $hypr := "driedpampas/macOS-hyprcursor" }}
-{{- $apple := "ful1e5/apple_cursor" }}
 
 ".local/share/icons/macOS-hypr":
   url: {{ gitHubLatestReleaseAssetURL $hypr "macOS.Hyprcursor.SVG.White.tar.gz" | quote }}
@@ -15,20 +14,6 @@
   url: {{ gitHubLatestReleaseAssetURL $hypr "macOS.Hyprcursor.SVG.tar.gz" | quote }}
   type: archive
   stripComponents: 1
-  refreshPeriod: {{ $refresh | quote }}
-
-".local/share/icons/macOS":
-  url: {{ gitHubLatestReleaseAssetURL $apple "macOS.tar.xz" | quote }}
-  type: archive
-  include: ["*/macOS/**"]
-  stripComponents: 2
-  refreshPeriod: {{ $refresh | quote }}
-
-".local/share/icons/macOS-White":
-  url: {{ gitHubLatestReleaseAssetURL $apple "macOS.tar.xz" | quote }}
-  type: archive
-  include: ["*/macOS-White/**"]
-  stripComponents: 2
   refreshPeriod: {{ $refresh | quote }}
 
 {{- end }}

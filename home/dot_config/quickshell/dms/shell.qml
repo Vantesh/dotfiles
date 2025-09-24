@@ -34,6 +34,8 @@ ShellRoot {
         PortalService.init()
         // Initialize DisplayService night mode functionality
         DisplayService.nightModeEnabled
+        // Initialize WallpaperCyclingService
+        WallpaperCyclingService.cyclingActive
     }
 
     WallpaperBackground {}

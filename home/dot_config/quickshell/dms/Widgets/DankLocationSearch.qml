@@ -7,11 +7,24 @@ import qs.Widgets
 Item {
     id: root
 
+    activeFocusOnTab: true
+
+    KeyNavigation.tab: keyNavigationTab
+    KeyNavigation.backtab: keyNavigationBacktab
+
+    onActiveFocusChanged: {
+        if (activeFocus) {
+            locationInput.forceActiveFocus()
+        }
+    }
+
     property string currentLocation: ""
     property string placeholderText: "Search for a location..."
     property bool _internalChange: false
     property bool isLoading: false
     property string currentSearchText: ""
+    property Item keyNavigationTab: null
+    property Item keyNavigationBacktab: null
 
     signal locationSelected(string displayName, string coordinates)
 
@@ -131,10 +144,12 @@ Item {
             height: parent.height
             leftIconName: "search"
             placeholderText: root.placeholderText
-            text: root.currentLocation
+            text: ""
             backgroundColor: Theme.surfaceVariant
             normalBorderColor: Theme.primarySelected
             focusedBorderColor: Theme.primary
+            keyNavigationTab: root.keyNavigationTab
+            keyNavigationBacktab: root.keyNavigationBacktab
             onTextEdited: {
                 if (root._internalChange)
                     return

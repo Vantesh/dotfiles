@@ -1,6 +1,5 @@
 Arch:
   core:
-    - hyprland
     - hypridle
     - hyprpicker
     - hyprshot
@@ -8,11 +7,9 @@ Arch:
     - uwsm
     - accountsservice
     - polkit-gnome
-    - xdg-desktop-portal-hyprland
     - xdg-desktop-portal-gtk
     - xdg-autostart
     - gnome-keyring
-    - libgnome-keyring
     - networkmanager-iwd
     - udiskie
     - ntfs-3g
@@ -42,11 +39,23 @@ Arch:
     - geoclue
     - ly
     - kdialog
-    - yad # keybinds popup
     - gparted
+    - xorg-xhost
     - brightnessctl
     - ddcutil
     - clipse
+    - unzip
+
+  compositor:
+    hyprland:
+      - hyprland
+      - xdg-desktop-portal-hyprland
+      - socat
+      - yad # keybinds popup
+    niri:
+      - niri
+      - xdg-desktop-portal-gnome
+      - xwayland-satellite
 
   cli:
     - fastfetch
@@ -68,6 +77,7 @@ Arch:
 
   theming:
     - nwg-look
+    - apple_cursor
     - frameworkintegration
     - qt6ct-kde
     - qt5ct-kde

@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
 get_current_song() {
   SPOTIFY_ICON="<span color='#a6e3a1'>󰓇 </span>"

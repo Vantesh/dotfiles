@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Controls
 import Quickshell
 import qs.Common
 import qs.Widgets
@@ -12,15 +11,27 @@ Rectangle {
     property bool isActive: false
     property bool enabled: true
     property string secondaryText: ""
+    property real iconRotation: 0
     
     signal clicked()
 
     width: parent ? parent.width : 200
     height: 60
-    radius: Theme.cornerRadius
-    color: Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g, Theme.surfaceVariant.b, Theme.getContentBackgroundAlpha() * 0.6)
-    border.color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.08)
-    border.width: 1
+    radius: {
+        if (Theme.cornerRadius === 0) return 0
+        return isActive ? Theme.cornerRadius : Theme.cornerRadius + 4
+    }
+
+    readonly property color _tileBgActive: Theme.primary
+    readonly property color _tileBgInactive:
+        Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g, Theme.surfaceVariant.b,
+                Theme.getContentBackgroundAlpha() * 0.60)
+    readonly property color _tileRingActive:
+        Qt.rgba(Theme.primaryText.r, Theme.primaryText.g, Theme.primaryText.b, 0.22)
+
+    color: isActive ? _tileBgActive : _tileBgInactive
+    border.color: isActive ? _tileRingActive : Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.08)
+    border.width: isActive ? 1 : 1
     opacity: enabled ? 1.0 : 0.6
 
     function hoverTint(base) {
@@ -52,8 +63,9 @@ Rectangle {
         DankIcon {
             name: root.iconName
             size: Theme.iconSize
-            color: Theme.primary
+            color: isActive ? Theme.primaryContainer : Theme.primary
             anchors.verticalCenter: parent.verticalCenter
+            rotation: root.iconRotation
         }
 
         Item {
@@ -70,7 +82,7 @@ Rectangle {
                     width: parent.width
                     text: root.text
                     font.pixelSize: Theme.fontSizeMedium
-                    color: Theme.surfaceText
+                    color: isActive ? Theme.primaryContainer : Theme.surfaceText
                     font.weight: Font.Medium
                     elide: Text.ElideRight
                     wrapMode: Text.NoWrap
@@ -80,7 +92,7 @@ Rectangle {
                     width: parent.width
                     text: root.secondaryText
                     font.pixelSize: Theme.fontSizeSmall
-                    color: Theme.surfaceVariantText
+                    color: isActive ? Theme.primaryContainer : Theme.surfaceVariantText
                     visible: text.length > 0
                     elide: Text.ElideRight
                     wrapMode: Text.NoWrap
@@ -100,6 +112,13 @@ Rectangle {
 
     Behavior on color {
         ColorAnimation {
+            duration: Theme.shortDuration
+            easing.type: Theme.standardEasing
+        }
+    }
+
+    Behavior on radius {
+        NumberAnimation {
             duration: Theme.shortDuration
             easing.type: Theme.standardEasing
         }

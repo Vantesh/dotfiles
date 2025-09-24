@@ -32,6 +32,58 @@
   "controlCenterShowNetworkIcon": true,
   "controlCenterShowBluetoothIcon": true,
   "controlCenterShowAudioIcon": true,
+  "controlCenterWidgets": [
+    {
+      "id": "volumeSlider",
+      "enabled": true,
+      "width": 50
+    },
+    {
+      "id": "brightnessSlider",
+      "enabled": true,
+      "width": 50
+    },
+    {
+      "id": "wifi",
+      "enabled": true,
+      "width": 50
+    },
+    {
+      "id": "bluetooth",
+      "enabled": true,
+      "width": 50
+    },
+    {
+      "id": "audioOutput",
+      "enabled": true,
+      "width": 50
+    },
+    {
+      "id": "audioInput",
+      "enabled": true,
+      "width": 50
+    },
+    {
+      "id": "nightMode",
+      "enabled": true,
+      "width": 50
+    },
+    {
+      "id": "darkMode",
+      "enabled": true,
+      "width": 50
+    },
+    {
+      "id": "idleInhibitor",
+      "enabled": true,
+      "width": 50
+    },
+    {
+      "id": "doNotDisturb",
+      "enabled": true,
+      "width": 50
+    }
+  ],
   "showWorkspaceIndex": true,
   "showWorkspacePadding": false,
   "showWorkspaceApps": false,
@@ -70,10 +122,6 @@
     },
     {
       "id": "systemTray",
-      "enabled": true
-    },
-    {
-      "id": "idleInhibitor",
       "enabled": true
     },
     {

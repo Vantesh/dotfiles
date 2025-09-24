@@ -43,6 +43,7 @@ Singleton {
     property string wallpaperCyclingMode: "interval" // "interval" or "time"
     property int wallpaperCyclingInterval: 300 // seconds (5 minutes)
     property string wallpaperCyclingTime: "06:00" // HH:mm format
+    property var monitorCyclingSettings: ({})
     property string lastBrightnessDevice: ""
     property string launchPrefix: ""
     property string wallpaperTransition: "fade"
@@ -60,6 +61,7 @@ Singleton {
     property int batteryHibernateTimeout: 0 // Never
 
     property bool lockBeforeSuspend: false
+
 
     Component.onCompleted: {
         loadSettings()
@@ -113,6 +115,7 @@ Singleton {
                 wallpaperCyclingMode = settings.wallpaperCyclingMode !== undefined ? settings.wallpaperCyclingMode : "interval"
                 wallpaperCyclingInterval = settings.wallpaperCyclingInterval !== undefined ? settings.wallpaperCyclingInterval : 300
                 wallpaperCyclingTime = settings.wallpaperCyclingTime !== undefined ? settings.wallpaperCyclingTime : "06:00"
+                monitorCyclingSettings = settings.monitorCyclingSettings !== undefined ? settings.monitorCyclingSettings : {}
                 lastBrightnessDevice = settings.lastBrightnessDevice !== undefined ? settings.lastBrightnessDevice : ""
                 launchPrefix = settings.launchPrefix !== undefined ? settings.launchPrefix : ""
                 wallpaperTransition = settings.wallpaperTransition !== undefined ? settings.wallpaperTransition : "fade"
@@ -166,6 +169,7 @@ Singleton {
                                                 "wallpaperCyclingMode": wallpaperCyclingMode,
                                                 "wallpaperCyclingInterval": wallpaperCyclingInterval,
                                                 "wallpaperCyclingTime": wallpaperCyclingTime,
+                                                "monitorCyclingSettings": monitorCyclingSettings,
                                                 "lastBrightnessDevice": lastBrightnessDevice,
                                                 "launchPrefix": launchPrefix,
                                                 "wallpaperTransition": wallpaperTransition,
@@ -367,18 +371,64 @@ Singleton {
         saveSettings()
     }
 
+    function getMonitorCyclingSettings(screenName) {
+        return monitorCyclingSettings[screenName] || {
+            enabled: false,
+            mode: "interval",
+            interval: 300,
+            time: "06:00"
+        }
+    }
+
+    function setMonitorCyclingEnabled(screenName, enabled) {
+        var newSettings = Object.assign({}, monitorCyclingSettings)
+        if (!newSettings[screenName]) {
+            newSettings[screenName] = { enabled: false, mode: "interval", interval: 300, time: "06:00" }
+        }
+        newSettings[screenName].enabled = enabled
+        monitorCyclingSettings = newSettings
+        saveSettings()
+    }
+
+    function setMonitorCyclingMode(screenName, mode) {
+        var newSettings = Object.assign({}, monitorCyclingSettings)
+        if (!newSettings[screenName]) {
+            newSettings[screenName] = { enabled: false, mode: "interval", interval: 300, time: "06:00" }
+        }
+        newSettings[screenName].mode = mode
+        monitorCyclingSettings = newSettings
+        saveSettings()
+    }
+
+    function setMonitorCyclingInterval(screenName, interval) {
+        var newSettings = Object.assign({}, monitorCyclingSettings)
+        if (!newSettings[screenName]) {
+            newSettings[screenName] = { enabled: false, mode: "interval", interval: 300, time: "06:00" }
+        }
+        newSettings[screenName].interval = interval
+        monitorCyclingSettings = newSettings
+        saveSettings()
+    }
+
+    function setMonitorCyclingTime(screenName, time) {
+        var newSettings = Object.assign({}, monitorCyclingSettings)
+        if (!newSettings[screenName]) {
+            newSettings[screenName] = { enabled: false, mode: "interval", interval: 300, time: "06:00" }
+        }
+        newSettings[screenName].time = time
+        monitorCyclingSettings = newSettings
+        saveSettings()
+    }
+
     function setPerMonitorWallpaper(enabled) {
         perMonitorWallpaper = enabled
-        
-        // Disable automatic cycling when per-monitor mode is enabled
-        if (enabled && wallpaperCyclingEnabled) {
-            wallpaperCyclingEnabled = false
-        }
-        
         saveSettings()
 
         // Refresh dynamic theming when per-monitor mode changes
         if (typeof Theme !== "undefined") {
+            if (Theme.currentTheme === Theme.dynamic) {
+                Theme.extractColors()
+            }
             Theme.generateSystemThemesFromCurrentTheme()
         }
     }

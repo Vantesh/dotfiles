@@ -32,6 +32,13 @@ sudo pacman -Syu --noconfirm
 
 # Core packages + default shell
 core_pkgs=({{- range .Arch.core }} "{{ . }}"{{- end }} "{{ .default_shell }}")
+
+{{- if eq .compositor "hyprland" }}
+core_pkgs+=({{- range .Arch.compositor.hyprland }} "{{ . }}"{{- end }})
+{{- else if eq .compositor "niri" }}
+core_pkgs+=({{- range .Arch.compositor.niri }} "{{ . }}"{{- end }})
+{{- end }}
+
 install_group "Core packages" "${core_pkgs[@]}"
 
 # CLI Tools
