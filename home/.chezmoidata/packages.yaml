@@ -44,6 +44,7 @@ Arch:
     - brightnessctl
     - ddcutil
     - clipse
+    - unzip
 
   compositor:
     hyprland:
