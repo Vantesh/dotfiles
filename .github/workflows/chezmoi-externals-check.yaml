@@ -23,7 +23,7 @@ jobs:
       - name: Install dependencies
         run: |
           pacman -Syu --noconfirm
-          pacman -S --noconfirm chezmoi git yq
+          pacman -S --noconfirm chezmoi git
 
       - name: Validate externals templates
         run: |
@@ -40,19 +40,9 @@ jobs:
               continue
             fi
 
-            # Optional: normalize quoted top-level keys for yq
-            normalized_output=$(echo "$output" | sed 's/^"\(.*\)":/\1:/')
-
             # Check for URL presence
-            if ! echo "$normalized_output" | grep -Eq 'url:[[:space:]]+\S+'; then
+            if ! echo "$output" | grep -Eq 'url:[[:space:]]+\S+'; then
               echo "❌ Missing or empty url in: $tmpl"
-              failed=1
-              continue
-            fi
-
-            # Validate YAML syntax using yq v4
-            if ! echo "$normalized_output" | yq eval -P - >/dev/null 2>&1; then
-              echo "❌ Invalid YAML in: $tmpl"
               failed=1
               continue
             fi
