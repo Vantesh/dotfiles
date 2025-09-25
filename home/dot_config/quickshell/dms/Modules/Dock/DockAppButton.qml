@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import Quickshell
+import Quickshell.Wayland
 import Quickshell.Widgets
 import qs.Common
 import qs.Services
@@ -25,24 +26,39 @@ Item {
     property bool isHovered: mouseArea.containsMouse && !dragging
     property bool showTooltip: mouseArea.containsMouse && !dragging
     property bool isWindowFocused: {
-        if (!appData || appData.type !== "window") {
+        if (!appData) {
             return false
         }
-        const toplevel = getToplevelObject()
-        if (!toplevel) {
-            return false
+
+        if (appData.type === "window") {
+            const toplevel = getToplevelObject()
+            if (!toplevel) {
+                return false
+            }
+            return toplevel.activated
+        } else if (appData.type === "grouped") {
+            // For grouped apps, check if any window is focused
+            const allToplevels = ToplevelManager.toplevels.values
+            for (let i = 0; i < allToplevels.length; i++) {
+                const toplevel = allToplevels[i]
+                if (toplevel.appId === appData.appId && toplevel.activated) {
+                    return true
+                }
+            }
         }
-        return toplevel.activated
+
+        return false
     }
     property string tooltipText: {
         if (!appData) {
             return ""
         }
 
-        if (appData.type === "window" && showWindowTitle) {
+        if ((appData.type === "window" && showWindowTitle) || (appData.type === "grouped" && appData.windowTitle)) {
             const desktopEntry = DesktopEntries.heuristicLookup(appData.appId)
             const appName = desktopEntry && desktopEntry.name ? desktopEntry.name : appData.appId
-            return appName + (windowTitle ? " • " + windowTitle : "")
+            const title = appData.type === "window" ? windowTitle : appData.windowTitle
+            return appName + (title ? " • " + title : "")
         }
 
         if (!appData.appId) {
@@ -57,7 +73,7 @@ Item {
     height: 40
 
     function getToplevelObject() {
-        if (!appData || appData.type !== "window") {
+        if (!appData) {
             return null
         }
 
@@ -66,23 +82,47 @@ Item {
             return null
         }
 
-        if (appData.uniqueId) {
-            for (var i = 0; i < sortedToplevels.length; i++) {
-                const toplevel = sortedToplevels[i]
-                const checkId = toplevel.title + "|" + (toplevel.appId || "") + "|" + i
-                if (checkId === appData.uniqueId) {
-                    return toplevel
+        if (appData.type === "window") {
+            if (appData.uniqueId) {
+                for (var i = 0; i < sortedToplevels.length; i++) {
+                    const toplevel = sortedToplevels[i]
+                    const checkId = toplevel.title + "|" + (toplevel.appId || "") + "|" + i
+                    if (checkId === appData.uniqueId) {
+                        return toplevel
+                    }
+                }
+            }
+
+            if (appData.windowId !== undefined && appData.windowId !== null && appData.windowId >= 0) {
+                if (appData.windowId < sortedToplevels.length) {
+                    return sortedToplevels[appData.windowId]
+                }
+            }
+        } else if (appData.type === "grouped") {
+            if (appData.windowId !== undefined && appData.windowId !== null && appData.windowId >= 0) {
+                if (appData.windowId < sortedToplevels.length) {
+                    return sortedToplevels[appData.windowId]
                 }
             }
         }
 
-        if (appData.windowId !== undefined && appData.windowId !== null && appData.windowId >= 0) {
-            if (appData.windowId < sortedToplevels.length) {
-                return sortedToplevels[appData.windowId]
-            }
+        return null
+    }
+
+    function getGroupedToplevels() {
+        if (!appData || appData.type !== "grouped") {
+            return []
         }
 
-        return null
+        const toplevels = []
+        const allToplevels = ToplevelManager.toplevels.values
+        for (let i = 0; i < allToplevels.length; i++) {
+            const toplevel = allToplevels[i]
+            if (toplevel.appId === appData.appId) {
+                toplevels.push(toplevel)
+            }
+        }
+        return toplevels
     }
     onIsHoveredChanged: {
         if (isHovered) {
@@ -232,6 +272,36 @@ Item {
                                if (toplevel) {
                                    toplevel.activate()
                                }
+                           } else if (appData.type === "grouped") {
+                               if (appData.windowCount === 0) {
+                                   if (appData && appData.appId) {
+                                       const desktopEntry = DesktopEntries.heuristicLookup(appData.appId)
+                                       if (desktopEntry) {
+                                           AppUsageHistoryData.addAppUsage({
+                                                                               "id": appData.appId,
+                                                                               "name": desktopEntry.name || appData.appId,
+                                                                               "icon": desktopEntry.icon || "",
+                                                                               "exec": desktopEntry.exec || "",
+                                                                               "comment": desktopEntry.comment || ""
+                                                                           })
+                                       }
+                                       SessionService.launchDesktopEntry(desktopEntry)
+                                   }
+                               } else if (appData.windowCount === 1) {
+                                   // For single window, activate directly
+                                   const toplevel = getToplevelObject()
+                                   if (toplevel) {
+                                       console.log("Activating grouped app window:", appData.windowTitle)
+                                       toplevel.activate()
+                                   } else {
+                                       console.warn("No toplevel found for grouped app")
+                                   }
+                               } else {
+                                   // For multiple windows, show context menu (hide pin option for left-click)
+                                   if (contextMenu) {
+                                       contextMenu.showForButton(root, appData, 65, true)
+                                   }
+                               }
                            }
                        } else if (mouse.button === Qt.MiddleButton) {
                            if (appData && appData.appId) {
@@ -248,8 +318,11 @@ Item {
                              SessionService.launchDesktopEntry(desktopEntry)
                            }
                        } else if (mouse.button === Qt.RightButton) {
-                           if (contextMenu) {
-                               contextMenu.showForButton(root, appData, 40)
+                           if (contextMenu && appData) {
+                               console.log("Right-clicked on app:", appData.appId, "type:", appData.type, "windowCount:", appData.windowCount || 0)
+                               contextMenu.showForButton(root, appData, 40, false)
+                           } else {
+                               console.warn("No context menu or appData available")
                            }
                        }
                    }
@@ -322,30 +395,53 @@ Item {
     }
 
     // Indicator for running/focused state
-    Rectangle {
+    Row {
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.bottom: parent.bottom
         anchors.bottomMargin: -2
-        width: 8
-        height: 2
-        radius: 1
-        visible: appData && (appData.isRunning || appData.type === "window")
-        color: {
-            if (!appData) {
-                return "transparent"
+        spacing: 2
+        visible: appData && (appData.isRunning || appData.type === "window" || (appData.type === "grouped" && appData.windowCount > 0))
+
+        Repeater {
+            model: {
+                if (!appData) return 0
+                if (appData.type === "grouped") {
+                    return Math.min(appData.windowCount, 4)
+                } else if (appData.type === "window" || appData.isRunning) {
+                    return 1
+                }
+                return 0
             }
 
-            if (isWindowFocused) {
-                return Theme.primary
-            }
+            Rectangle {
+                width: appData && appData.type === "grouped" && appData.windowCount > 1 ? 4 : 8
+                height: 2
+                radius: 1
+                color: {
+                    if (!appData) {
+                        return "transparent"
+                    }
 
-            if (appData.isRunning || appData.type === "window") {
-                return Qt.rgba(Theme.surfaceText.r, Theme.surfaceText.g, Theme.surfaceText.b, 0.6)
-            }
+                    if (appData.type !== "grouped" || appData.windowCount === 1) {
+                        if (isWindowFocused) {
+                            return Theme.primary
+                        }
+                        return Qt.rgba(Theme.surfaceText.r, Theme.surfaceText.g, Theme.surfaceText.b, 0.6)
+                    }
 
-            return "transparent"
+                    if (appData.type === "grouped" && appData.windowCount > 1) {
+                        const groupToplevels = getGroupedToplevels()
+                        if (index < groupToplevels.length && groupToplevels[index].activated) {
+                            return Theme.primary
+                        }
+                    }
+
+                    return Qt.rgba(Theme.surfaceText.r, Theme.surfaceText.g, Theme.surfaceText.b, 0.6)
+                }
+            }
         }
     }
+
 
     transform: Translate {
         id: translateY

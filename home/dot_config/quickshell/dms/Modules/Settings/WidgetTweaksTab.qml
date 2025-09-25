@@ -24,11 +24,10 @@ Item {
                 width: parent.width
                 height: launcherButtonSection.implicitHeight + Theme.spacingL * 2
                 radius: Theme.cornerRadius
-                color: Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g,
-                               Theme.surfaceVariant.b, 0.3)
+                color: Theme.surfaceContainerHigh
                 border.color: Qt.rgba(Theme.outline.r, Theme.outline.g,
                                       Theme.outline.b, 0.2)
-                border.width: 1
+                border.width: 0
 
                 Column {
                     id: launcherButtonSection
@@ -128,6 +127,7 @@ Item {
                                 unit: "%"
                                 showValue: true
                                 wheelEnabled: false
+                                thumbOutlineColor: Theme.surfaceContainerHigh
                                 onSliderValueChanged: newValue => {
                                                           SettingsData.setOSLogoBrightness(
                                                               newValue / 100)
@@ -156,6 +156,7 @@ Item {
                                 unit: "%"
                                 showValue: true
                                 wheelEnabled: false
+                                thumbOutlineColor: Theme.surfaceContainerHigh
                                 onSliderValueChanged: newValue => {
                                                           SettingsData.setOSLogoContrast(
                                                               newValue / 100)
@@ -177,11 +178,10 @@ Item {
                 width: parent.width
                 height: workspaceSection.implicitHeight + Theme.spacingL * 2
                 radius: Theme.cornerRadius
-                color: Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g,
-                               Theme.surfaceVariant.b, 0.3)
+                color: Theme.surfaceContainerHigh
                 border.color: Qt.rgba(Theme.outline.r, Theme.outline.g,
                                       Theme.outline.b, 0.2)
-                border.width: 1
+                border.width: 0
 
                 Column {
                     id: workspaceSection
@@ -301,11 +301,10 @@ Item {
                 width: parent.width
                 height: mediaSection.implicitHeight + Theme.spacingL * 2
                 radius: Theme.cornerRadius
-                color: Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g,
-                               Theme.surfaceVariant.b, 0.3)
+                color: Theme.surfaceContainerHigh
                 border.color: Qt.rgba(Theme.outline.r, Theme.outline.g,
                                       Theme.outline.b, 0.2)
-                border.width: 1
+                border.width: 0
 
                 Column {
                     id: mediaSection
@@ -350,11 +349,10 @@ Item {
                 width: parent.width
                 height: runningAppsSection.implicitHeight + Theme.spacingL * 2
                 radius: Theme.cornerRadius
-                color: Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g,
-                               Theme.surfaceVariant.b, 0.3)
+                color: Theme.surfaceContainerHigh
                 border.color: Qt.rgba(Theme.outline.r, Theme.outline.g,
                                       Theme.outline.b, 0.2)
-                border.width: 1
+                border.width: 0
 
                 Column {
                     id: runningAppsSection
@@ -400,11 +398,10 @@ Item {
                 width: parent.width
                 height: workspaceIconsSection.implicitHeight + Theme.spacingL * 2
                 radius: Theme.cornerRadius
-                color: Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g,
-                               Theme.surfaceVariant.b, 0.3)
+                color: Theme.surfaceContainerHigh
                 border.color: Qt.rgba(Theme.outline.r, Theme.outline.g,
                                       Theme.outline.b, 0.2)
-                border.width: 1
+                border.width: 0
                 visible: SettingsData.hasNamedWorkspaces()
 
                 Column {
@@ -455,7 +452,7 @@ Item {
                             border.color: Qt.rgba(Theme.outline.r,
                                                   Theme.outline.g,
                                                   Theme.outline.b, 0.3)
-                            border.width: 1
+                            border.width: 0
 
                             Row {
                                 id: workspaceIconRow
@@ -522,7 +519,7 @@ Item {
                                     radius: Theme.cornerRadius
                                     color: clearMouseArea.containsMouse ? Theme.errorHover : Theme.surfaceContainer
                                     border.color: clearMouseArea.containsMouse ? Theme.error : Theme.outline
-                                    border.width: 1
+                                    border.width: 0
                                     anchors.verticalCenter: parent.verticalCenter
 
                                     DankIcon {

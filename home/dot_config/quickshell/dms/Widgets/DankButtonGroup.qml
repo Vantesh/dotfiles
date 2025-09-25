@@ -2,13 +2,15 @@ import QtQuick
 import qs.Common
 import qs.Widgets
 
-Row {
+Flow {
     id: root
 
     property var model: []
     property int currentIndex: -1
     property string selectionMode: "single"
     property bool multiSelect: selectionMode === "multi"
+    property var initialSelection: []
+    property var currentSelection: initialSelection
     property bool checkEnabled: true
     property int buttonHeight: 40
     property int minButtonWidth: 64
@@ -29,11 +31,18 @@ Row {
 
     function selectItem(index) {
         if (multiSelect) {
-            const item = repeater.itemAt(index)
-            if (item) {
-                item.selected = !item.selected
-                selectionChanged(index, item.selected)
+            const modelValue = model[index]
+            let newSelection = [...currentSelection]
+            const isCurrentlySelected = newSelection.includes(modelValue)
+
+            if (isCurrentlySelected) {
+                newSelection = newSelection.filter(item => item !== modelValue)
+            } else {
+                newSelection.push(modelValue)
             }
+
+            currentSelection = newSelection
+            selectionChanged(index, !isCurrentlySelected)
         } else {
             const oldIndex = currentIndex
             currentIndex = index
@@ -51,7 +60,7 @@ Row {
         delegate: Rectangle {
             id: segment
 
-            property bool selected: multiSelect ? false : (index === root.currentIndex)
+            property bool selected: multiSelect ? root.currentSelection.includes(modelData) : (index === root.currentIndex)
             property bool hovered: mouseArea.containsMouse
             property bool pressed: mouseArea.pressed
             property bool isFirst: index === 0

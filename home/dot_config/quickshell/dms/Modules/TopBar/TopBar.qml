@@ -27,7 +27,6 @@ PanelWindow {
     property real wingtipsRadius: Theme.cornerRadius
     readonly property real _wingR: Math.max(0, wingtipsRadius)
     readonly property color _bgColor: Qt.rgba(Theme.surfaceContainer.r, Theme.surfaceContainer.g, Theme.surfaceContainer.b, topBarCore.backgroundTransparency)
-    readonly property color _tintColor: Qt.rgba(Theme.surfaceTint.r, Theme.surfaceTint.g, Theme.surfaceTint.b, 0.04 * topBarCore.backgroundTransparency)
 
     signal colorPickerRequested()
 
@@ -401,7 +400,7 @@ PanelWindow {
                                 ctx.arcTo(0, 0, RT, 0, RT)
                                 ctx.closePath()
 
-                                ctx.fillStyle = root._tintColor
+                                ctx.fillStyle = root._bgColor
                                 ctx.fill()
                             }
                         }
@@ -483,6 +482,7 @@ PanelWindow {
                                                                  "clipboard": clipboardComponent,
                                                                  "cpuUsage": cpuUsageComponent,
                                                                  "memUsage": memUsageComponent,
+                                                                 "diskUsage": diskUsageComponent,
                                                                  "cpuTemp": cpuTempComponent,
                                                                  "gpuTemp": gpuTempComponent,
                                                                  "notificationButton": notificationButtonComponent,
@@ -1000,6 +1000,15 @@ PanelWindow {
                                                        processListPopoutLoader.active = true
                                                        return processListPopoutLoader.item?.toggle()
                                                    }
+                            }
+                        }
+
+                        Component {
+                            id: diskUsageComponent
+
+                            DiskUsage {
+                                widgetHeight: root.widgetHeight
+                                widgetData: parent.widgetData
                             }
                         }
 

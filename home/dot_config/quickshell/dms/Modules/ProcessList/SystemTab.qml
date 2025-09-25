@@ -24,7 +24,7 @@ DankFlickable {
             width: parent.width
             height: systemInfoColumn.implicitHeight + 2 * Theme.spacingL
             radius: Theme.cornerRadius
-            color: Qt.rgba(Theme.surfaceContainer.r, Theme.surfaceContainer.g, Theme.surfaceContainer.b, 0.6)
+            color: Theme.surfaceContainerHigh
             border.width: 0
 
             Column {
@@ -386,7 +386,7 @@ DankFlickable {
             width: parent.width
             height: storageColumn.implicitHeight + 2 * Theme.spacingL
             radius: Theme.cornerRadius
-            color: Qt.rgba(Theme.surfaceContainer.r, Theme.surfaceContainer.g, Theme.surfaceContainer.b, 0.6)
+            color: Theme.surfaceContainerHigh
             border.width: 0
 
             Column {

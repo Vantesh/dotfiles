@@ -25,8 +25,7 @@ Rectangle {
 
     readonly property color _tileBgActive: Theme.primary
     readonly property color _tileBgInactive:
-        Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g, Theme.surfaceVariant.b,
-                Theme.getContentBackgroundAlpha() * 0.60)
+        Theme.surfaceContainerHigh
     readonly property color _tileRingActive:
         Qt.rgba(Theme.primaryText.r, Theme.primaryText.g, Theme.primaryText.b, 0.22)
 

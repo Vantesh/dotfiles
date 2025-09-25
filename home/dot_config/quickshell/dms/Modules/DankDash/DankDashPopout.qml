@@ -34,7 +34,7 @@ DankPopout {
     popupWidth: 700
     popupHeight: contentLoader.item ? contentLoader.item.implicitHeight : 500
     triggerX: Screen.width - 620 - Theme.spacingL
-    triggerY: Theme.barHeight - 4 + SettingsData.topBarSpacing + Theme.spacingS
+    triggerY: Math.max(26 + SettingsData.topBarInnerPadding + 4, Theme.barHeight - 4 - (8 - SettingsData.topBarInnerPadding)) + SettingsData.topBarSpacing + SettingsData.topBarBottomGap - 2 + Theme.popupDistance
     triggerWidth: 80
     positioning: "center"
     shouldBeVisible: dashVisible

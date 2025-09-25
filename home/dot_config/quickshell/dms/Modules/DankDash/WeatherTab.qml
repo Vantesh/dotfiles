@@ -231,7 +231,7 @@ Item {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 radius: Theme.cornerRadius
-                color: Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g, Theme.surfaceVariant.b, 0.3)
+                color: Theme.surfaceContainerHigh
 
                 Column {
                     anchors.centerIn: parent
@@ -278,7 +278,7 @@ Item {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 radius: Theme.cornerRadius
-                color: Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g, Theme.surfaceVariant.b, 0.3)
+                color: Theme.surfaceContainerHigh
 
                 Column {
                     anchors.centerIn: parent
@@ -325,7 +325,7 @@ Item {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 radius: Theme.cornerRadius
-                color: Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g, Theme.surfaceVariant.b, 0.3)
+                color: Theme.surfaceContainerHigh
 
                 Column {
                     anchors.centerIn: parent
@@ -372,7 +372,7 @@ Item {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 radius: Theme.cornerRadius
-                color: Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g, Theme.surfaceVariant.b, 0.3)
+                color: Theme.surfaceContainerHigh
 
                 Column {
                     anchors.centerIn: parent
@@ -419,7 +419,7 @@ Item {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 radius: Theme.cornerRadius
-                color: Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g, Theme.surfaceVariant.b, 0.3)
+                color: Theme.surfaceContainerHigh
 
                 Column {
                     anchors.centerIn: parent
@@ -466,7 +466,7 @@ Item {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 radius: Theme.cornerRadius
-                color: Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g, Theme.surfaceVariant.b, 0.3)
+                color: Theme.surfaceContainerHigh
 
                 Column {
                     anchors.centerIn: parent
@@ -554,7 +554,7 @@ Item {
                             return null
                         }
 
-                        color: isToday ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.1) : Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g, Theme.surfaceVariant.b, 0.1)
+                        color: isToday ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.1) : Theme.surfaceContainerHigh
                         border.color: isToday ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.3) : "transparent"
                         border.width: isToday ? 1 : 0
 

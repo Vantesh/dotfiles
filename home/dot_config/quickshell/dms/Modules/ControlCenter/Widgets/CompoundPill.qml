@@ -27,13 +27,11 @@ Rectangle {
         return Theme.isLightMode ? Qt.darker(base, factor) : Qt.lighter(base, factor)
     }
 
-    readonly property color _containerBg:
-        Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g, Theme.surfaceVariant.b,
-                Theme.getContentBackgroundAlpha() * 0.60)
+    readonly property color _containerBg: Theme.surfaceContainerHigh
 
     color: _containerBg
     border.color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.10)
-    border.width: 1
+    border.width: 0
     antialiasing: true
 
     readonly property color _labelPrimary: Theme.surfaceText

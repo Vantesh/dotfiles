@@ -103,7 +103,7 @@ Popup {
         color: Qt.rgba(Theme.surfaceContainer.r, Theme.surfaceContainer.g,
                        Theme.surfaceContainer.b, 1)
         border.color: Theme.primarySelected
-        border.width: 1
+        border.width: 0
         radius: Theme.cornerRadius
     }
 
@@ -192,7 +192,7 @@ Popup {
                 width: parent.width
                 height: 48
                 cornerRadius: Theme.cornerRadius
-                backgroundColor: Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g, Theme.surfaceVariant.b, 0.3)
+                backgroundColor: Theme.surfaceContainerHigh
                 normalBorderColor: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.2)
                 focusedBorderColor: Theme.primary
                 leftIconName: "search"

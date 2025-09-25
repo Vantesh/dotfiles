@@ -26,11 +26,30 @@ DankPopout {
     property var triggerScreen: null
     property bool editMode: false
     property int expandedWidgetIndex: -1
+    property var expandedWidgetData: null
 
     signal powerActionRequested(string action, string title, string message)
     signal lockRequested
 
-    readonly property color _containerBg: Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g, Theme.surfaceVariant.b, Theme.getContentBackgroundAlpha() * 0.60)
+    function collapseAll() {
+        expandedSection = ""
+        expandedWidgetIndex = -1
+        expandedWidgetData = null
+    }
+
+    onEditModeChanged: {
+        if (editMode) {
+            collapseAll()
+        }
+    }
+
+    onVisibleChanged: {
+        if (!visible) {
+            collapseAll()
+        }
+    }
+
+    readonly property color _containerBg: Theme.surfaceContainerHigh
 
     function setTriggerPosition(x, y, width, section, screen) {
         StateUtils.setTriggerPosition(root, x, y, width, section, screen)
@@ -47,7 +66,7 @@ DankPopout {
     popupWidth: 550
     popupHeight: Math.min((triggerScreen?.height ?? 1080) - 100, contentLoader.item && contentLoader.item.implicitHeight > 0 ? contentLoader.item.implicitHeight + 20 : 400)
     triggerX: (triggerScreen?.width ?? 1920) - 600 - Theme.spacingL
-    triggerY: Theme.barHeight - 4 + SettingsData.topBarSpacing + Theme.spacingXS
+    triggerY: Theme.barHeight - 4 + SettingsData.topBarSpacing + Theme.popupDistance
     triggerWidth: 80
     positioning: "center"
     screen: triggerScreen
@@ -90,7 +109,7 @@ DankPopout {
             radius: Theme.cornerRadius
             border.color: Qt.rgba(Theme.outline.r, Theme.outline.g,
                                   Theme.outline.b, 0.08)
-            border.width: 1
+            border.width: 0
             antialiasing: true
             smooth: true
 
@@ -132,10 +151,16 @@ DankPopout {
                     editMode: root.editMode
                     expandedSection: root.expandedSection
                     expandedWidgetIndex: root.expandedWidgetIndex
+                    expandedWidgetData: root.expandedWidgetData
                     model: widgetModel
                     onExpandClicked: (widgetData, globalIndex) => {
                         root.expandedWidgetIndex = globalIndex
-                        root.toggleSection(widgetData.id)
+                        root.expandedWidgetData = widgetData
+                        if (widgetData.id === "diskUsage") {
+                            root.toggleSection("diskUsage_" + (widgetData.instanceId || "default"))
+                        } else {
+                            root.toggleSection(widgetData.id)
+                        }
                     }
                     onRemoveWidget: (index) => widgetModel.removeWidget(index)
                     onMoveWidget: (fromIndex, toIndex) => widgetModel.moveWidget(fromIndex, toIndex)
@@ -147,7 +172,7 @@ DankPopout {
                     visible: editMode
                     availableWidgets: {
                         const existingIds = (SettingsData.controlCenterWidgets || []).map(w => w.id)
-                        return widgetModel.baseWidgetDefinitions.filter(w => !existingIds.includes(w.id))
+                        return widgetModel.baseWidgetDefinitions.filter(w => w.allowMultiple || !existingIds.includes(w.id))
                     }
                     onAddWidget: (widgetId) => widgetModel.addWidget(widgetId)
                     onResetToDefault: () => widgetModel.resetToDefault()

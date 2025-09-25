@@ -77,15 +77,12 @@ Item {
             width: parent.width
             height: parent.height - ClipboardConstants.headerHeight - 70
             radius: Theme.cornerRadius
-            color: Theme.surfaceLight
-            border.color: Theme.outlineLight
-            border.width: 1
+            color: "transparent"
             clip: true
 
             DankListView {
                 id: clipboardListView
                 anchors.fill: parent
-                anchors.margins: Theme.spacingS
                 model: filteredModel
                 
                 currentIndex: clipboardContent.modal ? clipboardContent.modal.selectedIndex : 0

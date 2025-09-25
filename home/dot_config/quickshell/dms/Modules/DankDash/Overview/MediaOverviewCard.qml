@@ -131,7 +131,7 @@ Card {
                 height: 28
                 radius: 14
                 anchors.verticalCenter: playPauseButton.verticalCenter
-                color: prevArea.containsMouse ? Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g, Theme.surfaceVariant.b, 0.12) : "transparent"
+                color: prevArea.containsMouse ? Theme.surfaceContainerHigh : "transparent"
 
                 DankIcon {
                     anchors.centerIn: parent
@@ -183,7 +183,7 @@ Card {
                 height: 28
                 radius: 14
                 anchors.verticalCenter: playPauseButton.verticalCenter
-                color: nextArea.containsMouse ? Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g, Theme.surfaceVariant.b, 0.12) : "transparent"
+                color: nextArea.containsMouse ? Theme.surfaceContainerHigh : "transparent"
 
                 DankIcon {
                     anchors.centerIn: parent

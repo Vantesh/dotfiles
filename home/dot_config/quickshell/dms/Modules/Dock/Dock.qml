@@ -20,6 +20,7 @@ PanelWindow {
     property var contextMenu
     property bool autoHide: SettingsData.dockAutoHide
     property real backgroundTransparency: SettingsData.dockTransparency
+    property bool groupByApp: SettingsData.dockGroupByApp
 
     property bool contextMenuOpen: (contextMenu && contextMenu.visible && contextMenu.screen === modelData)
     property bool windowIsFullscreen: {
@@ -135,6 +136,7 @@ PanelWindow {
                     anchors.bottomMargin: 4
 
                     contextMenu: dock.contextMenu
+                    groupByApp: dock.groupByApp
                 }
             }
 

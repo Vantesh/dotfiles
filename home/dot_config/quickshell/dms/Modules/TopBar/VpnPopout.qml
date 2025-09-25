@@ -27,7 +27,7 @@ DankPopout {
     popupWidth: 360
     popupHeight: Math.min(Screen.height - 100, contentLoader.item ? contentLoader.item.implicitHeight : 260)
     triggerX: Screen.width - 380 - Theme.spacingL
-    triggerY: Theme.barHeight - 4 + SettingsData.topBarSpacing + Theme.spacingS
+    triggerY: Theme.barHeight - 4 + SettingsData.topBarSpacing + Theme.popupDistance
     triggerWidth: 70
     positioning: "center"
     screen: triggerScreen
@@ -42,7 +42,7 @@ DankPopout {
             color: Theme.popupBackground()
             radius: Theme.cornerRadius
             border.color: Theme.outlineMedium
-            border.width: 1
+            border.width: 0
             antialiasing: true
             smooth: true
             focus: true
@@ -60,7 +60,7 @@ DankPopout {
                 color: "transparent"
                 radius: parent.radius + 3
                 border.color: Qt.rgba(0, 0, 0, 0.05)
-                border.width: 1
+                border.width: 0
                 z: -3
             }
 
@@ -70,7 +70,7 @@ DankPopout {
                 color: "transparent"
                 radius: parent.radius + 2
                 border.color: Theme.shadowMedium
-                border.width: 1
+                border.width: 0
                 z: -2
             }
 
@@ -78,7 +78,7 @@ DankPopout {
                 anchors.fill: parent
                 color: "transparent"
                 border.color: Theme.outlineStrong
-                border.width: 1
+                border.width: 0
                 radius: parent.radius
                 z: -1
             }
@@ -142,7 +142,7 @@ DankPopout {
                     radius: Theme.cornerRadius
                     color: Qt.rgba(Theme.surfaceContainerHigh.r, Theme.surfaceContainerHigh.g, Theme.surfaceContainerHigh.b, Theme.getContentBackgroundAlpha() * 0.6)
                     border.color: Theme.outlineStrong
-                    border.width: 1
+                    border.width: 0
                     clip: true
 
                     Column {
@@ -193,7 +193,7 @@ DankPopout {
                                 visible: VpnService.connected
                                 width: 130
                                 Layout.alignment: Qt.AlignVCenter | Qt.AlignRight
-                                border.width: 1
+                                border.width: 0
                                 border.color: Theme.outlineLight
 
                                 Row {

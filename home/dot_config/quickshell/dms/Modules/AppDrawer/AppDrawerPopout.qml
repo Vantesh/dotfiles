@@ -33,7 +33,7 @@ DankPopout {
     popupWidth: 520
     popupHeight: 600
     triggerX: Theme.spacingL
-    triggerY: Theme.barHeight - 4 + SettingsData.topBarSpacing + Theme.spacingXS
+    triggerY: Math.max(26 + SettingsData.topBarInnerPadding + 4, Theme.barHeight - 4 - (8 - SettingsData.topBarInnerPadding)) + SettingsData.topBarSpacing + SettingsData.topBarBottomGap - 2 + Theme.popupDistance
     triggerWidth: 40
     positioning: "center"
     screen: triggerScreen
@@ -95,7 +95,7 @@ DankPopout {
                     color: "transparent"
                     radius: parent.radius + Math.abs(modelData.margin)
                     border.color: modelData.color
-                    border.width: 1
+                    border.width: 0
                     z: modelData.z
                 }
             }
@@ -136,15 +136,16 @@ DankPopout {
                 }
 
                 Column {
-                    width: parent.width - Theme.spacingL * 2
-                    height: parent.height - Theme.spacingL * 2
-                    x: Theme.spacingL
-                    y: Theme.spacingL
-                    spacing: Theme.spacingL
+                    width: parent.width - Theme.spacingS * 2
+                    height: parent.height - Theme.spacingS * 2
+                    x: Theme.spacingS
+                    y: Theme.spacingS
+                    spacing: Theme.spacingS
 
                     Row {
                         width: parent.width
                         height: 40
+                        leftPadding: Theme.spacingS
 
                         StyledText {
                             anchors.verticalCenter: parent.verticalCenter
@@ -170,7 +171,8 @@ DankPopout {
                     DankTextField {
                         id: searchField
 
-                        width: parent.width
+                        width: parent.width - Theme.spacingS * 2
+                        anchors.horizontalCenter: parent.horizontalCenter
                         height: 52
                         cornerRadius: Theme.cornerRadius
                         backgroundColor: Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g, Theme.surfaceVariant.b, Theme.getContentBackgroundAlpha() * 0.7)
@@ -231,6 +233,8 @@ DankPopout {
                         height: 40
                         spacing: Theme.spacingM
                         visible: searchField.text.length === 0
+                        leftPadding: Theme.spacingS
+                        topPadding: Theme.spacingXS
 
                         Item {
                             width: 200
@@ -238,6 +242,9 @@ DankPopout {
 
                             DankDropdown {
                                 anchors.fill: parent
+                            anchors.leftMargin: Theme.spacingS
+                            anchors.rightMargin: Theme.spacingS
+                            anchors.bottomMargin: Theme.spacingS
                                 text: ""
                                 currentValue: appLauncher.selectedCategory
                                 options: appLauncher.categories
@@ -249,7 +256,7 @@ DankPopout {
                         }
 
                         Item {
-                            width: parent.width - 300
+                            width: parent.width - 310
                             height: 1
                         }
 
@@ -286,15 +293,13 @@ DankPopout {
                     Rectangle {
                         width: parent.width
                         height: {
-                            let usedHeight = 40 + Theme.spacingL
-                            usedHeight += 52 + Theme.spacingL
-                            usedHeight += (searchField.text.length === 0 ? 40 + Theme.spacingL : 0)
+                            let usedHeight = 40 + Theme.spacingS
+                            usedHeight += 52 + Theme.spacingS
+                            usedHeight += (searchField.text.length === 0 ? 40 : 0)
                             return parent.height - usedHeight
                         }
                         radius: Theme.cornerRadius
-                        color: Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g, Theme.surfaceVariant.b, 0.1)
-                        border.color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.05)
-                        border.width: 1
+                        color: "transparent"
 
                         DankListView {
                             id: appList
@@ -323,7 +328,9 @@ DankPopout {
                             }
 
                             anchors.fill: parent
-                            anchors.margins: Theme.spacingS
+                            anchors.leftMargin: Theme.spacingS
+                            anchors.rightMargin: Theme.spacingS
+                            anchors.bottomMargin: Theme.spacingS
                             visible: appLauncher.viewMode === "list"
                             model: appLauncher.model
                             currentIndex: appLauncher.selectedIndex
@@ -353,9 +360,7 @@ DankPopout {
                                 width: ListView.view.width
                                 height: appList.itemHeight
                                 radius: Theme.cornerRadius
-                                color: ListView.isCurrentItem ? Theme.primaryPressed : listMouseArea.containsMouse ? Theme.primaryHoverLight : Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g, Theme.surfaceVariant.b, 0.03)
-                                border.color: ListView.isCurrentItem ? Theme.primarySelected : Theme.outlineMedium
-                                border.width: ListView.isCurrentItem ? 2 : 1
+                                color: ListView.isCurrentItem ? Theme.primaryPressed : listMouseArea.containsMouse ? Theme.primaryHoverLight : Theme.surfaceContainerHigh
 
                                 Row {
                                     anchors.fill: parent
@@ -371,6 +376,7 @@ DankPopout {
                                             id: listIconImg
 
                                             anchors.fill: parent
+                                            anchors.margins: Theme.spacingXS
                                             source: Quickshell.iconPath(model.icon, true)
                                             smooth: true
                                             asynchronous: true
@@ -379,10 +385,13 @@ DankPopout {
 
                                         Rectangle {
                                             anchors.fill: parent
+                                            anchors.leftMargin: Theme.spacingS
+                                            anchors.rightMargin: Theme.spacingS
+                                            anchors.bottomMargin: Theme.spacingM
                                             visible: !listIconImg.visible
                                             color: Theme.surfaceLight
                                             radius: Theme.cornerRadius
-                                            border.width: 1
+                                            border.width: 0
                                             border.color: Theme.primarySelected
 
                                             StyledText {
@@ -425,6 +434,9 @@ DankPopout {
                                     id: listMouseArea
 
                                     anchors.fill: parent
+                                    anchors.leftMargin: Theme.spacingS
+                                    anchors.rightMargin: Theme.spacingS
+                                    anchors.bottomMargin: Theme.spacingM
                                     hoverEnabled: true
                                     cursorShape: Qt.PointingHandCursor
                                     acceptedButtons: Qt.LeftButton | Qt.RightButton
@@ -484,7 +496,9 @@ DankPopout {
                             }
 
                             anchors.fill: parent
-                            anchors.margins: Theme.spacingS
+                            anchors.leftMargin: Theme.spacingS
+                            anchors.rightMargin: Theme.spacingS
+                            anchors.bottomMargin: Theme.spacingS
                             visible: appLauncher.viewMode === "grid"
                             model: appLauncher.model
                             clip: true
@@ -516,9 +530,7 @@ DankPopout {
                                 width: appGrid.cellWidth - appGrid.cellPadding
                                 height: appGrid.cellHeight - appGrid.cellPadding
                                 radius: Theme.cornerRadius
-                                color: appGrid.currentIndex === index ? Theme.primaryPressed : gridMouseArea.containsMouse ? Theme.primaryHoverLight : Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g, Theme.surfaceVariant.b, 0.03)
-                                border.color: appGrid.currentIndex === index ? Theme.primarySelected : Theme.outlineMedium
-                                border.width: appGrid.currentIndex === index ? 2 : 1
+                                color: appGrid.currentIndex === index ? Theme.primaryPressed : gridMouseArea.containsMouse ? Theme.primaryHoverLight : Theme.surfaceContainerHigh
 
                                 Column {
                                     anchors.centerIn: parent
@@ -535,6 +547,9 @@ DankPopout {
                                             id: gridIconImg
 
                                             anchors.fill: parent
+                            anchors.leftMargin: Theme.spacingS
+                            anchors.rightMargin: Theme.spacingS
+                            anchors.bottomMargin: Theme.spacingS
                                             source: Quickshell.iconPath(model.icon, true)
                                             smooth: true
                                             asynchronous: true
@@ -543,10 +558,13 @@ DankPopout {
 
                                         Rectangle {
                                             anchors.fill: parent
+                            anchors.leftMargin: Theme.spacingS
+                            anchors.rightMargin: Theme.spacingS
+                            anchors.bottomMargin: Theme.spacingS
                                             visible: !gridIconImg.visible
                                             color: Theme.surfaceLight
                                             radius: Theme.cornerRadius
-                                            border.width: 1
+                                            border.width: 0
                                             border.color: Theme.primarySelected
 
                                             StyledText {
@@ -577,6 +595,9 @@ DankPopout {
                                     id: gridMouseArea
 
                                     anchors.fill: parent
+                            anchors.leftMargin: Theme.spacingS
+                            anchors.rightMargin: Theme.spacingS
+                            anchors.bottomMargin: Theme.spacingS
                                     hoverEnabled: true
                                     cursorShape: Qt.PointingHandCursor
                                     acceptedButtons: Qt.LeftButton | Qt.RightButton
@@ -653,7 +674,7 @@ DankPopout {
         radius: Theme.cornerRadius
         color: Theme.popupBackground()
         border.color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.08)
-        border.width: 1
+        border.width: 0
         z: 1000
         opacity: menuVisible ? 1 : 0
         scale: menuVisible ? 1 : 0.85

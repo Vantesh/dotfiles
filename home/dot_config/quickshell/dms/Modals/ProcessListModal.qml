@@ -181,7 +181,7 @@ DankModal {
                 Rectangle {
                     Layout.fillWidth: true
                     height: 52
-                    color: Theme.surfaceSelected
+                    color: Theme.surfaceContainerHigh
                     radius: Theme.cornerRadius
                     border.color: Theme.outlineLight
                     border.width: 1
@@ -281,7 +281,7 @@ DankModal {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     radius: Theme.cornerRadius
-                    color: Theme.surfaceLight
+                    color: Theme.surfaceContainerHigh
                     border.color: Theme.outlineLight
                     border.width: 1
 

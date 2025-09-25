@@ -84,7 +84,7 @@ Rectangle {
     }
 
     radius: Theme.cornerRadius
-    color: Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g, Theme.surfaceVariant.b, 0.1)
+    color: Theme.surfaceContainerHigh
     border.color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.05)
     border.width: 1
 
@@ -345,7 +345,7 @@ Rectangle {
                     } else if (eventMouseArea.containsMouse) {
                         return Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.06)
                     }
-                    return Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g, Theme.surfaceVariant.b, 0.04)
+                    return Theme.surfaceContainerHigh
                 }
                 border.color: {
                     if (modelData.url && eventMouseArea.containsMouse) {

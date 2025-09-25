@@ -26,7 +26,7 @@ DankPopout {
     popupWidth: 400
     popupHeight: 500
     triggerX: Screen.width - 600 - Theme.spacingL
-    triggerY: Theme.barHeight - 4 + SettingsData.topBarSpacing + Theme.spacingXS
+    triggerY: Math.max(26 + SettingsData.topBarInnerPadding + 4, Theme.barHeight - 4 - (8 - SettingsData.topBarInnerPadding)) + SettingsData.topBarSpacing + SettingsData.topBarBottomGap - 2 + Theme.popupDistance
     triggerWidth: 55
     positioning: "center"
     screen: triggerScreen
@@ -70,7 +70,7 @@ DankPopout {
                     color: "transparent"
                     radius: parent.radius + Math.abs(modelData.margin)
                     border.color: modelData.color
-                    border.width: 1
+                    border.width: 0
                     z: modelData.z
                 }
             }
@@ -157,7 +157,7 @@ DankPopout {
                     radius: Theme.cornerRadius
                     color: Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g, Theme.surfaceVariant.b, 0.1)
                     border.color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.05)
-                    border.width: 1
+                    border.width: 0
 
                     Column {
                         anchors.fill: parent
@@ -208,7 +208,7 @@ DankPopout {
                                 radius: Theme.cornerRadius
                                 color: packageMouseArea.containsMouse ? Theme.primaryHoverLight : "transparent"
                                 border.color: Theme.outlineLight
-                                border.width: 1
+                                border.width: 0
 
                                 Row {
                                     anchors.fill: parent

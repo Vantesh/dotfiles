@@ -9,9 +9,9 @@ import qs.Widgets
 Rectangle {
     implicitHeight: contentColumn.implicitHeight + Theme.spacingL * 2
     radius: Theme.cornerRadius
-    color: Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g, Theme.surfaceVariant.b, Theme.getContentBackgroundAlpha() * 0.6)
+    color: Theme.surfaceContainerHigh
     border.color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.08)
-    border.width: 1
+    border.width: 0
 
     function isActiveProfile(profile) {
         if (typeof PowerProfiles === "undefined") {
@@ -125,9 +125,8 @@ Rectangle {
                 width: (parent.width - Theme.spacingM) / 2
                 height: 64
                 radius: Theme.cornerRadius
-                color: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.08)
-                border.color: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.2)
-                border.width: 1
+                color: Theme.surfaceContainerHighest
+                border.width: 0
 
                 Column {
                     anchors.centerIn: parent
@@ -161,9 +160,8 @@ Rectangle {
                 width: (parent.width - Theme.spacingM) / 2
                 height: 64
                 radius: Theme.cornerRadius
-                color: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.08)
-                border.color: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.2)
-                border.width: 1
+                color: Theme.surfaceContainerHighest
+                border.width: 0
 
                 Column {
                     anchors.centerIn: parent
@@ -211,7 +209,7 @@ Rectangle {
             radius: Theme.cornerRadius
             color: Qt.rgba(Theme.error.r, Theme.error.g, Theme.error.b, 0.12)
             border.color: Qt.rgba(Theme.error.r, Theme.error.g, Theme.error.b, 0.3)
-            border.width: 1
+            border.width: 0
             visible: (typeof PowerProfiles !== "undefined") && PowerProfiles.degradationReason !== PerformanceDegradationReason.None
 
             Column {
