@@ -1,6 +1,6 @@
 [templates.kitty]
   input_path  = '~/.config/matugen/templates/terminal/kitty.conf'
-  output_path = '~/.config/kitty/themes/Matugen.conf'
+  output_path = '~/.config/kitty/colors.conf'
 
 [templates.terminal_colors]
   input_path  = '~/.config/matugen/templates/terminal/colors.json'
@@ -63,12 +63,8 @@
   output_path = '~/.config/spicetify/Themes/marketplace/color.ini'
 
 [templates.neovim-nvchad]
-  input_path  = '~/.config/matugen/templates/nvchad/nvchad.lua'
+  input_path  = '~/.config/matugen/templates/terminal/nvchad.lua'
   output_path = '~/.local/share/nvim/lazy/base46/lua/base46/themes/matugen.lua'
-
-[templates.neovim-nvchad-colors]
-  input_path  = '~/.config/matugen/templates/nvchad/colors-nvchad.txt'
-  output_path = '~/.cache/wal/colors'
 
 [templates.vesktop]
   input_path  = "~/.config/matugen/templates/discord.css"
@@ -81,37 +77,6 @@
 [templates.dgop]
   input_path  = "~/.config/matugen/templates/dgop.json"
   output_path = "~/.config/dgop/colors.json"
-
-[config.custom_colors.red]
-  color = "#f38ba8"
-  blend = true
-
-[config.custom_colors.green]
-  color = "#a6e3a1"
-  blend = true
-
-[config.custom_colors.yellow]
-  color = "#f9e2af"
-  blend = true
-
-[config.custom_colors.blue]
-  color = "#89b4fa"
-  blend = true
-
-[config.custom_colors.magenta]
-  color = "#f5c2e7"
-  blend = true
-
-[config.custom_colors.cyan]
-  color = "#94e2d5"
-  blend = true
-
-[config.custom_colors.orange]
-  color = "#fab387"
-  blend = true
-[config.custom_colors.purple]
-  color = "#cba6f7"
-  blend = true
 
 [config.custom_keywords]
   font_mono = "JetBrainsMono Nerd Font"
