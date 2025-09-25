@@ -1,0 +1,56 @@
+name: Check Chezmoi Externals
+
+on:
+  pull_request:
+  push:
+    branches: ["main"]
+
+jobs:
+  externals-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install chezmoi
+        run: |
+          curl -fsLS https://git.io/chezmoi | sh
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Validate externals templates
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          templates=(home/.chezmoiexternals/*.tmpl)
+          shopt -u nullglob
+
+          if [ ${#templates[@]} -eq 0 ]; then
+            echo "⚠️  No externals templates found."
+            exit 0
+          fi
+
+          echo "🔍 Checking externals templates..."
+          failed=0
+
+          for tmpl in "${templates[@]}"; do
+            echo "   • Validating $tmpl"
+            if ! output=$(chezmoi execute-template <"$tmpl"); then
+              echo "❌ Failed to render: $tmpl"
+              failed=1
+              continue
+            fi
+
+            if ! echo "$output" | grep -Eq 'url: ".\S+"'; then
+              echo "❌ Missing or empty url in: $tmpl"
+              failed=1
+            else
+              echo "✅ OK: $tmpl"
+            fi
+          done
+
+          if [ $failed -ne 0 ]; then
+            echo "❌ Externals check failed"
+            exit 1
+          fi
+
+          echo "✅ All externals templates passed"
