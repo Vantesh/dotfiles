@@ -49,7 +49,7 @@ apply_kitty_theme() {
   ensure_directory "$KITTY_CONFIG_DIR"
   python3 "$SCRIPT" --"$MODE" >"$KITTY_THEME_FILE"
 
-  kitty +kitten themes --reload-in=all matugen || true
+  kill -SIGUSR1 $(pgrep kitty) || true
 }
 
 # =============================================================================
@@ -70,9 +70,7 @@ apply_ghostty_theme() {
   ensure_config_kv "theme" "Matugen" "$config_file"
   ensure_config_kv "app-notifications" "no-clipboard-copy,no-config-reload" "$config_file"
 
-  if pgrep -x ghostty &>/dev/null; then
-    pkill -USR2 -x ghostty
-  fi
+  pkill -USR2 -x ghostty || true
 }
 
 # =============================================================================
