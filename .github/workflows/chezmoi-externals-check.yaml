@@ -1,57 +1,65 @@
-name: Check Chezmoi Externals
+name: Validate chezmoi externals
 
 on:
-  pull_request:
   push:
-    branches: [ "main" ]
+    paths:
+      - "home/.chezmoiexternals/*.tmpl"
+      - ".github/workflows/externals-check.yml"
+  pull_request:
+    paths:
+      - "home/.chezmoiexternals/*.tmpl"
+      - ".github/workflows/externals-check.yml"
 
 jobs:
   externals-check:
-    runs-on: ubuntu-latest   # host runner
+    runs-on: ubuntu-latest
     container:
-      image: archlinux:latest  # run inside Arch container
+      image: archlinux:latest
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install dependencies
+      - name: Install dependencies (chezmoi, yq, git)
         run: |
-          pacman -Syu --noconfirm chezmoi git grep
+          pacman -Syu --noconfirm
+          pacman -S --noconfirm chezmoi git yq
 
       - name: Validate externals templates
         run: |
-          set -euo pipefail
-          shopt -s nullglob
-          templates=(home/.chezmoiexternals/*.tmpl)
-          shopt -u nullglob
-
-          if [ ${#templates[@]} -eq 0 ]; then
-            echo "⚠️  No externals templates found."
-            exit 0
-          fi
-
-          echo "🔍 Checking externals templates..."
+          set -e
           failed=0
 
-          for tmpl in "${templates[@]}"; do
+          for tmpl in home/.chezmoiexternals/*.tmpl; do
             echo "   • Validating $tmpl"
-            if ! output=$(chezmoi execute-template <"$tmpl"); then
+
+            # Render template
+            if ! output=$(chezmoi execute-template < "$tmpl"); then
               echo "❌ Failed to render: $tmpl"
               failed=1
               continue
             fi
 
-            if ! echo "$output" | grep -Eq 'url: ".\S+"'; then
+            # Check for URL presence
+            if ! echo "$output" | grep -Eq 'url:[[:space:]]+\S+'; then
               echo "❌ Missing or empty url in: $tmpl"
               failed=1
-            else
-              echo "✅ OK: $tmpl"
+              continue
             fi
+
+            # Validate YAML syntax with yq
+            if ! echo "$output" | yq e '.' > /dev/null 2>&1; then
+              echo "❌ Invalid YAML in: $tmpl"
+              failed=1
+              continue
+            fi
+
+            echo "✅ OK: $tmpl"
           done
 
-          if [ $failed -ne 0 ]; then
+          if [ "$failed" -ne 0 ]; then
             echo "❌ Externals check failed"
             exit 1
           fi
 
-          echo "✅ All externals templates passed"
+          echo "🎉 All externals passed!"
