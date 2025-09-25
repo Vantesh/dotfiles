@@ -20,14 +20,14 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install dependencies (chezmoi, yq, git)
+      - name: Install dependencies
         run: |
           pacman -Syu --noconfirm
           pacman -S --noconfirm chezmoi git yq
 
       - name: Validate externals templates
         run: |
-          set -e
+          set -euo pipefail
           failed=0
 
           for tmpl in home/.chezmoiexternals/*.tmpl; do
@@ -40,15 +40,18 @@ jobs:
               continue
             fi
 
+            # Optional: normalize quoted top-level keys for yq
+            normalized_output=$(echo "$output" | sed 's/^"\(.*\)":/\1:/')
+
             # Check for URL presence
-            if ! echo "$output" | grep -Eq 'url:[[:space:]]+\S+'; then
+            if ! echo "$normalized_output" | grep -Eq 'url:[[:space:]]+\S+'; then
               echo "❌ Missing or empty url in: $tmpl"
               failed=1
               continue
             fi
 
-            # Validate YAML syntax with yq
-            if ! echo "$output" | yq e '.' > /dev/null 2>&1; then
+            # Validate YAML syntax using yq v4
+            if ! echo "$normalized_output" | yq eval -P - >/dev/null 2>&1; then
               echo "❌ Invalid YAML in: $tmpl"
               failed=1
               continue
