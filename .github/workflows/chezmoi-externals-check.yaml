@@ -1,0 +1,58 @@
+name: Validate chezmoi externals
+
+on:
+  push:
+    paths:
+      - "home/.chezmoiexternals/*.tmpl"
+      - ".github/workflows/chezmoi-externals-check.yaml"
+  pull_request:
+    paths:
+      - "home/.chezmoiexternals/*.tmpl"
+      - ".github/workflows/chezmoi-externals-check.yaml"
+
+jobs:
+  externals-check:
+    runs-on: ubuntu-latest
+    container:
+      image: archlinux:latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          pacman -Syu --noconfirm
+          pacman -S --noconfirm chezmoi git
+
+      - name: Validate externals templates
+        run: |
+          set -euo pipefail
+          failed=0
+
+          for tmpl in home/.chezmoiexternals/*.tmpl; do
+            echo "   • Validating $tmpl"
+
+            # Render template
+            if ! output=$(chezmoi execute-template < "$tmpl"); then
+              echo "❌ Failed to render: $tmpl"
+              failed=1
+              continue
+            fi
+
+            # Check for URL presence
+            if ! echo "$output" | grep -Eq 'url:[[:space:]]+\S+'; then
+              echo "❌ Missing or empty url in: $tmpl"
+              failed=1
+              continue
+            fi
+
+            echo "✅ OK: $tmpl"
+          done
+
+          if [ "$failed" -ne 0 ]; then
+            echo "❌ Externals check failed"
+            exit 1
+          fi
+
+          echo "🎉 All externals passed!"
