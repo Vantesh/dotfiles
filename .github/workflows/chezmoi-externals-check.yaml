@@ -4,11 +4,11 @@ on:
   push:
     paths:
       - "home/.chezmoiexternals/*.tmpl"
-      - ".github/workflows/chezmoi-externals-check.yml"
+      - ".github/workflows/chezmoi-externals-check.yaml"
   pull_request:
     paths:
       - "home/.chezmoiexternals/*.tmpl"
-      - ".github/workflows/chezmoi-externals-check.yml"
+      - ".github/workflows/chezmoi-externals-check.yaml"
 
 jobs:
   externals-check:
