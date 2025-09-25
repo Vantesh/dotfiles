@@ -3,19 +3,20 @@ name: Check Chezmoi Externals
 on:
   pull_request:
   push:
-    branches: ["main"]
+    branches: [ "main" ]
 
 jobs:
   externals-check:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest   # host runner
+    container:
+      image: archlinux:latest  # run inside Arch container
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install chezmoi
+      - name: Install dependencies
         run: |
-          curl -fsLS https://git.io/chezmoi | sh
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
+          pacman -Syu --noconfirm chezmoi git grep
 
       - name: Validate externals templates
         run: |
