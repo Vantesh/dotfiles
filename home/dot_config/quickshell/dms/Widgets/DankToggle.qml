@@ -36,7 +36,7 @@ Item {
         id: background
         anchors.fill: parent
         radius: showText ? Theme.cornerRadius : 0
-        color: showText ? Theme.surfaceHover : "transparent"
+        color: "transparent"
         visible: showText
 
         StateLayer {

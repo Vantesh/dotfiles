@@ -420,7 +420,7 @@ Item {
                                 width: parent.width
                                 height: 48
                                 radius: Theme.cornerRadius
-                                color: deviceMouseAreaLeft.containsMouse ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.12) : Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g, Theme.surfaceVariant.b, index % 2 === 0 ? 0.3 : 0.2)
+                                color: deviceMouseAreaLeft.containsMouse ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.12) : Theme.surfaceContainerHigh
                                 border.color: modelData === AudioService.sink ? Theme.primary : Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.2)
                                 border.width: modelData === AudioService.sink ? 2 : 1
                                 
@@ -563,7 +563,7 @@ Item {
                                 width: parent.width
                                 height: 48
                                 radius: Theme.cornerRadius
-                                color: playerMouseArea.containsMouse ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.12) : Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g, Theme.surfaceVariant.b, index % 2 === 0 ? 0.3 : 0.2)
+                                color: playerMouseArea.containsMouse ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.12) : Theme.surfaceContainerHigh
                                 border.color: modelData === activePlayer ? Theme.primary : Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.2)
                                 border.width: modelData === activePlayer ? 2 : 1
 
@@ -837,7 +837,7 @@ Item {
                             width: 40
                             height: 40
                             radius: 20
-                            color: prevBtnArea.containsMouse ? Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g, Theme.surfaceVariant.b, 0.12) : "transparent"
+                            color: prevBtnArea.containsMouse ? Theme.surfaceContainerHigh : "transparent"
                             anchors.verticalCenter: parent.verticalCenter
 
                             DankIcon {
@@ -903,7 +903,7 @@ Item {
                             width: 40
                             height: 40
                             radius: 20
-                            color: nextBtnArea.containsMouse ? Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g, Theme.surfaceVariant.b, 0.12) : "transparent"
+                            color: nextBtnArea.containsMouse ? Theme.surfaceContainerHigh : "transparent"
                             anchors.verticalCenter: parent.verticalCenter
 
                             DankIcon {
@@ -1115,7 +1115,7 @@ Item {
                         width: parent.width
                         height: parent.height
                         anchors.centerIn: parent
-                        color: Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g, Theme.surfaceVariant.b, 0.5)
+                        color: Theme.surfaceContainerHigh
                         radius: Theme.cornerRadius
                     }
 

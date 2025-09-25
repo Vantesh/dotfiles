@@ -55,7 +55,7 @@ Item {
             radius: 12
             color: (widgetData?.width || 50) === 25 ? Theme.primary : Theme.primaryContainer
             border.color: Theme.primary
-            border.width: 1
+            border.width: 0
             visible: !isSlider
 
             StyledText {
@@ -85,7 +85,7 @@ Item {
             radius: 12
             color: (widgetData?.width || 50) === 50 ? Theme.primary : Theme.primaryContainer
             border.color: Theme.primary
-            border.width: 1
+            border.width: 0
 
             StyledText {
                 anchors.centerIn: parent
@@ -114,7 +114,7 @@ Item {
             radius: 12
             color: (widgetData?.width || 50) === 75 ? Theme.primary : Theme.primaryContainer
             border.color: Theme.primary
-            border.width: 1
+            border.width: 0
             visible: !isSlider
 
             StyledText {
@@ -144,7 +144,7 @@ Item {
             radius: 12
             color: (widgetData?.width || 50) === 100 ? Theme.primary : Theme.primaryContainer
             border.color: Theme.primary
-            border.width: 1
+            border.width: 0
 
             StyledText {
                 anchors.centerIn: parent
@@ -183,7 +183,7 @@ Item {
             radius: 8
             color: Theme.surfaceContainer
             border.color: Theme.outline
-            border.width: 1
+            border.width: 0
 
             DankIcon {
                 anchors.centerIn: parent
@@ -206,7 +206,7 @@ Item {
             radius: 8
             color: Theme.surfaceContainer
             border.color: Theme.outline
-            border.width: 1
+            border.width: 0
 
             DankIcon {
                 anchors.centerIn: parent

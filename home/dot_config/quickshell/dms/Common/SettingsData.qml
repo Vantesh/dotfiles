@@ -15,9 +15,10 @@ Singleton {
     // Theme settings
     property string currentThemeName: "blue"
     property string customThemeFile: ""
+    property string matugenScheme: "scheme-tonal-spot"
     property real topBarTransparency: 0.75
     property real topBarWidgetTransparency: 0.85
-    property real popupTransparency: 0.92
+    property real popupTransparency: 1.0
     property real dockTransparency: 1
     property bool use24HourClock: true
     property bool useFahrenheit: false
@@ -88,7 +89,6 @@ Singleton {
     property string osLogoColorOverride: ""
     property real osLogoBrightness: 0.5
     property real osLogoContrast: 1
-    property bool wallpaperDynamicTheming: true
     property bool weatherEnabled: true
     property string fontFamily: "Inter Variable"
     property string monoFontFamily: "Fira Code"
@@ -116,6 +116,7 @@ Singleton {
     property bool qtThemingEnabled: false
     property bool showDock: false
     property bool dockAutoHide: false
+    property bool dockGroupByApp: false
     property real cornerRadius: 12
     property bool notificationOverlayEnabled: false
     property bool topBarAutoHide: false
@@ -129,7 +130,8 @@ Singleton {
     property bool topBarGothCornersEnabled: false
     property bool lockScreenShowPowerActions: true
     property bool hideBrightnessSlider: false
-    property string widgetBackgroundColor: "sth"
+    property string widgetBackgroundColor: "sch"
+    property string surfaceBase: "s"
     property int notificationTimeoutLow: 5000
     property int notificationTimeoutNormal: 5000
     property int notificationTimeoutCritical: 0
@@ -170,7 +172,8 @@ Singleton {
             "enabled": true,
             "size": 20,
             "selectedGpuIndex": 0,
-            "pciId": ""
+            "pciId": "",
+            "mountPath": "/"
         }
         leftWidgetsModel.append(dummyItem)
         centerWidgetsModel.append(dummyItem)
@@ -205,9 +208,10 @@ Singleton {
                     currentThemeName = settings.currentThemeName !== undefined ? settings.currentThemeName : "blue"
                 }
                 customThemeFile = settings.customThemeFile !== undefined ? settings.customThemeFile : ""
+                matugenScheme = settings.matugenScheme !== undefined ? settings.matugenScheme : "scheme-tonal-spot"
                 topBarTransparency = settings.topBarTransparency !== undefined ? (settings.topBarTransparency > 1 ? settings.topBarTransparency / 100 : settings.topBarTransparency) : 0.75
                 topBarWidgetTransparency = settings.topBarWidgetTransparency !== undefined ? (settings.topBarWidgetTransparency > 1 ? settings.topBarWidgetTransparency / 100 : settings.topBarWidgetTransparency) : 0.85
-                popupTransparency = settings.popupTransparency !== undefined ? (settings.popupTransparency > 1 ? settings.popupTransparency / 100 : settings.popupTransparency) : 0.92
+                popupTransparency = settings.popupTransparency !== undefined ? (settings.popupTransparency > 1 ? settings.popupTransparency / 100 : settings.popupTransparency) : 1.0
                 dockTransparency = settings.dockTransparency !== undefined ? (settings.dockTransparency > 1 ? settings.dockTransparency / 100 : settings.dockTransparency) : 1
                 use24HourClock = settings.use24HourClock !== undefined ? settings.use24HourClock : true
                 useFahrenheit = settings.useFahrenheit !== undefined ? settings.useFahrenheit : false
@@ -289,7 +293,6 @@ Singleton {
                 osLogoColorOverride = settings.osLogoColorOverride !== undefined ? settings.osLogoColorOverride : ""
                 osLogoBrightness = settings.osLogoBrightness !== undefined ? settings.osLogoBrightness : 0.5
                 osLogoContrast = settings.osLogoContrast !== undefined ? settings.osLogoContrast : 1
-                wallpaperDynamicTheming = settings.wallpaperDynamicTheming !== undefined ? settings.wallpaperDynamicTheming : true
                 fontFamily = settings.fontFamily !== undefined ? settings.fontFamily : defaultFontFamily
                 monoFontFamily = settings.monoFontFamily !== undefined ? settings.monoFontFamily : defaultMonoFontFamily
                 fontWeight = settings.fontWeight !== undefined ? settings.fontWeight : Font.Normal
@@ -304,6 +307,7 @@ Singleton {
                 qtThemingEnabled = settings.qtThemingEnabled !== undefined ? settings.qtThemingEnabled : false
                 showDock = settings.showDock !== undefined ? settings.showDock : false
                 dockAutoHide = settings.dockAutoHide !== undefined ? settings.dockAutoHide : false
+                dockGroupByApp = settings.dockGroupByApp !== undefined ? settings.dockGroupByApp : false
                 cornerRadius = settings.cornerRadius !== undefined ? settings.cornerRadius : 12
                 notificationOverlayEnabled = settings.notificationOverlayEnabled !== undefined ? settings.notificationOverlayEnabled : false
                 topBarAutoHide = settings.topBarAutoHide !== undefined ? settings.topBarAutoHide : false
@@ -320,7 +324,8 @@ Singleton {
                 topBarGothCornersEnabled = settings.topBarGothCornersEnabled !== undefined ? settings.topBarGothCornersEnabled : false
                 lockScreenShowPowerActions = settings.lockScreenShowPowerActions !== undefined ? settings.lockScreenShowPowerActions : true
                 hideBrightnessSlider = settings.hideBrightnessSlider !== undefined ? settings.hideBrightnessSlider : false
-                widgetBackgroundColor = settings.widgetBackgroundColor !== undefined ? settings.widgetBackgroundColor : "sth"
+                widgetBackgroundColor = settings.widgetBackgroundColor !== undefined ? settings.widgetBackgroundColor : "sch"
+                surfaceBase = settings.surfaceBase !== undefined ? settings.surfaceBase : "s"
                 screenPreferences = settings.screenPreferences !== undefined ? settings.screenPreferences : ({})
                 applyStoredTheme()
                 detectAvailableIconThemes()
@@ -343,6 +348,7 @@ Singleton {
         settingsFile.setText(JSON.stringify({
                                                 "currentThemeName": currentThemeName,
                                                 "customThemeFile": customThemeFile,
+                                                "matugenScheme": matugenScheme,
                                                 "topBarTransparency": topBarTransparency,
                                                 "topBarWidgetTransparency": topBarWidgetTransparency,
                                                 "popupTransparency": popupTransparency,
@@ -400,7 +406,6 @@ Singleton {
                                                 "osLogoColorOverride": osLogoColorOverride,
                                                 "osLogoBrightness": osLogoBrightness,
                                                 "osLogoContrast": osLogoContrast,
-                                                "wallpaperDynamicTheming": wallpaperDynamicTheming,
                                                 "fontFamily": fontFamily,
                                                 "monoFontFamily": monoFontFamily,
                                                 "fontWeight": fontWeight,
@@ -415,6 +420,7 @@ Singleton {
                                                 "qtThemingEnabled": qtThemingEnabled,
                                                 "showDock": showDock,
                                                 "dockAutoHide": dockAutoHide,
+                                                "dockGroupByApp": dockGroupByApp,
                                                 "cornerRadius": cornerRadius,
                                                 "notificationOverlayEnabled": notificationOverlayEnabled,
                                                 "topBarAutoHide": topBarAutoHide,
@@ -429,6 +435,7 @@ Singleton {
                                                 "lockScreenShowPowerActions": lockScreenShowPowerActions,
                                                 "hideBrightnessSlider": hideBrightnessSlider,
                                                 "widgetBackgroundColor": widgetBackgroundColor,
+                                                "surfaceBase": surfaceBase,
                                                 "notificationTimeoutLow": notificationTimeoutLow,
                                                 "notificationTimeoutNormal": notificationTimeoutNormal,
                                                 "notificationTimeoutCritical": notificationTimeoutCritical,
@@ -564,6 +571,19 @@ Singleton {
     function setCustomThemeFile(filePath) {
         customThemeFile = filePath
         saveSettings()
+    }
+
+    function setMatugenScheme(scheme) {
+        var normalized = scheme || "scheme-tonal-spot"
+        if (matugenScheme === normalized)
+            return
+
+        matugenScheme = normalized
+        saveSettings()
+
+        if (typeof Theme !== "undefined") {
+            Theme.generateSystemThemesFromCurrentTheme()
+        }
     }
 
     function setTopBarTransparency(transparency) {
@@ -738,6 +758,7 @@ Singleton {
             var size = typeof order[i] === "string" ? undefined : order[i].size
             var selectedGpuIndex = typeof order[i] === "string" ? undefined : order[i].selectedGpuIndex
             var pciId = typeof order[i] === "string" ? undefined : order[i].pciId
+            var mountPath = typeof order[i] === "string" ? undefined : order[i].mountPath
             var item = {
                 "widgetId": widgetId,
                 "enabled": enabled
@@ -748,6 +769,8 @@ Singleton {
                 item.selectedGpuIndex = selectedGpuIndex
             if (pciId !== undefined)
                 item.pciId = pciId
+            if (mountPath !== undefined)
+                item.mountPath = mountPath
 
             listModel.append(item)
         }
@@ -890,11 +913,6 @@ Singleton {
         saveSettings()
     }
 
-    function setWallpaperDynamicTheming(enabled) {
-        wallpaperDynamicTheming = enabled
-        saveSettings()
-    }
-
     function setFontFamily(family) {
         fontFamily = family
         saveSettings()
@@ -938,6 +956,11 @@ Singleton {
 
     function setDockAutoHide(enabled) {
         dockAutoHide = enabled
+        saveSettings()
+    }
+
+    function setDockGroupByApp(enabled) {
+        dockGroupByApp = enabled
         saveSettings()
     }
 
@@ -1029,6 +1052,14 @@ Singleton {
     function setWidgetBackgroundColor(color) {
         widgetBackgroundColor = color
         saveSettings()
+    }
+
+    function setSurfaceBase(base) {
+        surfaceBase = base
+        saveSettings()
+        if (typeof Theme !== "undefined") {
+            Theme.generateSystemThemesFromCurrentTheme()
+        }
     }
 
     function setScreenPreferences(prefs) {

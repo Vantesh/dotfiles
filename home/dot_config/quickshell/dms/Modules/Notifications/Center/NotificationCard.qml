@@ -34,12 +34,6 @@ Rectangle {
     }
     radius: Theme.cornerRadius
 
-    Behavior on color {
-        ColorAnimation {
-            duration: Theme.shortDuration
-            easing.type: Theme.standardEasing
-        }
-    }
 
     Behavior on border.color {
         ColorAnimation {
@@ -50,12 +44,12 @@ Rectangle {
 
     color: {
         if (isGroupSelected && keyboardNavigationActive) {
-            return Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g, Theme.surfaceVariant.b, 0.2)
+            return Theme.primaryPressed
         }
         if (keyboardNavigationActive && expanded && selectedNotificationIndex >= 0) {
-            return Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g, Theme.surfaceVariant.b, 0.12)
+            return Theme.primaryHoverLight
         }
-        return Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g, Theme.surfaceVariant.b, 0.1)
+        return Theme.surfaceContainerHigh
     }
     border.color: {
         if (isGroupSelected && keyboardNavigationActive) {
@@ -350,16 +344,10 @@ Rectangle {
                         return baseHeight
                     }
                     radius: Theme.cornerRadius
-                    color: isSelected ? Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g, Theme.surfaceVariant.b, 0.25) : "transparent"
+                    color: isSelected ? Theme.primaryPressed : Theme.surfaceContainerHigh
                     border.color: isSelected ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.4) : Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.05)
                     border.width: isSelected ? 1 : 1
 
-                    Behavior on color {
-                        ColorAnimation {
-                            duration: Theme.shortDuration
-                            easing.type: Theme.standardEasing
-                        }
-                    }
 
                     Behavior on border.color {
                         ColorAnimation {

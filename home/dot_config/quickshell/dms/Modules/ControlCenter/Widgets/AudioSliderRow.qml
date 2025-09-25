@@ -70,7 +70,7 @@ Row {
         unit: "%"
         valueOverride: actualVolumePercent
         thumbOutlineColor: Theme.surfaceContainer
-        trackColor: root.sliderTrackColor.a > 0 ? root.sliderTrackColor : Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g, Theme.surfaceVariant.b, Theme.getContentBackgroundAlpha() * 0.60)
+        trackColor: root.sliderTrackColor.a > 0 ? root.sliderTrackColor : Theme.surfaceContainerHigh
         onSliderValueChanged: function(newValue) {
             if (defaultSink) {
                 defaultSink.audio.volume = newValue / 100.0

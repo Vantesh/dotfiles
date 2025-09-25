@@ -24,11 +24,10 @@ Item {
                 width: parent.width
                 height: timeSection.implicitHeight + Theme.spacingL * 2
                 radius: Theme.cornerRadius
-                color: Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g,
-                               Theme.surfaceVariant.b, 0.3)
+                color: Theme.surfaceContainerHigh
                 border.color: Qt.rgba(Theme.outline.r, Theme.outline.g,
                                       Theme.outline.b, 0.2)
-                border.width: 1
+                border.width: 0
 
                 Column {
                     id: timeSection
@@ -89,11 +88,10 @@ Item {
                 width: parent.width
                 height: dateSection.implicitHeight + Theme.spacingL * 2
                 radius: Theme.cornerRadius
-                color: Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g,
-                               Theme.surfaceVariant.b, 0.3)
+                color: Theme.surfaceContainerHigh
                 border.color: Qt.rgba(Theme.outline.r, Theme.outline.g,
                                       Theme.outline.b, 0.2)
-                border.width: 1
+                border.width: 0
 
                 Column {
                     id: dateSection
@@ -280,12 +278,10 @@ Item {
                         width: parent.width
                         height: formatHelp.implicitHeight + Theme.spacingM * 2
                         radius: Theme.cornerRadius
-                        color: Qt.rgba(Theme.surfaceVariant.r,
-                                       Theme.surfaceVariant.g,
-                                       Theme.surfaceVariant.b, 0.2)
+                        color: Theme.surfaceContainerHigh
                         border.color: Qt.rgba(Theme.outline.r, Theme.outline.g,
                                               Theme.outline.b, 0.1)
-                        border.width: 1
+                        border.width: 0
 
                         Column {
                             id: formatHelp

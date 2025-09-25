@@ -212,7 +212,7 @@ Rectangle {
                             const currentScreen = root.parentScreen || Screen;
                             const screenX = currentScreen.x || 0;
                             const relativeX = globalPos.x - screenX;
-                            root.popupTarget.setTriggerPosition(relativeX, barHeight + Theme.spacingXS, root.width, root.section, currentScreen);
+                            root.popupTarget.setTriggerPosition(relativeX, barHeight + SettingsData.topBarSpacing + SettingsData.topBarBottomGap - 2 + Theme.popupDistance, root.width, root.section, currentScreen);
                         }
                         root.clicked();
                     }

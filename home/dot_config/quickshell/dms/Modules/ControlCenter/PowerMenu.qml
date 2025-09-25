@@ -44,7 +44,7 @@ PanelWindow {
         radius: Theme.cornerRadius
         border.color: Qt.rgba(Theme.outline.r, Theme.outline.g,
                               Theme.outline.b, 0.08)
-        border.width: 1
+        border.width: 0
         opacity: powerMenuVisible ? 1 : 0
         scale: powerMenuVisible ? 1 : 0.85
 

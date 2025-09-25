@@ -9,9 +9,9 @@ import qs.Widgets
 Rectangle {
     implicitHeight: BluetoothService.adapter && BluetoothService.adapter.enabled ? headerRow.height + bluetoothContent.height + Theme.spacingM : headerRow.height
     radius: Theme.cornerRadius
-    color: Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g, Theme.surfaceVariant.b, Theme.getContentBackgroundAlpha() * 0.6)
+    color: Theme.surfaceContainerHigh
     border.color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.08)
-    border.width: 1
+    border.width: 0
     
     property var bluetoothCodecModalRef: null
     
@@ -58,11 +58,11 @@ Rectangle {
             radius: 18
             color: {
                 if (!BluetoothService.adapter || !BluetoothService.adapter.enabled)
-                    return Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g, Theme.surfaceVariant.b, 0.3)
+                    return Theme.surfaceContainerHigh
                 return scanMouseArea.containsMouse ? Theme.surfaceContainerHigh : "transparent"
             }
             border.color: BluetoothService.adapter && BluetoothService.adapter.enabled ? Theme.primary : Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.12)
-            border.width: 1
+            border.width: 0
             visible: BluetoothService.adapter && BluetoothService.adapter.enabled
             
             Row {
@@ -159,7 +159,7 @@ Rectangle {
                             return Qt.rgba(Theme.warning.r, Theme.warning.g, Theme.warning.b, 0.12)
                         if (deviceMouseArea.containsMouse)
                             return Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.08)
-                        return Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g, Theme.surfaceVariant.b, index % 2 === 0 ? 0.3 : 0.2)
+                        return Theme.surfaceContainerHigh
                     }
                     border.color: {
                         if (modelData.state === BluetoothDeviceState.Connecting)
@@ -347,9 +347,9 @@ Rectangle {
                     width: parent.width
                     height: 50
                     radius: Theme.cornerRadius
-                    color: availableMouseArea.containsMouse && !isBusy ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.08) : Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g, Theme.surfaceVariant.b, 0.15)
+                    color: availableMouseArea.containsMouse && !isBusy ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.08) : Theme.surfaceContainerHigh
                     border.color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.12)
-                    border.width: 1
+                    border.width: 0
                     opacity: canConnect ? 1 : 0.6
                     
                     Row {
@@ -458,7 +458,7 @@ Rectangle {
         background: Rectangle {
             color: Theme.popupBackground()
             radius: Theme.cornerRadius
-            border.width: 1
+            border.width: 0
             border.color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.12)
         }
         

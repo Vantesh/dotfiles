@@ -29,7 +29,7 @@ Row {
         background: Rectangle {
             color: Theme.surfaceContainer
             border.color: Theme.primarySelected
-            border.width: 1
+            border.width: 0
             radius: Theme.cornerRadius
         }
 
@@ -72,9 +72,9 @@ Row {
                     width: 400 - Theme.spacingL * 2
                     height: 50
                     radius: Theme.cornerRadius
-                    color: widgetMouseArea.containsMouse ? Theme.primaryHover : Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g, Theme.surfaceVariant.b, 0.3)
+                    color: widgetMouseArea.containsMouse ? Theme.primaryHover : Theme.surfaceContainerHigh
                     border.color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.2)
-                    border.width: 1
+                    border.width: 0
 
                     Row {
                         anchors.fill: parent
@@ -138,7 +138,7 @@ Row {
         radius: Theme.cornerRadius
         color: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.12)
         border.color: Theme.primary
-        border.width: 1
+        border.width: 0
 
         Row {
             anchors.centerIn: parent
@@ -172,7 +172,7 @@ Row {
         radius: Theme.cornerRadius
         color: Qt.rgba(Theme.warning.r, Theme.warning.g, Theme.warning.b, 0.12)
         border.color: Theme.warning
-        border.width: 1
+        border.width: 0
 
         Row {
             anchors.centerIn: parent
@@ -206,7 +206,7 @@ Row {
         radius: Theme.cornerRadius
         color: Qt.rgba(Theme.error.r, Theme.error.g, Theme.error.b, 0.12)
         border.color: Theme.error
-        border.width: 1
+        border.width: 0
 
         Row {
             anchors.centerIn: parent

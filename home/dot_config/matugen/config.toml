@@ -78,6 +78,10 @@
   input_path  = "~/.config/matugen/templates/dgop.json"
   output_path = "~/.config/dgop/colors.json"
 
+[templates.dank]
+  input_path  = "~/.config/matugen/templates/dank.json"
+  output_path = "~/.cache/quickshell/dankshell/dms-colors.json"
+
 [config.custom_keywords]
   font_mono = "JetBrainsMono Nerd Font"
   font_sans = "SF Pro Rounded Semi-Bold"

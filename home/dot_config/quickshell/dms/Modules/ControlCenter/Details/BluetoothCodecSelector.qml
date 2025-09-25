@@ -124,7 +124,7 @@ Item {
         radius: Theme.cornerRadius
         color: Theme.surfaceContainer
         border.color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.08)
-        border.width: 1
+        border.width: 0
         opacity: modalVisible ? 1 : 0
         scale: modalVisible ? 1 : 0.9
 
@@ -213,7 +213,7 @@ Item {
                                 return "transparent";
                         }
                         border.color: "transparent"
-                        border.width: 1
+                        border.width: 0
 
                         Row {
                             anchors.left: parent.left

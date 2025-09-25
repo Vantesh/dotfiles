@@ -32,7 +32,7 @@ function calculateRowsAndWidgets(controlCenterColumn, expandedSection, expandedW
             currentWidth += (currentRow.length > 1 ? spacing : 0) + itemWidth
         }
 
-        if (widget.id === expandedSection && expandedWidgetIndex === i) {
+        if (expandedWidgetIndex === i) {
             expandedRow = rows.length
         }
     }

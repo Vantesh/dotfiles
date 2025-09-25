@@ -71,55 +71,47 @@ Singleton {
                 }
             `
 
-            if (monitorTimeout > 0) {
-                monitorOffMonitor = Qt.createQmlObject(qmlString, root, "IdleService.MonitorOffMonitor")
-                monitorOffMonitor.enabled = Qt.binding(() => root._enableGate && root.enabled && root.idleMonitorAvailable && root.monitorTimeout > 0)
-                monitorOffMonitor.respectInhibitors = Qt.binding(() => root.respectInhibitors)
-                monitorOffMonitor.timeout = Qt.binding(() => root.monitorTimeout)
-                monitorOffMonitor.isIdleChanged.connect(function() {
-                    if (monitorOffMonitor.isIdle) {
-                        root.requestMonitorOff()
-                    } else {
-                        root.requestMonitorOn()
-                    }
-                })
-            }
+            monitorOffMonitor = Qt.createQmlObject(qmlString, root, "IdleService.MonitorOffMonitor")
+            monitorOffMonitor.enabled = Qt.binding(() => root._enableGate && root.enabled && root.idleMonitorAvailable && root.monitorTimeout > 0)
+            monitorOffMonitor.respectInhibitors = Qt.binding(() => root.respectInhibitors)
+            monitorOffMonitor.timeout = Qt.binding(() => root.monitorTimeout)
+            monitorOffMonitor.isIdleChanged.connect(function() {
+                if (monitorOffMonitor.isIdle) {
+                    root.requestMonitorOff()
+                } else {
+                    root.requestMonitorOn()
+                }
+            })
 
-            if (lockTimeout > 0) {
-                lockMonitor = Qt.createQmlObject(qmlString, root, "IdleService.LockMonitor")
-                lockMonitor.enabled = Qt.binding(() => root._enableGate && root.enabled && root.idleMonitorAvailable && root.lockTimeout > 0)
-                lockMonitor.respectInhibitors = Qt.binding(() => root.respectInhibitors)
-                lockMonitor.timeout = Qt.binding(() => root.lockTimeout)
-                lockMonitor.isIdleChanged.connect(function() {
-                    if (lockMonitor.isIdle) {
-                        root.lockRequested()
-                    }
-                })
-            }
+            lockMonitor = Qt.createQmlObject(qmlString, root, "IdleService.LockMonitor")
+            lockMonitor.enabled = Qt.binding(() => root._enableGate && root.enabled && root.idleMonitorAvailable && root.lockTimeout > 0)
+            lockMonitor.respectInhibitors = Qt.binding(() => root.respectInhibitors)
+            lockMonitor.timeout = Qt.binding(() => root.lockTimeout)
+            lockMonitor.isIdleChanged.connect(function() {
+                if (lockMonitor.isIdle) {
+                    root.lockRequested()
+                }
+            })
 
-            if (suspendTimeout > 0) {
-                suspendMonitor = Qt.createQmlObject(qmlString, root, "IdleService.SuspendMonitor")
-                suspendMonitor.enabled = Qt.binding(() => root._enableGate && root.enabled && root.idleMonitorAvailable && root.suspendTimeout > 0)
-                suspendMonitor.respectInhibitors = Qt.binding(() => root.respectInhibitors)
-                suspendMonitor.timeout = Qt.binding(() => root.suspendTimeout)
-                suspendMonitor.isIdleChanged.connect(function() {
-                    if (suspendMonitor.isIdle) {
-                        root.requestSuspend()
-                    }
-                })
-            }
+            suspendMonitor = Qt.createQmlObject(qmlString, root, "IdleService.SuspendMonitor")
+            suspendMonitor.enabled = Qt.binding(() => root._enableGate && root.enabled && root.idleMonitorAvailable && root.suspendTimeout > 0)
+            suspendMonitor.respectInhibitors = Qt.binding(() => root.respectInhibitors)
+            suspendMonitor.timeout = Qt.binding(() => root.suspendTimeout)
+            suspendMonitor.isIdleChanged.connect(function() {
+                if (suspendMonitor.isIdle) {
+                    root.requestSuspend()
+                }
+            })
 
-            if (hibernateTimeout > 0 && SessionService.hibernateSupported) {
-                hibernateMonitor = Qt.createQmlObject(qmlString, root, "IdleService.HibernateMonitor")
-                hibernateMonitor.enabled = Qt.binding(() => root._enableGate && root.enabled && root.idleMonitorAvailable && root.hibernateTimeout > 0)
-                hibernateMonitor.respectInhibitors = Qt.binding(() => root.respectInhibitors)
-                hibernateMonitor.timeout = Qt.binding(() => root.hibernateTimeout)
-                hibernateMonitor.isIdleChanged.connect(function() {
-                    if (hibernateMonitor.isIdle) {
-                        root.requestHibernate()
-                    }
-                })
-            }
+            hibernateMonitor = Qt.createQmlObject(qmlString, root, "IdleService.HibernateMonitor")
+            hibernateMonitor.enabled = Qt.binding(() => root._enableGate && root.enabled && root.idleMonitorAvailable && root.hibernateTimeout > 0)
+            hibernateMonitor.respectInhibitors = Qt.binding(() => root.respectInhibitors)
+            hibernateMonitor.timeout = Qt.binding(() => root.hibernateTimeout)
+            hibernateMonitor.isIdleChanged.connect(function() {
+                if (hibernateMonitor.isIdle) {
+                    root.requestHibernate()
+                }
+            })
         } catch (e) {
             console.warn("IdleService: Error creating IdleMonitors:", e)
         }

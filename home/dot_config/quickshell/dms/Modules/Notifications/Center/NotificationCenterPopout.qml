@@ -36,7 +36,7 @@ DankPopout {
     popupWidth: 400
     popupHeight: contentLoader.item ? contentLoader.item.implicitHeight : 400
     triggerX: Screen.width - 400 - Theme.spacingL
-    triggerY: Theme.barHeight - 4 + SettingsData.topBarSpacing + Theme.spacingXS
+    triggerY: Theme.barHeight - 4 + SettingsData.topBarSpacing + Theme.popupDistance
     triggerWidth: 40
     positioning: "center"
     screen: triggerScreen
@@ -117,7 +117,7 @@ DankPopout {
             color: Theme.popupBackground()
             radius: Theme.cornerRadius
             border.color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.08)
-            border.width: 1
+            border.width: 0
             focus: true
 
             Component.onCompleted: {

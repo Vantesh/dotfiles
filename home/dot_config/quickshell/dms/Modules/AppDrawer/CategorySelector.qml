@@ -15,7 +15,7 @@ Item {
     readonly property int maxCompactItems: 8
     readonly property int itemHeight: 36
     readonly property color selectedBorderColor: "transparent"
-    readonly property color unselectedBorderColor: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.3)
+    readonly property color unselectedBorderColor: "transparent"
 
     function handleCategoryClick(category) {
         selectedCategory = category
@@ -42,8 +42,7 @@ Item {
                 height: root.itemHeight
                 width: root.getButtonWidth(itemCount, parent.width)
                 radius: Theme.cornerRadius
-                color: selectedCategory === modelData ? Theme.primary : "transparent"
-                border.color: selectedCategory === modelData ? selectedBorderColor : unselectedBorderColor
+                color: selectedCategory === modelData ? Theme.primary : Theme.surfaceContainerHigh
 
                 StyledText {
                     anchors.centerIn: parent
@@ -82,7 +81,7 @@ Item {
                     height: root.itemHeight
                     width: root.getButtonWidth(itemCount, parent.width)
                     radius: Theme.cornerRadius
-                    color: selectedCategory === modelData ? Theme.primary : "transparent"
+                    color: selectedCategory === modelData ? Theme.primary : Theme.surfaceContainerHigh
                     border.color: selectedCategory === modelData ? selectedBorderColor : unselectedBorderColor
 
                     StyledText {
@@ -118,7 +117,7 @@ Item {
                     height: root.itemHeight
                     width: root.getButtonWidth(itemCount, parent.width)
                     radius: Theme.cornerRadius
-                    color: selectedCategory === modelData ? Theme.primary : "transparent"
+                    color: selectedCategory === modelData ? Theme.primary : Theme.surfaceContainerHigh
                     border.color: selectedCategory === modelData ? selectedBorderColor : unselectedBorderColor
 
                     StyledText {

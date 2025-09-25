@@ -80,7 +80,7 @@ Row {
             }
         }
         thumbOutlineColor: Theme.surfaceContainer
-        trackColor: Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g, Theme.surfaceVariant.b, Theme.getContentBackgroundAlpha() * 0.60)
+        trackColor: Theme.surfaceContainerHigh
     }
 
     Menu {
@@ -91,7 +91,7 @@ Row {
         background: Rectangle {
             color: Theme.popupBackground()
             radius: Theme.cornerRadius
-            border.width: 1
+            border.width: 0
             border.color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.12)
         }
         

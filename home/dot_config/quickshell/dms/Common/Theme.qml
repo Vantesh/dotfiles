@@ -14,6 +14,10 @@ import "StockThemes.js" as StockThemes
 Singleton {
     id: root
 
+    readonly property bool envDisableMatugen: Quickshell.env("DMS_DISABLE_MATUGEN") === "1" || Quickshell.env("DMS_DISABLE_MATUGEN") === "true"
+
+    readonly property real popupDistance: 4
+
     property string currentTheme: "blue"
     property string currentThemeCategory: "generic"
     property bool isLightMode: false
@@ -70,7 +74,6 @@ Singleton {
     property bool qtThemingEnabled: typeof SettingsData !== "undefined" ? (SettingsData.qt5ctAvailable || SettingsData.qt6ctAvailable) : false
     property var workerRunning: false
     property var matugenColors: ({})
-    property bool extractionRequested: false
     property int colorUpdateTrigger: 0
     property var customThemeData: null
 
@@ -118,6 +121,7 @@ Singleton {
                 "outline": getMatugenColor("outline", "#8e918f"),
                 "surfaceContainer": getMatugenColor("surface_container", "#1e2023"),
                 "surfaceContainerHigh": getMatugenColor("surface_container_high", "#292b2f"),
+                "surfaceContainerHighest": getMatugenColor("surface_container_highest", "#343740"),
                 "error": "#F2B8B5",
                 "warning": "#FF9800",
                 "info": "#2196F3",
@@ -128,11 +132,36 @@ Singleton {
         }
     }
 
+    readonly property var availableMatugenSchemes: [
+        ({ "value": "scheme-tonal-spot", "label": "Tonal Spot", "description": "Balanced palette with focused accents (default)." }),
+        ({ "value": "scheme-content", "label": "Content", "description": "Derives colors that closely match the underlying image." }),
+        ({ "value": "scheme-expressive", "label": "Expressive", "description": "Vibrant palette with playful saturation." }),
+        ({ "value": "scheme-fidelity", "label": "Fidelity", "description": "High-fidelity palette that preserves source hues." }),
+        ({ "value": "scheme-fruit-salad", "label": "Fruit Salad", "description": "Colorful mix of bright contrasting accents." }),
+        ({ "value": "scheme-monochrome", "label": "Monochrome", "description": "Minimal palette built around a single hue." }),
+        ({ "value": "scheme-neutral", "label": "Neutral", "description": "Muted palette with subdued, calming tones." }),
+        ({ "value": "scheme-rainbow", "label": "Rainbow", "description": "Diverse palette spanning the full spectrum." })
+    ]
+
+    function getMatugenScheme(value) {
+        const schemes = availableMatugenSchemes
+        for (let i = 0; i < schemes.length; i++) {
+            if (schemes[i].value === value)
+                return schemes[i]
+        }
+        return schemes[0]
+    }
+
     property color primary: currentThemeData.primary
     property color primaryText: currentThemeData.primaryText
     property color primaryContainer: currentThemeData.primaryContainer
     property color secondary: currentThemeData.secondary
-    property color surface: currentThemeData.surface
+    property color surface: {
+        if (typeof SettingsData !== "undefined" && SettingsData.surfaceBase === "s") {
+            return currentThemeData.background
+        }
+        return currentThemeData.surface
+    }
     property color surfaceText: currentThemeData.surfaceText
     property color surfaceVariant: currentThemeData.surfaceVariant
     property color surfaceVariantText: currentThemeData.surfaceVariantText
@@ -141,8 +170,24 @@ Singleton {
     property color backgroundText: currentThemeData.backgroundText
     property color outline: currentThemeData.outline
     property color outlineVariant: currentThemeData.outlineVariant || Qt.rgba(outline.r, outline.g, outline.b, 0.6)
-    property color surfaceContainer: currentThemeData.surfaceContainer
-    property color surfaceContainerHigh: currentThemeData.surfaceContainerHigh
+    property color surfaceContainer: {
+        if (typeof SettingsData !== "undefined" && SettingsData.surfaceBase === "s") {
+            return currentThemeData.surface
+        }
+        return currentThemeData.surfaceContainer
+    }
+    property color surfaceContainerHigh: {
+        if (typeof SettingsData !== "undefined" && SettingsData.surfaceBase === "s") {
+            return currentThemeData.surfaceContainer
+        }
+        return currentThemeData.surfaceContainerHigh
+    }
+    property color surfaceContainerHighest: {
+        if (typeof SettingsData !== "undefined" && SettingsData.surfaceBase === "s") {
+            return currentThemeData.surfaceContainerHigh
+        }
+        return currentThemeData.surfaceContainerHighest
+    }
 
     property color onSurface: surfaceText
     property color onSurfaceVariant: surfaceVariantText
@@ -225,7 +270,6 @@ Singleton {
         if (themeName === dynamic) {
             currentTheme = dynamic
             currentThemeCategory = dynamic
-            extractColors()
         } else if (themeName === custom) {
             currentTheme = custom
             currentThemeCategory = custom
@@ -263,9 +307,6 @@ Singleton {
     function forceGenerateSystemThemes() {
         screenTransition()
         if (!matugenAvailable) {
-            if (typeof ToastService !== "undefined") {
-                ToastService.showWarning("matugen not available - cannot generate system themes")
-            }
             return
         }
         generateSystemThemesFromCurrentTheme()
@@ -348,7 +389,7 @@ Singleton {
     property real notepadTransparency: SettingsData.notepadTransparencyOverride >= 0 ? SettingsData.notepadTransparencyOverride : popupTransparency
 
     property var widgetBaseBackgroundColor: {
-        const colorMode = typeof SettingsData !== "undefined" ? SettingsData.widgetBackgroundColor : "sth"
+        const colorMode = typeof SettingsData !== "undefined" ? SettingsData.widgetBackgroundColor : "sch"
         switch (colorMode) {
             case "s":
                 return surface
@@ -369,7 +410,7 @@ Singleton {
     }
 
     property var widgetBackground: {
-        const colorMode = typeof SettingsData !== "undefined" ? SettingsData.widgetBackgroundColor : "sth"
+        const colorMode = typeof SettingsData !== "undefined" ? SettingsData.widgetBackgroundColor : "sch"
         switch (colorMode) {
             case "s":
                 return Qt.rgba(surface.r, surface.g, surface.b, widgetTransparency)
@@ -485,17 +526,6 @@ Singleton {
         }
     }
 
-    function extractColors() {
-        extractionRequested = true
-        if (matugenAvailable)
-            if (rawWallpaperPath.startsWith("we:")) {
-                fileCheckerTimer.start()
-            } else {
-                fileChecker.running = true
-            }
-        else
-            matugenCheck.running = true
-    }
 
     function onLightModeChanged() {
         if (matugenColors && Object.keys(matugenColors).length > 0) {
@@ -509,7 +539,7 @@ Singleton {
 
     function setDesiredTheme(kind, value, isLight, iconTheme, matugenType) {
         if (!matugenAvailable) {
-            console.warn("matugen not available - cannot set system theme")
+            console.warn("matugen not available or disabled - cannot set system theme")
             return
         }
 
@@ -522,7 +552,8 @@ Singleton {
             "value": value,
             "mode": isLight ? "light" : "dark",
             "iconTheme": iconTheme || "System Default",
-            "matugenType": matugenType || "scheme-tonal-spot"
+            "matugenType": matugenType || "scheme-tonal-spot",
+            "surfaceBase": (typeof SettingsData !== "undefined" && SettingsData.surfaceBase) ? SettingsData.surfaceBase : "sc"
         }
 
         const json = JSON.stringify(desired)
@@ -553,10 +584,11 @@ Singleton {
             if (!wallpaperPath) {
                 return
             }
+            const selectedMatugenType = (typeof SettingsData !== "undefined" && SettingsData.matugenScheme) ? SettingsData.matugenScheme : "scheme-tonal-spot"
             if (wallpaperPath.startsWith("#")) {
-                setDesiredTheme("hex", wallpaperPath, isLight, iconTheme)
+                setDesiredTheme("hex", wallpaperPath, isLight, iconTheme, selectedMatugenType)
             } else {
-                setDesiredTheme("image", wallpaperPath, isLight, iconTheme)
+                setDesiredTheme("image", wallpaperPath, isLight, iconTheme, selectedMatugenType)
             }
         } else {
             let primaryColor
@@ -584,7 +616,7 @@ Singleton {
     function applyGtkColors() {
         if (!matugenAvailable) {
             if (typeof ToastService !== "undefined") {
-                ToastService.showError("matugen not available - cannot apply GTK colors")
+                ToastService.showError("matugen not available or disabled - cannot apply GTK colors")
             }
             return
         }
@@ -597,7 +629,7 @@ Singleton {
     function applyQtColors() {
         if (!matugenAvailable) {
             if (typeof ToastService !== "undefined") {
-                ToastService.showError("matugen not available - cannot apply Qt colors")
+                ToastService.showError("matugen not available or disabled - cannot apply Qt colors")
             }
             return
         }
@@ -606,80 +638,15 @@ Singleton {
         qtApplier.running = true
     }
 
-    function extractJsonFromText(text) {
-        if (!text)
-            return null
-
-        const start = text.search(/[{\[]/)
-        if (start === -1)
-            return null
-
-        const open = text[start]
-        const pairs = {
-            "{": '}',
-            "[": ']'
-        }
-        const close = pairs[open]
-        if (!close)
-            return null
-
-        let inString = false
-        let escape = false
-        const stack = [open]
-
-        for (var i = start + 1; i < text.length; i++) {
-            const ch = text[i]
-
-            if (inString) {
-                if (escape) {
-                    escape = false
-                } else if (ch === '\\') {
-                    escape = true
-                } else if (ch === '"') {
-                    inString = false
-                }
-                continue
-            }
-
-            if (ch === '"') {
-                inString = true
-                continue
-            }
-            if (ch === '{' || ch === '[') {
-                stack.push(ch)
-                continue
-            }
-            if (ch === '}' || ch === ']') {
-                const last = stack.pop()
-                if (!last || pairs[last] !== ch) {
-                    return null
-                }
-                if (stack.length === 0) {
-                    return text.slice(start, i + 1)
-                }
-            }
-        }
-        return null
-    }
 
     Process {
         id: matugenCheck
         command: ["which", "matugen"]
         onExited: code => {
-            matugenAvailable = (code === 0)
+            matugenAvailable = (code === 0) && !envDisableMatugen
             if (!matugenAvailable) {
-                if (typeof ToastService !== "undefined") {
-                    ToastService.wallpaperErrorStatus = "matugen_missing"
-                    ToastService.showWarning("matugen not found - dynamic theming disabled")
-                }
+                console.log("matugen not not available in path or disabled via DMS_DISABLE_MATUGEN")
                 return
-            }
-            if (extractionRequested) {
-                if (rawWallpaperPath.startsWith("we:")) {
-                    fileCheckerTimer.start()
-                } else {
-                    fileChecker.running = true
-                }
             }
 
             const isLight = (typeof SessionData !== "undefined" && SessionData.isLightMode)
@@ -688,10 +655,11 @@ Singleton {
             if (currentTheme === dynamic) {
                 if (wallpaperPath) {
                     Quickshell.execDetached(["rm", "-f", stateDir + "/matugen.key"])
+                    const selectedMatugenType = (typeof SettingsData !== "undefined" && SettingsData.matugenScheme) ? SettingsData.matugenScheme : "scheme-tonal-spot"
                     if (wallpaperPath.startsWith("#")) {
-                        setDesiredTheme("hex", wallpaperPath, isLight, iconTheme)
+                        setDesiredTheme("hex", wallpaperPath, isLight, iconTheme, selectedMatugenType)
                     } else {
-                        setDesiredTheme("image", wallpaperPath, isLight, iconTheme)
+                        setDesiredTheme("image", wallpaperPath, isLight, iconTheme, selectedMatugenType)
                     }
                 }
             } else {
@@ -715,122 +683,7 @@ Singleton {
         }
     }
 
-    Process {
-        id: fileChecker
-        command: ["test", "-r", wallpaperPath]
-        onExited: code => {
-            if (code === 0) {
-                matugenProcess.running = true
-            } else if (wallpaperPath.startsWith("#")) {
-                colorMatugenProcess.running = true
-            }
-        }
-    }
 
-    Timer {
-        id: fileCheckerTimer
-        interval: 1000
-        repeat: false
-        onTriggered: {
-            fileChecker.running = true
-        }
-    }
-
-    Process {
-        id: matugenProcess
-        command: ["matugen", "image", wallpaperPath, "--json", "hex"]
-
-        stdout: StdioCollector {
-            id: matugenCollector
-            onStreamFinished: {
-                if (!matugenCollector.text) {
-                    if (typeof ToastService !== "undefined") {
-                        ToastService.wallpaperErrorStatus = "error"
-                        ToastService.showError("Wallpaper Processing Failed: Empty JSON extracted from matugen output.")
-                    }
-                    return
-                }
-                const extractedJson = extractJsonFromText(matugenCollector.text)
-                if (!extractedJson) {
-                    if (typeof ToastService !== "undefined") {
-                        ToastService.wallpaperErrorStatus = "error"
-                        ToastService.showError("Wallpaper Processing Failed: Invalid JSON extracted from matugen output.")
-                    }
-                    console.log("Raw matugen output:", matugenCollector.text)
-                    return
-                }
-                try {
-                    root.matugenColors = JSON.parse(extractedJson)
-                    root.colorUpdateTrigger++
-                    if (typeof ToastService !== "undefined") {
-                        ToastService.clearWallpaperError()
-                    }
-                } catch (e) {
-                    if (typeof ToastService !== "undefined") {
-                        ToastService.wallpaperErrorStatus = "error"
-                        ToastService.showError("Wallpaper processing failed (JSON parse error after extraction)")
-                    }
-                }
-            }
-        }
-
-        onExited: code => {
-            if (code !== 0) {
-                if (typeof ToastService !== "undefined") {
-                    ToastService.wallpaperErrorStatus = "error"
-                    ToastService.showError("Matugen command failed with exit code " + code)
-                }
-            }
-        }
-    }
-
-    Process {
-        id: colorMatugenProcess
-        command: ["matugen", "color", "hex", wallpaperPath, "--json", "hex"]
-
-        stdout: StdioCollector {
-            id: colorMatugenCollector
-            onStreamFinished: {
-                if (!colorMatugenCollector.text) {
-                    if (typeof ToastService !== "undefined") {
-                        ToastService.wallpaperErrorStatus = "error"
-                        ToastService.showError("Color Processing Failed: Empty JSON extracted from matugen output.")
-                    }
-                    return
-                }
-                const extractedJson = extractJsonFromText(colorMatugenCollector.text)
-                if (!extractedJson) {
-                    if (typeof ToastService !== "undefined") {
-                        ToastService.wallpaperErrorStatus = "error"
-                        ToastService.showError("Color Processing Failed: Invalid JSON extracted from matugen output.")
-                    }
-                    console.log("Raw matugen output:", colorMatugenCollector.text)
-                    return
-                }
-                try {
-                    root.matugenColors = JSON.parse(extractedJson)
-                    root.colorUpdateTrigger++
-                    if (typeof ToastService !== "undefined") {
-                        ToastService.clearWallpaperError()
-                    }
-                } catch (e) {
-                    if (typeof ToastService !== "undefined") {
-                        ToastService.wallpaperErrorStatus = "error"
-                        ToastService.showError("Color processing failed (JSON parse error after extraction)")
-                    }
-                }
-            }
-        }
-
-        onExited: code => {
-            if (code !== 0) {
-                if (typeof ToastService !== "undefined") {
-                    ToastService.wallpaperErrorStatus = "error"
-                    ToastService.showError("Matugen color command failed with exit code " + code)
-                }
-            }
-        }
-    }
 
     Process {
         id: ensureStateDir
@@ -929,6 +782,48 @@ Singleton {
         onLoadFailed: function (error) {
             if (typeof ToastService !== "undefined") {
                 ToastService.showError("Failed to read theme file: " + error)
+            }
+        }
+    }
+
+    FileView {
+        id: dynamicColorsFileView
+        path: stateDir + "/dms-colors.json"
+        watchChanges: currentTheme === dynamic
+
+        function parseAndLoadColors() {
+            try {
+                const colorsText = dynamicColorsFileView.text()
+                if (colorsText) {
+                    root.matugenColors = JSON.parse(colorsText)
+                    root.colorUpdateTrigger++
+                    if (typeof ToastService !== "undefined") {
+                        ToastService.clearWallpaperError()
+                    }
+                }
+            } catch (e) {
+                if (typeof ToastService !== "undefined") {
+                    ToastService.wallpaperErrorStatus = "error"
+                    ToastService.showError("Dynamic colors parse error: " + e.message)
+                }
+            }
+        }
+
+        onLoaded: {
+            if (currentTheme === dynamic) {
+                parseAndLoadColors()
+            }
+        }
+
+        onFileChanged: {
+            if (currentTheme === dynamic) {
+                dynamicColorsFileView.reload()
+            }
+        }
+
+        onLoadFailed: function (error) {
+            if (currentTheme === dynamic && typeof ToastService !== "undefined") {
+                ToastService.showError("Failed to read dynamic colors: " + error)
             }
         }
     }

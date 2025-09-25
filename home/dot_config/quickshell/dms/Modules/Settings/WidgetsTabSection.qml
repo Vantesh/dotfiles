@@ -20,6 +20,7 @@ Column {
     signal spacerSizeChanged(string sectionId, int widgetIndex, int newSize)
     signal compactModeChanged(string widgetId, var value)
     signal gpuSelectionChanged(string sectionId, int widgetIndex, int selectedIndex)
+    signal diskMountSelectionChanged(string sectionId, int widgetIndex, string mountPath)
     signal controlCenterSettingChanged(string sectionId, int widgetIndex, string settingName, bool value)
 
     width: parent.width
@@ -81,7 +82,7 @@ Column {
                                    Theme.surfaceContainer.b, 0.8)
                     border.color: Qt.rgba(Theme.outline.r, Theme.outline.g,
                                           Theme.outline.b, 0.2)
-                    border.width: 1
+                    border.width: 0
 
                     DankIcon {
                         name: "drag_indicator"
@@ -188,6 +189,38 @@ Column {
                         }
 
                         Item {
+                            width: 120
+                            height: 32
+                            visible: modelData.id === "diskUsage"
+                            DankDropdown {
+                                id: diskMountDropdown
+                                anchors.fill: parent
+                                currentValue: {
+                                    const mountPath = modelData.mountPath || "/"
+                                    if (mountPath === "/") {
+                                        return "root (/)"
+                                    }
+                                    return mountPath
+                                }
+                                options: {
+                                    if (!DgopService.diskMounts || DgopService.diskMounts.length === 0) {
+                                        return ["root (/)"]
+                                    }
+                                    return DgopService.diskMounts.map(mount => {
+                                        if (mount.mount === "/") {
+                                            return "root (/)"
+                                        }
+                                        return mount.mount
+                                    })
+                                }
+                                onValueChanged: value => {
+                                    const newPath = value === "root (/)" ? "/" : value
+                                    root.diskMountSelectionChanged(root.sectionId, index, newPath)
+                                }
+                            }
+                        }
+
+                        Item {
                             width: 32
                             height: 32
                             visible: (modelData.warning !== undefined
@@ -226,7 +259,7 @@ Column {
                                 radius: Theme.cornerRadius
                                 color: Theme.surfaceContainer
                                 border.color: Theme.outline
-                                border.width: 1
+                                border.width: 0
                                 visible: warningArea.containsMouse
                                          && warningText !== ""
                                 opacity: visible ? 1 : 0
@@ -349,7 +382,7 @@ Column {
                                 radius: Theme.cornerRadius
                                 color: Theme.surfaceContainer
                                 border.color: Theme.outline
-                                border.width: 1
+                                border.width: 0
                                 visible: false
                                 opacity: visible ? 1 : 0
                                 x: -width - Theme.spacingS
@@ -527,7 +560,7 @@ Column {
                                                  Theme.surfaceVariant.b, 0.3)
         border.color: Qt.rgba(Theme.outline.r, Theme.outline.g,
                               Theme.outline.b, 0.2)
-        border.width: 1
+        border.width: 0
         anchors.horizontalCenter: parent.horizontalCenter
 
         StyledText {
@@ -585,7 +618,7 @@ Column {
             color: Theme.popupBackground()
             radius: Theme.cornerRadius
             border.color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.08)
-            border.width: 1
+            border.width: 0
         }
 
         contentItem: Item {

@@ -47,7 +47,7 @@ Rectangle {
                 const currentScreen = parentScreen || Screen;
                 const screenX = currentScreen.x || 0;
                 const relativeX = globalPos.x - screenX;
-                popupTarget.setTriggerPosition(relativeX, barHeight + Theme.spacingXS, width, section, currentScreen);
+                popupTarget.setTriggerPosition(relativeX, barHeight + SettingsData.topBarSpacing + SettingsData.topBarBottomGap - 2 + Theme.popupDistance, width, section, currentScreen);
             }
             DgopService.setSortBy("cpu");
             if (root.toggleProcessList) {

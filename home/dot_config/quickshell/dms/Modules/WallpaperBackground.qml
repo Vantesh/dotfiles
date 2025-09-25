@@ -37,8 +37,24 @@ LazyLoader {
                 property string source: SessionData.getMonitorWallpaper(modelData.name) || ""
                 property bool isColorSource: source.startsWith("#")
                 property string transitionType: SessionData.wallpaperTransition
+                property string actualTransitionType: transitionType
                 onTransitionTypeChanged: {
-                    currentWallpaper.visible = (transitionType === "none")
+                    if (transitionType === "random") {
+                        if (SessionData.includedTransitions.length === 0) {
+                            actualTransitionType = "none"
+                        } else {
+                            actualTransitionType = SessionData.includedTransitions[Math.floor(Math.random() * SessionData.includedTransitions.length)]
+                        }
+                    } else {
+                        actualTransitionType = transitionType
+                    }
+                }
+
+                onActualTransitionTypeChanged: {
+                    if (actualTransitionType === "none") {
+                        currentWallpaper.visible = true
+                        nextWallpaper.visible = false
+                    }
                 }
                 property real transitionProgress: 0
                 property real fillMode: 1.0
@@ -95,6 +111,8 @@ LazyLoader {
                     root.transitionProgress = 0.0
                     currentWallpaper.source = newSource
                     nextWallpaper.source = ""
+                    currentWallpaper.visible = true
+                    nextWallpaper.visible = false
                 }
 
                 function changeWallpaper(newPath, force) {
@@ -115,17 +133,25 @@ LazyLoader {
                     }
 
                     // If transition is "none", set immediately
-                    if (root.transitionType === "none") {
+                    if (root.transitionType === "random") {
+                        if (SessionData.includedTransitions.length === 0) {
+                            root.actualTransitionType = "none"
+                        } else {
+                            root.actualTransitionType = SessionData.includedTransitions[Math.floor(Math.random() * SessionData.includedTransitions.length)]
+                        }
+                    }
+
+                    if (root.actualTransitionType === "none") {
                         setWallpaperImmediate(newPath)
                         return
                     }
 
-                    if (root.transitionType === "wipe") {
+                    if (root.actualTransitionType === "wipe") {
                         root.wipeDirection = Math.random() * 4
-                    } else if (root.transitionType === "disc") {
+                    } else if (root.actualTransitionType === "disc") {
                         root.discCenterX = Math.random()
                         root.discCenterY = Math.random()
-                    } else if (root.transitionType === "stripes") {
+                    } else if (root.actualTransitionType === "stripes") {
                         root.stripesCount = Math.round(Math.random() * 20 + 4)
                         root.stripesAngle = Math.random() * 360
                     }
@@ -165,7 +191,7 @@ LazyLoader {
                 Image {
                     id: currentWallpaper
                     anchors.fill: parent
-                    visible: root.transitionType === "none"
+                    visible: root.actualTransitionType === "none"
                     opacity: 1
                     layer.enabled: false
                     asynchronous: true
@@ -188,7 +214,7 @@ LazyLoader {
                     onStatusChanged: {
                         if (status !== Image.Ready) return
 
-                        if (root.transitionType === "none") {
+                        if (root.actualTransitionType === "none") {
                             currentWallpaper.source = source
                             nextWallpaper.source = ""
                             root.transitionProgress = 0.0
@@ -206,7 +232,7 @@ LazyLoader {
                 ShaderEffect {
                     id: fadeShader
                     anchors.fill: parent
-                    visible: root.transitionType === "fade" && (root.hasCurrent || root.booting)
+                    visible: root.actualTransitionType === "fade" && (root.hasCurrent || root.booting)
 
                     property variant source1: root.hasCurrent ? currentWallpaper : transparentSource
                     property variant source2: nextWallpaper
@@ -226,7 +252,7 @@ LazyLoader {
                 ShaderEffect {
                     id: wipeShader
                     anchors.fill: parent
-                    visible: root.transitionType === "wipe" && (root.hasCurrent || root.booting)
+                    visible: root.actualTransitionType === "wipe" && (root.hasCurrent || root.booting)
 
                     property variant source1: root.hasCurrent ? currentWallpaper : transparentSource
                     property variant source2: nextWallpaper
@@ -248,7 +274,7 @@ LazyLoader {
                 ShaderEffect {
                     id: discShader
                     anchors.fill: parent
-                    visible: root.transitionType === "disc" && (root.hasCurrent || root.booting)
+                    visible: root.actualTransitionType === "disc" && (root.hasCurrent || root.booting)
 
                     property variant source1: root.hasCurrent ? currentWallpaper : transparentSource
                     property variant source2: nextWallpaper
@@ -272,7 +298,7 @@ LazyLoader {
                 ShaderEffect {
                     id: stripesShader
                     anchors.fill: parent
-                    visible: root.transitionType === "stripes" && (root.hasCurrent || root.booting)
+                    visible: root.actualTransitionType === "stripes" && (root.hasCurrent || root.booting)
 
                     property variant source1: root.hasCurrent ? currentWallpaper : transparentSource
                     property variant source2: nextWallpaper
@@ -296,7 +322,7 @@ LazyLoader {
                 ShaderEffect {
                     id: irisBloomShader
                     anchors.fill: parent
-                    visible: root.transitionType === "iris bloom" && (root.hasCurrent || root.booting)
+                    visible: root.actualTransitionType === "iris bloom" && (root.hasCurrent || root.booting)
 
                     property variant source1: root.hasCurrent ? currentWallpaper : transparentSource
                     property variant source2: nextWallpaper
@@ -320,7 +346,7 @@ LazyLoader {
                 ShaderEffect {
                     id: pixelateShader
                     anchors.fill: parent
-                    visible: root.transitionType === "pixelate" && (root.hasCurrent || root.booting)
+                    visible: root.actualTransitionType === "pixelate" && (root.hasCurrent || root.booting)
 
                     property variant source1: root.hasCurrent ? currentWallpaper : transparentSource
                     property variant source2: nextWallpaper
@@ -344,7 +370,7 @@ LazyLoader {
                 ShaderEffect {
                     id: portalShader
                     anchors.fill: parent
-                    visible: root.transitionType === "portal" && (root.hasCurrent || root.booting)
+                    visible: root.actualTransitionType === "portal" && (root.hasCurrent || root.booting)
 
                     property variant source1: root.hasCurrent ? currentWallpaper : transparentSource
                     property variant source2: nextWallpaper
@@ -371,7 +397,7 @@ LazyLoader {
                     property: "transitionProgress"
                     from: 0.0
                     to: 1.0
-                    duration: root.transitionType === "none" ? 0 : 1000
+                    duration: root.actualTransitionType === "none" ? 0 : 1000
                     easing.type: Easing.InOutCubic
                     onFinished: {
                         Qt.callLater(() => {
@@ -380,7 +406,7 @@ LazyLoader {
                             }
                             nextWallpaper.source = ""
                             nextWallpaper.visible = false
-                            currentWallpaper.visible = root.transitionType === "none"
+                            currentWallpaper.visible = root.actualTransitionType === "none"
                             currentWallpaper.layer.enabled = false
                             nextWallpaper.layer.enabled = false
                             root.transitionProgress = 0.0

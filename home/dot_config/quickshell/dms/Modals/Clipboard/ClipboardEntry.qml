@@ -24,17 +24,10 @@ Rectangle {
     radius: Theme.cornerRadius
     color: {
         if (isSelected) {
-            return Qt.rgba(Theme.surfaceVariant.r, Theme.surfaceVariant.g, Theme.surfaceVariant.b, 0.2)
+            return Theme.primaryPressed
         }
-        return mouseArea.containsMouse ? Theme.primaryHover : Theme.primaryBackground
+        return mouseArea.containsMouse ? Theme.primaryHoverLight : Theme.surfaceContainerHigh
     }
-    border.color: {
-        if (isSelected) {
-            return Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.5)
-        }
-        return Theme.outlineStrong
-    }
-    border.width: isSelected ? 1.5 : 1
 
     Row {
         anchors.fill: parent

@@ -47,6 +47,8 @@ Singleton {
     property string lastBrightnessDevice: ""
     property string launchPrefix: ""
     property string wallpaperTransition: "fade"
+    readonly property var availableWallpaperTransitions: ["none", "fade", "wipe", "disc", "stripes", "iris bloom", "pixelate", "portal"]
+    property var includedTransitions: availableWallpaperTransitions.filter(t => t !== "none")
 
     // Power management settings - AC Power
     property int acMonitorTimeout: 0 // Never
@@ -119,6 +121,7 @@ Singleton {
                 lastBrightnessDevice = settings.lastBrightnessDevice !== undefined ? settings.lastBrightnessDevice : ""
                 launchPrefix = settings.launchPrefix !== undefined ? settings.launchPrefix : ""
                 wallpaperTransition = settings.wallpaperTransition !== undefined ? settings.wallpaperTransition : "fade"
+                includedTransitions = settings.includedTransitions !== undefined ? settings.includedTransitions : availableWallpaperTransitions.filter(t => t !== "none")
 
                 acMonitorTimeout = settings.acMonitorTimeout !== undefined ? settings.acMonitorTimeout : 0
                 acLockTimeout = settings.acLockTimeout !== undefined ? settings.acLockTimeout : 0
@@ -173,6 +176,7 @@ Singleton {
                                                 "lastBrightnessDevice": lastBrightnessDevice,
                                                 "launchPrefix": launchPrefix,
                                                 "wallpaperTransition": wallpaperTransition,
+                                                "includedTransitions": includedTransitions,
                                                 "acMonitorTimeout": acMonitorTimeout,
                                                 "acLockTimeout": acLockTimeout,
                                                 "acSuspendTimeout": acSuspendTimeout,
@@ -263,9 +267,6 @@ Singleton {
         saveSettings()
 
         if (typeof Theme !== "undefined") {
-            if (Theme.currentTheme === Theme.dynamic) {
-                Theme.extractColors()
-            }
             Theme.generateSystemThemesFromCurrentTheme()
         }
     }
@@ -275,9 +276,6 @@ Singleton {
         saveSettings()
 
         if (typeof Theme !== "undefined") {
-            if (Theme.currentTheme === Theme.dynamic) {
-                Theme.extractColors()
-            }
             Theme.generateSystemThemesFromCurrentTheme()
         }
     }
@@ -426,9 +424,6 @@ Singleton {
 
         // Refresh dynamic theming when per-monitor mode changes
         if (typeof Theme !== "undefined") {
-            if (Theme.currentTheme === Theme.dynamic) {
-                Theme.extractColors()
-            }
             Theme.generateSystemThemesFromCurrentTheme()
         }
     }
@@ -447,10 +442,6 @@ Singleton {
         if (typeof Theme !== "undefined" && typeof Quickshell !== "undefined") {
             var screens = Quickshell.screens
             if (screens.length > 0 && screenName === screens[0].name) {
-                if (typeof SettingsData !== "undefined" && SettingsData.wallpaperDynamicTheming) {
-                    Theme.switchTheme("dynamic")
-                    Theme.extractColors()
-                }
                 Theme.generateSystemThemesFromCurrentTheme()
             }
         }
