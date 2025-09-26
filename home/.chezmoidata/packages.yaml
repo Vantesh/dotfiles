@@ -84,7 +84,6 @@ Arch:
     - tela-circle-icon-theme-all
     - plymouth
     - layer-shell-qt
-    - layer-shell-qt5
     - qt6-multimedia-ffmpeg
     - qt6-positioning
     - qt6-5compat
