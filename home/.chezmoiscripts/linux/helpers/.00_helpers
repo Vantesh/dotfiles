@@ -180,6 +180,10 @@ install_paru() {
   }
   cd - >/dev/null || return 1
   rm -rf "$temp_dir"
+
+  paru --gendb &>/dev/null || {
+    print_error "Failed to initialize paru database."
+  }
 }
 
 build_install_sets() {

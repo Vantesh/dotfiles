@@ -18,20 +18,6 @@ if [[ $(tty) =~ ^/dev/tty[0-9]+$ ]]; then
   sudo setfont ter-122b &>/dev/null
 fi
 
-clear
-print_box "smslant" "Welcome"
-
-echo -e "\n------------------------------------------"
-echo -e "Hyprland Dotfiles"
-echo -e "Copyright 2025 Vantesh"
-echo -e "https://github.com/vantesh/dotfiles"
-echo -e "------------------------------------------\n"
-
-if ! confirm "Do you want to continue ?"; then
-  print_info "Script aborted by user."
-  exit 1
-fi
-
 # =============================================================================
 # SETUP PACMAN
 # =============================================================================
@@ -45,7 +31,7 @@ lines_to_edit=(
 
 if ! has_package "pacman-contrib"; then
   print_info "Installing pacman-contrib for paccache"
-  sudo pacman -S --noconfirm --needed pacman-contrib
+  sudo pacman -S --noconfirm --needed pacman-contrib &>/dev/null
 fi
 
 if create_backup "$pacman_conf"; then

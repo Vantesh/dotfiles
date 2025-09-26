@@ -1,5 +1,5 @@
-{{- $personal := false -}} {{/* true if this machine should have personal secrets */}}
-{{- if eq .chezmoi.username "vantesh" -}} {{- $personal = true -}} {{- end -}}
+{{- $personal := true -}} {{/* if false skip the secrets steps */}}
+{{- if eq (env "NOT_PERSONAL") "1" -}} {{- $personal = false -}} {{- end -}}
 
 data:
   {{- if not $personal }}

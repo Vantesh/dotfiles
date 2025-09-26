@@ -1,70 +1,133 @@
-#!/bin/sh
-#
-# chezmoi bootstrap script
-#
+#!/usr/bin/env bash
 
-set -e
+# Chezmoi bootstrap script
+# Do not remove the env "NOT_PERSONAL=1" else some scripts will fail
 
-# --- Logging Functions ---
-log_info() {
-  printf "\033[1;34m==>\033[0m %s\n" "$1" >&2
+set -euo pipefail
+IFS=$'\n\t'
+
+readonly INSTALLER_URL="https://git.io/chezmoi"
+readonly DEFAULT_BIN_DIR="${HOME}/.local/bin"
+
+logo() {
+  printf '\033[1;36m'
+  sed 's/^/  /' <<'EOF'
+
+██╗  ██╗██╗   ██╗██████╗ ██████╗ ███╗   ██╗██╗██████╗ ██╗
+██║  ██║╚██╗ ██╔╝██╔══██╗██╔══██╗████╗  ██║██║██╔══██╗██║
+███████║ ╚████╔╝ ██████╔╝██████╔╝██╔██╗ ██║██║██████╔╝██║
+██╔══██║  ╚██╔╝  ██╔═══╝ ██╔══██╗██║╚██╗██║██║██╔══██╗██║
+██║  ██║   ██║   ██║     ██║  ██║██║ ╚████║██║██║  ██║██║
+╚═╝  ╚═╝   ╚═╝   ╚═╝     ╚═╝  ╚═╝╚═╝  ╚═══╝╚═╝╚═╝  ╚═╝╚═╝
+EOF
+  printf '\033[0m\n'
+  printf "\033[1;32mWelcome to Hyprniri dotfiles installer!\033[0m\n"
+  printf "\n"
 }
 
-log_error() {
-  printf "\033[1;31m==> ERROR:\033[0m %s\n" "$1" >&2
+log() {
+  local type=$1 message=$2
+  case "$type" in
+  INFO) printf "\033[1;34mINFO\033[0m %s\n" "$message" >&2 ;;
+  WARN) printf "\033[1;33mWARNING:\033[0m %s\n" "$message" >&2 ;;
+  ERROR) printf "\033[1;31mERROR:\033[0m %s\n" "$message" >&2 ;;
+  *) printf "%s\n" "$message" >&2 ;;
+  esac
 }
 
-# --- Ensure chezmoi is installed ---
+die() {
+  log ERROR "$1"
+  exit "${2:-1}"
+}
+
+command_exists() { command -v "$1" >/dev/null 2>&1; }
+
+resolve_script_dir() {
+  local source="${BASH_SOURCE[0]}"
+  while [ -h "$source" ]; do
+    local dir
+    dir="$(cd -P "$(dirname "$source")" && pwd)"
+    source="$(readlink "$source")"
+    [[ $source != /* ]] && source="${dir}/${source}"
+  done
+  cd -P "$(dirname "$source")" && pwd
+}
+
+install_chezmoi() {
+  local bin_dir="$1"
+  log INFO "Installing chezmoi to ${bin_dir}..."
+
+  if command_exists curl; then
+    curl -fsSL "${INSTALLER_URL}" | sh -s -- -b "$bin_dir"
+  elif command_exists wget; then
+    wget -qO- "${INSTALLER_URL}" | sh -s -- -b "$bin_dir"
+  else
+    die "Installation requires curl or wget."
+  fi
+}
+
 ensure_chezmoi_installed() {
+  local bin_dir="${DEFAULT_BIN_DIR}"
+  local path
 
-  bin_dir="${HOME}/.local/bin"
-  chezmoi_bin="${bin_dir}/chezmoi"
-  mkdir -p "$bin_dir"
-
-  if command -v chezmoi >/dev/null 2>&1; then
-    echo "chezmoi"
+  if command_exists chezmoi; then
+    path=$(command -v chezmoi)
+    printf "%s\n" "$path"
     return
   fi
 
-  log_info "chezmoi not found. Installing to ${bin_dir}..."
+  mkdir -p "$bin_dir"
+  install_chezmoi "$bin_dir"
 
-  if command -v curl >/dev/null 2>&1; then
-    sh -c "$(curl -fsSL https://git.io/chezmoi)" -- -b "$bin_dir"
-  elif command -v wget >/dev/null 2>&1; then
-    sh -c "$(wget -qO- https://git.io/chezmoi)" -- -b "$bin_dir"
-  else
-    log_error "To install chezmoi, you must have curl or wget."
-    exit 1
-  fi
-
-  echo "$chezmoi_bin"
+  path="${bin_dir}/chezmoi"
+  [ -x "$path" ] || die "chezmoi executable not found at ${path}"
+  printf "%s\n" "$path"
 }
 
-# --- Backup .config  ---
 backup_config_if_needed() {
-  state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
-  backup_marker="${state_dir}/backup-done"
-
-  [ -f "$backup_marker" ] && return
-
-  if [ -d "${HOME}/.config" ]; then
-    backup_dir="${HOME}/.config.backup.$(date +%Y%m%d%H%M%S)"
-    log_info "Backing up existing ~/.config to ${backup_dir}"
-    mv "${HOME}/.config" "$backup_dir"
+  if [ ! -d "${HOME}/.config" ]; then
+    log WARN "No ~/.config directory found; skipping backup."
+    return
   fi
 
-  mkdir -p "$state_dir"
-  touch "$backup_marker"
+  log WARN "Detected existing ~/.config directory."
+  local response=""
+  local prompt
+  prompt=$'\033[1;36mBack up existing ~/.config before continuing?\033[0m \033[1;33m[y/N]\033[0m '
+  if ! read -rp "$prompt" response; then
+    printf "\n"
+    response=""
+  fi
+
+  case "$response" in
+  [Yy] | [Yy]) ;;
+  *)
+    log INFO "Skipping backup of ~/.config."
+    return
+    ;;
+  esac
+
+  local timestamp backup_dir
+  timestamp=$(date -u +%Y%m%d%H%M%S)
+  backup_dir="${HOME}/.config.backup.${timestamp}"
+  log INFO "Backup created at ${backup_dir}"
+  mv "${HOME}/.config" "$backup_dir"
 }
 
-# --- Main Execution ---
-chezmoi_bin=$(ensure_chezmoi_installed)
-backup_config_if_needed
+run_chezmoi_init() {
+  local chezmoi_bin="$1"
+  local script_dir
+  script_dir=$(resolve_script_dir)
+  printf "\n"
+  exec env NOT_PERSONAL=1 "$chezmoi_bin" init --apply --source="$script_dir" "$@"
+}
 
-# Resolve the script directory
-script_dir="$(cd -P -- "$(dirname -- "$(command -v -- "$0")")" && pwd -P)"
+main() {
+  local chezmoi_bin
+  logo
+  chezmoi_bin=$(ensure_chezmoi_installed)
+  backup_config_if_needed
+  run_chezmoi_init "$chezmoi_bin" "$@"
+}
 
-log_info "Initializing dotfiles setup"
-printf "\n"
-
-exec "$chezmoi_bin" init --apply "--source=$script_dir"
+main "$@"
