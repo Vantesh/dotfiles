@@ -8,6 +8,7 @@ IFS=$'\n\t'
 
 readonly INSTALLER_URL="https://git.io/chezmoi"
 readonly DEFAULT_BIN_DIR="${HOME}/.local/bin"
+readonly REPO="https://github.com/vantesh/dotfiles"
 
 logo() {
   printf '\033[1;36m'
@@ -26,13 +27,16 @@ EOF
 }
 
 log() {
-  local type=$1 message=$2
-  case "$type" in
-  INFO) printf "\033[1;34mINFO\033[0m %s\n" "$message" >&2 ;;
-  WARN) printf "\033[1;33mWARNING:\033[0m %s\n" "$message" >&2 ;;
-  ERROR) printf "\033[1;31mERROR:\033[0m %s\n" "$message" >&2 ;;
-  *) printf "%s\n" "$message" >&2 ;;
+  local level=$1
+  shift || true
+  local message="$*"
+  local color="\033[0m"
+  case "${level^^}" in
+  INFO) color="\033[1;32m" ;;
+  WARN) color="\033[1;33m" ;;
+  ERROR) color="\033[1;31m" ;;
   esac
+  printf '%b[%s]%b %s\n' "$color" "${level^^}" "\033[0m" "$message" >&2
 }
 
 die() {
@@ -41,17 +45,6 @@ die() {
 }
 
 command_exists() { command -v "$1" >/dev/null 2>&1; }
-
-resolve_script_dir() {
-  local source="${BASH_SOURCE[0]}"
-  while [ -h "$source" ]; do
-    local dir
-    dir="$(cd -P "$(dirname "$source")" && pwd)"
-    source="$(readlink "$source")"
-    [[ $source != /* ]] && source="${dir}/${source}"
-  done
-  cd -P "$(dirname "$source")" && pwd
-}
 
 install_chezmoi() {
   local bin_dir="$1"
@@ -86,43 +79,56 @@ ensure_chezmoi_installed() {
 
 backup_config_if_needed() {
   if [ ! -d "${HOME}/.config" ]; then
-    log WARN "No ~/.config directory found; skipping backup."
     return
   fi
 
-  log WARN "Detected existing ~/.config directory."
-  local response=""
-  local prompt
-  prompt=$'\033[1;36mBack up existing ~/.config before continuing?\033[0m \033[1;33m[y/N]\033[0m '
-  if ! read -rp "$prompt" response; then
-    printf "\n"
-    response=""
+  if [ -z "$(find "${HOME}/.config" -mindepth 1 -maxdepth 1)" ]; then
+    return
   fi
 
-  case "$response" in
-  [Yy] | [Yy]) ;;
-  *)
-    log INFO "Skipping backup of ~/.config."
-    return
-    ;;
-  esac
+  local prompt=$'\033[1;36mBack up existing ~/.config before continuing?\033[0m \033[1;33m[Y/n]\033[0m '
 
-  local timestamp backup_dir
-  timestamp=$(date -u +%Y%m%d%H%M%S)
-  backup_dir="${HOME}/.config.backup.${timestamp}"
-  log INFO "Backup created at ${backup_dir}"
-  mv "${HOME}/.config" "$backup_dir"
+  while true; do
+    local response
+
+    if ! read -rp "$prompt" response </dev/tty; then
+      log INFO "Input read failed. Skipping backup of ~/.config."
+      return
+    fi
+
+    if [[ "$response" =~ ^[Yy]$ || -z "$response" ]]; then
+      local timestamp backup_dir
+      timestamp=$(date -u +%Y%m%d%H%M%S)
+      backup_dir="${HOME}/.config.backup.${timestamp}"
+
+      if mv -n "${HOME}/.config" "$backup_dir"; then
+        log INFO "Backed up existing ~/.config to ${backup_dir}."
+        return
+      else
+        die "Failed to back up ~/.config to ${backup_dir}."
+      fi
+    elif [[ "$response" =~ ^[Nn]$ ]]; then
+      log INFO "Skipping backup of ~/.config."
+      return
+    else
+      echo "Please enter Y/y (Yes), N/n (No), or press Enter for Yes." >&2
+    fi
+  done
 }
 
 run_chezmoi_init() {
   local chezmoi_bin="$1"
-  local script_dir
-  script_dir=$(resolve_script_dir)
+  shift
   printf "\n"
-  exec env NOT_PERSONAL=1 "$chezmoi_bin" init --apply --source="$script_dir" "$@"
+  exec env NOT_PERSONAL=1 "$chezmoi_bin" init --apply "$REPO" "$@"
 }
 
 main() {
+
+  if [ "$(id -u)" -eq 0 ]; then
+    die "This script must not be run as root."
+  fi
+
   local chezmoi_bin
   logo
   chezmoi_bin=$(ensure_chezmoi_installed)
