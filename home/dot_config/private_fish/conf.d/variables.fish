@@ -7,7 +7,7 @@ set -q XDG_DATA_HOME; or set -xg XDG_DATA_HOME $HOME/.local/share
 set -q XDG_CACHE_HOME; or set -xg XDG_CACHE_HOME $HOME/.cache
 set -q XDG_STATE_HOME; or set -xg XDG_STATE_HOME $HOME/.local/state
 set -q XDG_BIN_HOME; or set -xg XDG_BIN_HOME $HOME/.local/bin
-set -q XDG_RUNTIME_DIR; or set -xg XDG_RUNTIME_DIR /run/user/$UID
+set -q XDG_RUNTIME_DIR; or set -xg XDG_RUNTIME_DIR /run/user/$(id -u)
 
 set -xg CONAN_USER_HOME $XDG_CONFIG_HOME
 set -xg GOPATH $XDG_DATA_HOME/go
