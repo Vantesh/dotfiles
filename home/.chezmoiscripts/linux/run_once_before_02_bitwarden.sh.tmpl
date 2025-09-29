@@ -1,12 +1,11 @@
 #!/usr/bin/env bash
-
+{{- if .personal }}
 # shellcheck disable=SC1091
 source "${CHEZMOI_SOURCE_DIR:?env variable missing. Please only run this script via chezmoi}/.chezmoiscripts/linux/helpers/.00_helpers"
 
 # =============================================================================
 # Install Bitwarden
 # =============================================================================
-{{- if eq .chezmoi.username "vantesh" }}
 print_box "smslant" "Bitwarden"
 print_step "Setting up Bitwarden"
 

@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
+{{- if .personal }}
 # shellcheck disable=SC1091
 source "${CHEZMOI_SOURCE_DIR:?env variable missing. Please only run this script via chezmoi}/.chezmoiscripts/linux/helpers/.00_helpers"
 
@@ -7,8 +8,6 @@ source "${CHEZMOI_SOURCE_DIR:?env variable missing. Please only run this script 
 # Initialize Environment
 # =============================================================================
 common_init
-
-{{- if .personal }}
 
 if [[ "$(atuin status)" == *"You are not logged in to a sync server"* ]]; then
 print_box "smslant" "Atuin"
