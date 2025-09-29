@@ -1,29 +1,60 @@
 #!/usr/bin/env bash
-set -euo pipefail
 
+set -euo pipefail
+IFS=$'\n\t'
+
+readonly EXIT_USAGE=2
+readonly EXIT_DEPENDENCY=3
+
+readonly PROG_NAME=${0##*/}
 readonly CACHE_DIR="$HOME/.cache/walset"
 readonly CURRENT_FILE="$CACHE_DIR/walset.current"
 readonly MATUGEN_SCRIPTS_DIR="$HOME/.config/matugen/scripts"
+readonly MATUGEN_HELPER_DEFAULT="$MATUGEN_SCRIPTS_DIR/helper.sh"
+
+initialize_helper() {
+  local candidate=${MATUGEN_HELPER_SH:-$MATUGEN_HELPER_DEFAULT}
+
+  if [[ ! -f "$candidate" ]]; then
+    printf '[ERROR] Shared helper not found: %s\n' "$candidate" >&2
+    exit "$EXIT_DEPENDENCY"
+  fi
+
+  # shellcheck source=helper.sh
+  source "$candidate"
+
+  export MATUGEN_HELPER_SH="$candidate"
+  export BASH_ENV="$candidate"
+}
+
 readonly -a GTK_VERSIONS=(3.0 4.0)
 readonly -a UPDATE_TARGETS=(terminal folders hyprlock_icon services spotify bat)
 
-log_error() { printf 'Error: %s\n' "$*" >&2; }
-log_info() { printf 'Info: %s\n' "$*"; }
-die() {
-  log_error "$*"
-  exit 1
+MATUGEN_SCHEME=""
+MODE=""
+INPUT_KIND=""
+INPUT_VALUE=""
+
+usage_error() {
+  local message=${1:-"Invalid usage"}
+  log ERROR "$message"
+  print_usage >&2
+  exit "$EXIT_USAGE"
 }
 
 write_current() {
-  printf "%s\n%s\n%s\n" "$1" "$2" "$3" >"$CURRENT_FILE" 2>/dev/null || true
+  ensure_directory "$CACHE_DIR"
+  if ! printf "%s\n%s\n%s\n" "$1" "$2" "$3" >"$CURRENT_FILE"; then
+    log WARN "Unable to update cache file: $CURRENT_FILE"
+  fi
 }
 
 print_usage() {
   cat <<EOF
 Description: Apply a new colorscheme and update the system theme from a wallpaper or color.
 
-Usage: $(basename "$0") image <path_to_wallpaper> [--scheme <matugen_scheme>] [--mode <dark|light>]
-  $(basename "$0") color <hex_color> [--scheme <matugen_scheme>] [--mode <dark|light>]
+Usage: ${PROG_NAME} image <path_to_wallpaper> [--scheme <matugen_scheme>] [--mode <dark|light>]
+  ${PROG_NAME} color <hex_color> [--scheme <matugen_scheme>] [--mode <dark|light>]
 
 Options:
   -s, --scheme   Matugen scheme type (default: scheme-tonal-spot)
@@ -31,25 +62,25 @@ Options:
   -h, --help     Show this help and exit
 
 Examples:
-  $(basename "$0") image ~/Pictures/wallpaper.jpg --mode light/dark
-  $(basename "$0") image ~/Pictures/wallpaper.jpg --scheme scheme-content --mode dark/light
-  $(basename "$0") color "#ff5733"
-  $(basename "$0") color "#ff5733" --mode light
+  ${PROG_NAME} image ~/Pictures/wallpaper.jpg --mode light/dark
+  ${PROG_NAME} image ~/Pictures/wallpaper.jpg --scheme scheme-content --mode dark/light
+  ${PROG_NAME} color "#ff5733"
+  ${PROG_NAME} color "#ff5733" --mode light
 EOF
 }
 
 validate_image() {
   local file="$1"
-  [[ -f "$file" ]] || die "Wallpaper not found: $file"
+  require_command file || die "$EXIT_DEPENDENCY" "Required command 'file' is not available"
+  [[ -f "$file" ]] || die "$EXIT_USAGE" "Wallpaper not found: $file"
   if ! file --mime-type -b "$file" | grep -q '^image/'; then
-    die "File is not a valid image: $file"
+    die "$EXIT_USAGE" "File is not a valid image: $file"
   fi
 }
 
 validate_color() {
   local color="$1"
-  if [[ "$color" =~ ^#?([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$ ]]; then return 0; fi
-  die "Invalid hex color format: $color (expected #RRGGBB or #RGB)"
+  [[ "$color" =~ ^#?([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$ ]] || die "$EXIT_USAGE" "Invalid hex color format: $color (expected #RRGGBB or #RGB)"
 }
 
 normalize_color() {
@@ -64,16 +95,19 @@ run_update_script() {
   if [[ -f "$script" ]]; then
     if [[ ! -x "$script" ]]; then
       chmod +x "$script"
-      log_info "Made $script executable"
+      log INFO "Made $script executable"
     fi
-    if ! "$script"; then log_error "Update script failed: $script"; fi
+    if ! "$script"; then
+      log WARN "Update script failed: $script"
+    fi
   else
-    log_info "Update script missing: $script"
+    log WARN "Update script missing: $script"
   fi
 }
 
 run_matugen() {
   local input="$1" scheme="$2" mode="$3" is_color="$4"
+  require_command matugen || return 1
   local -a cmd
   if [[ "$is_color" == true ]]; then
     cmd=(matugen color hex "$input" --type "$scheme" --mode "$mode")
@@ -86,92 +120,99 @@ run_matugen() {
 is_selection_unchanged() {
   local in="$1" scheme="$2" mode="$3"
   [[ -f "$CURRENT_FILE" ]] || return 1
-  mapfile -t __cur <"$CURRENT_FILE" || return 1
-  [[ "${__cur[0]:-}" == "$in" && "${__cur[1]:-}" == "$scheme" && "${__cur[2]:-}" == "$mode" ]]
+  local -a cached=()
+  mapfile -t cached <"$CURRENT_FILE" || return 1
+  [[ "${cached[0]:-}" == "$in" && "${cached[1]:-}" == "$scheme" && "${cached[2]:-}" == "$mode" ]]
 }
 
 parse_args() {
   MATUGEN_SCHEME="scheme-tonal-spot"
   MODE="dark"
-  WALLPAPER=""
-  HEX_COLOR=""
-  IS_COLOR_MODE=false
+  INPUT_KIND=""
+  INPUT_VALUE=""
 
-  while [[ $# -gt 0 ]]; do
+  while (($#)); do
     case "$1" in
     -h | --help)
       print_usage
       exit 0
       ;;
-    image)
-      IS_COLOR_MODE=false
-      WALLPAPER="${2:-}"
-      shift 2
-      ;;
-    color)
-      IS_COLOR_MODE=true
-      HEX_COLOR="${2:-}"
+    image | color)
+      [[ -z "$INPUT_KIND" ]] || usage_error "Input source already specified as '$INPUT_KIND'"
+      [[ -n "${2:-}" ]] || usage_error "'$1' requires a value"
+      INPUT_KIND="$1"
+      INPUT_VALUE="$2"
       shift 2
       ;;
     -s | --scheme)
-      MATUGEN_SCHEME="${2:-}"
+      [[ -n "${2:-}" ]] || usage_error "'$1' requires a value"
+      MATUGEN_SCHEME="$2"
       shift 2
       ;;
     -m | --mode)
-      MODE="${2:-}"
+      [[ -n "${2:-}" ]] || usage_error "'$1' requires a value"
+      MODE=${2,,}
       shift 2
       ;;
     --)
       shift
+      [[ $# -eq 0 ]] || usage_error "Unexpected trailing argument: $1"
       break
       ;;
-    -*) die "Unknown option: $1" ;;
-    *) die "Unknown command: $1" ;;
+    -*) usage_error "Unknown option: $1" ;;
+    *) usage_error "Unknown argument: $1" ;;
     esac
   done
+
+  [[ -n "$INPUT_KIND" ]] || usage_error "You must specify either 'image <path>' or 'color <hex>'"
 }
 
 main() {
-  # Parse args and set defaults
+  initialize_helper
   parse_args "$@"
 
-  # Input validation and normalization
   local input_source=""
-  if $IS_COLOR_MODE; then
-    [[ -n "$HEX_COLOR" ]] || die "Missing hex color"
-    validate_color "$HEX_COLOR"
-    input_source=$(normalize_color "$HEX_COLOR")
-    log_info "Applying color theme: $input_source"
-  elif [[ -n "$WALLPAPER" ]]; then
-    validate_image "$WALLPAPER"
-    input_source="$WALLPAPER"
-    log_info "Applying wallpaper theme: $WALLPAPER"
-  else
-    print_usage
-    die "You must specify either 'image <path>' or 'color <hex>'"
+  local is_color_mode=false
+
+  case "$INPUT_KIND" in
+  color)
+    validate_color "$INPUT_VALUE"
+    input_source=$(normalize_color "$INPUT_VALUE")
+    is_color_mode=true
+    log INFO "Applying color theme: $input_source"
+    ;;
+  image)
+    validate_image "$INPUT_VALUE"
+    input_source="$INPUT_VALUE"
+    log INFO "Applying wallpaper theme: $input_source"
+    ;;
+  esac
+
+  if [[ ! "$MODE" =~ ^(dark|light)$ ]]; then
+    log WARN "Invalid mode '$MODE'; defaulting to 'dark'"
+    MODE="dark"
   fi
 
-  [[ "$MODE" =~ ^(dark|light)$ ]] || MODE="dark"
-  mkdir -p "$CACHE_DIR"
+  ensure_directory "$CACHE_DIR"
 
   if is_selection_unchanged "$input_source" "$MATUGEN_SCHEME" "$MODE"; then
-    log_info "Selection unchanged; skipping."
+    log INFO "Selection unchanged; skipping refresh"
     exit 0
   fi
 
-  export MODE="$MODE"
+  export MODE
   write_current "$input_source" "$MATUGEN_SCHEME" "$MODE"
 
   for gtk_version in "${GTK_VERSIONS[@]}"; do
     local gtk_css="$HOME/.config/gtk-$gtk_version/gtk.css"
     if [[ -L "$gtk_css" ]]; then
-      log_info "Removing symlink: $gtk_css"
+      log INFO "Removing symlink: $gtk_css"
       rm -f "$gtk_css"
     fi
   done
 
-  if ! run_matugen "$input_source" "$MATUGEN_SCHEME" "$MODE" "$IS_COLOR_MODE"; then
-    log_error "Matugen failed"
+  if ! run_matugen "$input_source" "$MATUGEN_SCHEME" "$MODE" "$is_color_mode"; then
+    log ERROR "Matugen failed"
     rm -f "$CURRENT_FILE"
     exit 1
   fi
@@ -183,10 +224,15 @@ main() {
     run_update_script "$target" &
   done
 
-  hyprctl reload >/dev/null || true
+  case "${XDG_CURRENT_DESKTOP:-}" in
+  Hyprland)
+    hyprctl reload >/dev/null
+    ;;
+  esac
+
   wait || true
 
-  log_info "Theme applied successfully"
+  log INFO "Theme applied successfully"
 }
 
 main "$@"
