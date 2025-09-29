@@ -1,40 +1,56 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+readonly DESIRED_SPICETIFY_THEME="marketplace"
+
 ensure_spicetify_theme() {
-  local desired="marketplace"
   local current
+  current=$(spicetify config current_theme 2>/dev/null | tr -d "[:space:]'" || true)
 
-  current=$(spicetify config current_theme 2>/dev/null || true)
+  if [[ "$current" == "$DESIRED_SPICETIFY_THEME" ]]; then
+    return 0
+  fi
 
-  if [[ "$current" != "$desired" ]]; then
-    if ! spicetify config current_theme "$desired" &>/dev/null; then
-      echo "Error: Failed to set spicetify theme to '$desired'"
-      return 1
-    fi
+  if spicetify config current_theme "$DESIRED_SPICETIFY_THEME" &>/dev/null; then
+    log "INFO" "Configured spicetify theme: $DESIRED_SPICETIFY_THEME"
+    return 0
+  fi
+
+  log "ERROR" "Unable to configure spicetify theme to $DESIRED_SPICETIFY_THEME"
+  return 1
+}
+
+refresh_spotify_theme() {
+
+  (
+    timeout 10s spicetify -q watch -s &
+    sleep 0.2
+    pkill -x spicetify >/dev/null 2>&1 || true
+  ) >/dev/null 2>&1 &
+
+  log "INFO" "Triggered spicetify live theme refresh"
+}
+
+apply_spicetify_theme() {
+  if spicetify apply -q -n; then
+    log "INFO" "Applied spicetify theme"
+  else
+    log "WARN" "spicetify apply reported an error, try running 'spicetify backup apply' first"
   fi
 }
 
-trigger_spicetify_refresh() {
-  (
-    timeout 10s spicetify -q watch -s &
-    sleep 1
-    pkill -x spicetify || true
-  ) &>/dev/null &
-}
-
 main() {
-  if ! command -v spicetify &>/dev/null; then
-    echo "Error: spicetify not found in PATH"
-    return 1
+  if ! command_exists spicetify; then
+    log "WARN" "spicetify not found; skipping spotify update"
+    return 0
   fi
 
   ensure_spicetify_theme || return 1
 
-  if pgrep -x spotify &>/dev/null; then
-    trigger_spicetify_refresh
+  if pgrep -x spotify >/dev/null 2>&1; then
+    refresh_spotify_theme
   else
-    spicetify apply -q -n || echo "Error: spicetify apply failed"
+    apply_spicetify_theme
   fi
 }
 
