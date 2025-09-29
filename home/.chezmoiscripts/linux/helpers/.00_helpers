@@ -23,7 +23,7 @@ print_info() {
   printf "${COLOR_GREEN}INFO:${COLOR_RESET} %b\n" "$1"
 }
 print_warning() {
-  printf "${COLOR_YELLOW}WARNING:${COLOR_RESET} %b\n" "$1"
+  printf "${COLOR_YELLOW}WARN:${COLOR_RESET} %b\n" "$1"
 }
 print_error() {
   printf "${COLOR_RED}ERROR:${COLOR_RESET} %b\n" "$1"
@@ -51,7 +51,8 @@ ask_for_sudo() {
     done
   ) &
   SUDO_REFRESH_PID=$!
-  trap 'kill "$SUDO_REFRESH_PID" 2>/dev/null' EXIT
+
+  trap 'kill "$SUDO_REFRESH_PID" 2>/dev/null' EXIT INT HUP
 }
 
 # =============================================================================

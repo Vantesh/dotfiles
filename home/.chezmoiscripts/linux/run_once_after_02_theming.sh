@@ -13,12 +13,12 @@ config_changed=false
 mkinitcpio_conf="/etc/mkinitcpio.conf"
 limine_conf="/boot/limine.conf"
 
+print_box "smslant" "Theming"
 # ===================================================================================
 # BOOTLOADER THEME
 # ===================================================================================
 
 if [[ $(detect_bootloader) == "grub" ]]; then
-  print_box "smslant" "GRUB"
   print_step "Setting up GRUB theme"
 
   if [[ -d "/usr/share/grub/themes/Sekiro" ]]; then
@@ -40,7 +40,6 @@ if [[ $(detect_bootloader) == "grub" ]]; then
 fi
 
 if [[ $(detect_bootloader) == "limine" ]] && ! grep -q "CachyOS" /etc/os-release; then
-  print_box "smslant" "Limine"
   print_step "Setting up Limine theme"
 
   THEME_BLOCK=$(
@@ -78,7 +77,6 @@ fi
 #===================================================================================
 # Plymouth
 #===================================================================================
-print_box "smslant" "Plymouth"
 print_step "Setting up Plymouth"
 
 print_info "Checking mkinitcpio hooks for plymouth..."
