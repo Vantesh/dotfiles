@@ -75,12 +75,11 @@ Documents/*
 .config/niri/**
 {{- end }}
 
-# user-specific
-{{- if and .personal (eq .default_shell "fish") }}
+{{- if eq .default_shell "fish" }}
 .config/zsh
 .config/fsh
 {{- end }}
 
-{{- if and (not .personal) (eq .default_shell "zsh") }}
+{{- if eq .default_shell "zsh" }}
 .config/fish
 {{- end }}
