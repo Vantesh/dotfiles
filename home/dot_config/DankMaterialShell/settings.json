@@ -1,6 +1,7 @@
 {
   "currentThemeName": "dynamic",
   "customThemeFile": "",
+  "matugenScheme": "scheme-tonal-spot",
   "topBarTransparency": 0.8,
   "topBarWidgetTransparency": 0.8,
   "popupTransparency": 0.8,
@@ -164,6 +165,7 @@
   "qtThemingEnabled": false,
   "showDock": false,
   "dockAutoHide": true,
+  "dockGroupByApp": false,
   "cornerRadius": 10,
   "notificationOverlayEnabled": false,
   "topBarAutoHide": false,
@@ -178,6 +180,7 @@
   "lockScreenShowPowerActions": true,
   "hideBrightnessSlider": false,
   "widgetBackgroundColor": "sth",
+  "surfaceBase": "sc",
   "notificationTimeoutLow": 1000,
   "notificationTimeoutNormal": 5000,
   "notificationTimeoutCritical": 0,
