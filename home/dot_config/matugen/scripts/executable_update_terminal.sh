@@ -1,103 +1,90 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-MODE="${MODE:-dark}"
-readonly MODE
-
-case "$MODE" in
-light | dark) ;;
-*)
-  printf 'Warning: invalid MODE="%s", falling back to dark\n' "$MODE" >&2
-  MODE="dark"
-  ;;
-esac
-
-readonly SCRIPT="$HOME/.config/matugen/scripts/dank16.py"
+readonly THEME_GENERATOR="$HOME/.config/matugen/scripts/dank16.py"
 readonly KITTY_CONFIG_DIR="$HOME/.config/kitty"
 readonly GHOSTTY_CONFIG_DIR="$HOME/.config/ghostty"
 readonly KITTY_THEME_FILE="$KITTY_CONFIG_DIR/dank16.conf"
 readonly GHOSTTY_THEME_FILE="$GHOSTTY_CONFIG_DIR/themes/Matugen"
 
-command_exists() {
-  command -v "$1" >/dev/null 2>&1
+determine_mode() {
+  local mode="${MODE:-dark}"
+
+  case "$mode" in
+  light | dark)
+    printf '%s\n' "$mode"
+    ;;
+  *)
+    log "WARN" "Invalid MODE='$mode'; defaulting to dark"
+    printf 'dark\n'
+    ;;
+  esac
 }
 
-ensure_directory() {
-  mkdir -p "$1"
-}
-
-ensure_config_kv() {
-  local key="$1"
-  local value="$2"
-  local file="$3"
-
-  if grep -q "^${key} =" "$file"; then
-    sed -i "s|^${key} = .*|${key} = ${value}|" "$file"
-  else
-    printf '%s = %s\n' "$key" "$value" >>"$file"
-  fi
-}
-
-# =============================================================================
-# Kitty
-# =============================================================================
 apply_kitty_theme() {
-  if ! command_exists "kitty"; then
-    return
+  local mode="$1"
+
+  if ! command_exists kitty; then
+    return 0
   fi
 
   ensure_directory "$KITTY_CONFIG_DIR"
-  python3 "$SCRIPT" --"$MODE" >"$KITTY_THEME_FILE"
-
-  kill -SIGUSR1 $(pgrep kitty) || true
+  if python3 "$THEME_GENERATOR" --"$mode" >"$KITTY_THEME_FILE"; then
+    send_signal_if_running "USR1" "kitty"
+  else
+    log "WARN" "Failed to generate kitty theme"
+  fi
 }
 
-# =============================================================================
-# Ghostty
-# =============================================================================
 apply_ghostty_theme() {
-  if ! command_exists "ghostty"; then
-    return
+  local mode="$1"
+
+  if ! command_exists ghostty; then
+    return 0
   fi
 
-  ensure_directory "$GHOSTTY_CONFIG_DIR"
   ensure_directory "$GHOSTTY_CONFIG_DIR/themes"
-  python3 "$SCRIPT" --"$MODE" --ghostty >"$GHOSTTY_THEME_FILE"
+  if ! python3 "$THEME_GENERATOR" --"$mode" --ghostty >"$GHOSTTY_THEME_FILE"; then
+    log "WARN" "Failed to generate Ghostty theme"
+  fi
 
   local config_file="$GHOSTTY_CONFIG_DIR/config"
-  [[ -f "$config_file" ]] || : >"$config_file"
-
-  ensure_config_kv "theme" "Matugen" "$config_file"
-  ensure_config_kv "app-notifications" "no-clipboard-copy,no-config-reload" "$config_file"
-
-  pkill -USR2 -x ghostty || true
+  set_config_value "$config_file" "theme" '=' "Matugen"
+  set_config_value "$config_file" "app-notifications" '=' "no-clipboard-copy,no-config-reload"
+  send_signal_if_running "USR2" "ghostty"
 }
 
-# =============================================================================
-# Fish Theme
-# =============================================================================
 apply_fish_theme() {
-  if ! command_exists "fish"; then
-    return
+  local fzf_script="$HOME/.cache/wal/fzf.fish"
+
+  if ! command_exists fish; then
+    return 0
   fi
 
-  local fzf_script="$HOME/.cache/wal/fzf.fish"
-  {
-    fish -c "yes | fish_config theme save Matugen" 2>/dev/null
-    [[ -f "$fzf_script" ]] && fish "$fzf_script" 2>/dev/null
-  } || true
+  if ! fish -c "yes | fish_config theme save Matugen"; then
+    log "WARN" "Failed to update fish theme via fish_config"
+  fi
+
+  if [[ -f "$fzf_script" ]]; then
+    if ! fish "$fzf_script" >/dev/null 2>&1; then
+      log "WARN" "Failed to run fzf theme helper at $fzf_script"
+    fi
+  fi
 }
 
-# =============================================================================
-# Main
-# =============================================================================
 main() {
-  if [[ ! -f "$SCRIPT" ]]; then
-    printf '%s\n' "Missing theme generator: $SCRIPT" >&2
-    exit 1
+  if [[ ! -f "$THEME_GENERATOR" ]]; then
+    log "ERROR" "Missing theme generator: $THEME_GENERATOR"
+    return 1
   fi
-  apply_kitty_theme
-  apply_ghostty_theme
+
+  require_command python3 || return 1
+
+  local mode
+  mode=$(determine_mode)
+
+  apply_kitty_theme "$mode"
+  apply_ghostty_theme "$mode"
   apply_fish_theme
 }
 
