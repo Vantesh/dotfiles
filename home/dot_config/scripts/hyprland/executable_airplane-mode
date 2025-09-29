@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
 
 if rfkill list | grep -q "Soft blocked: yes"; then
-  notify-send "rfkill" "Airplane mode is on"
+  notify-send "rfkill" "Airplane mode is on" -u critical --icon wifi
 fi
