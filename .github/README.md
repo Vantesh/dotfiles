@@ -1,23 +1,41 @@
 <h1 align="center">HyprNiri</h1>
-<div align="center">
+<p align="center">Hyprland + Niri dotfiles Managed with <a href="https://github.com/twpayne/chezmoi">chezmoi</a></p>
 
-<a href="https://github.com/Vantesh/dotfiles/commits/main/"><img alt="Commit Activity" src="https://img.shields.io/github/commit-activity/m/Vantesh/dotfiles/main?style=for-the-badge&logo=github&color=F2CDCD&logoColor=D9E0EE&labelColor=302D41"/></a>
-<a href="https://github.com/Vantesh/dotfiles"><img alt="Size" src="https://img.shields.io/github/repo-size/Vantesh/dotfiles?style=for-the-badge&logo=discord&color=DDB6F2&logoColor=D9E0EE&labelColor=302D41"></a>
+<p align="center">
+	<br><br>
+	<a href="#screenshots"><kbd> <br> Screenshots <br> </kbd></a>&ensp;&ensp;
+	<a href="#installation"><kbd> <br> Installation <br> </kbd></a>&ensp;&ensp;
+	<a href="#features"><kbd> <br> Features <br> </kbd> </a>&ensp;&ensp;
+	<a href="#post-install"><kbd> <br> Post Install <br> </kbd></a>
+</p>
 
-</div>
+> [!IMPORTANT]
+> Optimized for fresh Arch-based systems, verified on Arch Linux, CachyOS, and Garuda. Expect to make manual adjustments if you run another distribution.
+>
+> Fedora Support is in the works.
 
-##
+> [!TIP]
+> Hit **SUPER + F2** for the full keybinding cheat-sheet (SUPER = Windows key).
+>
+> To update an existing install, run:
+>
+> ```
+> NOT_PERSONAL=1 chezmoi update
+> ```
 
-Hyprland and Niri dotfiles managed with [chezmoi](https://github.com/twpayne/chezmoi).
+> [!CAUTION]
+> The installer backs up most configs it touches, but you're still responsible for critical data. Make personal backups before continuing—I can't take responsibility for any loss.
 
-## Demo
+<a id="screenshots"></a>
+
+## [![Typing SVG](https://readme-typing-svg.herokuapp.com?font=JetBrains+Mono&pause=1000&color=84D2E7&width=435&lines=Preview)](https://git.io/typing-svg)
+
+#### Demo
 
 https://github.com/user-attachments/assets/bd263e88-f2b6-477a-97dc-e8c1afa23669
 
-## Screenshots
-
 <details>
-<summary>Click to expand</summary>
+<summary>Screenshots</summary>
 <img width="1920" height="1080" alt="Image" src="https://github.com/user-attachments/assets/e21a6d4d-f885-4eab-842d-e178f580c2d9" />
 
 <img width="1920" height="1080" alt="Image" src="https://github.com/user-attachments/assets/34511907-02ce-461f-a83e-c44478e45d4f" />
@@ -38,16 +56,27 @@ https://github.com/user-attachments/assets/bd263e88-f2b6-477a-97dc-e8c1afa23669
 
 </details>
 
-## Requirements
+<a id="installation"></a>
 
-- **Fresh arch installation** - The script is designed for a fresh minimal Arch Linux installation.
-- (Other arch based distros or existing arch setups may work but may require manual adjustments)
+## [![Typing SVG](https://readme-typing-svg.herokuapp.com?font=JetBrains+Mono&pause=1000&color=84D2E7&width=435&lines=Installation)](https://git.io/typing-svg)
 
-## Installation
+### Requirements
+
+- Fresh Arch-based install (tested on Arch, CachyOS, Garuda).
+- `curl` (for grabbing the bootstrap script).
+- Internet access.
+
+### Direct installation
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Vantesh/dotfiles/main/install.sh | bash
+```
+
+### Manual installation
 
 ```bash
 # Clone the dotfiles repository
-git clone https://github.com/vantesh/dotfiles.git
+git clone https://github.com/vantesh/dotfiles.git --depth=1
 
 # Navigate to the cloned directory
 cd dotfiles
@@ -57,41 +86,33 @@ chmod +x install.sh
 
 # Run the installation script
 ./install.sh
-
-# Follow the on-screen prompts to complete the installation
 ```
 
-### Keybindings
+<a id="features"></a>
 
-Use **SUPER + F2** to view all available keybindings and shortcuts.
-Super is the **Windows** key
+## [![Typing SVG](https://readme-typing-svg.herokuapp.com?font=JetBrains+Mono&pause=1000&color=84D2E7&width=435&lines=Features)](https://git.io/typing-svg)
 
-### What The Script Does
+- Auto-generated Matugen themes with synchronized light and dark palettes across apps.
+- Pacman, sudo, and AUR helper tuning so your base system feels polished out of the box.
+- Kitty, Fish, Neovim, and other dotfiles polished to suit developer needs.
+- Optional extras like Snapper, GRUB/Limine themes, and laptop-specific power tweaks.
 
-<details>
-<summary>Click to expand</summary>
+<a id="post-install"></a>
 
-- **System Configuration** - Configures sudo, pacman, and installs AUR helper(paru/yay)
-- **Dependencies** - Installs core packages and GPU drivers
-- **Services** - Configures system services and settings
-- **Theming** - Sets up fonts, cursors, and visual themes
-- **Dotfiles** - Applies configuration files
-- **Shell Setup** - Configures ZSH/Fish
-- **Snapshots** - Sets up Snapper for BTRFS (optional)
-- **Bootloader** - Configures GRUB or limine theme (optional)
-- **Laptop Tweaks** - Applies laptop-specific optimizations if detected
+## [![Typing SVG](https://readme-typing-svg.herokuapp.com?font=JetBrains+Mono&pause=1000&color=84D2E7&width=435&lines=Post-install+notes)](https://git.io/typing-svg)
 
-</details>
+- **Caps Lock** → Mapped as Escape by default. Change it in `~/.config/hypr/hyprland/input.conf`.
+- **Terminal** → Kitty is the default; adjust via `~/.config/xdg-terminals.list`.
+- **Niri** → Tweak transparency under Settings → Theme & Colors.
 
-### Post Installation
+> [!NOTE]
+> If hyprland throws config errors on first start, simply change the wallpaper once and they should clear up.
+>
+> The keybind for changing wallpapers is **SUPER + W**.
 
-- **Capslock** - By default capslock is remapped to escape. To change this, edit the `~/.config/hypr/hyprland/input.conf`
+<a id="credits"></a>
 
-- **Terminal** - `Kitty` is the default terminal. Edit `~/.config/xdg-terminals.list` to set default terminal
+## [![Typing SVG](https://readme-typing-svg.herokuapp.com?font=JetBrains+Mono&pause=1000&color=84D2E7&width=435&lines=Credits)](https://git.io/typing-svg)
 
-- **Niri** - Since niri doesn't support blur yet, adjust the transparency from settings → Theme & colors → transparency to your liking.
-
-## Credits
-
-- [END4 Dotfiles](https://github.com/end-4/dots-hyprland) for monet stuff
-- [DankMaterialShell](https://github.com/AvengeMedia/DankMaterialShell) for the quickshell
+- [END4 Dotfiles](https://github.com/end-4/dots-hyprland) for monet stuff.
+- [DankMaterialShell](https://github.com/AvengeMedia/DankMaterialShell) for quickshell config.
