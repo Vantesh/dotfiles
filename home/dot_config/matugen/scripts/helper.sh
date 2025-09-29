@@ -137,6 +137,5 @@ restart_user_service() {
     fi
 
   fi
-
   return 0
 }
