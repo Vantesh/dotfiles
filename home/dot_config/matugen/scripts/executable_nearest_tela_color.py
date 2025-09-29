@@ -19,7 +19,7 @@ TELA_COLORS = {
     "green": "#66bb6a",
     "dracula": "#44475a",
     "yellow": "#ffca28",
-    "black": "#4D4D4D",
+    "black": "#4d4d4d",
 }
 
 def normalize_hex(hex_color):
