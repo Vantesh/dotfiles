@@ -20,7 +20,8 @@ install_group() {
 
 if ! has_chaotic_repo; then
   if confirm "Chaotic AUR repo is not installed. Do you want to install it?"; then
-    install_chaotic_repo
+    install_chaotic_aur
+
   else
     print_info "Skipping Chaotic AUR"
   fi
