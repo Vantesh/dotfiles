@@ -51,7 +51,7 @@ print_step "Setting up default shell"
 
 if confirm "Set $PREFERRED_SHELL as your default shell? (current: $(basename "$CURRENT_SHELL"))"; then
   print_info "Setting $PREFERRED_SHELL as default shell..."
-  if chsh -s "$PREFERRED_SHELL_PATH"; then
+  if sudo usermod -s "$PREFERRED_SHELL_PATH" "$USER"; then
     print_info "$PREFERRED_SHELL set as default shell."
   else
     print_error "Failed to set $PREFERRED_SHELL as default shell."
