@@ -198,6 +198,14 @@ build_install_sets() {
   local candidates=()
   local pkg
   for pkg in "${input_pkgs[@]}"; do
+    if [[ -z "$pkg" ]]; then
+      print_warning "Skipping empty package entry."
+      continue
+    fi
+    if [[ ! "$pkg" =~ ^[-A-Za-z0-9@._+]+$ ]]; then
+      print_warning "Skipping invalid package token: $pkg"
+      continue
+    fi
     if has_package "$pkg"; then
       print_info "$pkg ${COLOR_GREEN}Exists.${COLOR_RESET}"
     else
@@ -221,7 +229,7 @@ build_install_sets() {
 
   # Classify
   for pkg in "${candidates[@]}"; do
-    if [[ -n ${__conflicted[$pkg]:-} ]]; then
+    if [[ -v __conflicted["$pkg"] ]]; then
       INSTALL_CONFLICTED+=("$pkg")
     else
       INSTALL_SAFE+=("$pkg")

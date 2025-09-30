@@ -5,32 +5,30 @@ source "${CHEZMOI_SOURCE_DIR:?env variable missing. Please only run this script 
 source "${CHEZMOI_SOURCE_DIR:?env variable missing. Please only run this script via chezmoi}/.chezmoiscripts/linux/helpers/.01_chaotic_aur"
 source "${CHEZMOI_SOURCE_DIR:?env variable missing. Please only run this script via chezmoi}/.chezmoiscripts/linux/helpers/.02_XDG"
 
-# =============================================================================
-# Setup and initialization
-# =============================================================================
 common_init
 print_box "smslant" "Packages"
 
 install_group() {
-  print_step "Installing $1 packages"
-  shift && install_package "$@"
+  local label="$1"
+  shift
+
+  [[ $# -eq 0 ]] && return
+
+  print_step "Installing ${label} packages"
+  install_package "$@"
 }
 
-# Chaotic AUR setup
-if ! has_chaotic_repo && confirm "Install Chaotic AUR?"; then
-  print_step "Installing Chaotic AUR"
-  install_chaotic_aur
+if ! has_chaotic_repo; then
+  if confirm "Chaotic AUR repo is not installed. Do you want to install it?"; then
+    install_chaotic_repo
+  else
+    print_info "Skipping Chaotic AUR"
+  fi
 fi
 
-# System update
 print_step "Updating system"
 sudo pacman -Syu --noconfirm
 
-# =============================================================================
-# Install Groups
-# =============================================================================
-
-# Core packages + default shell
 core_pkgs=({{- range .Arch.core }} "{{ . }}"{{- end }} "{{ .default_shell }}")
 
 {{- if eq .compositor "hyprland" }}
@@ -41,30 +39,21 @@ core_pkgs+=({{- range .Arch.compositor.niri }} "{{ . }}"{{- end }})
 
 install_group "Core packages" "${core_pkgs[@]}"
 
-# CLI Tools
 cli_pkgs=({{- range .Arch.cli }} "{{ . }}"{{- end }})
 install_group "CLI Tools" "${cli_pkgs[@]}"
 
-# Theming
 theme_pkgs=({{- range .Arch.theming }} "{{ . }}"{{- end }})
 install_group "Theming" "${theme_pkgs[@]}"
 
-# Fonts
 font_pkgs=({{- range .Arch.fonts }} "{{ . }}"{{- end }})
 install_group "Fonts" "${font_pkgs[@]}"
 
-# AUR packages
 aur_pkgs=({{- range .Arch.aur }} "{{ . }}"{{- end }})
 install_group "AUR" "${aur_pkgs[@]}"
 
-
-# =============================================================================
-# Drivers
-# =============================================================================
 if confirm "Do you want to install drivers?"; then
   drivers=({{- range .Arch.drivers.base }} "{{ . }}"{{- end }})
 
-  # Add kernel headers
   kernel_version=$(uname -r)
   case "$kernel_version" in
     *-zen*)     drivers+=("{{ .Arch.drivers.kernelHeaders.zen }}") ;;
@@ -73,20 +62,21 @@ if confirm "Do you want to install drivers?"; then
     *)          drivers+=("{{ .Arch.drivers.kernelHeaders.default }}") ;;
   esac
 
-  # Detect GPU and add drivers
   gpu_info=$(lspci -nn | grep -Ei "VGA|3D|Display")
 
   if [[ $gpu_info == *"NVIDIA"* ]]; then
     drivers+=({{- range .Arch.drivers.nvidia }} "{{ . }}"{{- end }})
-    # Choose NVIDIA driver variant
+    nvidia_variant=""
     if echo "$gpu_info" | grep -q -E "RTX [2-9][0-9]|GTX 16"; then
-      drivers+=("nvidia-open-dkms")
+      nvidia_variant="nvidia-open-dkms"
     else
-      drivers+=("nvidia-dkms")
+      nvidia_variant="nvidia-dkms"
     fi
-    # Skip DKMS for CachyOS
-    if [[ "$kernel_version" == *"-cachyos"* ]]; then
-      drivers=("${drivers[@]/nvidia*-dkms}")
+
+    if [[ "{{ .distro }}" == "cachyos" ]]; then
+      print_warning "Detected CachyOS : skipping ${nvidia_variant}."
+    else
+      drivers+=("$nvidia_variant")
     fi
   fi
 
@@ -96,17 +86,11 @@ if confirm "Do you want to install drivers?"; then
   install_group "Drivers" "${drivers[@]}"
 fi
 
-# =============================================================================
-# Conditional packages
-# =============================================================================
-
-# Laptop packages (auto-detect)
 if hostnamectl chassis | grep -qi "laptop\|notebook"; then
   laptop_pkgs=({{- range .Arch.laptop }} "{{ . }}"{{- end }})
   install_group "Laptop" "${laptop_pkgs[@]}"
 fi
 
-# Optional packages (with confirmation)
 if confirm "Install optional packages?"; then
   opt_pkgs=({{- range .Arch.optional }} "{{ . }}"{{- end }})
   install_group "Optional" "${opt_pkgs[@]}"
