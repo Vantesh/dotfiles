@@ -5,7 +5,7 @@
 	<br><br>
 	<a href="#screenshots"><kbd> <br> Screenshots <br> </kbd></a>&ensp;&ensp;
 	<a href="#installation"><kbd> <br> Installation <br> </kbd></a>&ensp;&ensp;
-	<a href="#features"><kbd> <br> Features <br> </kbd> </a>&ensp;&ensp;
+	<a href="#features"><kbd> <br> Features <br> </kbd></a>&ensp;&ensp;
 	<a href="#post-install"><kbd> <br> Post Install <br> </kbd></a>
 </p>
 
