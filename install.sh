@@ -10,6 +10,10 @@ readonly INSTALLER_URL="https://git.io/chezmoi"
 readonly DEFAULT_BIN_DIR="${HOME}/.local/bin"
 readonly REPO="https://github.com/vantesh/dotfiles"
 
+if [[ ":$PATH:" != *":${DEFAULT_BIN_DIR}:"* ]]; then
+  export PATH="${DEFAULT_BIN_DIR}:${PATH}"
+fi
+
 logo() {
   printf '\033[1;36m'
   sed 's/^/  /' <<'EOF'
