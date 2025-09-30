@@ -6,8 +6,8 @@ data:
   git_username: {{ promptString "Enter your Git username:" | quote }}
   git_email: {{ promptString "Enter your Git email:" | quote }}
   {{- end }}
-  default_shell: {{ promptChoice "What's your preferred shell?" (list "fish" "zsh") | quote }}
-  compositor: {{ promptChoice "What's your preferred compositor?" (list "hyprland" "niri") | quote }}
+  default_shell: {{ promptChoice "What's your preferred shell" (list "fish" "zsh") | quote }}
+  compositor: {{ promptChoice "What's your preferred compositor" (list "hyprland" "niri") | quote }}
   personal: {{ $personal }}
   distro: {{ if .chezmoi.osRelease }}{{ .chezmoi.osRelease.id | quote }}{{ else }}{{ .chezmoi.os | quote }}{{ end }}
 
