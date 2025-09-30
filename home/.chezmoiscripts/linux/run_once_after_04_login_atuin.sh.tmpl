@@ -9,6 +9,10 @@ source "${CHEZMOI_SOURCE_DIR:?env variable missing. Please only run this script 
 # =============================================================================
 common_init
 
+if ! has_package atuin; then
+ install_package atuin
+fi
+
 if [[ "$(atuin status)" == *"You are not logged in to a sync server"* ]]; then
 print_box "smslant" "Atuin"
 print_step "Logging in to Atuin"

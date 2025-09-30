@@ -110,7 +110,6 @@ Arch:
     - rust
     - go
     - brave-bin
-    - atuin
     - visual-studio-code-bin
     - qbittorrent
     - mpv
