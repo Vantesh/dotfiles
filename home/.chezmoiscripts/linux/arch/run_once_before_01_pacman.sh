@@ -1,14 +1,15 @@
 #!/usr/bin/env bash
-# Exit Codes:
-#   0 - Success
-#   1 - Configuration failed
+# 01_pacman.sh - Configure pacman
+# Exit codes: 0 (success), 1 (failure)
 
 set -euo pipefail
 
-LIB_DIR="${CHEZMOI_SOURCE_DIR:-$(chezmoi source-path)}/.chezmoiscripts/linux/lib"
+shopt -s nullglob globstar
+
+readonly LIB_DIR="${CHEZMOI_SOURCE_DIR:-$(chezmoi source-path)}/.chezmoiscripts/linux/lib"
 
 # shellcheck source=/dev/null
-source "$LIB_DIR/.common.sh"
+source "$LIB_DIR/.lib-common.sh"
 
 readonly PACMAN_CONF="/etc/pacman.conf"
 readonly PACCACHE_CONFIG="/etc/conf.d/pacman-contrib"
@@ -40,7 +41,7 @@ _configure_pacman_options() {
       sudo sed -i "s/^#[[:space:]]*${option}/${option}/" "$pacman_conf"
       log INFO "Enabled ${COLOR_CYAN}${option}${COLOR_RESET}"
     elif grep -q "^${option}" "$pacman_conf"; then
-      log INFO "${COLOR_CYAN}${option}${COLOR_RESET} already enabled"
+      log SKIP "${COLOR_CYAN}${option}${COLOR_RESET} already enabled"
     else
       log WARN "Option not found: $option"
     fi
@@ -54,7 +55,7 @@ _add_ilovecandy() {
     sudo sed -i "/^ParallelDownloads/a ILoveCandy" "$pacman_conf"
     log INFO "Enabled ${COLOR_CYAN}ILoveCandy${COLOR_RESET}"
   elif grep -q "^ILoveCandy" "$pacman_conf"; then
-    log INFO "${COLOR_CYAN}ILoveCandy${COLOR_RESET} already enabled"
+    log SKIP "${COLOR_CYAN}ILoveCandy${COLOR_RESET} already enabled"
   fi
 }
 
@@ -69,7 +70,7 @@ _configure_paccache() {
 }
 
 _create_paccache_hooks() {
-  if ! write_system_config "$HOOKS_DIR/00-paccache.hook" "paccache cleanup hook" <<'EOF'; then
+  if ! write_system_config "$HOOKS_DIR/00-paccache.hook" <<'EOF'; then
 [Trigger]
 Type = Package
 Operation = Remove
@@ -83,12 +84,12 @@ When = PostTransaction
 Exec = /usr/bin/paccache -rk2
 Depends = pacman-contrib
 EOF
-    log ERROR "Failed to create hook: $LAST_ERROR"
+    log ERROR "Failed to create paccache cleanup hook: $LAST_ERROR"
     return 1
   fi
-  log INFO "Created $LAST_SUCCESS"
+  log INFO "Created paccache cleanup hook"
 
-  if ! write_system_config "$HOOKS_DIR/01-paccache-uninstalled.hook" "paccache uninstalled hook" <<'EOF'; then
+  if ! write_system_config "$HOOKS_DIR/01-paccache-uninstalled.hook" <<'EOF'; then
 [Trigger]
 Operation = Remove
 Type = Package
@@ -100,15 +101,16 @@ When = PostTransaction
 Exec = /usr/bin/paccache -ruk1
 Depends = pacman-contrib
 EOF
-    log ERROR "Failed to create hook: $LAST_ERROR"
+    log ERROR "Failed to create paccache uninstalled hook: $LAST_ERROR"
     return 1
   fi
-  log INFO "Created $LAST_SUCCESS"
+  log INFO "Created paccache uninstalled hook"
 
   return 0
 }
 
 setup_pacman() {
+  print_box "Pacman"
   log STEP "Configuring Pacman"
 
   if ! _ensure_pacman_contrib; then

@@ -1,37 +1,44 @@
 #!/usr/bin/env bash
+# 00_sudo.sh - Configure sudo and faillock settings
+# Exit codes: 0 (success), 1 (failure)
 
 set -euo pipefail
 
-# Source required libraries
-LIB_DIR="${CHEZMOI_SOURCE_DIR:-$(chezmoi source-path)}/.chezmoiscripts/linux/lib"
+shopt -s nullglob globstar
+
+readonly LIB_DIR="${CHEZMOI_SOURCE_DIR:-$(chezmoi source-path)}/.chezmoiscripts/linux/lib"
 
 # shellcheck source=/dev/null
-source "$LIB_DIR/.common.sh"
+source "$LIB_DIR/.lib-common.sh"
 
 readonly SUDOERS_DIR="/etc/sudoers.d"
 readonly FAILLOCK_CONF="/etc/security/faillock.conf"
 
+if ! keep_sudo_alive; then
+  die "Failed to keep sudo alive"
+fi
+
 _configure_sudo_timeout() {
-  if ! write_system_config "$SUDOERS_DIR/timeout" "sudo timeout configuration" <<'EOF'; then
+  if ! write_system_config "$SUDOERS_DIR/timeout" <<'EOF'; then
 Defaults passwd_timeout=0
 EOF
     log ERROR "Failed to configure sudo timeout: $LAST_ERROR"
     return 1
   fi
 
-  log INFO "updated $LAST_SUCCESS"
+  log INFO "Configured sudo timeout"
   return 0
 }
 
 _configure_sudo_retries() {
-  if ! write_system_config "$SUDOERS_DIR/passwd_tries" "sudo retry configuration" <<'EOF'; then
+  if ! write_system_config "$SUDOERS_DIR/passwd_tries" <<'EOF'; then
 Defaults passwd_tries=10
 EOF
     log ERROR "Failed to configure sudo retries: $LAST_ERROR"
     return 1
   fi
 
-  log INFO "updated $LAST_SUCCESS"
+  log INFO "Configured sudo retries"
   return 0
 }
 
@@ -51,14 +58,15 @@ _configure_faillock() {
       return 1
     fi
 
-    log INFO "updated faillock: $key=$value"
+    log INFO "Configured faillock: $key=$value"
   done
 
   return 0
 }
 
 setup_sudo() {
-  log STEP "Configuring sudo and authentication security"
+  print_box "Sudo"
+  log STEP "Configuring sudo and faillock"
 
   if ! _configure_sudo_timeout; then
     die "Failed to configure sudo timeout"
