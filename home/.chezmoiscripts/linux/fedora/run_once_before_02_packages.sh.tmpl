@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# 02_packages.sh - Install fedora packages
+# Exit codes: 0 (success), 1 (failure)
+
+set -euo pipefail
+
+shopt -s nullglob globstar
+
+readonly LIB_DIR="${CHEZMOI_SOURCE_DIR:-$(chezmoi source-path)}/.chezmoiscripts/linux/lib"
+
+# shellcheck source=/dev/null
+source "$LIB_DIR/.lib-common.sh"
+# shellcheck source=/dev/null
+source "$LIB_DIR/.lib-package_manager.sh"
+
+# TODO: Implement Fedora package installation
+log INFO "Fedora package installation not yet implemented"
