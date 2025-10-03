@@ -272,6 +272,13 @@ main() {
     return 0
   fi
 
+  print_box "Snapper"
+
+  if ! confirm "Set up Snapper for btrfs snapshots?"; then
+    log SKIP "Snapper setup cancelled by user"
+    return 0
+  fi
+
   log STEP "Configuring Snapper"
 
   if ! setup_snapper_packages; then
