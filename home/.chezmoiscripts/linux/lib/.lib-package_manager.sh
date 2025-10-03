@@ -1,36 +1,29 @@
 #!/usr/bin/env bash
-
-# Environment Variables:
-#   AUR_HELPER - Preferred AUR helper (default: paru)
+# .package_manager.sh - Package installation and management
+# Exit codes: 0 (success), 1 (failure), 2 (invalid args), 127 (missing dependency)
 #
-# Return Codes:
-#   0   - Success
-#   1   - Operation failed (details in LAST_ERROR)
-#   2   - Invalid arguments
-#   127 - Required tool/dependency missing
-
-set -euo pipefail
+# NOTE: install_package() logs SKIP messages for already-installed packages.
+# This is an intentional exception to the "silent library" pattern for better UX.
 
 export LAST_ERROR="${LAST_ERROR:-}"
 
-# Package manager detection cache
+readonly AUR_HELPER="${AUR_HELPER:-paru}"
+
+# Cache for detected package manager (set once on first call)
 __package_manager_cache=""
 
 get_package_manager() {
-  # Return cached value if available
   if [[ -n "${__package_manager_cache:-}" ]]; then
     printf '%s\n' "$__package_manager_cache"
     return 0
   fi
 
-  # Detect dnf (Fedora and derivatives)
   if command -v dnf >/dev/null 2>&1; then
     __package_manager_cache="dnf"
     printf '%s\n' "$__package_manager_cache"
     return 0
   fi
 
-  # Detect pacman (Arch and derivatives)
   if command -v pacman >/dev/null 2>&1; then
     __package_manager_cache="pacman"
     printf '%s\n' "$__package_manager_cache"
@@ -42,10 +35,10 @@ get_package_manager() {
 }
 
 get_aur_helper() {
-  local helper="${AUR_HELPER:-paru}"
+  local helper="${AUR_HELPER}"
 
-  if ! command_exists "$helper"; then
-    LAST_ERROR="AUR helper '$helper' is not available. Set AUR_HELPER to a valid helper (e.g., paru, yay)"
+  if ! command -v "$helper" >/dev/null 2>&1; then
+    LAST_ERROR="AUR helper '$helper' not found (install with install_aur_helper)"
     return 127
   fi
 
@@ -58,6 +51,11 @@ package_exists() {
 
   LAST_ERROR=""
 
+  if [[ -z "$package_name" ]]; then
+    LAST_ERROR="package_exists() requires package_name argument"
+    return 2
+  fi
+
   local manager
   if ! manager="$(get_package_manager)"; then
     return 1
@@ -68,7 +66,6 @@ package_exists() {
     dnf list --installed "$package_name" >/dev/null 2>&1
     ;;
   pacman)
-    # On Arch, use AUR helper to check both official and AUR packages
     local aur_helper
     if ! aur_helper="$(get_aur_helper)"; then
       return 127
@@ -83,21 +80,37 @@ package_exists() {
 }
 
 install_package() {
-  local package_name="${1:-}"
-
   LAST_ERROR=""
 
-  # Detect package manager
+  if [[ $# -eq 0 ]]; then
+    LAST_ERROR="install_package() requires at least one package name"
+    return 2
+  fi
+
   local manager
   if ! manager="$(get_package_manager)"; then
     return 1
   fi
 
-  # Install package based on manager
+  local -a packages_to_install=()
+  local package_name
+
+  for package_name in "$@"; do
+    if package_exists "$package_name"; then
+      log SKIP "${COLOR_INFO}${package_name}${COLOR_RESET} exists"
+    else
+      packages_to_install+=("$package_name")
+    fi
+  done
+
+  if [[ ${#packages_to_install[@]} -eq 0 ]]; then
+    return 0
+  fi
+
   case "$manager" in
   dnf)
-    if ! sudo dnf install -y "$package_name"; then
-      LAST_ERROR="Failed to install '$package_name' with dnf"
+    if ! sudo dnf install -y "${packages_to_install[@]}"; then
+      LAST_ERROR="Failed to install packages with dnf: ${packages_to_install[*]}"
       return 1
     fi
     ;;
@@ -107,8 +120,8 @@ install_package() {
       return 127
     fi
 
-    if ! "$aur_helper" -S --needed --noconfirm "$package_name"; then
-      LAST_ERROR="Failed to install '$package_name' with $aur_helper"
+    if ! "$aur_helper" -S --needed --noconfirm "${packages_to_install[@]}"; then
+      LAST_ERROR="Failed to install packages with $aur_helper: ${packages_to_install[*]}"
       return 1
     fi
     ;;

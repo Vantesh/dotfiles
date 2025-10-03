@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
-# lib/common.sh - Common utility functions for system configuration scripts
-#
-# Contains both silent utilities (use LAST_ERROR/LAST_SUCCESS) and logging functions
+# .common.sh - Common utilities and logging
+# NOTE: Enforces strict mode (set -euo pipefail) for all sourcing scripts
+
+set -euo pipefail
+
+shopt -s nullglob globstar
 
 export LAST_ERROR="${LAST_ERROR:-}"
-export LAST_SUCCESS="${LAST_SUCCESS:-}"
 
-# Respect NO_COLOR standard
 if [[ -n "${NO_COLOR:-}" ]] || [[ ! -t 2 ]] || [[ "${TERM:-}" == "dumb" ]]; then
   readonly COLOR_RESET=""
   readonly COLOR_INFO=""
@@ -14,6 +15,7 @@ if [[ -n "${NO_COLOR:-}" ]] || [[ ! -t 2 ]] || [[ "${TERM:-}" == "dumb" ]]; then
   readonly COLOR_ERROR=""
   readonly COLOR_STEP=""
   readonly COLOR_CYAN=""
+  readonly COLOR_SKIP=""
 else
   readonly COLOR_RESET="\033[0m"
   readonly COLOR_INFO="\033[1;32m"
@@ -21,13 +23,10 @@ else
   readonly COLOR_ERROR="\033[1;31m"
   readonly COLOR_STEP="\033[1;34m"
   readonly COLOR_CYAN="\033[1;36m"
+  readonly COLOR_SKIP="\033[0;33m"
 fi
 
 trap 'printf "%b" "$COLOR_RESET"' EXIT ERR INT TERM
-
-# ==============================================================================================
-# Logging Functions
-# ==============================================================================================
 
 log() {
   local level="${1:-}"
@@ -44,6 +43,7 @@ log() {
   INFO) color="$COLOR_INFO" ;;
   WARN) color="$COLOR_WARN" ;;
   ERROR) color="$COLOR_ERROR" ;;
+  SKIP) color="$COLOR_SKIP" ;;
   STEP)
     printf '\n%b::%b %s\n\n' "$COLOR_STEP" "$COLOR_RESET" "$message" >&2
     return 0
@@ -73,23 +73,135 @@ print_box() {
   local text="${1:-}"
   local font="${2:-smslant}"
 
-  figlet -t -f "$font" "$text"
+  figlet -f "$font" "$text"
 }
 
-# ==============================================================================================
-# Utility Functions
-# ==============================================================================================
+confirm() {
+  local prompt="${1:-Continue?}"
+  local default="${2:-y}"
+
+  local options
+
+  case "${default,,}" in
+  y | yes)
+    options="[Y/n]"
+    ;;
+  n | no)
+    options="[y/N]"
+    ;;
+  *)
+    LAST_ERROR="default must be 'y' or 'n'"
+    return 2
+    ;;
+  esac
+
+  while true; do
+    printf '\n%b%s%b %s ' "$COLOR_CYAN" "$prompt" "$COLOR_RESET" "$options" >&2
+    read -r response
+
+    response="${response,,}"
+
+    if [[ -z "$response" ]]; then
+      response="$default"
+    fi
+
+    case "$response" in
+    y | yes)
+      return 0
+      ;;
+    n | no)
+      return 1
+      ;;
+    *)
+      printf '%bInvalid input. Please enter y or n.%b\n' "$COLOR_WARN" "$COLOR_RESET" >&2
+      ;;
+    esac
+  done
+}
 
 command_exists() {
   command -v "$1" >/dev/null 2>&1
 }
 
-write_system_config() {
-  local config_file="$1"
-  local description="${2:-configuration}"
+reload_udev_rules() {
+  LAST_ERROR=""
+
+  if ! sudo udevadm control --reload-rules >/dev/null 2>&1; then
+    LAST_ERROR="Failed to reload udev rules"
+    return 1
+  fi
+
+  if ! sudo udevadm trigger >/dev/null 2>&1; then
+    LAST_ERROR="Failed to trigger udev"
+    return 1
+  fi
+
+  return 0
+}
+
+reload_systemd_daemon() {
+  LAST_ERROR=""
+
+  if ! sudo systemctl daemon-reload >/dev/null 2>&1; then
+    LAST_ERROR="Failed to reload systemd daemon"
+    return 1
+  fi
+
+  return 0
+}
+
+is_laptop() {
+  local chassis
 
   LAST_ERROR=""
-  LAST_SUCCESS=""
+
+  if ! chassis=$(hostnamectl chassis 2>/dev/null); then
+    LAST_ERROR="Failed to detect chassis type"
+    return 1
+  fi
+
+  if [[ "$chassis" =~ (laptop|notebook) ]]; then
+    return 0
+  fi
+
+  return 1
+}
+
+keep_sudo_alive() {
+  LAST_ERROR=""
+
+  if ! sudo -v; then
+    LAST_ERROR="Failed to obtain sudo access"
+    return 1
+  fi
+
+  (
+    while true; do
+      sleep 60
+      sudo -v
+    done
+  ) &
+
+  local sudo_pid=$!
+
+  _SUDO_KEEPALIVE_PID="$sudo_pid"
+
+  trap "_kill_sudo_keepalive" EXIT INT TERM
+
+  return 0
+}
+
+_kill_sudo_keepalive() {
+  if [[ -n "${_SUDO_KEEPALIVE_PID:-}" ]]; then
+    kill "$_SUDO_KEEPALIVE_PID" 2>/dev/null || true
+    unset _SUDO_KEEPALIVE_PID
+  fi
+}
+
+write_system_config() {
+  local config_file="$1"
+
+  LAST_ERROR=""
 
   if [[ -z "$config_file" ]]; then
     LAST_ERROR="write_system_config() requires config_file argument"
@@ -109,7 +221,6 @@ write_system_config() {
     return 1
   fi
 
-  # Write content from stdin to file atomically using tee
   if ! sudo tee "$config_file" >/dev/null; then
     LAST_ERROR="Failed to write to $config_file"
     return 1
@@ -120,7 +231,6 @@ write_system_config() {
     return 1
   fi
 
-  LAST_SUCCESS="$description"
   return 0
 }
 
@@ -160,10 +270,6 @@ create_backup() {
 
   return 0
 }
-
-# ==============================================================================================
-# Configuration File Management
-# ==============================================================================================
 
 _is_system_path() {
   local path="$1"
@@ -307,13 +413,11 @@ update_config() {
     return 2
   fi
 
-  # Determine if this is a system config requiring sudo
   local use_sudo="false"
   if _is_system_path "$config_file"; then
     use_sudo="true"
   fi
 
-  # Ensure parent directory exists
   local parent_dir
   parent_dir="$(dirname "$config_file")"
 
@@ -324,7 +428,6 @@ update_config() {
     fi
   fi
 
-  # Create file if it doesn't exist
   if [[ ! -f "$config_file" ]]; then
     if ! _create_config_file "$config_file" "$use_sudo"; then
       return 1
@@ -336,11 +439,9 @@ update_config() {
 
   local key_regex="^[[:space:]]*#?[[:space:]]*${escaped_key}[[:space:]]*="
 
-  # Detect file's spacing style
   local style
   style="$(_detect_spacing_style "$config_file" "$use_sudo")"
 
-  # Check if key exists and update or append accordingly
   if _run_with_optional_sudo "$use_sudo" grep -qE "$key_regex" "$config_file" 2>/dev/null; then
     if ! _update_existing_key "$config_file" "$escaped_key" "$key" "$value" "$use_sudo" "$style"; then
       return 1
@@ -349,6 +450,66 @@ update_config() {
     if ! _append_new_key "$config_file" "$key" "$value" "$style" "$use_sudo"; then
       return 1
     fi
+  fi
+
+  return 0
+}
+
+enable_service() {
+  local service="${1:-}"
+  local scope="${2:-system}"
+
+  LAST_ERROR=""
+
+  # Validate service argument
+  if [[ "$service" = "" ]]; then
+    LAST_ERROR="enable_service() requires a service argument"
+    return 2
+  fi
+
+  # Validate scope argument
+  if [[ "$scope" != "system" ]] && [[ "$scope" != "user" ]]; then
+    LAST_ERROR="Invalid scope: $scope (must be 'system' or 'user')"
+    return 2
+  fi
+
+  # Determine systemctl mode
+  local use_sudo="true"
+  local systemctl_args=()
+  if [[ "$scope" = "user" ]]; then
+    use_sudo="false"
+    systemctl_args=("--user")
+  fi
+
+  # Normalize service name candidates
+  local base="${service%.service}"
+  base="${base%.timer}"
+  base="${base%.socket}"
+  local candidates=("$service" "${base}.service" "${base}.timer" "${base}.socket")
+  local -A seen=()
+  local resolved=""
+
+  for candidate in "${candidates[@]}"; do
+    [[ "$candidate" != "" ]] && [[ -z "${seen[$candidate]+x}" ]] || continue
+    seen["$candidate"]=1
+    if _run_with_optional_sudo "$use_sudo" systemctl "${systemctl_args[@]}" list-unit-files "$candidate" >/dev/null 2>&1; then
+      resolved="$candidate"
+      break
+    fi
+  done
+
+  if [[ "$resolved" = "" ]]; then
+    LAST_ERROR="Service not found: $service"
+    return 1
+  fi
+
+  if _run_with_optional_sudo "$use_sudo" systemctl "${systemctl_args[@]}" is-enabled "$resolved" >/dev/null 2>&1; then
+    return 0
+  fi
+
+  if ! _run_with_optional_sudo "$use_sudo" systemctl "${systemctl_args[@]}" enable "$resolved" >/dev/null 2>&1; then
+    LAST_ERROR="Failed to enable $resolved (scope: $scope)"
+    return 1
   fi
 
   return 0

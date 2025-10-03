@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-
-set -euo pipefail
+# .chaotic_aur.sh - Chaotic-AUR repository setup for Arch Linux
+# Exit codes: 0 (success), 1 (failure)
 
 export LAST_ERROR="${LAST_ERROR:-}"
 
@@ -16,78 +16,74 @@ chaotic_repo_configured() {
   grep -q "^\[chaotic-aur\]" "$PACMAN_CONF" 2>/dev/null
 }
 
-chaotic_gpg_key_exists() {
+_chaotic_gpg_key_exists() {
   sudo pacman-key --list-keys "$CHAOTIC_KEY" >/dev/null 2>&1
 }
 
-package_installed() {
+_package_installed() {
   local package_name="${1:-}"
 
-  LAST_ERROR=""
-
   if [[ -z "$package_name" ]]; then
-    LAST_ERROR="package_installed() requires a package name"
-    return 2
+    return 1
   fi
 
   pacman -Qi "$package_name" >/dev/null 2>&1
 }
 
-import_chaotic_gpg_key() {
-
+_import_chaotic_gpg_key() {
   LAST_ERROR=""
 
-  if chaotic_gpg_key_exists; then
+  if _chaotic_gpg_key_exists; then
     return 0
   fi
 
   if ! sudo pacman-key --recv-key "$CHAOTIC_KEY" --keyserver "$CHAOTIC_KEYSERVER" >/dev/null 2>&1; then
-    LAST_ERROR="Failed to receive GPG key $CHAOTIC_KEY from $CHAOTIC_KEYSERVER"
+    LAST_ERROR="Failed to receive GPG key"
     return 1
   fi
 
   if ! sudo pacman-key --lsign-key "$CHAOTIC_KEY" >/dev/null 2>&1; then
-    LAST_ERROR="Failed to locally sign GPG key $CHAOTIC_KEY"
+    LAST_ERROR="Failed to sign GPG key"
     return 1
   fi
 
   return 0
 }
 
-install_package_from_url() {
+_install_package_from_url() {
   local package_name="${1:-}"
   local package_url="${2:-}"
 
   LAST_ERROR=""
 
-  if package_installed "$package_name"; then
+  if _package_installed "$package_name"; then
     return 0
   fi
 
   if ! sudo pacman -U --noconfirm "$package_url" >/dev/null 2>&1; then
-    LAST_ERROR="Failed to install $package_name from $package_url"
+    LAST_ERROR="Failed to install $package_name"
     return 1
   fi
 
   return 0
 }
 
-add_chaotic_repo_to_pacman() {
+_add_chaotic_repo_to_pacman() {
   LAST_ERROR=""
 
   if ! printf '\n[chaotic-aur]\nInclude = %s\n' "$MIRRORLIST_PATH" | sudo tee -a "$PACMAN_CONF" >/dev/null; then
-    LAST_ERROR="Failed to add [chaotic-aur] to $PACMAN_CONF"
+    LAST_ERROR="Failed to add chaotic-aur to pacman.conf"
     return 1
   fi
 
   return 0
 }
 
-sync_pacman_databases() {
+_sync_pacman_databases() {
   LAST_ERROR=""
 
   if ! sudo pacman -Sy --noconfirm >/dev/null 2>&1; then
-    LAST_ERROR="Failed to synchronize pacman databases"
+    LAST_ERROR="Failed to sync pacman databases"
     return 1
   fi
 
@@ -97,23 +93,23 @@ sync_pacman_databases() {
 setup_chaotic_aur() {
   LAST_ERROR=""
 
-  if ! import_chaotic_gpg_key; then
+  if ! _import_chaotic_gpg_key; then
     return 1
   fi
 
-  if ! install_package_from_url "chaotic-keyring" "$CHAOTIC_KEYRING_URL"; then
+  if ! _install_package_from_url "chaotic-keyring" "$CHAOTIC_KEYRING_URL"; then
     return 1
   fi
 
-  if ! install_package_from_url "chaotic-mirrorlist" "$CHAOTIC_MIRRORLIST_URL"; then
+  if ! _install_package_from_url "chaotic-mirrorlist" "$CHAOTIC_MIRRORLIST_URL"; then
     return 1
   fi
 
-  if ! add_chaotic_repo_to_pacman; then
+  if ! _add_chaotic_repo_to_pacman; then
     return 1
   fi
 
-  if ! sync_pacman_databases; then
+  if ! _sync_pacman_databases; then
     return 1
   fi
 
