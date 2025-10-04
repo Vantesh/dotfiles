@@ -392,7 +392,7 @@ update_limine_cmdline() {
 # Creates drop-in file in /etc/dracut.conf.d/ with add_dracutmodules+=" <module> "
 # Arguments:
 #   $1 - module name (e.g., "resume")
-# Returns: 0 on success (added or already present), 1 on failure, 2 on invalid args, 127 if dracut not found
+# Returns: 0 on success (added), 1 on failure, 2 (already present), 127 if dracut not found
 add_dracut_module() {
   local module="${1:-}"
 
@@ -419,7 +419,8 @@ add_dracut_module() {
 
   if [[ -f "$dropin_file" ]]; then
     if grep -qF "add_dracutmodules+=\" $module \"" "$dropin_file" 2>/dev/null; then
-      return 0
+      LAST_ERROR="Module already present"
+      return 2
     fi
   fi
 

@@ -196,11 +196,21 @@ main() {
       ;;
     esac
   elif [[ "$generator" = "dracut" ]]; then
-    if ! add_dracut_module "plymouth"; then
+    local dracut_result=0
+    add_dracut_module "plymouth" || dracut_result=$?
+
+    case $dracut_result in
+    0)
+      log INFO "Added plymouth dracut module"
+      needs_initramfs_regen=true
+      ;;
+    2)
+      log SKIP "Plymouth dracut module already configured"
+      ;;
+    *)
       die "Failed to add plymouth dracut module: $LAST_ERROR"
-    fi
-    log INFO "Added plymouth dracut module"
-    needs_initramfs_regen=true
+      ;;
+    esac
   fi
 
   update_bootloader_params

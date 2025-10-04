@@ -218,6 +218,7 @@ EOF
 main() {
   local bootloader
 
+  print_box "Theming"
   log STEP "System Theming"
 
   if ! bootloader=$(detect_bootloader); then
