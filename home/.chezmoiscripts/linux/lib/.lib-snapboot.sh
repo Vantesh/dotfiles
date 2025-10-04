@@ -84,7 +84,7 @@ build_cmdline() {
 check_btrfs() {
   LAST_ERROR=""
 
-  if ! command -v findmnt >/dev/null 2>&1; then
+  if ! command_exists findmnt; then
     LAST_ERROR="findmnt command not found"
     return 127
   fi
@@ -148,7 +148,7 @@ add_mkinitcpio_hook() {
 get_btrfs_root_device() {
   LAST_ERROR=""
 
-  if ! command -v findmnt >/dev/null 2>&1; then
+  if ! command_exists findmnt; then
     LAST_ERROR="findmnt command not found"
     return 127
   fi
@@ -199,7 +199,7 @@ add_fstab_entry() {
   fi
 
   # Reload systemd if available
-  if command -v systemctl >/dev/null 2>&1; then
+  if command_exists systemctl; then
     sudo systemctl daemon-reload >/dev/null 2>&1 || true
   fi
 
@@ -225,7 +225,7 @@ set_snapper_config_value() {
     return 2
   fi
 
-  if ! command -v snapper >/dev/null 2>&1; then
+  if ! command_exists snapper; then
     LAST_ERROR="snapper command not found"
     return 127
   fi
@@ -403,7 +403,7 @@ add_dracut_module() {
     return 2
   fi
 
-  if ! command -v dracut >/dev/null 2>&1; then
+  if ! command_exists dracut; then
     LAST_ERROR="dracut command not found"
     return 127
   fi
@@ -442,9 +442,9 @@ add_dracut_module() {
 detect_initramfs_generator() {
   LAST_ERROR=""
 
-  if command -v mkinitcpio >/dev/null 2>&1; then
+  if command_exists mkinitcpio; then
     printf 'mkinitcpio\n'
-  elif command -v dracut >/dev/null 2>&1; then
+  elif command_exists dracut; then
     printf 'dracut\n'
   else
     printf 'unsupported\n'
@@ -473,7 +473,7 @@ regenerate_initramfs() {
     fi
 
     if [[ "$bootloader" = "limine" ]]; then
-      if ! command -v limine-mkinitcpio >/dev/null 2>&1; then
+      if ! command_exists limine-mkinitcpio; then
         LAST_ERROR="limine-mkinitcpio command not found (install limine-mkinitcpio-hook)"
         return 127
       fi
@@ -490,10 +490,18 @@ regenerate_initramfs() {
     fi
     ;;
   dracut)
-    # dracut --force regenerates all installed kernels
-    if ! sudo dracut --force >/dev/null 2>&1; then
-      LAST_ERROR="Failed to regenerate initramfs with dracut"
-      return 1
+    # dracut-rebuild is the preferred method on some distributions (e.g., EndeavourOS)
+    if command_exists dracut-rebuild; then
+      if ! sudo dracut-rebuild >/dev/null 2>&1; then
+        LAST_ERROR="Failed to regenerate initramfs with dracut-rebuild"
+        return 1
+      fi
+    else
+      # Fallback to dracut --regenerate-all
+      if ! sudo dracut --force --regenerate-all >/dev/null 2>&1; then
+        LAST_ERROR="Failed to regenerate initramfs with dracut"
+        return 1
+      fi
     fi
     ;;
   unsupported)
