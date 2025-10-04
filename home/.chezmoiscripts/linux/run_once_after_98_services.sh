@@ -1,98 +1,181 @@
 #!/usr/bin/env bash
-# shellcheck disable=SC1091
-source "${CHEZMOI_SOURCE_DIR:?env variable missing. Please only run this script via chezmoi}/.chezmoiscripts/linux/helpers/.00_helpers"
+# 98_services.sh - Enable core services and configure system utilities
+# Exit codes: 0 (success), 1 (failure)
 
-# =============================================================================
-# Initialize Environment
-# =============================================================================
+set -euo pipefail
 
-common_init
+shopt -s nullglob globstar
 
-# =============================================================================
-# ENABLE SERVICES
-# =============================================================================
-print_box "smslant" "Services"
-print_step "Enabling necessary services"
+readonly LIB_DIR="${CHEZMOI_SOURCE_DIR:-$(chezmoi source-path)}/.chezmoiscripts/linux/lib"
 
-readonly USER_SERVICES=(
-  gnome-keyring-daemon
-  hypridle
-  mpris-proxy
+# shellcheck source=/dev/null
+source "$LIB_DIR/.lib-common.sh"
+
+readonly -a USER_SERVICES=(
+  "gnome-keyring-daemon"
+  "hypridle"
+  "mpris-proxy"
 )
 
-readonly SYSTEM_SERVICES=(
-  NetworkManager
-  bluetooth
-  udisks2
-  ufw
-  reflector.timer
-  pacman-filesdb-refresh.timer
-  paccache.timer
+readonly -a SYSTEM_SERVICES=(
+  "NetworkManager"
+  "bluetooth"
+  "udisks2"
+  "ufw"
+  "reflector.timer"
+  "pacman-filesdb-refresh.timer"
+  "paccache.timer"
 )
 
-# Enable services by scope
-for scope in user system; do
-  services=()
-  if [[ "$scope" == "user" ]]; then
-    services=("${USER_SERVICES[@]}")
-  else
-    services=("${SYSTEM_SERVICES[@]}")
+enable_configured_services() {
+  local -a failed_services=()
+  local scope
+
+  for scope in user system; do
+    local -a scope_services=()
+
+    if [[ "$scope" == "user" ]]; then
+      scope_services=("${USER_SERVICES[@]}")
+    else
+      scope_services=("${SYSTEM_SERVICES[@]}")
+    fi
+
+    if ((${#scope_services[@]} == 0)); then
+      continue
+    fi
+
+    local service
+    for service in "${scope_services[@]}"; do
+      if ! enable_service "$service" "$scope"; then
+        local error_msg="$LAST_ERROR"
+
+        if [[ "$error_msg" == "Service not found: "* ]]; then
+          log SKIP "$service ($scope) not available"
+        else
+          failed_services+=("$service ($scope): $error_msg")
+          log WARN "Failed to enable $service ($scope): $error_msg"
+        fi
+      else
+        log INFO "${COLOR_INFO}${service}${COLOR_RESET} enabled (${scope})"
+      fi
+    done
+  done
+
+  if ((${#failed_services[@]} > 0)); then
+    log WARN "Some services failed to enable: ${failed_services[*]}"
   fi
 
-  for service in "${services[@]}"; do
-    enable_service "$service" "$scope"
-  done
-done
+  return 0
+}
 
-print_step "Enabling UFW (Uncomplicated Firewall)"
+configure_ufw() {
+  if ! command_exists "ufw"; then
+    log SKIP "UFW not installed, skipping firewall configuration"
+    return 0
+  fi
 
-if sudo ufw enable >/dev/null 2>&1; then
-  print_info "UFW enabled"
+  log STEP "Configuring UFW"
 
-  failed=()
-  for port in 53317/udp 53317/tcp 443/tcp 80/tcp; do
-    if sudo ufw allow "$port" >/dev/null 2>&1; then
-      print_info "Allowed $port"
+  if ! sudo ufw --force enable >/dev/null 2>&1; then
+    log WARN "Failed to enable UFW"
+    return 0
+  fi
+
+  log INFO "Enabled UFW"
+
+  local -a allow_rules=(
+    "53317/udp"
+    "53317/tcp"
+    "443/tcp"
+    "80/tcp"
+  )
+
+  local rule
+  for rule in "${allow_rules[@]}"; do
+    if sudo ufw allow "$rule" >/dev/null 2>&1; then
+      log INFO "Allowed $rule"
     else
-      failed+=("$port")
+      log WARN "Failed to allow $rule"
     fi
   done
 
   if sudo ufw limit 22/tcp >/dev/null 2>&1; then
-    print_info "Limited SSH (22/tcp)"
+    log INFO "Limited SSH (22/tcp)"
   else
-    failed+=("22/tcp")
+    log WARN "Failed to limit SSH (22/tcp)"
   fi
 
   if sudo ufw default deny incoming >/dev/null 2>&1; then
-    print_info "Default: deny incoming"
+    log INFO "Set default policy: deny incoming"
   else
-    print_warning "Failed to set deny incoming"
+    log WARN "Failed to set default policy: deny incoming"
   fi
 
   if sudo ufw default allow outgoing >/dev/null 2>&1; then
-    print_info "Default: allow outgoing"
+    log INFO "Set default policy: allow outgoing"
   else
-    print_warning "Failed to set allow outgoing"
+    log WARN "Failed to set default policy: allow outgoing"
   fi
 
-  if ((${#failed[@]})); then
-    print_warning "Failed rules: ${failed[*]}"
+  return 0
+}
+
+disable_networkd_wait_online() {
+  local service="systemd-networkd-wait-online.service"
+
+  if ! command_exists "systemctl"; then
+    log SKIP "systemctl not available, skipping $service adjustments"
+    return 0
   fi
-else
-  print_warning "Failed to enable UFW"
-fi
 
-# Prevent systemd-networkd-wait-online timeout on boot
-if systemctl is-active --quiet systemd-networkd-wait-online.service; then
-  sudo systemctl disable systemd-networkd-wait-online.service
-  sudo systemctl mask systemd-networkd-wait-online.service
-fi
+  if ! systemctl list-unit-files "$service" >/dev/null 2>&1; then
+    log SKIP "$service not present"
+    return 0
+  fi
 
-# updatedb
-print_info "Running updatedb to update file database..."
-if sudo updatedb; then
-  print_info "updatedb completed successfully."
-else
-  print_warning "updatedb encountered issues."
-fi
+  if systemctl is-active --quiet "$service" || systemctl is-enabled --quiet "$service"; then
+    if sudo systemctl disable --now "$service" >/dev/null 2>&1; then
+      log INFO "Disabled $service"
+    else
+      log WARN "Failed to disable $service"
+    fi
+  fi
+
+  if sudo systemctl mask "$service" >/dev/null 2>&1; then
+    log INFO "Masked $service"
+  else
+    log WARN "Failed to mask $service"
+  fi
+
+  return 0
+}
+
+update_locate_database() {
+  if ! command_exists "updatedb"; then
+    log SKIP "updatedb not available, skipping locate database update"
+    return 0
+  fi
+
+  log INFO "Updating locate database"
+
+  if sudo updatedb >/dev/null 2>&1; then
+    log INFO "updatedb completed successfully"
+  else
+    log WARN "updatedb encountered issues"
+  fi
+
+  return 0
+}
+
+main() {
+  print_box "Services"
+  log STEP "Configuring services"
+
+  enable_configured_services
+  configure_ufw
+  disable_networkd_wait_online
+  update_locate_database
+
+}
+
+main "$@"

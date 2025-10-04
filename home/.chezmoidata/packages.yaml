@@ -1,4 +1,4 @@
-Arch:
+arch:
   core:
     - hypridle
     - hyprpicker
@@ -10,7 +10,7 @@ Arch:
     - xdg-desktop-portal-gtk
     - xdg-autostart
     - gnome-keyring
-    - networkmanager-iwd
+    - networkmanager
     - udiskie
     - ntfs-3g
     - exfatprogs
@@ -155,3 +155,72 @@ Arch:
     - power-profiles-daemon
     - upower
     - powertop
+
+fedora:
+  copr_repos:
+    - solopasha/hyprland
+    - errornointernet/quickshell
+    - tofik/nwg-shell
+    - lihaohong/yazi
+    - alternateved/eza
+    - heus-sueh/packages
+    - azandure/clipse
+    - yalter/niri
+    - deltacopy/darkly
+    - brycensranch/gpu-screen-recorder-git
+
+  core:
+    - hypridle
+    - hyprpicker
+    - hyprshot
+    - hyprlock
+    - uwsm
+    - accountsservice
+    - polkit-gnome
+    - xdg-desktop-portal-gtk
+    - xdg-autostart
+    - gnome-keyring
+    - NetworkManager
+    - udiskie
+    - ntfs-3g
+    - exfatprogs
+    - dosfstools
+    - mtools
+    - f2fs-tools
+    - ntfs-3g
+    - exfatprogs
+    - dosfstools
+    - mtools
+    - usbutils
+    - ufw
+    - rofi
+    - rofimoji
+    - kitty
+    - imv
+    - evince
+    - nautilus
+    - gvfs-mtp
+    - wmctrl
+    - khal
+    - playerctl
+    - libcanberra
+    - gammastep
+    - geoclue
+    - kernel-devel
+    - pam-devel
+    - libxcb-devel
+    - zig
+    - xorg-x11-xauth
+    - xorg-x11-server
+    - ly
+    - kdialog
+    - gparted
+    - xorg-xhost
+    - brightnessctl
+    - ddcutil
+    - clipse
+    - unzip
+    - matugen
+    - darkly
+    - xdg-terminal-exec
+    - gpu-screen-recorder-ui

@@ -83,3 +83,12 @@ Documents/*
 {{- if eq .default_shell "zsh" }}
 .config/fish
 {{- end }}
+
+{{- if lookPath "pacman" }}
+.chezmoiscripts/linux/fedora/**
+
+{{- else if lookPath "dnf" }}
+.chezmoiscripts/linux/arch/**
+
+{{- end }}
+

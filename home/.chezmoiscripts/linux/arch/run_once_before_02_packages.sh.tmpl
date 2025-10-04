@@ -1,0 +1,203 @@
+#!/usr/bin/env bash
+# 02_packages.sh - Install packages
+# Exit codes: 0 (success), 1 (failure)
+
+set -euo pipefail
+
+shopt -s nullglob globstar
+
+readonly LIB_DIR="${CHEZMOI_SOURCE_DIR:-$(chezmoi source-path)}/.chezmoiscripts/linux/lib"
+
+# shellcheck source=/dev/null
+source "$LIB_DIR/.lib-common.sh"
+# shellcheck source=/dev/null
+source "$LIB_DIR/.lib-xdg_setup.sh"
+# shellcheck source=/dev/null
+source "$LIB_DIR/.lib-chaotic_aur.sh"
+# shellcheck source=/dev/null
+source "$LIB_DIR/.lib-aur_helper.sh"
+# shellcheck source=/dev/null
+source "$LIB_DIR/.lib-package_manager.sh"
+
+if [[ "$(id -u)" -eq 0 ]]; then
+  die "Do not run this script as root."
+fi
+
+if [[ "${SKIP_PACKAGES:-0}" == "1" ]]; then
+  log INFO "Skipping package installation"
+  exit 0
+fi
+
+if ! setup_xdg; then
+  die "XDG setup failed: $LAST_ERROR"
+fi
+
+if ! chaotic_repo_configured; then
+  if confirm "Set up Chaotic-AUR repository?"; then
+    if ! setup_chaotic_aur; then
+      die "Failed to set up Chaotic-AUR repo: $LAST_ERROR"
+    fi
+    log INFO "Configured Chaotic-AUR repository"
+  else
+    log WARN "Skipping Chaotic-AUR setup"
+  fi
+fi
+
+if ! command_exists paru && ! command_exists yay; then
+  log STEP "Installing AUR helper"
+
+  if ! install_aur_helper; then
+    die "Failed to install AUR helper: $LAST_ERROR"
+  fi
+
+  log INFO "Installed AUR helper: $AUR_HELPER"
+fi
+
+install_group() {
+  local group_name="$1"
+  shift
+
+  if [[ $# -eq 0 ]]; then
+    return 0
+  fi
+
+  log STEP "Installing $group_name packages"
+
+  if ! install_package "$@"; then
+    local error_msg="$LAST_ERROR"
+    die "Failed to install $group_name packages: $error_msg"
+  fi
+}
+
+print_box "Packages"
+
+core_pkgs=(
+{{- range .arch.core }}
+  "{{ . }}"
+{{- end }}
+  "{{ .default_shell }}"
+)
+
+{{- if eq .compositor "hyprland" }}
+core_pkgs+=(
+{{- range .arch.compositor.hyprland }}
+  "{{ . }}"
+{{- end }}
+)
+{{- else if eq .compositor "niri" }}
+core_pkgs+=(
+{{- range .arch.compositor.niri }}
+  "{{ . }}"
+{{- end }}
+)
+{{- end }}
+
+install_group "Core" "${core_pkgs[@]}"
+
+cli_pkgs=(
+{{- range .arch.cli }}
+  "{{ . }}"
+{{- end }}
+)
+install_group "CLI Tools" "${cli_pkgs[@]}"
+
+theme_pkgs=(
+{{- range .arch.theming }}
+  "{{ . }}"
+{{- end }}
+)
+install_group "Theming" "${theme_pkgs[@]}"
+
+font_pkgs=(
+{{- range .arch.fonts }}
+  "{{ . }}"
+{{- end }}
+)
+install_group "Fonts" "${font_pkgs[@]}"
+
+aur_pkgs=(
+{{- range .arch.aur }}
+  "{{ . }}"
+{{- end }}
+)
+install_group "AUR" "${aur_pkgs[@]}"
+
+drivers=(
+{{- range .arch.drivers.base }}
+  "{{ . }}"
+{{- end }}
+)
+
+kernel_version=$(uname -r)
+case "$kernel_version" in
+  *-zen*)     drivers+=("{{ .arch.drivers.kernelHeaders.zen }}") ;;
+  *-lts*)     drivers+=("{{ .arch.drivers.kernelHeaders.lts }}") ;;
+  *-cachyos*) drivers+=("{{ .arch.drivers.kernelHeaders.cachyos }}") ;;
+  *)          drivers+=("{{ .arch.drivers.kernelHeaders.default }}") ;;
+esac
+
+gpu_info=$(lspci -nn | grep -Ei "VGA|3D|Display")
+
+if [[ $gpu_info == *"NVIDIA"* ]]; then
+  drivers+=(
+{{- range .arch.drivers.nvidia }}
+    "{{ . }}"
+{{- end }}
+  )
+
+  nvidia_variant=""
+  if echo "$gpu_info" | grep -q -E "RTX [2-9][0-9]|GTX 16"; then
+    nvidia_variant="nvidia-open-dkms"
+  else
+    nvidia_variant="nvidia-dkms"
+  fi
+
+  if [[ "{{ .distro }}" == "cachyos" ]]; then
+    log WARN "Detected CachyOS: skipping $nvidia_variant"
+  else
+    drivers+=("$nvidia_variant")
+  fi
+fi
+
+if [[ $gpu_info == *"AMD/ATI"* ]]; then
+  drivers+=(
+{{- range .arch.drivers.amd }}
+    "{{ . }}"
+{{- end }}
+  )
+fi
+
+if [[ $gpu_info == *"Intel"* ]]; then
+  drivers+=(
+{{- range .arch.drivers.intel }}
+    "{{ . }}"
+{{- end }}
+  )
+fi
+
+if confirm "Install driver packages (${#drivers[@]} packages)?"; then
+  install_group "Drivers" "${drivers[@]}"
+else
+  log INFO "Skipped driver installation"
+fi
+
+if is_laptop; then
+  laptop_pkgs=(
+{{- range .arch.laptop }}
+    "{{ . }}"
+{{- end }}
+  )
+  install_group "Laptop" "${laptop_pkgs[@]}"
+fi
+
+opt_pkgs=(
+{{- range .arch.optional }}
+  "{{ . }}"
+{{- end }}
+)
+
+if confirm "Install optional packages (${#opt_pkgs[@]} packages)?"; then
+  install_group "Optional" "${opt_pkgs[@]}"
+else
+  log INFO "Skipped optional packages"
+fi
