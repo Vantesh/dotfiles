@@ -299,9 +299,9 @@ update_grub_cmdline() {
     return 127
   fi
 
-  # Extract current GRUB_CMDLINE_LINUX_DEFAULT
+  # Extract current GRUB_CMDLINE_LINUX_DEFAULT value
   local current_cmdline
-  current_cmdline=$(grep '^GRUB_CMDLINE_LINUX_DEFAULT=' "$grub_file" 2>/dev/null | sed 's/.*="\(.*\)"/\1/')
+  current_cmdline=$(sed -nE 's/^GRUB_CMDLINE_LINUX_DEFAULT="(.*)"/\1/p' "$grub_file" 2>/dev/null | head -n1)
 
   # Build new command line (build_cmdline handles deduplication)
   local new_cmdline
@@ -310,9 +310,11 @@ update_grub_cmdline() {
     return 1
   fi
 
-  # Update GRUB config file
-  if ! sudo sed -i "s|^GRUB_CMDLINE_LINUX_DEFAULT=.*|GRUB_CMDLINE_LINUX_DEFAULT=\"$new_cmdline\"|" "$grub_file" 2>/dev/null; then
-    LAST_ERROR="Failed to update GRUB configuration file"
+  # Update GRUB config file using update_config from .lib-common.sh
+  # Note: Caller must source .lib-common.sh before calling this function
+  # Wrap value in quotes as GRUB requires quoted values
+  if ! update_config "$grub_file" "GRUB_CMDLINE_LINUX_DEFAULT" "\"$new_cmdline\""; then
+    LAST_ERROR="Failed to update GRUB configuration: $LAST_ERROR"
     return 1
   fi
 

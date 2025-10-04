@@ -152,7 +152,7 @@ main() {
     # shellcheck source=/dev/null
     source /etc/os-release
     case "${ID:-}" in
-    fedora | cachyos | endeavouros | garuda)
+    fedora | cachyos | garuda)
       log SKIP "$NAME already has plymouth pre-configured"
       return 0
       ;;
