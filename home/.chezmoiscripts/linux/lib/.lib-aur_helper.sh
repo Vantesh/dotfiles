@@ -1,6 +1,14 @@
 #!/usr/bin/env bash
-# .aur_helper.sh - AUR helper installation (paru, yay)
-# Exit codes: 0 (success), 1 (failure), 2 (invalid args)
+# .lib-aur_helper.sh - AUR helper installation
+#
+# Installs paru from AUR or detects existing AUR helper (paru/yay).
+# Sets AUR_HELPER environment variable for use by other scripts.
+#
+# Globals:
+#   LAST_ERROR - Error message from last failed operation
+#   AUR_HELPER - Set to detected/installed helper name
+# Exit codes:
+#   0 (success), 1 (failure), 2 (invalid args)
 
 export LAST_ERROR="${LAST_ERROR:-}"
 export AUR_HELPER="${AUR_HELPER:-}"
@@ -29,6 +37,16 @@ _build_aur_package() {
   return 0
 }
 
+# Installs or detects AUR helper.
+#
+# Checks for existing paru or yay, otherwise builds paru-bin from AUR.
+# Generates paru development database after first install.
+#
+# Globals:
+#   LAST_ERROR - Set on failure
+#   AUR_HELPER - Set to helper name: "paru" or "yay"
+# Returns:
+#   0 on success, 1 on failure
 install_aur_helper() {
   local temp_dir=""
 

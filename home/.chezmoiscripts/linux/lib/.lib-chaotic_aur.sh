@@ -1,17 +1,29 @@
 #!/usr/bin/env bash
-# .chaotic_aur.sh - Chaotic-AUR repository setup for Arch Linux
-# Exit codes: 0 (success), 1 (failure)
+# .lib-chaotic_aur.sh - Chaotic-AUR repository configuration
+#
+# Configures Chaotic-AUR repository for Arch Linux. Checks if already
+# configured and installs necessary keyring and mirror list packages.
+#
+# Globals:
+#   LAST_ERROR - Error message from last failed operation
+# Exit codes:
+#   0 (success), 1 (failure)
 
 export LAST_ERROR="${LAST_ERROR:-}"
 
 readonly CHAOTIC_KEY="3056513887B78AEB"
 readonly CHAOTIC_KEYSERVER="keyserver.ubuntu.com"
-readonly CHAOTIC_CDN="https://cdn-mirror.chaotic.cx/chaotic-aur"
-readonly CHAOTIC_KEYRING_URL="${CHAOTIC_CDN}/chaotic-keyring.pkg.tar.zst"
-readonly CHAOTIC_MIRRORLIST_URL="${CHAOTIC_CDN}/chaotic-mirrorlist.pkg.tar.zst"
+readonly CHAOTIC_PKG_URL="${CHAOTIC_PKG_URL:-https://cdn-mirror.chaotic.cx/chaotic-aur/chaotic-keyring.pkg.tar.zst}"
+readonly CHAOTIC_MIRROR_PKG_URL="${CHAOTIC_MIRROR_PKG_URL:-https://cdn-mirror.chaotic.cx/chaotic-aur/chaotic-mirrorlist.pkg.tar.zst}"
 readonly PACMAN_CONF="/etc/pacman.conf"
 readonly MIRRORLIST_PATH="/etc/pacman.d/chaotic-mirrorlist"
 
+# Checks if Chaotic-AUR repository is configured.
+#
+# Verifies presence of chaotic-aur section in /etc/pacman.conf.
+#
+# Returns:
+#   0 if configured, 1 if not configured
 chaotic_repo_configured() {
   grep -q "^\[chaotic-aur\]" "$PACMAN_CONF" 2>/dev/null
 }
@@ -90,6 +102,15 @@ _sync_pacman_databases() {
   return 0
 }
 
+# Configures Chaotic-AUR repository.
+#
+# Imports GPG key, installs keyring and mirrorlist packages, adds repository
+# to pacman.conf, and syncs package databases.
+#
+# Globals:
+#   LAST_ERROR - Set on failure
+# Returns:
+#   0 on success, 1 on failure
 setup_chaotic_aur() {
   LAST_ERROR=""
 

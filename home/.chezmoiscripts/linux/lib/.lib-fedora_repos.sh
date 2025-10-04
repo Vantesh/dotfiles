@@ -1,6 +1,13 @@
 #!/usr/bin/env bash
-# .fedora_repos.sh - Fedora repository management (RPM Fusion, COPR)
-# Exit codes: 0 (success), 1 (failure), 2 (invalid args)
+# .lib-fedora_repos.sh - Fedora repository configuration
+#
+# Configures RPM Fusion (free/nonfree) and COPR repositories for Fedora.
+# Handles repository detection and package installation.
+#
+# Globals:
+#   LAST_ERROR - Error message from last failed operation
+# Exit codes:
+#   0 (success), 1 (failure), 2 (invalid args)
 
 export LAST_ERROR="${LAST_ERROR:-}"
 
@@ -68,6 +75,15 @@ _enable_copr_repo() {
   return 0
 }
 
+# Configures RPM Fusion repositories.
+#
+# Installs RPM Fusion free and nonfree release packages for current
+# Fedora version. Skips if already installed.
+#
+# Globals:
+#   LAST_ERROR - Set on failure
+# Returns:
+#   0 on success, 1 on failure
 setup_rpmfusion() {
   LAST_ERROR=""
 
@@ -82,6 +98,16 @@ setup_rpmfusion() {
   return 0
 }
 
+# Enables COPR repositories.
+#
+# Enables specified COPR repos. Skips already-enabled repos.
+#
+# Arguments:
+#   $@ - COPR repo names (format: owner/repo)
+# Globals:
+#   LAST_ERROR - Set on failure
+# Returns:
+#   0 on success, 1 on failure, 2 on invalid args
 setup_copr_repos() {
   LAST_ERROR=""
 

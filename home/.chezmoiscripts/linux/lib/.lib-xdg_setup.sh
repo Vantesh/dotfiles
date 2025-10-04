@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
-# .xdg_setup.sh - XDG Base Directory setup and environment configuration
-# Exit codes: 0 (success), 1 (failure)
+# .lib-xdg_setup.sh - XDG user directories configuration
+#
+# Sets up XDG Base Directory specification environment variables
+#
+# Globals:
+#   LAST_ERROR - Error message from last failed operation
+# Exit codes:
+#   0 (success), 1 (failure), 127 (missing dependency)
 
 export LAST_ERROR="${LAST_ERROR:-}"
 
@@ -12,7 +18,6 @@ _ensure_xdg_directories() {
   export XDG_BIN_HOME="${XDG_BIN_HOME:-$HOME/.local/bin}"
   export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
 
-  # Add to PATH only if not already present
   case ":$PATH:" in
   *":$XDG_BIN_HOME:"*) ;;
   *) export PATH="$XDG_BIN_HOME:$PATH" ;;
@@ -24,7 +29,6 @@ _setup_gopath() {
     export GOPATH="$XDG_DATA_HOME/go"
   fi
 
-  # Add to PATH only if not already present
   case ":$PATH:" in
   *":$GOPATH/bin:"*) ;;
   *) export PATH="$GOPATH/bin:$PATH" ;;
@@ -146,6 +150,17 @@ _export_xdg_env_vars() {
   export MAVEN_ARGS="--settings $XDG_CONFIG_HOME/maven/settings.xml"
 }
 
+# Configures XDG Base Directory specification.
+#
+# Sets up XDG environment variables, creates directories, migrates bash history,
+# and configures tools to use XDG paths (Maven, GnuPG, Python, etc.).
+#
+# Globals:
+#   LAST_ERROR - Set on failure
+#   XDG_* - Sets all XDG environment variables
+#   GOPATH, CARGO_HOME, etc. - Sets tool-specific XDG paths
+# Returns:
+#   0 on success, 1 on failure
 setup_xdg() {
   LAST_ERROR=""
 

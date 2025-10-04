@@ -1,33 +1,30 @@
 #!/usr/bin/env bash
 # .lib-snapboot.sh - Bootloader and filesystem configuration management
-# Exit codes: 0 (success), 1 (failure), 2 (invalid args), 127 (missing dependency)
 #
-# Bootloader Functions:
-#   build_cmdline <current> <new_params> - Merge kernel parameters (returns via stdout)
-#   detect_bootloader - Detect bootloader type: "grub", "limine", or "unsupported"
-#   detect_initramfs_generator - Detect initramfs generator: "mkinitcpio", "dracut", or "unsupported"
-#   update_grub_cmdline <params...> - Update GRUB kernel command line
-#   update_limine_cmdline <dropin_name> <params...> - Update Limine kernel command line
-#   add_dracut_module <module_name> - Add dracut module to configuration
-#   regenerate_initramfs - Regenerate initramfs using detected generator
+# Provides unified interface for bootloader configuration (GRUB, Limine),
+# initramfs generation (mkinitcpio, dracut), and filesystem operations (btrfs, fstab).
 #
-# Filesystem Functions:
-#   check_btrfs - Check if root filesystem is btrfs
-#   get_btrfs_root_device - Get root btrfs device path (returns via stdout)
-#   add_fstab_entry <entry> <description> - Add entry to /etc/fstab (idempotent)
-#   set_snapper_config_value <config_name> <key> <value> - Set snapper config value
-#
-# Initramfs Functions:
-#   add_mkinitcpio_hook <hook_name> - Add hook to mkinitcpio.conf HOOKS array (idempotent)
+# Globals:
+#   LAST_ERROR - Error message from last failed operation
+# Exit codes:
+#   0 (success), 1 (failure), 2 (invalid args/already exists), 127 (missing dependency)
 
 export LAST_ERROR="${LAST_ERROR:-}"
 
-# build_cmdline merges current and new kernel parameters, overriding duplicates.
+# Merges kernel command line parameters.
+#
+# Combines current and new parameters, with new params overriding duplicates.
+# Maintains parameter order. Intentionally uses word splitting on parameters.
+#
 # Arguments:
 #   $1 - Current kernel command line (space-separated)
 #   $2 - New parameters to add/override (space-separated)
-# Returns: 0 on success, 2 on missing arguments
-# Output: Merged command line to stdout
+# Globals:
+#   LAST_ERROR - Set on invalid args
+# Outputs:
+#   Merged command line to stdout
+# Returns:
+#   0 on success, 2 on missing arguments
 build_cmdline() {
   local current="${1:-}"
   local new_params="${2:-}"
@@ -79,8 +76,14 @@ build_cmdline() {
   return 0
 }
 
-# check_btrfs verifies that root filesystem is btrfs.
-# Returns: 0 if root is btrfs, 1 if not, 127 if findmnt missing
+# Verifies root filesystem is btrfs.
+#
+# Uses findmnt to check if root (/) is mounted on btrfs.
+#
+# Globals:
+#   LAST_ERROR - Set on failure
+# Returns:
+#   0 if root is btrfs, 1 if not, 127 if findmnt missing
 check_btrfs() {
   LAST_ERROR=""
 
@@ -97,10 +100,16 @@ check_btrfs() {
   return 0
 }
 
-# add_mkinitcpio_hook adds a hook to mkinitcpio.conf HOOKS array.
+# Adds hook to mkinitcpio.conf HOOKS array.
+#
+# skips if hook already present. Preserves existing hooks order.
+#
 # Arguments:
-#   $1 - hook name to add
-# Returns: 0 on success (added or already present), 1 on failure, 2 on invalid args
+#   $1 - Hook name to add
+# Globals:
+#   LAST_ERROR - Set on failure
+# Returns:
+#   0 on success (added or already present), 1 on failure, 2 on invalid args
 add_mkinitcpio_hook() {
   local hook="${1:-}"
   local mkinitcpio_conf="/etc/mkinitcpio.conf"
@@ -117,7 +126,6 @@ add_mkinitcpio_hook() {
     return 1
   fi
 
-  # Extract current HOOKS line
   local current_hooks
   current_hooks=$(sed -nE 's/^[[:space:]]*HOOKS=\((.*)\)[[:space:]]*$/\1/p' "$mkinitcpio_conf" 2>/dev/null | head -n1)
 
@@ -126,12 +134,10 @@ add_mkinitcpio_hook() {
     return 1
   fi
 
-  # Check if hook already present (idempotent) - use word boundaries to avoid partial matches
   if [[ " $current_hooks " = *" $hook "* ]]; then
     return 0
   fi
 
-  # Add hook at the end
   local new_hooks="$current_hooks $hook"
 
   if ! sudo sed -i -E "s|^[[:space:]]*HOOKS=\(.*\)|HOOKS=($new_hooks)|" "$mkinitcpio_conf" 2>/dev/null; then
@@ -142,9 +148,16 @@ add_mkinitcpio_hook() {
   return 0
 }
 
-# get_btrfs_root_device returns the device path for root btrfs filesystem.
-# Returns: 0 on success, 1 on failure, 127 if findmnt missing
-# Output: Device path to stdout (e.g., "/dev/nvme0n1p2")
+# Gets root btrfs device path.
+#
+# Uses findmnt to retrieve SOURCE device for root filesystem.
+#
+# Globals:
+#   LAST_ERROR - Set on failure
+# Outputs:
+#   Device path to stdout (e.g., "/dev/nvme0n1p2")
+# Returns:
+#   0 on success, 1 on failure, 127 if findmnt missing
 get_btrfs_root_device() {
   LAST_ERROR=""
 
@@ -166,11 +179,18 @@ get_btrfs_root_device() {
   return 0
 }
 
-# add_fstab_entry adds an entry to /etc/fstab if not already present.
+# Adds entry to /etc/fstab.
+#
+# checks for exact line match before adding. Reloads systemd
+# daemon after modification if systemctl available.
+#
 # Arguments:
 #   $1 - fstab entry line
-#   $2 - description for error messages
-# Returns: 0 on success (already exists or added), 1 on failure, 2 on invalid args
+#   $2 - Description for error messages
+# Globals:
+#   LAST_ERROR - Set on failure
+# Returns:
+#   0 on success (already exists or added), 1 on failure, 2 on invalid args
 add_fstab_entry() {
   local entry="${1:-}"
   local description="${2:-}"
@@ -206,13 +226,19 @@ add_fstab_entry() {
   return 0
 }
 
-# set_snapper_config_value sets a configuration value for a snapper config.
-# Creates the config if it doesn't exist (only for "root" and "home").
+# Sets snapper configuration value.
+#
+# Auto-creates config if it doesn't exist (only for "root" and "home").
+# Uses snapper -c command to set configuration.
+#
 # Arguments:
-#   $1 - config name (e.g., "root", "home")
-#   $2 - configuration key
-#   $3 - configuration value
-# Returns: 0 on success, 1 on failure, 2 on invalid args, 127 if snapper missing
+#   $1 - Config name (e.g., "root", "home")
+#   $2 - Configuration key
+#   $3 - Configuration value
+# Globals:
+#   LAST_ERROR - Set on failure
+# Returns:
+#   0 on success, 1 on failure, 2 on invalid args, 127 if snapper missing
 set_snapper_config_value() {
   local config_name="${1:-}"
   local key="${2:-}"
@@ -230,9 +256,7 @@ set_snapper_config_value() {
     return 127
   fi
 
-  # Check if config exists
   if ! sudo snapper list-configs 2>/dev/null | grep -q "^$config_name"; then
-    # Auto-create standard configs
     case "$config_name" in
     root)
       if ! sudo snapper -c "$config_name" create-config / >/dev/null 2>&1; then
@@ -253,7 +277,6 @@ set_snapper_config_value() {
     esac
   fi
 
-  # Set configuration value
   if ! sudo snapper -c "$config_name" set-config "${key}=${value}" >/dev/null 2>&1; then
     LAST_ERROR="Failed to set $key in snapper config '$config_name'"
     return 1
@@ -262,9 +285,14 @@ set_snapper_config_value() {
   return 0
 }
 
-# detect_bootloader identifies the system bootloader.
-# Returns: 0 on success
-# Output: "grub", "limine", or "unsupported" to stdout
+# Identifies system bootloader.
+#
+# Checks for limine binary first, then GRUB config file.
+#
+# Outputs:
+#   Bootloader type to stdout: "grub", "limine", or "unsupported"
+# Returns:
+#   0 always
 detect_bootloader() {
   LAST_ERROR=""
 
@@ -279,10 +307,18 @@ detect_bootloader() {
   return 0
 }
 
-# update_grub_cmdline updates GRUB kernel command line parameters.
-# Merges new parameters with existing GRUB_CMDLINE_LINUX_DEFAULT (deduplicates by key).
-# Arguments: Space-separated kernel parameters to add/override
-# Returns: 0 on success, 1 on failure, 2 on invalid args, 127 if GRUB not found
+# Updates GRUB kernel command line parameters.
+#
+# Merges new parameters with existing GRUB_CMDLINE_LINUX_DEFAULT,
+# with new params overriding duplicates. Regenerates GRUB config.
+# Requires .lib-common.sh sourced for update_config().
+#
+# Arguments:
+#   $@ - Space-separated kernel parameters to add/override
+# Globals:
+#   LAST_ERROR - Set on failure
+# Returns:
+#   0 on success, 1 on failure, 2 on invalid args, 127 if GRUB not found
 update_grub_cmdline() {
   local params="$*"
   local grub_file="/etc/default/grub"
@@ -327,11 +363,18 @@ update_grub_cmdline() {
   return 0
 }
 
-# update_limine_cmdline updates Limine kernel command line via drop-in file.
+# Updates Limine kernel command line via drop-in file.
+#
+# Creates configuration file in /etc/limine-entry-tool.d/ with
+# KERNEL_CMDLINE[default]+= directive. Escapes quotes in parameters.
+#
 # Arguments:
-#   $1 - Drop-in filename (e.g., "50-hibernation.conf" or "50-hibernation")
-#   $@ - Kernel parameters to add
-# Returns: 0 on success, 1 on failure, 2 on invalid args, 127 if limine tools missing
+#   $1 - Drop-in filename (e.g., "50-hibernation" or "50-hibernation.conf")
+#   $@ - Kernel parameters to add (from $2 onwards)
+# Globals:
+#   LAST_ERROR - Set on failure
+# Returns:
+#   0 on success, 1 on failure, 2 on invalid args, 127 if limine tools missing
 update_limine_cmdline() {
   local dropin_name="${1:-}"
 
@@ -356,7 +399,6 @@ update_limine_cmdline() {
   local dropin_dir="/etc/limine-entry-tool.d"
   local dropin_file="$dropin_dir/$dropin_name"
 
-  # Check if limine-entry-tool directory exists
   if [[ ! -d "$dropin_dir" ]]; then
     LAST_ERROR="Limine drop-in directory not found: $dropin_dir (install limine-mkinitcpio-hook)"
     return 127
@@ -372,7 +414,6 @@ update_limine_cmdline() {
     return 1
   fi
 
-  # Write drop-in configuration
   # Note: KERNEL_CMDLINE[default]+= appends to existing parameters
   if ! printf 'KERNEL_CMDLINE[default]+= "%s"\n' "$escaped_params" | sudo tee "$dropin_file" >/dev/null 2>&1; then
     LAST_ERROR="Failed to write Limine drop-in file: $dropin_file"
@@ -388,11 +429,17 @@ update_limine_cmdline() {
   return 0
 }
 
-# add_dracut_module adds a dracut module to configuration.
-# Creates drop-in file in /etc/dracut.conf.d/ with add_dracutmodules+=" <module> "
+# Adds dracut module to configuration.
+#
+# Creates drop-in file in /etc/dracut.conf.d/ with add_dracutmodules directive.
+# Idempotent - returns 2 if module already present.
+#
 # Arguments:
-#   $1 - module name (e.g., "resume")
-# Returns: 0 on success (added), 1 on failure, 2 (already present), 127 if dracut not found
+#   $1 - Module name (e.g., "resume", "plymouth")
+# Globals:
+#   LAST_ERROR - Set on failure or if already present
+# Returns:
+#   0 on success (added), 1 on failure, 2 (already present), 127 if dracut not found
 add_dracut_module() {
   local module="${1:-}"
 
@@ -411,7 +458,6 @@ add_dracut_module() {
   local dropin_dir="/etc/dracut.conf.d"
   local dropin_file="$dropin_dir/${module}-module.conf"
 
-  # Create drop-in directory if needed
   if ! sudo mkdir -p "$dropin_dir" 2>/dev/null; then
     LAST_ERROR="Failed to create dracut drop-in directory: $dropin_dir"
     return 1
@@ -437,9 +483,14 @@ add_dracut_module() {
   return 0
 }
 
-# detect_initramfs_generator identifies the system's initramfs tool.
-# Returns: 0 on success
-# Output: "mkinitcpio", "dracut", or "unsupported" to stdout
+# Identifies system's initramfs generator.
+#
+# Checks for mkinitcpio first, then dracut.
+#
+# Outputs:
+#   Generator type to stdout: "mkinitcpio", "dracut", or "unsupported"
+# Returns:
+#   0 always
 detect_initramfs_generator() {
   LAST_ERROR=""
 
@@ -454,8 +505,15 @@ detect_initramfs_generator() {
   return 0
 }
 
-# regenerate_initramfs rebuilds initramfs using detected generator.
-# Returns: 0 on success, 1 on failure, 127 if generator unsupported
+# Rebuilds initramfs using detected generator.
+#
+# For mkinitcpio: Uses mkinitcpio -P (all presets).
+# For dracut: Prefers dracut-rebuild if available, else dracut --force --regenerate-all.
+#
+# Globals:
+#   LAST_ERROR - Set on failure
+# Returns:
+#   0 on success, 1 on failure, 127 if generator unsupported
 regenerate_initramfs() {
   LAST_ERROR=""
 
@@ -491,14 +549,12 @@ regenerate_initramfs() {
     fi
     ;;
   dracut)
-    # dracut-rebuild is the preferred method on some distributions (e.g., EndeavourOS)
     if command_exists dracut-rebuild; then
       if ! sudo dracut-rebuild >/dev/null 2>&1; then
         LAST_ERROR="Failed to regenerate initramfs with dracut-rebuild"
         return 1
       fi
     else
-      # Fallback to dracut --regenerate-all
       if ! sudo dracut --force --regenerate-all >/dev/null 2>&1; then
         LAST_ERROR="Failed to regenerate initramfs with dracut"
         return 1

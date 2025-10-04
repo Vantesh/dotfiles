@@ -1,10 +1,14 @@
 #!/usr/bin/env bash
-# .common.sh - Common utilities and logging
-# NOTE: Enforces strict mode (set -euo pipefail) for all sourcing scripts
-
-set -euo pipefail
-
-shopt -s nullglob globstar
+# .lib-common.sh - Common utilities and logging functions
+#
+# Provides core utility functions for logging, user interaction, system
+# configuration, and service management. This is the base library for all scripts.
+#
+# Globals:
+#   LAST_ERROR - Error message from last failed operation
+#   COLOR_* - Color codes for terminal output
+# Exit codes:
+#   Functions return 0 (success), 1 (failure), 2 (invalid args), 127 (missing dependency)
 
 export LAST_ERROR="${LAST_ERROR:-}"
 
@@ -28,6 +32,18 @@ fi
 
 trap 'printf "%b" "$COLOR_RESET"' EXIT ERR INT TERM
 
+# Outputs formatted log messages to stderr.
+#
+# Supports color-coded output for different log levels. STEP level adds
+# visual spacing with blank lines. Respects NO_COLOR environment variable.
+#
+# Arguments:
+#   $1 - Log level: INFO, WARN, ERROR, SKIP, or STEP
+#   $@ - Message to log
+# Outputs:
+#   Formatted message to stderr
+# Returns:
+#   0 on success, 1 on invalid arguments
 log() {
   local level="${1:-}"
   shift || true
@@ -57,6 +73,15 @@ log() {
   printf '%b%s:%b %b\n' "$color" "${level^^}" "$COLOR_RESET" "$message" >&2
 }
 
+# Logs error message and exits with specified code.
+#
+# Arguments:
+#   $1 - Optional exit code (default: 1)
+#   $@ - Error message
+# Outputs:
+#   Error message to stderr via log()
+# Returns:
+#   Does not return (exits process)
 die() {
   local exit_code=1
 
@@ -69,6 +94,13 @@ die() {
   exit "$exit_code"
 }
 
+# Displays text in figlet banner.
+#
+# Arguments:
+#   $1 - Text to display
+#   $2 - Font name (default: smslant)
+# Outputs:
+#   ASCII art banner to stdout
 print_box() {
   local text="${1:-}"
   local font="${2:-smslant}"
@@ -76,6 +108,20 @@ print_box() {
   figlet -f "$font" "$text"
 }
 
+# Prompts user for yes/no confirmation.
+#
+# Loops until valid input (y/yes/n/no) is received. Case-insensitive.
+# Empty input uses the default value.
+#
+# Arguments:
+#   $1 - Prompt text (default: "Continue?")
+#   $2 - Default answer: 'y' or 'n' (default: 'y')
+# Globals:
+#   LAST_ERROR - Set on invalid default value
+# Outputs:
+#   Prompt to stderr, reads from stdin
+# Returns:
+#   0 for yes, 1 for no, 2 for invalid default
 confirm() {
   local prompt="${1:-Continue?}"
   local default="${2:-y}"
@@ -119,10 +165,22 @@ confirm() {
   done
 }
 
+# Checks if a command is available in PATH.
+#
+# Arguments:
+#   $1 - Command name
+# Returns:
+#   0 if command exists, 1 otherwise
 command_exists() {
   command -v "$1" >/dev/null 2>&1
 }
 
+# Reloads and triggers udev rules.
+#
+# Globals:
+#   LAST_ERROR - Set on failure
+# Returns:
+#   0 on success, 1 on failure
 reload_udev_rules() {
   LAST_ERROR=""
 
@@ -139,6 +197,12 @@ reload_udev_rules() {
   return 0
 }
 
+# Reloads systemd daemon configuration.
+#
+# Globals:
+#   LAST_ERROR - Set on failure
+# Returns:
+#   0 on success, 1 on failure
 reload_systemd_daemon() {
   LAST_ERROR=""
 
@@ -150,6 +214,14 @@ reload_systemd_daemon() {
   return 0
 }
 
+# Detects if system is a laptop.
+#
+# Uses hostnamectl to check chassis type for laptop/notebook.
+#
+# Globals:
+#   LAST_ERROR - Set on failure
+# Returns:
+#   0 if laptop, 1 otherwise or on error
 is_laptop() {
   local chassis
 
@@ -167,6 +239,16 @@ is_laptop() {
   return 1
 }
 
+# Keeps sudo session alive in background.
+#
+# Starts background process that refreshes sudo every 60 seconds.
+# Automatically killed on script exit via trap.
+#
+# Globals:
+#   LAST_ERROR - Set on failure
+#   _SUDO_KEEPALIVE_PID - Internal: background process PID
+# Returns:
+#   0 on success, 1 on failure
 keep_sudo_alive() {
   LAST_ERROR=""
 
@@ -234,6 +316,17 @@ write_system_config() {
   return 0
 }
 
+# Creates .bak backup of file (idempotent).
+#
+# Only creates backup if .bak file doesn't already exist. Preserves
+# first backup forever. Uses sudo if target directory not writable.
+#
+# Arguments:
+#   $1 - Target file path
+# Globals:
+#   LAST_ERROR - Set on failure
+# Returns:
+#   0 on success (created or already exists), 1 on failure, 2 on invalid args
 create_backup() {
   local target_path="$1"
   local backup_path="${target_path}.bak"
@@ -254,7 +347,6 @@ create_backup() {
     return 0
   fi
 
-  # Determine if sudo is needed based on write permissions
   local backup_dir
   backup_dir="$(dirname "$backup_path")"
 
@@ -321,13 +413,11 @@ _create_config_file() {
 
 _escape_regex_key() {
   local key="$1"
-  # Escape regex special characters: [ ] \ . * ^ $
   printf '%s' "$key" | sed 's/[][\.*^$]/\\&/g'
 }
 
 _escape_replacement() {
   local text="$1"
-  # Escape sed replacement special characters: & and \
   printf '%s' "$text" | sed 's/[&\\]/\\&/g'
 }
 
@@ -335,7 +425,6 @@ _detect_spacing_style() {
   local config_file="$1"
   local use_sudo="$2"
 
-  # Check for spaced style: key = value (spaces around =)
   if _run_with_optional_sudo "$use_sudo" grep -qE '^[[:space:]]*[^#;][^=[:space:]]+[[:space:]]+=[[:space:]]+' "$config_file" 2>/dev/null; then
     printf 'spaced'
   else
@@ -401,6 +490,19 @@ _append_new_key() {
   return 0
 }
 
+# Updates key=value in config file (auto-detects spacing style).
+#
+# Creates file if missing. Auto-detects 'key=value' vs 'key = value' style.
+# Updates existing keys or appends new ones. Uses sudo for system paths.
+#
+# Arguments:
+#   $1 - Config file path
+#   $2 - Key name
+#   $3 - Value
+# Globals:
+#   LAST_ERROR - Set on failure
+# Returns:
+#   0 on success, 1 on failure, 2 on invalid args
 update_config() {
   local config_file="$1"
   local key="$2"
@@ -455,25 +557,34 @@ update_config() {
   return 0
 }
 
+# Enables systemd service/timer/socket (auto-detects unit type).
+#
+# Automatically tries .service, .timer, and .socket extensions.
+# Idempotent - does nothing if already enabled.
+#
+# Arguments:
+#   $1 - Service name (with or without extension)
+#   $2 - Scope: 'system' or 'user' (default: 'system')
+# Globals:
+#   LAST_ERROR - Set on failure
+# Returns:
+#   0 on success, 1 on failure, 2 on invalid args
 enable_service() {
   local service="${1:-}"
   local scope="${2:-system}"
 
   LAST_ERROR=""
 
-  # Validate service argument
   if [[ "$service" = "" ]]; then
     LAST_ERROR="enable_service() requires a service argument"
     return 2
   fi
 
-  # Validate scope argument
   if [[ "$scope" != "system" ]] && [[ "$scope" != "user" ]]; then
     LAST_ERROR="Invalid scope: $scope (must be 'system' or 'user')"
     return 2
   fi
 
-  # Determine systemctl mode
   local use_sudo="true"
   local systemctl_args=()
   if [[ "$scope" = "user" ]]; then
@@ -481,7 +592,6 @@ enable_service() {
     systemctl_args=("--user")
   fi
 
-  # Normalize service name candidates
   local base="${service%.service}"
   base="${base%.timer}"
   base="${base%.socket}"
