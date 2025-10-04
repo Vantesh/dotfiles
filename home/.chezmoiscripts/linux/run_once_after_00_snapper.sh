@@ -255,6 +255,32 @@ add_mkinitcpio_overlay_hook() {
   return 0
 }
 
+optimize_btrfs_fstab() {
+  if ! grep -q 'btrfs.*relatime' /etc/fstab; then
+    log SKIP "Btrfs fstab already optimized or not using relatime"
+    return 0
+  fi
+
+  if ! create_backup "/etc/fstab"; then
+    LAST_ERROR="Failed to backup fstab: $LAST_ERROR"
+    return 1
+  fi
+
+  if ! sudo sed -i -E '/btrfs/ { s/\brelatime\b/noatime/g; s/\bdefaults\b/defaults,noatime/g; s/(,noatime){2,}/,noatime/g; s/,+/,/g; }' /etc/fstab; then
+    LAST_ERROR="Failed to update fstab with noatime"
+    return 1
+  fi
+
+  if ! reload_systemd_daemon; then
+    local error_msg="$LAST_ERROR"
+    LAST_ERROR="Failed to reload systemd daemon: $error_msg"
+    return 1
+  fi
+
+  log INFO "Optimized btrfs mounts in fstab (relatime → noatime)"
+  return 0
+}
+
 main() {
   if [[ -f /etc/os-release ]]; then
     # shellcheck source=/dev/null
@@ -306,6 +332,10 @@ main() {
 
   if ! add_mkinitcpio_overlay_hook; then
     log WARN "Failed to add mkinitcpio overlay hook, snapshots may not be bootable"
+  fi
+
+  if ! optimize_btrfs_fstab; then
+    log WARN "Failed to optimize btrfs fstab: $LAST_ERROR"
   fi
 
   log INFO "Snapper configuration complete"
