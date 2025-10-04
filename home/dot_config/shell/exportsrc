@@ -3,24 +3,48 @@
 # CLEANUP HOME DIRECTORY (XDG-compliant env vars)
 # ------------------------------------------------------------------------------
 
-# XDG overrides
-export GTK2_RC_FILES="${XDG_CONFIG_HOME}/gtk-2.0/gtkrc"
-export ANDROID_SDK_HOME="${XDG_CONFIG_HOME}/android"
-export FFMPEG_DATADIR="${XDG_CONFIG_HOME}/ffmpeg"
-export WGETRC="${XDG_CONFIG_HOME}/wget/wgetrc"
-export GIT_CONFIG_GLOBAL="${XDG_CONFIG_HOME:-$HOME/.config}/git/config"
+export XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
+export XDG_DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
+export XDG_CACHE_HOME="${XDG_CACHE_HOME:-$HOME/.cache}"
+export XDG_STATE_HOME="${XDG_STATE_HOME:-$HOME/.local/state}"
+export XDG_BIN_HOME="${XDG_BIN_HOME:-$HOME/.local/bin}"
+export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
 
-# User data/cache locations
-export CARGO_HOME="${XDG_DATA_HOME}/cargo"
-export RUSTUP_HOME="${XDG_DATA_HOME}/rustup"
-export GOPATH="${XDG_DATA_HOME}/go"
-export LEIN_HOME="${XDG_DATA_HOME}/lein"
-export DOTNET_CLI_HOME="${XDG_DATA_HOME}/dotnet"
-export GNUPGHOME="${XDG_DATA_HOME}/gnupg"
-export GOMODCACHE="${XDG_CACHE_HOME}/go/mod"
-export CUDA_CACHE_PATH="${XDG_CACHE_HOME}/nv"
-export __GL_SHADER_DISK_CACHE_PATH="${XDG_CACHE_HOME}/nv"
-export npm_config_cache="${XDG_CACHE_HOME}/npm"
+export CONAN_USER_HOME="$XDG_CONFIG_HOME"
+export GOMODCACHE="$XDG_CACHE_HOME/go/mod"
+export GOPATH="$XDG_DATA_HOME/go"
+export RUSTUP_HOME="$XDG_DATA_HOME/rustup"
+export CARGO_HOME="$XDG_DATA_HOME/cargo"
+export LEIN_HOME="$XDG_DATA_HOME/lein"
+export NUGET_PACKAGES="$XDG_CACHE_HOME/NuGetPackages"
+export ANDROID_USER_HOME="$XDG_DATA_HOME/android"
+export NODE_REPL_HISTORY="$XDG_DATA_HOME/node_repl_history"
+export DOCKER_CONFIG="$XDG_CONFIG_HOME/docker"
+export SQLITE_HISTORY="$XDG_DATA_HOME/sqlite_history"
+export GRADLE_USER_HOME="$XDG_DATA_HOME/gradle"
+export RIPGREP_CONFIG_PATH="$HOME/.config/rg/.ripgreprc"
+export ANSIBLE_HOME="$XDG_CONFIG_HOME/ansible"
+export FFMPEG_DATADIR="$XDG_CONFIG_HOME/ffmpeg"
+export MYSQL_HISTFILE="$XDG_DATA_HOME/mysql_history"
+export OMNISHARPHOME="$XDG_CONFIG_HOME/omnisharp"
+export DOTNET_CLI_HOME="$XDG_DATA_HOME/dotnet"
+export PYENV_ROOT="$XDG_DATA_HOME/pyenv"
+export WORKON_HOME="$XDG_DATA_HOME/virtualenvs"
+export XINITRC="$XDG_CONFIG_HOME/X11/xinitrc"
+export XSERVERRC="$XDG_CONFIG_HOME/X11/xserverrc"
+export HISTFILE="$XDG_STATE_HOME/bash/history"
+export WINEPREFIX="$XDG_DATA_HOME/wine"
+export NPM_CONFIG_USERCONFIG="$XDG_CONFIG_HOME/npm/npmrc"
+export npm_config_cache="$XDG_CACHE_HOME/npm"
+export GTK2_RC_FILES="$XDG_CONFIG_HOME/gtk-2.0/gtkrc"
+export PNPM_HOME="$XDG_DATA_HOME/pnpm"
+export WGETRC="$XDG_CONFIG_HOME/wget/wgetrc"
+export GNUPGHOME="$XDG_DATA_HOME/gnupg"
+export CUDA_CACHE_PATH="$XDG_CACHE_HOME/nv"
+export PYTHON_HISTORY="$XDG_STATE_HOME/python_history"
+export _JAVA_OPTIONS="-Djava.util.prefs.userRoot=$XDG_CONFIG_HOME/java"
+export MAVEN_OPTS="-Dmaven.repo.local=$XDG_DATA_HOME/maven/repository"
+export MAVEN_ARGS="--settings $XDG_CONFIG_HOME/maven/settings.xml"
 
 # ------------------------------------------------------------------------------
 # DEFAULT ENVIRONMENT VARIABLES
@@ -33,7 +57,7 @@ export LESSHISTFILE="-"
 # ------------------------------------------------------------------------------
 # PATH
 # ------------------------------------------------------------------------------
-export PATH="$PATH:$CARGO_HOME/bin:$RUSTUP_HOME/bin:$GOPATH/bin:$HOME/.spicetify"
+export PATH="$PATH:$CARGO_HOME/bin:$RUSTUP_HOME/bin:$GOPATH/bin:$XDG_BIN_HOME"
 
 # ------------------------------------------------------------------------------
 # COLORS

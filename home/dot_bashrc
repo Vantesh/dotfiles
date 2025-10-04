@@ -11,8 +11,6 @@ PS1='\[\e[32m\]\u\[\e[37m\]@\[\e[36m\]\h\[\e[37m\] in \[\e[35m\]\w\n\[\e[32m\]\$
 # shellcheck disable=SC1091
 [[ -f /usr/share/doc/pkgfile/command-not-found.bash ]] && source /usr/share/doc/pkgfile/command-not-found.bash
 
-export HISTFILE="${XDG_CACHE_HOME}/bash/history"
-
 ## GENERAL OPTIONS ##
 
 # Prevent file overwrite on stdout redirection
