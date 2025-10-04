@@ -1,0 +1,74 @@
+#!/usr/bin/env bash
+# 06_atuin.sh - Configure Atuin shell history sync
+# Exit codes: 0 (success), 1 (failure)
+
+{{- if .personal }}
+
+set -euo pipefail
+
+shopt -s nullglob globstar
+
+readonly LIB_DIR="${CHEZMOI_SOURCE_DIR:-$(chezmoi source-path)}/.chezmoiscripts/linux/lib"
+
+# shellcheck source=/dev/null
+source "$LIB_DIR/.lib-common.sh"
+# shellcheck source=/dev/null
+source "$LIB_DIR/.lib-package_manager.sh"
+
+login_atuin() {
+  local status
+
+  if ! command_exists atuin; then
+    LAST_ERROR="atuin command not found"
+    return 127
+  fi
+
+  status=$(atuin status 2>/dev/null || true)
+
+  if [[ "$status" != *"You are not logged in to a sync server"* ]]; then
+    log SKIP "Atuin already logged in"
+    return 0
+  fi
+
+  if ! atuin login \
+    --username '{{ (rbw "Atuin").data.username }}' \
+    --password '{{ (rbw "Atuin").data.password }}' \
+    --key '{{ (rbwFields "Atuin").atuin_key.value }}' >/dev/null 2>&1; then
+    LAST_ERROR="Failed to login to Atuin"
+    return 1
+  fi
+
+  if ! atuin sync >/dev/null 2>&1; then
+    LAST_ERROR="Failed to sync Atuin history"
+    return 1
+  fi
+
+  log INFO "Logged in to Atuin and synced history"
+  return 0
+}
+
+main() {
+
+  print_box "Atuin"
+  log STEP "Atuin Configuration"
+
+  if ! install_package "atuin"; then
+    die "Failed to install atuin: $LAST_ERROR"
+  fi
+
+
+  if ! login_atuin; then
+    local exit_code=$?
+    if [[ $exit_code -eq 127 ]]; then
+      die 127 "Atuin command not found after installation"
+    else
+      die "Failed to login to Atuin: $LAST_ERROR"
+    fi
+  fi
+
+  log INFO "Atuin configuration complete"
+}
+
+main "$@"
+
+{{- end }}

@@ -1,209 +1,359 @@
 #!/usr/bin/env bash
-# shellcheck disable=SC1091
-source "${CHEZMOI_SOURCE_DIR:?env variable missing. Please only run this script via chezmoi}/.chezmoiscripts/linux/helpers/.00_helpers"
+# run_once_after_01_laptop.sh - Configure laptop optimizations and hibernation
+# Exit codes: 0 (success), 1 (failure)
 
-# =============================================================================
-# Initialize Environment
-# =============================================================================
-common_init
-#=============================================================================
-# LAPTOP
-#=============================================================================
+set -euo pipefail
 
-if is_laptop; then
-  print_box "smslant" "Laptop"
-  print_step "Setting up laptop tweaks"
+shopt -s nullglob globstar
 
-  print_info "Setting up powertop"
-  if sudo powertop --auto-tune >/dev/null 2>&1; then
-    print_info "Powertop auto-tune applied successfully"
-  else
-    print_warning "Failed to apply Powertop auto-tune"
-  fi
-fi
+readonly LIB_DIR="${CHEZMOI_SOURCE_DIR:-$(chezmoi source-path)}/.chezmoiscripts/linux/lib"
 
-#=============================================================================
-# HIBERNATION SETUP
-#=============================================================================
+# shellcheck source=/dev/null
+source "$LIB_DIR/.lib-common.sh"
+# shellcheck source=/dev/null
+source "$LIB_DIR/.lib-snapboot.sh"
 
 readonly SWAP_SUBVOL="@swap"
 readonly SWAP_MOUNT_POINT="/swap"
 readonly SWAP_FILE_PATH="/swap/swapfile"
-readonly MKINIT_CONF="/etc/mkinitcpio.conf"
 
-gpu_info=$(lspci -nn | grep -Ei "VGA compatible controller|3D controller|Display controller")
+calculate_swap_size() {
+  local ram_gb
+  ram_gb=$(get_ram_size)
 
-# ram size in GB
-ram_size=$(awk '/MemTotal/ {printf "%d\n", int(($2 + 1024 * 1024 - 1) / (1024 * 1024)) + ((($2 + 1024 * 1024 - 1) % (1024 * 1024)) > 0 ? 1 : 0)}' /proc/meminfo)
+  local sqrt_ram
+  sqrt_ram=$(awk "BEGIN {printf \"%.0f\", sqrt($ram_gb)}")
 
-#swap size in GB
-swap_size() {
-  # square root of ram size in GB (ubuntu uses this formula)
-  sqrt_ram_size=$(awk "BEGIN {printf \"%.0f\", sqrt($ram_size)}")
-  swap_size=$((sqrt_ram_size + ram_size))
-  [[ $swap_size -lt 2 ]] && swap_size=2 # minimum swap size is 2GB
-  echo "${swap_size}G"
+  local swap_gb=$((sqrt_ram + ram_gb))
 
+  [[ $swap_gb -lt 2 ]] && swap_gb=2
+
+  printf '%dG\n' "$swap_gb"
 }
 
-create_btrfs_swap_subvolume() {
-  if ! sudo btrfs subvolume list / | grep -q "$SWAP_SUBVOL"; then
-    temp_mount_point=$(mktemp -d)
-    if sudo mount "$(get_btrfs_root_device)" "$temp_mount_point" >/dev/null; then
-      if sudo btrfs subvolume create "$temp_mount_point/$SWAP_SUBVOL" >/dev/null; then
-        sudo umount "$temp_mount_point"
-        rm -rf "$temp_mount_point"
-      else
-        print_error "Failed to create Btrfs swap subvolume"
-      fi
-    else
-      print_error "Failed to mount Btrfs root device"
+get_ram_size() {
+  awk '/MemTotal/ {printf "%d", ($2 + 1048575) / 1048576}' /proc/meminfo
+}
+
+get_gpu_info() {
+  lspci -nn 2>/dev/null | grep -Ei "VGA compatible controller|3D controller|Display controller" || printf ''
+}
+
+get_nvidia_pci_address() {
+  local nvidia_pci
+
+  nvidia_pci=$(lspci -Dnnd 10de: | awk '{print $1}' | head -n1)
+
+  if [[ "$nvidia_pci" = "" ]]; then
+    nvidia_pci=$(lspci -D 2>/dev/null | grep -iE "NVIDIA.*(VGA|3D|Display)" | awk '{print $1}' | head -n1)
+  fi
+
+  printf '%s\n' "$nvidia_pci"
+}
+
+create_btrfs_swap() {
+  local temp_mount
+  local btrfs_root
+  local uuid
+
+  LAST_ERROR=""
+
+  if ! btrfs_root=$(get_btrfs_root_device); then
+    local error_msg="$LAST_ERROR"
+    LAST_ERROR="Failed to get btrfs root device: $error_msg"
+    return 1
+  fi
+
+  if ! sudo btrfs subvolume list / 2>/dev/null | grep -q "$SWAP_SUBVOL"; then
+    temp_mount=$(mktemp -d)
+
+    if ! sudo mount "$btrfs_root" "$temp_mount" >/dev/null 2>&1; then
+      LAST_ERROR="Failed to mount btrfs root device"
+      rm -rf "$temp_mount"
+      return 1
     fi
-    sudo umount "$temp_mount_point" 2>/dev/null || true
+
+    if ! sudo btrfs subvolume create "$temp_mount/$SWAP_SUBVOL" >/dev/null 2>&1; then
+      LAST_ERROR="Failed to create btrfs swap subvolume"
+      sudo umount "$temp_mount" 2>/dev/null || true
+      rm -rf "$temp_mount"
+      return 1
+    fi
+
+    sudo umount "$temp_mount" 2>/dev/null || true
+    rm -rf "$temp_mount"
+    log INFO "Created btrfs swap subvolume"
   fi
 
   if ! mountpoint -q "$SWAP_MOUNT_POINT"; then
-    if sudo mkdir -p "$SWAP_MOUNT_POINT"; then
-      if sudo mount -o subvol="$SWAP_SUBVOL" "$(get_btrfs_root_device)" "$SWAP_MOUNT_POINT" >/dev/null; then
-        print_info "Btrfs swap subvolume mounted"
-      else
-        print_error "Failed to mount Btrfs swap subvolume"
-      fi
+    if ! sudo mkdir -p "$SWAP_MOUNT_POINT" 2>/dev/null; then
+      LAST_ERROR="Failed to create swap mount point directory"
+      return 1
     fi
+
+    if ! sudo mount -o subvol="$SWAP_SUBVOL" "$btrfs_root" "$SWAP_MOUNT_POINT" >/dev/null 2>&1; then
+      LAST_ERROR="Failed to mount btrfs swap subvolume"
+      return 1
+    fi
+
+    log INFO "Mounted btrfs swap subvolume"
   fi
 
   if [[ ! -f "$SWAP_FILE_PATH" ]]; then
-    if sudo btrfs filesystem mkswapfile --size "$(swap_size)" --uuid clear "$SWAP_FILE_PATH" >/dev/null; then
-      print_info "Btrfs swap file created at $SWAP_FILE_PATH"
-      uuid=$(sudo blkid -s UUID -o value "$(get_btrfs_root_device)") || {
-        print_error "Failed to get UUID of Btrfs root device"
-      }
+    local swap_size
+    swap_size=$(calculate_swap_size)
 
-      add_entry_to_fstab "UUID=$uuid $SWAP_MOUNT_POINT btrfs defaults,noatime,nodatacow,subvol=$SWAP_SUBVOL 0 0" "swap subvolume mount"
-
-    else
-      print_error "Failed to create Btrfs swap file"
+    if ! sudo btrfs filesystem mkswapfile --size "$swap_size" --uuid clear "$SWAP_FILE_PATH" >/dev/null 2>&1; then
+      LAST_ERROR="Failed to create btrfs swapfile"
+      return 1
     fi
-  else
-    print_info "Btrfs swap file already exists at $SWAP_FILE_PATH"
+
+    log INFO "Created btrfs swapfile: $SWAP_FILE_PATH ($swap_size)"
+
+    if ! uuid=$(sudo blkid -s UUID -o value "$btrfs_root" 2>/dev/null); then
+      LAST_ERROR="Failed to get UUID of btrfs root device"
+      return 1
+    fi
+
+    if ! add_fstab_entry "UUID=$uuid $SWAP_MOUNT_POINT btrfs defaults,noatime,nodatacow,subvol=$SWAP_SUBVOL 0 0" "swap subvolume mount"; then
+      local error_msg="$LAST_ERROR"
+      LAST_ERROR="Failed to add swap subvolume to fstab: $error_msg"
+      return 1
+    fi
   fi
 
-  if ! sudo swapon --show | grep -q "$SWAP_FILE_PATH"; then
-    if sudo swapon "$SWAP_FILE_PATH" >/dev/null; then
-      print_info "Btrfs swap file activated"
-      add_entry_to_fstab "$SWAP_FILE_PATH none swap defaults 0 0" "swapfile"
-    else
-      print_error "Failed to activate Btrfs swap file"
+  if ! sudo swapon --show 2>/dev/null | grep -q "$SWAP_FILE_PATH"; then
+    if ! sudo swapon "$SWAP_FILE_PATH" >/dev/null 2>&1; then
+      LAST_ERROR="Failed to activate swapfile"
+      return 1
     fi
-  else
-    print_info "Btrfs swap file already activated"
+
+    log INFO "Activated btrfs swapfile"
+
+    if ! add_fstab_entry "$SWAP_FILE_PATH none swap defaults 0 0" "swapfile"; then
+      local error_msg="$LAST_ERROR"
+      LAST_ERROR="Failed to add swapfile to fstab: $error_msg"
+      return 1
+    fi
   fi
 
+  return 0
 }
 
 get_swap_path() {
-  # Return first non-zram active swap (device or file)
   sudo swapon --show=NAME --noheadings 2>/dev/null | awk '$1 !~ /\/dev\/zram/ {print; exit}'
 }
 
 setup_hibernation() {
+  local swap_path
+  local generator
+  local bootloader
+  local hibernation_params
+  local resume_uuid
+  local resume_offset
+  local btrfs_root
+
   swap_path=$(get_swap_path)
 
-  if [[ -z "$swap_path" ]]; then
-    print_info "No swap found, creating Btrfs swapfile"
-    create_btrfs_swap_subvolume
+  if [[ "$swap_path" = "" ]]; then
+    log INFO "No swap found, creating btrfs swapfile"
+
+    if ! create_btrfs_swap; then
+      die "Failed to create btrfs swap: $LAST_ERROR"
+    fi
+
     swap_path=$(get_swap_path)
-    [[ -z "$swap_path" ]] && print_warning "Swap still not detected after creation; resume parameters will be skipped."
-  fi
 
-  hibernation_params=(hibernate.compressor=lz4)
-
-  if [[ -n "$swap_path" ]]; then
-    if [[ -b "$swap_path" ]]; then
-      # Direct block device swap (e.g. partition)
-      resume_uuid=$(sudo blkid -s UUID -o value "$swap_path")
-      if [[ -n "$resume_uuid" ]]; then
-        hibernation_params+=("resume=UUID=$resume_uuid")
-      else
-        print_error "Failed to get UUID for swap device: $swap_path"
-      fi
-    elif [[ -f "$swap_path" ]]; then
-      # Swap file (Btrfs)
-      resume_uuid=$(sudo blkid -s UUID -o value "$(get_btrfs_root_device)")
-      resume_offset=$(sudo btrfs inspect-internal map-swapfile -r "$swap_path")
-      if [[ -n "$resume_uuid" && -n "$resume_offset" ]]; then
-        hibernation_params+=("resume=UUID=$resume_uuid" "resume_offset=$resume_offset")
-      else
-        print_error "Failed to get UUID or offset for swap file: $swap_path"
-      fi
-    else
-      print_warning "Swap path $swap_path exists but is neither block device nor regular file"
+    if [[ "$swap_path" = "" ]]; then
+      log WARN "Swap still not detected after creation; resume parameters will be skipped"
+      hibernation_params=("hibernate.compressor=lz4")
     fi
   fi
 
-  case "$(detect_bootloader)" in
-  grub)
-    update_grub_cmdline "${hibernation_params[@]}" || {
-      print_error "Failed to update GRUB kernel command line for hibernation"
+  hibernation_params=("hibernate.compressor=lz4")
 
-    }
+  if [[ "$swap_path" != "" ]]; then
+    if [[ -b "$swap_path" ]]; then
+      if ! resume_uuid=$(sudo blkid -s UUID -o value "$swap_path" 2>/dev/null); then
+        die "Failed to get UUID for swap device: $swap_path"
+      fi
+
+      hibernation_params+=("resume=UUID=$resume_uuid")
+    elif [[ -f "$swap_path" ]]; then
+      if ! btrfs_root=$(get_btrfs_root_device); then
+        die "Failed to get btrfs root device: $LAST_ERROR"
+      fi
+
+      if ! resume_uuid=$(sudo blkid -s UUID -o value "$btrfs_root" 2>/dev/null); then
+        die "Failed to get UUID for btrfs root device"
+      fi
+
+      if ! resume_offset=$(sudo btrfs inspect-internal map-swapfile -r "$swap_path" 2>/dev/null); then
+        die "Failed to get offset for swapfile: $swap_path"
+      fi
+
+      hibernation_params+=("resume=UUID=$resume_uuid" "resume_offset=$resume_offset")
+    else
+      log WARN "Swap path $swap_path is neither block device nor file"
+    fi
+  fi
+
+  if ! generator=$(detect_initramfs_generator); then
+    die "Failed to detect initramfs generator: $LAST_ERROR"
+  fi
+
+  if ! bootloader=$(detect_bootloader); then
+    die "Failed to detect bootloader: $LAST_ERROR"
+  fi
+
+  case "$bootloader" in
+  grub)
+    if ! update_grub_cmdline "${hibernation_params[@]}"; then
+      die "Failed to update GRUB kernel command line: $LAST_ERROR"
+    fi
+    log INFO "Updated GRUB kernel parameters"
     ;;
   limine)
-    # For Limine, create 01-default.conf once from /proc/cmdline if missing
-    if [[ $(detect_bootloader) == "limine" ]]; then
-      if [[ ! -f /etc/limine-entry-tool.d/01-default.conf ]]; then
-        if [[ -r /proc/cmdline ]]; then
-          default_params=$(cat /proc/cmdline)
-          update_limine_cmdline "01-default.conf" "$default_params"
-        else
-          print_error "/proc/cmdline not readable; cannot create default Limine drop-in"
+    if [[ ! -f /etc/limine-entry-tool.d/01-default.conf ]]; then
+      if [[ -r /proc/cmdline ]]; then
+        local default_params
+        default_params=$(cat /proc/cmdline)
+
+        if ! update_limine_cmdline "01-default.conf" "$default_params"; then
+          die "Failed to create default Limine config: $LAST_ERROR"
         fi
+      else
+        die "/proc/cmdline not readable; cannot create default Limine drop-in"
       fi
     fi
 
-    # add hibernation params in a dedicated drop-in file
-    update_limine_cmdline "50-hibernation.conf" "${hibernation_params[@]}" || {
-      print_error "Failed to write Limine drop-in for hibernation"
-
-    }
+    if ! update_limine_cmdline "50-hibernation.conf" "${hibernation_params[@]}"; then
+      die "Failed to write Limine hibernation config: $LAST_ERROR"
+    fi
+    log INFO "Updated Limine kernel parameters"
     ;;
   *)
-    print_warning "Unsupported bootloader, skipping kernel parameter update."
+    log WARN "Unsupported bootloader ($bootloader), skipping kernel parameter update"
     ;;
   esac
 
+  case "$generator" in
+  mkinitcpio)
+    local mkinitcpio_conf="/etc/mkinitcpio.conf"
+    local hooks
+
+    if [[ ! -f "$mkinitcpio_conf" ]]; then
+      die "mkinitcpio.conf not found"
+    fi
+
+    hooks=$(sed -nE 's/^[[:space:]]*HOOKS=\((.*)\)[[:space:]]*$/\1/p' "$mkinitcpio_conf" 2>/dev/null | head -n1)
+
+    if [[ "$hooks" != "" ]] && [[ "$hooks" != *" systemd "* ]]; then
+      if [[ "$hooks" != *" resume "* ]]; then
+        local new_hooks
+        new_hooks=$(sed -E 's/(^| )filesystems( |$)/\1filesystems resume\2/' <<<"$hooks" | xargs)
+
+        if [[ "$new_hooks" != "$hooks" ]]; then
+          if ! sudo sed -i -E "s|^[[:space:]]*HOOKS=\(.*\)|HOOKS=($new_hooks)|" "$mkinitcpio_conf" 2>/dev/null; then
+            die "Failed to update mkinitcpio HOOKS"
+          fi
+
+          log INFO "Updated mkinitcpio HOOKS (added resume)"
+
+          if ! regenerate_initramfs; then
+            die "Failed to regenerate initramfs: $LAST_ERROR"
+          fi
+          log INFO "Regenerated initramfs"
+        fi
+      fi
+    fi
+    ;;
+  dracut)
+    if ! add_dracut_module "resume"; then
+      die "Failed to add dracut resume module: $LAST_ERROR"
+    fi
+    log INFO "Added dracut resume module"
+
+    if ! regenerate_initramfs; then
+      die "Failed to regenerate initramfs: $LAST_ERROR"
+    fi
+    log INFO "Regenerated initramfs"
+    ;;
+  unsupported)
+    log WARN "No supported initramfs generator found, skipping initramfs configuration"
+    ;;
+  *)
+    log WARN "Unknown initramfs generator ($generator), skipping initramfs configuration"
+    ;;
+  esac
+
+  return 0
 }
 
-# ===========================================================================================
-# MAIN HIBERNATION SETUP LOGIC
-# ===========================================================================================
+main() {
+  local gpu_info
+  local ram_size
 
-if is_btrfs && is_laptop && confirm "Set up hibernation?"; then
-  print_box "smslant" "Hibernation"
-  print_step "Setting up hibernation"
+  if is_laptop; then
+    print_box "Laptop"
+    log STEP "Laptop Optimizations"
 
-  create_backup "$MKINIT_CONF"
-  create_backup "/etc/fstab"
-
-  if [[ $(detect_bootloader) == "grub" ]]; then
-    create_backup "/etc/default/grub"
-  fi
-
-  setup_hibernation
-  hooks=$(sed -nE 's/^[[:space:]]*HOOKS=\((.*)\)[[:space:]]*$/\1/p' "$MKINIT_CONF" | head -n1)
-  if [[ -n $hooks && $hooks != *" systemd "* ]]; then
-    new_hooks=$(sed -E 's/(^| )resume( |$)/ /g; s/(^| )filesystems( |$)/\1filesystems resume\2/' <<<"$hooks" | xargs)
-    if [[ $new_hooks != "$hooks" ]]; then
-      if sudo sed -i -E "s|^[[:space:]]*HOOKS=\(.*\)|HOOKS=($new_hooks)|" "$MKINIT_CONF"; then
-        print_info "Updated mkinitcpio HOOKS (added resume hook)"
-        regenerate_initramfs
+    if command_exists powertop; then
+      if sudo powertop --auto-tune >/dev/null 2>&1; then
+        log INFO "Applied powertop auto-tune"
       else
-        print_error "Failed to update mkinitcpio HOOKS"
+        log WARN "Failed to apply powertop auto-tune"
       fi
     fi
   fi
 
-  write_system_config "/etc/systemd/sleep.conf.d/hibernation.conf" "systemd sleep config" <<'EOF'
+  if ! check_btrfs; then
+    log SKIP "Root filesystem is not btrfs, skipping hibernation setup"
+    exit 0
+  fi
+
+  if ! is_laptop; then
+    log SKIP "Not a laptop, skipping hibernation setup"
+    exit 0
+  fi
+
+  if ! confirm "Set up hibernation?"; then
+    log SKIP "Hibernation setup declined"
+    exit 0
+  fi
+
+  log STEP "Hibernation Setup"
+
+  local generator
+  local bootloader
+
+  if ! generator=$(detect_initramfs_generator); then
+    die "Failed to detect initramfs generator: $LAST_ERROR"
+  fi
+
+  if ! bootloader=$(detect_bootloader); then
+    die "Failed to detect bootloader: $LAST_ERROR"
+  fi
+
+  if ! create_backup "/etc/fstab"; then
+    die "Failed to backup /etc/fstab: $LAST_ERROR"
+  fi
+
+  if [[ "$generator" = "mkinitcpio" ]] && [[ -f /etc/mkinitcpio.conf ]]; then
+    if ! create_backup "/etc/mkinitcpio.conf"; then
+      die "Failed to backup /etc/mkinitcpio.conf: $LAST_ERROR"
+    fi
+  fi
+
+  if [[ "$bootloader" = "grub" ]] && [[ -f /etc/default/grub ]]; then
+    if ! create_backup "/etc/default/grub"; then
+      die "Failed to backup /etc/default/grub: $LAST_ERROR"
+    fi
+  fi
+
+  setup_hibernation
+
+  if ! write_system_config "/etc/systemd/sleep.conf.d/hibernation.conf" <<'EOF'; then
 [Sleep]
 AllowSuspend=yes
 AllowHibernation=yes
@@ -212,44 +362,77 @@ AllowHybridSleep=yes
 HibernateMode=shutdown
 HibernateDelaySec=50min
 EOF
+    die "Failed to write systemd sleep config: $LAST_ERROR"
+  fi
+  log INFO "Configured systemd sleep"
 
-  write_system_config "/etc/systemd/logind.conf.d/hibernation.conf" "systemd logind hibernation config" <<'EOF'
+  if ! write_system_config "/etc/systemd/logind.conf.d/hibernation.conf" <<'EOF'; then
 [Login]
 HandleSuspendKey=ignore
 HandleHibernateKey=ignore
 HandleLidSwitch=suspend-then-hibernate
 EOF
+    die "Failed to write systemd logind config: $LAST_ERROR"
+  fi
+  log INFO "Configured systemd logind"
 
-  write_system_config "/etc/tmpfiles.d/disable-usb-wake.conf" "disable USB wakeup config" <<'EOF'
+  if ! write_system_config "/etc/tmpfiles.d/disable-usb-wake.conf" <<'EOF'; then
 # Disable USB wakeup devices
 #    Path                  Mode UID  GID  Age Argument
 w    /proc/acpi/wakeup     -    -    -    -   XHC
 EOF
+    die "Failed to write USB wakeup config: $LAST_ERROR"
+  fi
+  log INFO "Configured USB wakeup disable"
 
-  if [[ $ram_size -gt 30 ]]; then
-    write_system_config "/etc/tmpfiles.d/hibernation_image_size.conf" "hibernation image size config" <<'EOF'
+  ram_size=$(get_ram_size)
+  if [[ "$ram_size" -gt 30 ]]; then
+    if ! write_system_config "/etc/tmpfiles.d/hibernation_image_size.conf" <<'EOF'; then
 #    Path                   Mode UID  GID  Age Argument
 w    /sys/power/image_size  -    -    -    -   0
 EOF
+      die "Failed to write hibernation image size config: $LAST_ERROR"
+    fi
+    log INFO "Configured hibernation image size"
   fi
 
-  # nvidia services
-  if [[ $gpu_info == *"NVIDIA Corporation"* ]]; then
-    services=(
-      nvidia-suspend-then-hibernate.service
-      nvidia-hibernate.service
-      nvidia-suspend.service
-      nvidia-resume.service
+  gpu_info=$(get_gpu_info)
+  if [[ "$gpu_info" = *"NVIDIA Corporation"* ]]; then
+    log INFO "Detected NVIDIA GPU, configuring power management"
+
+    local services=(
+      "nvidia-suspend-then-hibernate.service"
+      "nvidia-hibernate.service"
+      "nvidia-suspend.service"
+      "nvidia-resume.service"
     )
+
+    local svc
     for svc in "${services[@]}"; do
-      if ! sudo systemctl --quiet is-enabled "$svc"; then
-        enable_service "$svc" "system"
+      if ! sudo systemctl --quiet is-enabled "$svc" 2>/dev/null; then
+        if ! enable_service "$svc" "system"; then
+          log WARN "Failed to enable $svc: $LAST_ERROR"
+        fi
       fi
     done
 
-    write_system_config "/etc/tmpfiles.d/nvidia_pm.conf" "nvidia power management config" <<'EOF'
-# /etc/tmpfiles.d/nvidia_pm.conf# /etc/tmpfiles.d/nvidia_pm.conf
-w /sys/bus/pci/devices/0000:01:00.0/power/control - - - - auto
+    local nvidia_pci
+    nvidia_pci=$(get_nvidia_pci_address)
+
+    if [[ "$nvidia_pci" != "" ]]; then
+      if ! write_system_config "/etc/tmpfiles.d/nvidia_pm.conf" <<EOF; then
+# NVIDIA power management
+w /sys/bus/pci/devices/${nvidia_pci}/power/control - - - - auto
 EOF
+        die "Failed to write NVIDIA power management config: $LAST_ERROR"
+      fi
+      log INFO "Configured NVIDIA power management for $nvidia_pci"
+    else
+      log WARN "Failed to detect NVIDIA GPU PCI address"
+    fi
   fi
-fi
+
+  log INFO "Hibernation setup completed"
+}
+
+main "$@"
