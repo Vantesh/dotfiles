@@ -7,11 +7,6 @@
 
 export LAST_ERROR="${LAST_ERROR:-}"
 
-readonly AUR_HELPER="${AUR_HELPER:-paru}"
-
-# Cache for detected package manager (set once on first call)
-__package_manager_cache=""
-
 get_package_manager() {
   if [[ -n "${__package_manager_cache:-}" ]]; then
     printf '%s\n' "$__package_manager_cache"
@@ -35,10 +30,14 @@ get_package_manager() {
 }
 
 get_aur_helper() {
-  local helper="${AUR_HELPER}"
+  local helper=""
 
-  if ! command -v "$helper" >/dev/null 2>&1; then
-    LAST_ERROR="AUR helper '$helper' not found (install with install_aur_helper)"
+  if command -v paru >/dev/null 2>&1; then
+    helper="paru"
+  elif command -v yay >/dev/null 2>&1; then
+    helper="yay"
+  else
+    LAST_ERROR="No AUR helper found (paru or yay required)"
     return 127
   fi
 

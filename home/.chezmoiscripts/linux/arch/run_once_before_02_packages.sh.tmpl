@@ -62,7 +62,11 @@ install_group() {
   fi
 
   log STEP "Installing $group_name packages"
-  install_package "$@"
+
+  if ! install_package "$@"; then
+    local error_msg="$LAST_ERROR"
+    die "Failed to install $group_name packages: $error_msg"
+  fi
 }
 
 print_box "Packages"
