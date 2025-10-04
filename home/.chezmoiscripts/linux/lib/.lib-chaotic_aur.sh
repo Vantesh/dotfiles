@@ -118,11 +118,11 @@ setup_chaotic_aur() {
     return 1
   fi
 
-  if ! _install_package_from_url "chaotic-keyring" "$CHAOTIC_KEYRING_URL"; then
+  if ! _install_package_from_url "chaotic-keyring" "$CHAOTIC_PKG_URL"; then
     return 1
   fi
 
-  if ! _install_package_from_url "chaotic-mirrorlist" "$CHAOTIC_MIRRORLIST_URL"; then
+  if ! _install_package_from_url "chaotic-mirrorlist" "$CHAOTIC_MIRROR_PKG_URL"; then
     return 1
   fi
 
