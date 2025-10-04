@@ -116,6 +116,14 @@ QtObject {
             "enabled": DgopService.dgopAvailable,
             "warning": !DgopService.dgopAvailable ? "Requires 'dgop' tool" : undefined,
             "allowMultiple": true
+        },
+        {
+            "id": "colorPicker",
+            "text": "Color Picker",
+            "description": "Choose colors from palette",
+            "icon": "palette",
+            "type": "action",
+            "enabled": true
         }
     ]
 

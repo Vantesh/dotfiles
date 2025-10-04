@@ -1,10 +1,11 @@
 import "../Common/fzf.js" as Fzf
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Effects
 import qs.Common
 import qs.Widgets
 
-Rectangle {
+Item {
     id: root
 
     property string text: ""
@@ -12,47 +13,33 @@ Rectangle {
     property string currentValue: ""
     property var options: []
     property var optionIcons: []
-    property bool forceRecreate: false
     property bool enableFuzzySearch: false
     property int popupWidthOffset: 0
     property int maxPopupHeight: 400
+    property bool openUpwards: false
+    property int popupWidth: 0
+    property bool alignPopupRight: false
+    property int dropdownWidth: 200
 
     signal valueChanged(string value)
 
     width: parent.width
-    height: 60
-    radius: Theme.cornerRadius
-    color: "transparent"
-    Component.onCompleted: forceRecreateTimer.start()
+    implicitHeight: Math.max(60, labelColumn.implicitHeight + Theme.spacingM)
+
     Component.onDestruction: {
-        const popup = popupLoader.item
+        const popup = dropdownMenu
         if (popup && popup.visible) {
             popup.close()
         }
     }
-    onVisibleChanged: {
-        const popup = popupLoader.item
-        if (!visible && popup && popup.visible) {
-            popup.close()
-        } else if (visible) {
-            forceRecreateTimer.start()
-        }
-    }
-
-    Timer {
-        id: forceRecreateTimer
-
-        interval: 50
-        repeat: false
-        onTriggered: root.forceRecreate = !root.forceRecreate
-    }
 
     Column {
+        id: labelColumn
+
         anchors.left: parent.left
         anchors.right: dropdown.left
         anchors.verticalCenter: parent.verticalCenter
-        anchors.leftMargin: Theme.spacingM
-        anchors.rightMargin: Theme.spacingM
+        anchors.rightMargin: Theme.spacingL
         spacing: Theme.spacingXS
 
         StyledText {
@@ -75,15 +62,14 @@ Rectangle {
     Rectangle {
         id: dropdown
 
-        width: root.width <= 60 ? root.width : 180
-        height: 36
+        width: root.popupWidth === -1 ? undefined : (root.popupWidth > 0 ? root.popupWidth : root.dropdownWidth)
+        height: 40
         anchors.right: parent.right
-        anchors.rightMargin: Theme.spacingM
         anchors.verticalCenter: parent.verticalCenter
         radius: Theme.cornerRadius
-        color: dropdownArea.containsMouse ? Theme.primaryHover : Theme.contentBackground()
-        border.color: Theme.surfaceVariantAlpha
-        border.width: 1
+        color: dropdownArea.containsMouse || dropdownMenu.visible ? Theme.surfaceContainerHigh : Theme.surfaceContainer
+        border.color: dropdownMenu.visible ? Theme.primary : Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.2)
+        border.width: dropdownMenu.visible ? 2 : 1
 
         MouseArea {
             id: dropdownArea
@@ -92,20 +78,40 @@ Rectangle {
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
             onClicked: {
-                const popup = popupLoader.item
-                if (!popup) {
+                if (dropdownMenu.visible) {
+                    dropdownMenu.close()
                     return
                 }
 
-                if (popup.visible) {
-                    popup.close()
-                    return
+                dropdownMenu.searchQuery = ""
+                dropdownMenu.updateFilteredOptions()
+
+                dropdownMenu.open()
+
+                const pos = dropdown.mapToItem(Overlay.overlay, 0, 0)
+                const popupWidth = dropdownMenu.width
+                const popupHeight = dropdownMenu.height
+                const overlayHeight = Overlay.overlay.height
+
+                if (root.openUpwards || pos.y + dropdown.height + popupHeight + 4 > overlayHeight) {
+                    if (root.alignPopupRight) {
+                        dropdownMenu.x = pos.x + dropdown.width - popupWidth
+                    } else {
+                        dropdownMenu.x = pos.x - (root.popupWidthOffset / 2)
+                    }
+                    dropdownMenu.y = pos.y - popupHeight - 4
+                } else {
+                    if (root.alignPopupRight) {
+                        dropdownMenu.x = pos.x + dropdown.width - popupWidth
+                    } else {
+                        dropdownMenu.x = pos.x - (root.popupWidthOffset / 2)
+                    }
+                    dropdownMenu.y = pos.y + dropdown.height + 4
                 }
 
-                const pos = dropdown.mapToItem(Overlay.overlay, 0, dropdown.height + 4)
-                popup.x = pos.x - (root.popupWidthOffset / 2)
-                popup.y = pos.y
-                popup.open()
+                if (root.enableFuzzySearch && searchField.visible) {
+                    searchField.forceActiveFocus()
+                }
             }
         }
 
@@ -113,8 +119,10 @@ Rectangle {
             id: contentRow
 
             anchors.left: parent.left
+            anchors.right: expandIcon.left
             anchors.verticalCenter: parent.verticalCenter
             anchors.leftMargin: Theme.spacingM
+            anchors.rightMargin: Theme.spacingS
             spacing: Theme.spacingS
 
             DankIcon {
@@ -123,221 +131,230 @@ Rectangle {
                     return currentIndex >= 0 && root.optionIcons.length > currentIndex ? root.optionIcons[currentIndex] : ""
                 }
                 size: 18
-                color: Theme.surfaceVariantText
-                visible: name !== "" && root.width > 60
+                color: Theme.surfaceText
+                anchors.verticalCenter: parent.verticalCenter
+                visible: name !== ""
             }
 
             StyledText {
                 text: root.currentValue
                 font.pixelSize: Theme.fontSizeMedium
                 color: Theme.surfaceText
-                width: root.width <= 60 ? dropdown.width - expandIcon.width - Theme.spacingS * 2 : dropdown.width - contentRow.x - expandIcon.width - Theme.spacingM - Theme.spacingS
-                elide: root.width <= 60 ? Text.ElideNone : Text.ElideRight
-                horizontalAlignment: root.width <= 60 ? Text.AlignHCenter : Text.AlignLeft
+                anchors.verticalCenter: parent.verticalCenter
+                width: contentRow.width - (contentRow.children[0].visible ? contentRow.children[0].width + contentRow.spacing : 0)
+                elide: Text.ElideRight
             }
         }
 
         DankIcon {
             id: expandIcon
 
-            name: "expand_more"
+            name: dropdownMenu.visible ? "expand_less" : "expand_more"
             size: 20
-            color: Theme.surfaceVariantText
+            color: Theme.surfaceText
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
             anchors.rightMargin: Theme.spacingS
+
+            Behavior on rotation {
+                NumberAnimation {
+                    duration: Theme.shortDuration
+                    easing.type: Theme.standardEasing
+                }
+            }
         }
     }
 
-    Loader {
-        id: popupLoader
+    Popup {
+        id: dropdownMenu
 
-        property bool recreateFlag: root.forceRecreate
+        property string searchQuery: ""
+        property var filteredOptions: []
+        property int selectedIndex: -1
+        property var fzfFinder: new Fzf.Finder(root.options, {
+            "selector": option => option,
+            "limit": 50,
+            "casing": "case-insensitive"
+        })
 
-        active: true
-        onRecreateFlagChanged: {
-            active = false
-            active = true
+        function updateFilteredOptions() {
+            if (!root.enableFuzzySearch || searchQuery.length === 0) {
+                filteredOptions = root.options
+                selectedIndex = -1
+                return
+            }
+
+            const results = fzfFinder.find(searchQuery)
+            filteredOptions = results.map(result => result.item)
+            selectedIndex = -1
         }
 
-        sourceComponent: Component {
-            Popup {
-                id: dropdownMenu
+        function selectNext() {
+            if (filteredOptions.length === 0) {
+                return
+            }
+            selectedIndex = (selectedIndex + 1) % filteredOptions.length
+            listView.positionViewAtIndex(selectedIndex, ListView.Contain)
+        }
 
-                property string searchQuery: ""
-                property var filteredOptions: []
-                property int selectedIndex: -1
-                property var fzfFinder: new Fzf.Finder(root.options, {
-                                                           "selector": option => option,
-                                                           "limit": 50,
-                                                           "casing": "case-insensitive"
-                                                       })
+        function selectPrevious() {
+            if (filteredOptions.length === 0) {
+                return
+            }
+            selectedIndex = selectedIndex <= 0 ? filteredOptions.length - 1 : selectedIndex - 1
+            listView.positionViewAtIndex(selectedIndex, ListView.Contain)
+        }
 
-                function updateFilteredOptions() {
-                    if (!root.enableFuzzySearch || searchQuery.length === 0) {
-                        filteredOptions = root.options
-                        selectedIndex = -1
-                        return
-                    }
+        function selectCurrent() {
+            if (selectedIndex < 0 || selectedIndex >= filteredOptions.length) {
+                return
+            }
+            root.currentValue = filteredOptions[selectedIndex]
+            root.valueChanged(filteredOptions[selectedIndex])
+            close()
+        }
 
-                    const results = fzfFinder.find(searchQuery)
-                    filteredOptions = results.map(result => result.item)
-                    selectedIndex = -1
-                }
+        parent: Overlay.overlay
+        width: root.popupWidth === -1 ? undefined : (root.popupWidth > 0 ? root.popupWidth : (dropdown.width + root.popupWidthOffset))
+        height: Math.min(root.maxPopupHeight, (root.enableFuzzySearch ? 54 : 0) + Math.min(filteredOptions.length, 10) * 36 + 16)
+        padding: 0
+        modal: true
+        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
 
-                function selectNext() {
-                    if (filteredOptions.length === 0) {
-                        return
-                    }
-                    selectedIndex = (selectedIndex + 1) % filteredOptions.length
-                    listView.positionViewAtIndex(selectedIndex, ListView.Contain)
-                }
+        background: Rectangle {
+            color: "transparent"
+        }
 
-                function selectPrevious() {
-                    if (filteredOptions.length === 0) {
-                        return
-                    }
-                    selectedIndex = selectedIndex <= 0 ? filteredOptions.length - 1 : selectedIndex - 1
-                    listView.positionViewAtIndex(selectedIndex, ListView.Contain)
-                }
+        contentItem: Rectangle {
+            color: Qt.rgba(Theme.surfaceContainer.r, Theme.surfaceContainer.g, Theme.surfaceContainer.b, 1)
+            border.color: Theme.primary
+            border.width: 2
+            radius: Theme.cornerRadius
 
-                function selectCurrent() {
-                    if (selectedIndex < 0 || selectedIndex >= filteredOptions.length) {
-                        return
-                    }
-                    root.currentValue = filteredOptions[selectedIndex]
-                    root.valueChanged(filteredOptions[selectedIndex])
-                    close()
-                }
+            layer.enabled: true
+            layer.effect: MultiEffect {
+                shadowEnabled: true
+                shadowBlur: 0.4
+                shadowColor: Theme.shadowStrong
+                shadowVerticalOffset: 4
+            }
 
-                parent: Overlay.overlay
-                width: dropdown.width + root.popupWidthOffset
-                height: Math.min(root.maxPopupHeight, (root.enableFuzzySearch ? 54 : 0) + Math.min(filteredOptions.length, 10) * 36 + 16)
-                padding: 0
-                modal: true
-                closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
-                onOpened: {
-                    searchQuery = ""
-                    updateFilteredOptions()
-                    if (root.enableFuzzySearch && searchField.visible) {
-                        searchField.forceActiveFocus()
-                    }
-                }
+            Column {
+                anchors.fill: parent
+                anchors.margins: Theme.spacingS
 
-                background: Rectangle {
-                    color: "transparent"
-                }
+                Rectangle {
+                    id: searchContainer
 
-                contentItem: Rectangle {
-                    color: Qt.rgba(Theme.surfaceContainer.r, Theme.surfaceContainer.g, Theme.surfaceContainer.b, 1)
-                    border.color: Theme.primarySelected
-                    border.width: 1
+                    width: parent.width
+                    height: 42
+                    visible: root.enableFuzzySearch
                     radius: Theme.cornerRadius
+                    color: Theme.surfaceContainerHigh
 
-                    Column {
+                    DankTextField {
+                        id: searchField
+
                         anchors.fill: parent
-                        anchors.margins: Theme.spacingS
+                        anchors.margins: 1
+                        placeholderText: "Search..."
+                        text: dropdownMenu.searchQuery
+                        topPadding: Theme.spacingS
+                        bottomPadding: Theme.spacingS
+                        onTextChanged: {
+                            dropdownMenu.searchQuery = text
+                            dropdownMenu.updateFilteredOptions()
+                        }
+                        Keys.onDownPressed: dropdownMenu.selectNext()
+                        Keys.onUpPressed: dropdownMenu.selectPrevious()
+                        Keys.onReturnPressed: dropdownMenu.selectCurrent()
+                        Keys.onEnterPressed: dropdownMenu.selectCurrent()
+                        Keys.onPressed: event => {
+                            if (event.key === Qt.Key_N && event.modifiers & Qt.ControlModifier) {
+                                dropdownMenu.selectNext()
+                                event.accepted = true
+                            } else if (event.key === Qt.Key_P && event.modifiers & Qt.ControlModifier) {
+                                dropdownMenu.selectPrevious()
+                                event.accepted = true
+                            } else if (event.key === Qt.Key_J && event.modifiers & Qt.ControlModifier) {
+                                dropdownMenu.selectNext()
+                                event.accepted = true
+                            } else if (event.key === Qt.Key_K && event.modifiers & Qt.ControlModifier) {
+                                dropdownMenu.selectPrevious()
+                                event.accepted = true
+                            }
+                        }
+                    }
+                }
 
-                        Rectangle {
-                            id: searchContainer
+                Item {
+                    width: 1
+                    height: Theme.spacingXS
+                    visible: root.enableFuzzySearch
+                }
 
-                            width: parent.width
-                            height: 42
-                            visible: root.enableFuzzySearch
-                            radius: Theme.cornerRadius
-                            color: Theme.surfaceVariantAlpha
+                DankListView {
+                    id: listView
 
-                            DankTextField {
-                                id: searchField
+                    width: parent.width
+                    height: parent.height - (root.enableFuzzySearch ? searchContainer.height + Theme.spacingXS : 0)
+                    clip: true
+                    model: dropdownMenu.filteredOptions
+                    spacing: 2
 
-                                anchors.fill: parent
-                                anchors.margins: 1
-                                placeholderText: "Search..."
-                                text: searchQuery
-                                topPadding: Theme.spacingS
-                                bottomPadding: Theme.spacingS
-                                onTextChanged: {
-                                    searchQuery = text
-                                    updateFilteredOptions()
-                                }
-                                Keys.onDownPressed: selectNext()
-                                Keys.onUpPressed: selectPrevious()
-                                Keys.onReturnPressed: selectCurrent()
-                                Keys.onEnterPressed: selectCurrent()
+                    interactive: true
+                    flickDeceleration: 1500
+                    maximumFlickVelocity: 2000
+                    boundsBehavior: Flickable.DragAndOvershootBounds
+                    boundsMovement: Flickable.FollowBoundsBehavior
+                    pressDelay: 0
+                    flickableDirection: Flickable.VerticalFlick
+
+                    delegate: Rectangle {
+                        property bool isSelected: dropdownMenu.selectedIndex === index
+                        property bool isCurrentValue: root.currentValue === modelData
+                        property int optionIndex: root.options.indexOf(modelData)
+
+                        width: ListView.view.width
+                        height: 32
+                        radius: Theme.cornerRadius
+                        color: isSelected ? Theme.primaryHover : optionArea.containsMouse ? Theme.primaryHoverLight : "transparent"
+
+                        Row {
+                            anchors.left: parent.left
+                            anchors.leftMargin: Theme.spacingS
+                            anchors.verticalCenter: parent.verticalCenter
+                            spacing: Theme.spacingS
+
+                            DankIcon {
+                                name: optionIndex >= 0 && root.optionIcons.length > optionIndex ? root.optionIcons[optionIndex] : ""
+                                size: 18
+                                color: isCurrentValue ? Theme.primary : Theme.surfaceText
+                                visible: name !== ""
+                            }
+
+                            StyledText {
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: modelData
+                                font.pixelSize: Theme.fontSizeMedium
+                                color: isCurrentValue ? Theme.primary : Theme.surfaceText
+                                font.weight: isCurrentValue ? Font.Medium : Font.Normal
+                                width: root.popupWidth > 0 ? undefined : (parent.parent.width - parent.x - Theme.spacingS)
+                                elide: root.popupWidth > 0 ? Text.ElideNone : Text.ElideRight
+                                wrapMode: Text.NoWrap
                             }
                         }
 
-                        Item {
-                            width: 1
-                            height: Theme.spacingXS
-                            visible: root.enableFuzzySearch
-                        }
+                        MouseArea {
+                            id: optionArea
 
-                        DankListView {
-                            id: listView
-
-                            property var popupRef: dropdownMenu
-
-                            width: parent.width
-                            height: parent.height - (root.enableFuzzySearch ? searchContainer.height + Theme.spacingXS : 0)
-                            clip: true
-                            model: filteredOptions
-                            spacing: 2
-
-                            interactive: true
-                            flickDeceleration: 1500
-                            maximumFlickVelocity: 2000
-                            boundsBehavior: Flickable.DragAndOvershootBounds
-                            boundsMovement: Flickable.FollowBoundsBehavior
-                            pressDelay: 0
-                            flickableDirection: Flickable.VerticalFlick
-
-                            delegate: Rectangle {
-                                property bool isSelected: selectedIndex === index
-                                property bool isCurrentValue: root.currentValue === modelData
-                                property int optionIndex: root.options.indexOf(modelData)
-
-                                width: ListView.view.width
-                                height: 32
-                                radius: Theme.cornerRadius
-                                color: isSelected ? Theme.primaryHover : optionArea.containsMouse ? Theme.primaryHoverLight : "transparent"
-
-                                Row {
-                                    anchors.left: parent.left
-                                    anchors.leftMargin: Theme.spacingS
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    spacing: Theme.spacingS
-
-                                    DankIcon {
-                                        name: optionIndex >= 0 && root.optionIcons.length > optionIndex ? root.optionIcons[optionIndex] : ""
-                                        size: 18
-                                        color: isCurrentValue ? Theme.primary : Theme.surfaceVariantText
-                                        visible: name !== ""
-                                    }
-
-                                    StyledText {
-                                        anchors.verticalCenter: parent.verticalCenter
-                                        text: modelData
-                                        font.pixelSize: Theme.fontSizeMedium
-                                        color: isCurrentValue ? Theme.primary : Theme.surfaceText
-                                        font.weight: isCurrentValue ? Font.Medium : Font.Normal
-                                        width: parent.parent.width - parent.x - Theme.spacingS
-                                        elide: Text.ElideRight
-                                    }
-                                }
-
-                                MouseArea {
-                                    id: optionArea
-
-                                    anchors.fill: parent
-                                    hoverEnabled: true
-                                    cursorShape: Qt.PointingHandCursor
-                                    onClicked: {
-                                        root.currentValue = modelData
-                                        root.valueChanged(modelData)
-                                        listView.popupRef.close()
-                                    }
-                                }
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: {
+                                root.currentValue = modelData
+                                root.valueChanged(modelData)
+                                dropdownMenu.close()
                             }
                         }
                     }

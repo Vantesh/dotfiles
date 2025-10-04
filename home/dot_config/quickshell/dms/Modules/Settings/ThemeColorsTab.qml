@@ -226,6 +226,7 @@ Item {
                                 if (Theme.currentThemeCategory === "catppuccin") return 1
                                 return 0
                             }
+                            property int pendingThemeIndex: -1
 
                             model: ["Generic", "Catppuccin", "Auto", "Custom"]
                             currentIndex: currentThemeIndex
@@ -233,7 +234,11 @@ Item {
                             anchors.horizontalCenter: parent.horizontalCenter
                             onSelectionChanged: (index, selected) => {
                                 if (!selected) return
-                                switch (index) {
+                                pendingThemeIndex = index
+                            }
+                            onAnimationCompleted: {
+                                if (pendingThemeIndex === -1) return
+                                switch (pendingThemeIndex) {
                                     case 0: Theme.switchThemeCategory("generic", "blue"); break
                                     case 1: Theme.switchThemeCategory("catppuccin", "cat-mauve"); break
                                     case 2:
@@ -242,14 +247,15 @@ Item {
                                         else if (ToastService.wallpaperErrorStatus === "error")
                                             ToastService.showError("Wallpaper processing failed - check wallpaper path")
                                         else
-                                            Theme.switchTheme(Theme.dynamic, true, false)
+                                            Theme.switchTheme(Theme.dynamic, true, true)
                                         break
                                     case 3:
                                         if (Theme.currentThemeName !== "custom") {
-                                            Theme.switchTheme("custom", true, false)
+                                            Theme.switchTheme("custom", true, true)
                                         }
                                         break
                                 }
+                                pendingThemeIndex = -1
                             }
                         }
 
@@ -645,7 +651,6 @@ Item {
 
                             DankDropdown {
                                 id: matugenPaletteDropdown
-                                width: parent.width
                                 text: "Matugen Palette"
                                 description: "Select the palette algorithm used for wallpaper-based colors"
                                 options: Theme.availableMatugenSchemes.map(function (option) { return option.label })
@@ -764,7 +769,7 @@ Item {
                         spacing: Theme.spacingS
 
                         StyledText {
-                            text: "Top Bar Transparency"
+                            text: "Dank Bar Transparency"
                             font.pixelSize: Theme.fontSizeSmall
                             color: Theme.surfaceText
                             font.weight: Font.Medium
@@ -774,7 +779,7 @@ Item {
                             width: parent.width
                             height: 24
                             value: Math.round(
-                                       SettingsData.topBarTransparency * 100)
+                                       SettingsData.dankBarTransparency * 100)
                             minimum: 0
                             maximum: 100
                             unit: ""
@@ -782,7 +787,7 @@ Item {
                             wheelEnabled: false
                             thumbOutlineColor: Theme.surfaceContainerHigh
                             onSliderValueChanged: newValue => {
-                                                      SettingsData.setTopBarTransparency(
+                                                      SettingsData.setDankBarTransparency(
                                                           newValue / 100)
                                                   }
                         }
@@ -798,7 +803,7 @@ Item {
 
                             StyledText {
                                 id: transparencyLabel
-                                text: "Top Bar Widget Transparency"
+                                text: "Dank Bar Widget Transparency"
                                 font.pixelSize: Theme.fontSizeSmall
                                 color: Theme.surfaceText
                                 font.weight: Font.Medium
@@ -843,7 +848,7 @@ Item {
                             width: parent.width
                             height: 24
                             value: Math.round(
-                                       SettingsData.topBarWidgetTransparency * 100)
+                                       SettingsData.dankBarWidgetTransparency * 100)
                             minimum: 0
                             maximum: 100
                             unit: ""
@@ -851,7 +856,7 @@ Item {
                             wheelEnabled: false
                             thumbOutlineColor: Theme.surfaceContainerHigh
                             onSliderValueChanged: newValue => {
-                                                      SettingsData.setTopBarWidgetTransparency(
+                                                      SettingsData.setDankBarWidgetTransparency(
                                                           newValue / 100)
                                                   }
                         }
@@ -987,7 +992,6 @@ Item {
                         }
 
                         DankDropdown {
-                            width: parent.width - Theme.iconSize - Theme.spacingXS
                             anchors.verticalCenter: parent.verticalCenter
                             text: "Icon Theme"
                             description: "DankShell & System Icons\n(requires restart)"

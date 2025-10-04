@@ -12,8 +12,8 @@ Rectangle {
     width: parent ? parent.width : 0
     height: 40
     radius: Theme.cornerRadius
-    color: processMouseArea.containsMouse ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.08) : "transparent"
-    border.color: processMouseArea.containsMouse ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.12) : "transparent"
+    color: processMouseArea.containsMouse ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.08) : Theme.withAlpha(Theme.primary, 0)
+    border.color: processMouseArea.containsMouse ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.12) : Theme.withAlpha(Theme.primary, 0)
     border.width: 1
 
     MouseArea {
@@ -158,7 +158,7 @@ Rectangle {
             width: 28
             height: 28
             radius: Theme.cornerRadius
-            color: menuButtonArea.containsMouse ? Qt.rgba(Theme.surfaceText.r, Theme.surfaceText.g, Theme.surfaceText.b, 0.08) : "transparent"
+            color: menuButtonArea.containsMouse ? Qt.rgba(Theme.surfaceText.r, Theme.surfaceText.g, Theme.surfaceText.b, 0.08) : Theme.withAlpha(Theme.surfaceText, 0)
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
 

@@ -17,7 +17,7 @@ Item {
     property MprisPlayer activePlayer: MprisController.activePlayer
     property var allPlayers: MprisController.availablePlayers
 
-
+    readonly property bool isRightEdge: SettingsData.dankBarPosition === SettingsData.Position.Right
     property var defaultSink: AudioService.sink
 
     // Palette that stays stable across track switches until new colors are ready
@@ -338,38 +338,39 @@ Item {
             }
         }
 
-        Rectangle {
+        Popup {
             id: audioDevicesDropdown
             width: 280
             height: audioDevicesButton.devicesExpanded ? Math.max(200, Math.min(280, audioDevicesDropdown.availableDevices.length * 50 + 100)) : 0
-            x: parent.width + Theme.spacingS
-            y: audioDevicesButton.y - 50  
+            x: isRightEdge ? -width - Theme.spacingS : root.width + Theme.spacingS
+            y: audioDevicesButton.y - 50
             visible: audioDevicesButton.devicesExpanded
-            clip: true
-            z: 150  
-            
+            closePolicy: Popup.NoAutoClose
+            modal: false
+            dim: false
+            padding: 0
+
             property var availableDevices: Pipewire.nodes.values.filter(node => {
                 return node.audio && node.isSink && !node.isStream
             })
-            
-            color: Qt.rgba(Theme.surfaceContainer.r, Theme.surfaceContainer.g, Theme.surfaceContainer.b, 0.98)
-            border.color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.6)
-            border.width: 2
-            radius: Theme.cornerRadius * 2
-            
-            opacity: audioDevicesButton.devicesExpanded ? 1 : 0
-            
-            // Drop shadow effect
-            layer.enabled: true
-            layer.effect: MultiEffect {
-                shadowEnabled: true
-                shadowHorizontalOffset: 0
-                shadowVerticalOffset: 8
-                shadowBlur: 1.0
-                shadowColor: Qt.rgba(0, 0, 0, 0.4)
-                shadowOpacity: 0.7
+
+            background: Rectangle {
+                color: Qt.rgba(Theme.surfaceContainer.r, Theme.surfaceContainer.g, Theme.surfaceContainer.b, 0.98)
+                border.color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.6)
+                border.width: 2
+                radius: Theme.cornerRadius * 2
+
+                layer.enabled: true
+                layer.effect: MultiEffect {
+                    shadowEnabled: true
+                    shadowHorizontalOffset: 0
+                    shadowVerticalOffset: 8
+                    shadowBlur: 1.0
+                    shadowColor: Qt.rgba(0, 0, 0, 0.4)
+                    shadowOpacity: 0.7
+                }
             }
-            
+
             Behavior on height {
                 NumberAnimation {
                     duration: Anims.durShort
@@ -378,8 +379,22 @@ Item {
                 }
             }
 
-            Behavior on opacity {
+            enter: Transition {
                 NumberAnimation {
+                    property: "opacity"
+                    from: 0
+                    to: 1
+                    duration: Anims.durShort
+                    easing.type: Easing.BezierSpline
+                    easing.bezierCurve: Anims.standard
+                }
+            }
+
+            exit: Transition {
+                NumberAnimation {
+                    property: "opacity"
+                    from: 1
+                    to: 0
                     duration: Anims.durShort
                     easing.type: Easing.BezierSpline
                     easing.bezierCurve: Anims.standard
@@ -471,7 +486,6 @@ Item {
                                     onClicked: {
                                         if (modelData) {
                                             Pipewire.preferredDefaultAudioSink = modelData
-                                            console.log("Current default sink after change:", AudioService.sink ? AudioService.sink.name : "null")
                                         }
                                         audioDevicesButton.devicesExpanded = false
                                     }
@@ -486,43 +500,59 @@ Item {
             }
         }
 
-        Rectangle {
+        Popup {
             id: playerSelectorDropdown
             width: 240
             height: playerSelectorButton.playersExpanded ? Math.max(180, Math.min(240, (root.allPlayers?.length || 0) * 50 + 80)) : 0
-            x: parent.width + Theme.spacingS
+            x: isRightEdge ? -width - Theme.spacingS : root.width + Theme.spacingS
             y: playerSelectorButton.y - 50
             visible: playerSelectorButton.playersExpanded
-            clip: true
-            z: 150
+            closePolicy: Popup.NoAutoClose
+            modal: false
+            dim: false
+            padding: 0
 
-            color: Qt.rgba(Theme.surfaceContainer.r, Theme.surfaceContainer.g, Theme.surfaceContainer.b, 0.98)
-            border.color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.6)
-            border.width: 2
-            radius: Theme.cornerRadius * 2
+            background: Rectangle {
+                color: Qt.rgba(Theme.surfaceContainer.r, Theme.surfaceContainer.g, Theme.surfaceContainer.b, 0.98)
+                border.color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.6)
+                border.width: 2
+                radius: Theme.cornerRadius * 2
 
-            opacity: playerSelectorButton.playersExpanded ? 1 : 0
-
-            layer.enabled: true
-            layer.effect: MultiEffect {
-                shadowEnabled: true
-                shadowHorizontalOffset: 0
-                shadowVerticalOffset: 8
-                shadowBlur: 1.0
-                shadowColor: Qt.rgba(0, 0, 0, 0.4)
-                shadowOpacity: 0.7
+                layer.enabled: true
+                layer.effect: MultiEffect {
+                    shadowEnabled: true
+                    shadowHorizontalOffset: 0
+                    shadowVerticalOffset: 8
+                    shadowBlur: 1.0
+                    shadowColor: Qt.rgba(0, 0, 0, 0.4)
+                    shadowOpacity: 0.7
+                }
             }
 
             Behavior on height {
-                NumberAnimation { 
+                NumberAnimation {
                     duration: Anims.durShort
                     easing.type: Easing.BezierSpline
                     easing.bezierCurve: Anims.emphasizedDecel
                 }
             }
 
-            Behavior on opacity {
-                NumberAnimation { 
+            enter: Transition {
+                NumberAnimation {
+                    property: "opacity"
+                    from: 0
+                    to: 1
+                    duration: Anims.durShort
+                    easing.type: Easing.BezierSpline
+                    easing.bezierCurve: Anims.standard
+                }
+            }
+
+            exit: Transition {
+                NumberAnimation {
+                    property: "opacity"
+                    from: 1
+                    to: 0
                     duration: Anims.durShort
                     easing.type: Easing.BezierSpline
                     easing.bezierCurve: Anims.standard
@@ -797,180 +827,210 @@ Item {
                             spacing: Theme.spacingM
                             height: parent.height
 
-                        Rectangle {
-                            width: 40
-                            height: 40
-                            radius: 20
-                            color: shuffleArea.containsMouse ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.12) : "transparent"
+                        Item {
+                            width: 50
+                            height: 50
                             anchors.verticalCenter: parent.verticalCenter
                             visible: activePlayer && activePlayer.shuffleSupported
 
-                            DankIcon {
+                            Rectangle {
+                                width: 40
+                                height: 40
+                                radius: 20
                                 anchors.centerIn: parent
-                                name: "shuffle"
-                                size: 20
-                                color: activePlayer && activePlayer.shuffle ? Theme.primary : Theme.surfaceText
-                            }
+                                color: shuffleArea.containsMouse ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.12) : "transparent"
 
-                            MouseArea {
-                                id: shuffleArea
-                                anchors.fill: parent
-                                hoverEnabled: true
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: {
-                                    if (activePlayer && activePlayer.canControl && activePlayer.shuffleSupported) {
-                                        activePlayer.shuffle = !activePlayer.shuffle
+                                DankIcon {
+                                    anchors.centerIn: parent
+                                    name: "shuffle"
+                                    size: 20
+                                    color: activePlayer && activePlayer.shuffle ? Theme.primary : Theme.surfaceText
+                                }
+
+                                MouseArea {
+                                    id: shuffleArea
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: {
+                                        if (activePlayer && activePlayer.canControl && activePlayer.shuffleSupported) {
+                                            activePlayer.shuffle = !activePlayer.shuffle
+                                        }
                                     }
                                 }
-                            }
 
-                            Behavior on color {
-                                ColorAnimation { 
-                                    duration: Anims.durShort
-                                    easing.type: Easing.BezierSpline
-                                    easing.bezierCurve: Anims.standard
-                                }
-                            }
-                        }
-
-                        Rectangle {
-                            width: 40
-                            height: 40
-                            radius: 20
-                            color: prevBtnArea.containsMouse ? Theme.surfaceContainerHigh : "transparent"
-                            anchors.verticalCenter: parent.verticalCenter
-
-                            DankIcon {
-                                anchors.centerIn: parent
-                                name: "skip_previous"
-                                size: 24
-                                color: Theme.surfaceText
-                            }
-
-                            MouseArea {
-                                id: prevBtnArea
-                                anchors.fill: parent
-                                hoverEnabled: true
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: {
-                                    if (!activePlayer) {
-                                        return
-                                    }
-
-                                    if (activePlayer.position > 8 && activePlayer.canSeek) {
-                                        activePlayer.position = 0
-                                    } else {
-                                        activePlayer.previous()
+                                Behavior on color {
+                                    ColorAnimation {
+                                        duration: Anims.durShort
+                                        easing.type: Easing.BezierSpline
+                                        easing.bezierCurve: Anims.standard
                                     }
                                 }
                             }
                         }
 
-                        Rectangle {
+                        Item {
                             width: 50
                             height: 50
-                            radius: 25
-                            color: Theme.primary
                             anchors.verticalCenter: parent.verticalCenter
 
-                            DankIcon {
+                            Rectangle {
+                                width: 40
+                                height: 40
+                                radius: 20
                                 anchors.centerIn: parent
-                                name: activePlayer && activePlayer.playbackState === MprisPlaybackState.Playing ? "pause" : "play_arrow"
-                                size: 28
-                                color: Theme.background
-                                weight: 500
-                            }
+                                color: prevBtnArea.containsMouse ? Theme.surfaceContainerHigh : "transparent"
 
-                            MouseArea {
-                                anchors.fill: parent
-                                hoverEnabled: true
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: activePlayer && activePlayer.togglePlaying()
-                            }
-
-                            layer.enabled: true
-                            layer.effect: MultiEffect {
-                                shadowEnabled: true
-                                shadowHorizontalOffset: 0
-                                shadowVerticalOffset: 6
-                                shadowBlur: 1.0
-                                shadowColor: Qt.rgba(0, 0, 0, 0.3)
-                                shadowOpacity: 0.3
-                            }
-                        }
-
-                        Rectangle {
-                            width: 40
-                            height: 40
-                            radius: 20
-                            color: nextBtnArea.containsMouse ? Theme.surfaceContainerHigh : "transparent"
-                            anchors.verticalCenter: parent.verticalCenter
-
-                            DankIcon {
-                                anchors.centerIn: parent
-                                name: "skip_next"
-                                size: 24
-                                color: Theme.surfaceText
-                            }
-
-                            MouseArea {
-                                id: nextBtnArea
-                                anchors.fill: parent
-                                hoverEnabled: true
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: activePlayer && activePlayer.next()
-                            }
-                        }
-
-                        Rectangle {
-                            width: 40
-                            height: 40
-                            radius: 20
-                            color: repeatArea.containsMouse ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.12) : "transparent"
-                            anchors.verticalCenter: parent.verticalCenter
-                            visible: activePlayer && activePlayer.loopSupported
-
-                            DankIcon {
-                                anchors.centerIn: parent
-                                name: {
-                                    if (!activePlayer) return "repeat"
-                                    switch(activePlayer.loopState) {
-                                        case MprisLoopState.Track: return "repeat_one"
-                                        case MprisLoopState.Playlist: return "repeat"
-                                        default: return "repeat"
-                                    }
+                                DankIcon {
+                                    anchors.centerIn: parent
+                                    name: "skip_previous"
+                                    size: 24
+                                    color: Theme.surfaceText
                                 }
-                                size: 20
-                                color: activePlayer && activePlayer.loopState !== MprisLoopState.None ? Theme.primary : Theme.surfaceText
-                            }
 
-                            MouseArea {
-                                id: repeatArea
-                                anchors.fill: parent
-                                hoverEnabled: true
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: {
-                                    if (activePlayer && activePlayer.canControl && activePlayer.loopSupported) {
-                                        switch(activePlayer.loopState) {
-                                            case MprisLoopState.None:
-                                                activePlayer.loopState = MprisLoopState.Playlist
-                                                break
-                                            case MprisLoopState.Playlist:
-                                                activePlayer.loopState = MprisLoopState.Track
-                                                break
-                                            case MprisLoopState.Track:
-                                                activePlayer.loopState = MprisLoopState.None
-                                                break
+                                MouseArea {
+                                    id: prevBtnArea
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: {
+                                        if (!activePlayer) {
+                                            return
+                                        }
+
+                                        if (activePlayer.position > 8 && activePlayer.canSeek) {
+                                            activePlayer.position = 0
+                                        } else {
+                                            activePlayer.previous()
                                         }
                                     }
                                 }
                             }
+                        }
 
-                            Behavior on color {
-                                ColorAnimation { 
-                                    duration: Anims.durShort
-                                    easing.type: Easing.BezierSpline
-                                    easing.bezierCurve: Anims.standard
+                        Item {
+                            width: 50
+                            height: 50
+                            anchors.verticalCenter: parent.verticalCenter
+
+                            Rectangle {
+                                width: 50
+                                height: 50
+                                radius: 25
+                                anchors.centerIn: parent
+                                color: Theme.primary
+
+                                DankIcon {
+                                    anchors.centerIn: parent
+                                    name: activePlayer && activePlayer.playbackState === MprisPlaybackState.Playing ? "pause" : "play_arrow"
+                                    size: 28
+                                    color: Theme.background
+                                    weight: 500
+                                }
+
+                                MouseArea {
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: activePlayer && activePlayer.togglePlaying()
+                                }
+
+                                layer.enabled: true
+                                layer.effect: MultiEffect {
+                                    shadowEnabled: true
+                                    shadowHorizontalOffset: 0
+                                    shadowVerticalOffset: 0
+                                    shadowBlur: 1.0
+                                    shadowColor: Qt.rgba(0, 0, 0, 0.3)
+                                    shadowOpacity: 0.3
+                                }
+                            }
+                        }
+
+                        Item {
+                            width: 50
+                            height: 50
+                            anchors.verticalCenter: parent.verticalCenter
+
+                            Rectangle {
+                                width: 40
+                                height: 40
+                                radius: 20
+                                anchors.centerIn: parent
+                                color: nextBtnArea.containsMouse ? Theme.surfaceContainerHigh : "transparent"
+
+                                DankIcon {
+                                    anchors.centerIn: parent
+                                    name: "skip_next"
+                                    size: 24
+                                    color: Theme.surfaceText
+                                }
+
+                                MouseArea {
+                                    id: nextBtnArea
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: activePlayer && activePlayer.next()
+                                }
+                            }
+                        }
+
+                        Item {
+                            width: 50
+                            height: 50
+                            anchors.verticalCenter: parent.verticalCenter
+                            visible: activePlayer && activePlayer.loopSupported
+
+                            Rectangle {
+                                width: 40
+                                height: 40
+                                radius: 20
+                                anchors.centerIn: parent
+                                color: repeatArea.containsMouse ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.12) : "transparent"
+
+                                DankIcon {
+                                    anchors.centerIn: parent
+                                    name: {
+                                        if (!activePlayer) return "repeat"
+                                        switch(activePlayer.loopState) {
+                                            case MprisLoopState.Track: return "repeat_one"
+                                            case MprisLoopState.Playlist: return "repeat"
+                                            default: return "repeat"
+                                        }
+                                    }
+                                    size: 20
+                                    color: activePlayer && activePlayer.loopState !== MprisLoopState.None ? Theme.primary : Theme.surfaceText
+                                }
+
+                                MouseArea {
+                                    id: repeatArea
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: {
+                                        if (activePlayer && activePlayer.canControl && activePlayer.loopSupported) {
+                                            switch(activePlayer.loopState) {
+                                                case MprisLoopState.None:
+                                                    activePlayer.loopState = MprisLoopState.Playlist
+                                                    break
+                                                case MprisLoopState.Playlist:
+                                                    activePlayer.loopState = MprisLoopState.Track
+                                                    break
+                                                case MprisLoopState.Track:
+                                                    activePlayer.loopState = MprisLoopState.None
+                                                    break
+                                            }
+                                        }
+                                    }
+                                }
+
+                                Behavior on color {
+                                    ColorAnimation {
+                                        duration: Anims.durShort
+                                        easing.type: Easing.BezierSpline
+                                        easing.bezierCurve: Anims.standard
+                                    }
                                 }
                             }
                         }
@@ -985,7 +1045,7 @@ Item {
             width: 40
             height: 40
             radius: 20
-            x: parent.width - 40 - Theme.spacingM
+            x: isRightEdge ? Theme.spacingM : parent.width - 40 - Theme.spacingM
             y: 185
             color: playerSelectorArea.containsMouse ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.2) : "transparent"
             border.color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.3)
@@ -1010,8 +1070,27 @@ Item {
                 onClicked: {
                     parent.playersExpanded = !parent.playersExpanded
                 }
+                onEntered: {
+                    playerTooltipLoader.active = true
+                    if (playerTooltipLoader.item) {
+                        const p = playerSelectorButton.mapToItem(null, playerSelectorButton.width / 2, 0)
+                        playerTooltipLoader.item.show("Media Player", p.x, p.y - 40, null)
+                    }
+                }
+                onExited: {
+                    if (playerTooltipLoader.item) {
+                        playerTooltipLoader.item.hide()
+                    }
+                    playerTooltipLoader.active = false
+                }
             }
 
+        }
+
+        Loader {
+            id: playerTooltipLoader
+            active: false
+            sourceComponent: DankTooltip {}
         }
 
         Rectangle {
@@ -1019,12 +1098,12 @@ Item {
             width: 40
             height: 40
             radius: 20
-            x: parent.width - 40 - Theme.spacingM
-            y: 130  
+            x: isRightEdge ? Theme.spacingM : parent.width - 40 - Theme.spacingM
+            y: 130
             color: volumeButtonArea.containsMouse ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.2) : "transparent"
             border.color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.3)
             border.width: 1
-            z: 100
+            z: 101
 
             property bool volumeExpanded: false
 
@@ -1068,220 +1147,14 @@ Item {
 
         }
 
-        Rectangle {
-            id: volumeSliderPanel
-            width: 60
-            height: 180
-            radius: Theme.cornerRadius * 2
-            x: parent.width + Theme.spacingS
-            y: volumeButton.y - 50
-            color: Qt.rgba(Theme.surfaceContainer.r, Theme.surfaceContainer.g, Theme.surfaceContainer.b, 0.95)
-            border.color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.3)
-            border.width: 1
-            visible: volumeButton.volumeExpanded
-            clip: true
-            z: 110
-
-            opacity: volumeButton.volumeExpanded ? 1 : 0
-
-            Behavior on opacity {
-                NumberAnimation { 
-                    duration: Anims.durShort
-                    easing.type: Easing.BezierSpline
-                    easing.bezierCurve: Anims.standard
-                }
-            }
-
-            Item {
-                anchors.fill: parent
-                anchors.margins: Theme.spacingS
-
-                Item {
-                    id: volumeSlider
-                    width: parent.width * 0.5
-                    height: parent.height - Theme.spacingXL * 2
-                    anchors.top: parent.top
-                    anchors.topMargin: Theme.spacingS
-                    anchors.horizontalCenter: parent.horizontalCenter
-
-                    property bool dragging: false
-                    property bool containsMouse: volumeSliderArea.containsMouse
-                    property bool active: volumeSliderArea.containsMouse || volumeSliderArea.pressed || dragging
-
-                    function withAlpha(c, a) { return Qt.rgba(c.r, c.g, c.b, a) }
-
-                    Rectangle {
-                        id: sliderTrack
-                        width: parent.width
-                        height: parent.height
-                        anchors.centerIn: parent
-                        color: Theme.surfaceContainerHigh
-                        radius: Theme.cornerRadius
-                    }
-
-                    Rectangle {
-                        id: sliderFill
-                        width: parent.width
-                        height: defaultSink ? (Math.min(1.0, defaultSink.audio.volume) * parent.height) : 0
-                        anchors.bottom: parent.bottom
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        color: Theme.primary
-                        bottomLeftRadius: Theme.cornerRadius
-                        bottomRightRadius: Theme.cornerRadius
-                        topLeftRadius: 0
-                        topRightRadius: 0
-                    }
-
-                    Rectangle {
-                        id: sliderHandle
-                        width: parent.width + 8
-                        height: 8
-                        radius: Theme.cornerRadius
-                        y: {
-                            const ratio = defaultSink ? Math.min(1.0, defaultSink.audio.volume) : 0
-                            const travel = parent.height - height
-                            return Math.max(0, Math.min(travel, travel * (1 - ratio)))
-                        }
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        color: Theme.primary
-                        border.width: 3
-                        border.color: Qt.rgba(Theme.surfaceContainer.r, Theme.surfaceContainer.g, Theme.surfaceContainer.b, 1.0)
-
-                        Rectangle {
-                            anchors.fill: parent
-                            radius: Theme.cornerRadius
-                            color: Theme.onPrimary
-                            opacity: volumeSliderArea.pressed ? 0.16 : (volumeSliderArea.containsMouse ? 0.08 : 0)
-                            visible: opacity > 0
-                        }
-
-                        Rectangle {
-                            id: ripple
-                            anchors.centerIn: parent
-                            width: 0
-                            height: 0
-                            radius: width / 2
-                            color: Theme.onPrimary
-                            opacity: 0
-
-                            function start() {
-                                opacity = 0.16
-                                width = 0
-                                height = 0
-                                rippleAnimation.start()
-                            }
-
-                            SequentialAnimation {
-                                id: rippleAnimation
-                                NumberAnimation {
-                                    target: ripple
-                                    properties: "width,height"
-                                    to: 28
-                                    duration: 180
-                                }
-                                NumberAnimation {
-                                    target: ripple
-                                    property: "opacity"
-                                    to: 0
-                                    duration: 150
-                                }
-                            }
-                        }
-
-                        TapHandler {
-                            acceptedButtons: Qt.LeftButton
-                            onPressedChanged: {
-                                if (pressed) {
-                                    ripple.start()
-                                }
-                            }
-                        }
-
-                        scale: active ? 1.05 : 1.0
-
-                        Behavior on scale {
-                            NumberAnimation {
-                                duration: Anims.durShort
-                                easing.type: Easing.BezierSpline
-                                easing.bezierCurve: Anims.standard
-                            }
-                        }
-                    }
-                    
-                    MouseArea {
-                        id: volumeSliderArea
-                        anchors.fill: parent
-                        anchors.margins: -12
-                        enabled: defaultSink !== null
-                        hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
-                        preventStealing: true
-                        
-                        onEntered: {
-                            volumeHideTimer.stop()
-                        }
-                        
-                        onExited: {
-                            volumeHideTimer.restart()
-                        }
-                        
-                        onPressed: function(mouse) {
-                            parent.dragging = true
-                            updateVolume(mouse)
-                        }
-                        
-                        onReleased: {
-                            parent.dragging = false
-                        }
-                        
-                        onPositionChanged: function(mouse) {
-                            if (pressed) {
-                                updateVolume(mouse)
-                            }
-                        }
-                        
-                        onClicked: function(mouse) {
-                            updateVolume(mouse)
-                        }
-                        
-                        onWheel: wheelEvent => {
-                            const step = Math.max(0.5, 100 / 100)
-                            adjustVolume(wheelEvent.angleDelta.y > 0 ? step : -step)
-                            wheelEvent.accepted = true
-                        }
-                        
-                        function updateVolume(mouse) {
-                            if (defaultSink) {
-                                const ratio = 1.0 - (mouse.y / height)
-                                const volume = Math.max(0, Math.min(1, ratio))
-                                defaultSink.audio.volume = volume
-                                if (volume > 0 && defaultSink.audio.muted) {
-                                    defaultSink.audio.muted = false
-                                }
-                            }
-                        }
-                    }
-                }
-
-                StyledText {
-                    anchors.bottom: parent.bottom
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    anchors.bottomMargin: Theme.spacingL
-                    text: defaultSink ? Math.round(defaultSink.audio.volume * 100) + "%" : "0%"
-                    font.pixelSize: Theme.fontSizeSmall
-                    color: Theme.surfaceText
-                    font.weight: Font.Medium
-                }
-            }
-        }
 
         Rectangle {
             id: audioDevicesButton
             width: 40
             height: 40
             radius: 20
-            x: parent.width - 40 - Theme.spacingM
-            y: 240  
+            x: isRightEdge ? Theme.spacingM : parent.width - 40 - Theme.spacingM
+            y: 240
             color: audioDevicesArea.containsMouse ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.2) : "transparent"
             border.color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.3)
             border.width: 1
@@ -1304,9 +1177,260 @@ Item {
                 onClicked: {
                     parent.devicesExpanded = !parent.devicesExpanded
                 }
+                onEntered: {
+                    audioDevicesTooltipLoader.active = true
+                    if (audioDevicesTooltipLoader.item) {
+                        const p = audioDevicesButton.mapToItem(null, audioDevicesButton.width / 2, 0)
+                        audioDevicesTooltipLoader.item.show("Output Device", p.x, p.y - 40, null)
+                    }
+                }
+                onExited: {
+                    if (audioDevicesTooltipLoader.item) {
+                        audioDevicesTooltipLoader.item.hide()
+                    }
+                    audioDevicesTooltipLoader.active = false
+                }
             }
 
         }
 
+        Loader {
+            id: audioDevicesTooltipLoader
+            active: false
+            sourceComponent: DankTooltip {}
+        }
+
+    }
+
+    Popup {
+        id: volumeSliderPanel
+        width: 60
+        height: 180
+        x: isRightEdge ? -width - Theme.spacingS : root.width + Theme.spacingS
+        y: volumeButton.y - 50
+        visible: volumeButton.volumeExpanded
+        closePolicy: Popup.NoAutoClose
+        modal: false
+        dim: false
+        padding: 0
+
+        background: Rectangle {
+            radius: Theme.cornerRadius * 2
+            color: Qt.rgba(Theme.surfaceContainer.r, Theme.surfaceContainer.g, Theme.surfaceContainer.b, 0.95)
+            border.color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.3)
+            border.width: 1
+
+            layer.enabled: true
+            layer.effect: MultiEffect {
+                shadowEnabled: true
+                shadowHorizontalOffset: 0
+                shadowVerticalOffset: 8
+                shadowBlur: 1.0
+                shadowColor: Qt.rgba(0, 0, 0, 0.4)
+                shadowOpacity: 0.7
+            }
+        }
+
+        enter: Transition {
+            NumberAnimation {
+                property: "opacity"
+                from: 0
+                to: 1
+                duration: Anims.durShort
+                easing.type: Easing.BezierSpline
+                easing.bezierCurve: Anims.standard
+            }
+        }
+
+        exit: Transition {
+            NumberAnimation {
+                property: "opacity"
+                from: 1
+                to: 0
+                duration: Anims.durShort
+                easing.type: Easing.BezierSpline
+                easing.bezierCurve: Anims.standard
+            }
+        }
+
+        Item {
+            anchors.fill: parent
+            anchors.margins: Theme.spacingS
+
+            Item {
+                id: volumeSlider
+                width: parent.width * 0.5
+                height: parent.height - Theme.spacingXL * 2
+                anchors.top: parent.top
+                anchors.topMargin: Theme.spacingS
+                anchors.horizontalCenter: parent.horizontalCenter
+
+                property bool dragging: false
+                property bool containsMouse: volumeSliderArea.containsMouse
+                property bool active: volumeSliderArea.containsMouse || volumeSliderArea.pressed || dragging
+
+                Rectangle {
+                    id: sliderTrack
+                    width: parent.width
+                    height: parent.height
+                    anchors.centerIn: parent
+                    color: Theme.surfaceContainerHigh
+                    radius: Theme.cornerRadius
+                }
+
+                Rectangle {
+                    id: sliderFill
+                    width: parent.width
+                    height: defaultSink ? (Math.min(1.0, defaultSink.audio.volume) * parent.height) : 0
+                    anchors.bottom: parent.bottom
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    color: Theme.primary
+                    bottomLeftRadius: Theme.cornerRadius
+                    bottomRightRadius: Theme.cornerRadius
+                    topLeftRadius: 0
+                    topRightRadius: 0
+                }
+
+                Rectangle {
+                    id: sliderHandle
+                    width: parent.width + 8
+                    height: 8
+                    radius: Theme.cornerRadius
+                    y: {
+                        const ratio = defaultSink ? Math.min(1.0, defaultSink.audio.volume) : 0
+                        const travel = parent.height - height
+                        return Math.max(0, Math.min(travel, travel * (1 - ratio)))
+                    }
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    color: Theme.primary
+                    border.width: 3
+                    border.color: Qt.rgba(Theme.surfaceContainer.r, Theme.surfaceContainer.g, Theme.surfaceContainer.b, 1.0)
+
+                    Rectangle {
+                        anchors.fill: parent
+                        radius: Theme.cornerRadius
+                        color: Theme.onPrimary
+                        opacity: volumeSliderArea.pressed ? 0.16 : (volumeSliderArea.containsMouse ? 0.08 : 0)
+                        visible: opacity > 0
+                    }
+
+                    Rectangle {
+                        id: ripple
+                        anchors.centerIn: parent
+                        width: 0
+                        height: 0
+                        radius: width / 2
+                        color: Theme.onPrimary
+                        opacity: 0
+
+                        function start() {
+                            opacity = 0.16
+                            width = 0
+                            height = 0
+                            rippleAnimation.start()
+                        }
+
+                        SequentialAnimation {
+                            id: rippleAnimation
+                            NumberAnimation {
+                                target: ripple
+                                properties: "width,height"
+                                to: 28
+                                duration: 180
+                            }
+                            NumberAnimation {
+                                target: ripple
+                                property: "opacity"
+                                to: 0
+                                duration: 150
+                            }
+                        }
+                    }
+
+                    TapHandler {
+                        acceptedButtons: Qt.LeftButton
+                        onPressedChanged: {
+                            if (pressed) {
+                                ripple.start()
+                            }
+                        }
+                    }
+
+                    scale: volumeSlider.active ? 1.05 : 1.0
+
+                    Behavior on scale {
+                        NumberAnimation {
+                            duration: Anims.durShort
+                            easing.type: Easing.BezierSpline
+                            easing.bezierCurve: Anims.standard
+                        }
+                    }
+                }
+
+                MouseArea {
+                    id: volumeSliderArea
+                    anchors.fill: parent
+                    anchors.margins: -12
+                    enabled: defaultSink !== null
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    preventStealing: true
+
+                    onEntered: {
+                        volumeHideTimer.stop()
+                    }
+
+                    onExited: {
+                        volumeHideTimer.restart()
+                    }
+
+                    onPressed: function(mouse) {
+                        parent.dragging = true
+                        updateVolume(mouse)
+                    }
+
+                    onReleased: {
+                        parent.dragging = false
+                    }
+
+                    onPositionChanged: function(mouse) {
+                        if (pressed) {
+                            updateVolume(mouse)
+                        }
+                    }
+
+                    onClicked: function(mouse) {
+                        updateVolume(mouse)
+                    }
+
+                    onWheel: wheelEvent => {
+                        const step = Math.max(0.5, 100 / 100)
+                        adjustVolume(wheelEvent.angleDelta.y > 0 ? step : -step)
+                        wheelEvent.accepted = true
+                    }
+
+                    function updateVolume(mouse) {
+                        if (defaultSink) {
+                            const ratio = 1.0 - (mouse.y / height)
+                            const volume = Math.max(0, Math.min(1, ratio))
+                            defaultSink.audio.volume = volume
+                            if (volume > 0 && defaultSink.audio.muted) {
+                                defaultSink.audio.muted = false
+                            }
+                        }
+                    }
+                }
+            }
+
+            StyledText {
+                anchors.bottom: parent.bottom
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.bottomMargin: Theme.spacingL
+                text: defaultSink ? Math.round(defaultSink.audio.volume * 100) + "%" : "0%"
+                font.pixelSize: Theme.fontSizeSmall
+                color: Theme.surfaceText
+                font.weight: Font.Medium
+            }
+        }
     }
 }

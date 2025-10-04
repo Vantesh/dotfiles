@@ -22,7 +22,7 @@ PanelWindow {
     property bool closeOnEscapeKey: true
     property bool closeOnBackgroundClick: true
     property string animationType: "scale"
-    property int animationDuration: Theme.shorterDuration
+    property int animationDuration: Theme.shortDuration
     property var animationEasing: Theme.emphasizedEasing
     property color backgroundColor: Theme.surfaceContainer
     property color borderColor: Theme.outlineMedium
@@ -34,6 +34,7 @@ PanelWindow {
     property bool shouldHaveFocus: shouldBeVisible
     property bool allowFocusOverride: false
     property bool allowStacking: false
+    property bool keepContentLoaded: false
 
     signal opened
     signal dialogClosed
@@ -90,7 +91,7 @@ PanelWindow {
     Timer {
         id: closeTimer
 
-        interval: animationDuration + 50
+        interval: animationDuration + 100
         onTriggered: {
             visible = false
         }
@@ -156,9 +157,7 @@ PanelWindow {
         radius: root.cornerRadius
         border.color: root.borderColor
         border.width: root.borderWidth
-        layer.enabled: root.enableShadow
-        opacity: root.shouldBeVisible ? 1 : 0
-        scale: root.animationType === "scale" ? (root.shouldBeVisible ? 1 : 0.9) : 1
+        layer.enabled: true
         transform: root.animationType === "slide" ? slideTransform : null
 
         Translate {
@@ -172,24 +171,8 @@ PanelWindow {
             id: contentLoader
 
             anchors.fill: parent
-            active: root.visible
+            active: root.keepContentLoaded || root.shouldBeVisible || root.visible
             asynchronous: false
-        }
-
-        Behavior on opacity {
-            NumberAnimation {
-                duration: root.animationDuration
-                easing.type: root.animationEasing
-            }
-        }
-
-        Behavior on scale {
-            enabled: root.animationType === "scale"
-
-            NumberAnimation {
-                duration: root.animationDuration
-                easing.type: root.animationEasing
-            }
         }
 
         layer.effect: MultiEffect {
@@ -199,6 +182,15 @@ PanelWindow {
             shadowBlur: 1
             shadowColor: Theme.shadowStrong
             shadowOpacity: 0.3
+            source: contentContainer
+            opacity: root.shouldBeVisible ? 1 : 0
+
+            Behavior on opacity {
+                NumberAnimation {
+                    duration: animationDuration
+                    easing.type: animationEasing
+                }
+            }
         }
     }
 
@@ -207,8 +199,8 @@ PanelWindow {
 
         objectName: "modalFocusScope"
         anchors.fill: parent
-        visible: root.visible // Only active when the modal is visible
-        focus: root.visible
+        visible: root.shouldBeVisible || root.visible
+        focus: root.shouldBeVisible
         Keys.onEscapePressed: event => {
                                   if (root.closeOnEscapeKey && shouldHaveFocus) {
                                       root.close()
@@ -223,7 +215,7 @@ PanelWindow {
 
         Connections {
             function onShouldHaveFocusChanged() {
-                if (shouldHaveFocus && visible) {
+                if (shouldHaveFocus && shouldBeVisible) {
                     Qt.callLater(() => focusScope.forceActiveFocus())
                 }
             }

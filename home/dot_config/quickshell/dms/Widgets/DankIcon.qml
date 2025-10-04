@@ -12,6 +12,8 @@ StyledText {
     property int grade: Theme.isLightMode ? 0 : -25
     property int weight: filled ? 500 : 400
 
+    signal rotationCompleted()
+
     font.family: "Material Symbols Rounded"
     font.pixelSize: Theme.fontSizeMedium
     font.weight: weight
@@ -39,5 +41,16 @@ StyledText {
             duration: Theme.shortDuration
             easing.type: Theme.standardEasing
         }
+    }
+
+    Timer {
+        id: rotationTimer
+        interval: 16
+        repeat: false
+        onTriggered: icon.rotationCompleted()
+    }
+
+    onRotationChanged: {
+        rotationTimer.restart()
     }
 }

@@ -10,8 +10,8 @@ Item {
     id: displaysTab
 
     property var variantComponents: [{
-        "id": "topBar",
-        "name": "Top Bar",
+        "id": "dankBar",
+        "name": "Dank Bar",
         "description": "System bar with widgets and system information",
         "icon": "toolbar"
     }, {

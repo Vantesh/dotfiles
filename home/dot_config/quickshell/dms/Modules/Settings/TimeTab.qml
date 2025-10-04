@@ -121,7 +121,6 @@ Item {
                     }
 
                     DankDropdown {
-                        width: parent.width
                         height: 50
                         text: "Top Bar Format"
                         description: "Preview: " + (SettingsData.clockDateFormat ? new Date().toLocaleDateString(Qt.locale(), SettingsData.clockDateFormat) : new Date().toLocaleDateString(Qt.locale(), "ddd d"))
@@ -185,7 +184,6 @@ Item {
                     }
 
                     DankDropdown {
-                        width: parent.width
                         height: 50
                         text: "Lock Screen Format"
                         description: "Preview: " + (SettingsData.lockDateFormat ? new Date().toLocaleDateString(Qt.locale(), SettingsData.lockDateFormat) : new Date().toLocaleDateString(Qt.locale(), Locale.LongFormat))

@@ -76,7 +76,6 @@ PanelWindow {
     color: "transparent"
     implicitWidth: 400
     implicitHeight: 122
-    onScreenYChanged: margins.top = Theme.barHeight - 4 + SettingsData.topBarSpacing + 4 + screenY
     onHasValidDataChanged: {
         if (!hasValidData && !exiting && !_isDestroying) {
             forceExit()
@@ -108,14 +107,94 @@ PanelWindow {
         }
     }
 
-    anchors {
-        top: true
-        right: true
-    }
+    property bool isTopCenter: SettingsData.notificationPopupPosition === -1
+
+    anchors.top: isTopCenter || SettingsData.notificationPopupPosition === SettingsData.Position.Top || SettingsData.notificationPopupPosition === SettingsData.Position.Left
+    anchors.bottom: SettingsData.notificationPopupPosition === SettingsData.Position.Bottom || SettingsData.notificationPopupPosition === SettingsData.Position.Right
+    anchors.left: SettingsData.notificationPopupPosition === SettingsData.Position.Left || SettingsData.notificationPopupPosition === SettingsData.Position.Bottom
+    anchors.right: SettingsData.notificationPopupPosition === SettingsData.Position.Top || SettingsData.notificationPopupPosition === SettingsData.Position.Right
 
     margins {
-        top: Theme.barHeight - 4 + SettingsData.topBarSpacing + 4
-        right: 12
+        top: getTopMargin()
+        bottom: getBottomMargin()
+        left: getLeftMargin()
+        right: getRightMargin()
+    }
+
+    function getTopMargin() {
+        const popupPos = SettingsData.notificationPopupPosition
+        const barPos = SettingsData.dankBarPosition
+        const isTop = isTopCenter || popupPos === SettingsData.Position.Top || popupPos === SettingsData.Position.Left
+
+        if (!isTop) return 0
+
+        const effectiveBarThickness = Math.max(26 + SettingsData.dankBarInnerPadding * 0.6 + SettingsData.dankBarInnerPadding + 4, Theme.barHeight - 4 - (8 - SettingsData.dankBarInnerPadding))
+        const exclusiveZone = effectiveBarThickness + SettingsData.dankBarSpacing + SettingsData.dankBarBottomGap
+
+        let base = Theme.popupDistance
+        if (barPos === SettingsData.Position.Top) {
+            base = exclusiveZone
+        }
+
+        return base + screenY
+    }
+
+    function getBottomMargin() {
+        const popupPos = SettingsData.notificationPopupPosition
+        const barPos = SettingsData.dankBarPosition
+        const isBottom = popupPos === SettingsData.Position.Bottom || popupPos === SettingsData.Position.Right
+
+        if (!isBottom) return 0
+
+        const effectiveBarThickness = Math.max(26 + SettingsData.dankBarInnerPadding * 0.6 + SettingsData.dankBarInnerPadding + 4, Theme.barHeight - 4 - (8 - SettingsData.dankBarInnerPadding))
+        const exclusiveZone = effectiveBarThickness + SettingsData.dankBarSpacing + SettingsData.dankBarBottomGap
+
+        let base = Theme.popupDistance
+        if (barPos === SettingsData.Position.Bottom) {
+            base = exclusiveZone
+        }
+
+        return base + screenY
+    }
+
+    function getLeftMargin() {
+        if (isTopCenter) {
+            return (screen.width - implicitWidth) / 2
+        }
+
+        const popupPos = SettingsData.notificationPopupPosition
+        const barPos = SettingsData.dankBarPosition
+        const isLeft = popupPos === SettingsData.Position.Left || popupPos === SettingsData.Position.Bottom
+
+        if (!isLeft) return 0
+
+        const effectiveBarThickness = Math.max(26 + SettingsData.dankBarInnerPadding * 0.6 + SettingsData.dankBarInnerPadding + 4, Theme.barHeight - 4 - (8 - SettingsData.dankBarInnerPadding))
+        const exclusiveZone = effectiveBarThickness + SettingsData.dankBarSpacing + SettingsData.dankBarBottomGap
+
+        if (barPos === SettingsData.Position.Left) {
+            return exclusiveZone
+        }
+
+        return Theme.popupDistance
+    }
+
+    function getRightMargin() {
+        if (isTopCenter) return 0
+
+        const popupPos = SettingsData.notificationPopupPosition
+        const barPos = SettingsData.dankBarPosition
+        const isRight = popupPos === SettingsData.Position.Top || popupPos === SettingsData.Position.Right
+
+        if (!isRight) return 0
+
+        const effectiveBarThickness = Math.max(26 + SettingsData.dankBarInnerPadding * 0.6 + SettingsData.dankBarInnerPadding + 4, Theme.barHeight - 4 - (8 - SettingsData.dankBarInnerPadding))
+        const exclusiveZone = effectiveBarThickness + SettingsData.dankBarSpacing + SettingsData.dankBarBottomGap
+
+        if (barPos === SettingsData.Position.Right) {
+            return exclusiveZone
+        }
+
+        return Theme.popupDistance
     }
 
     Item {
@@ -123,7 +202,7 @@ PanelWindow {
 
         anchors.fill: parent
         visible: win.hasValidData
-        layer.enabled: (enterX.running || exitAnim.running)
+        layer.enabled: true
         layer.smooth: true
 
         Rectangle {
@@ -455,7 +534,12 @@ PanelWindow {
         transform: Translate {
             id: tx
 
-            x: Anims.slidePx
+            x: {
+                if (isTopCenter) return 0
+                const isLeft = SettingsData.notificationPopupPosition === SettingsData.Position.Left || SettingsData.notificationPopupPosition === SettingsData.Position.Bottom
+                return isLeft ? -Anims.slidePx : Anims.slidePx
+            }
+            y: isTopCenter ? -Anims.slidePx : 0
         }
     }
 
@@ -463,15 +547,23 @@ PanelWindow {
         id: enterX
 
         target: tx
-        property: "x"
-        from: Anims.slidePx
+        property: isTopCenter ? "y" : "x"
+        from: {
+            if (isTopCenter) return -Anims.slidePx
+            const isLeft = SettingsData.notificationPopupPosition === SettingsData.Position.Left || SettingsData.notificationPopupPosition === SettingsData.Position.Bottom
+            return isLeft ? -Anims.slidePx : Anims.slidePx
+        }
         to: 0
         duration: Anims.durMed
         easing.type: Easing.BezierSpline
-        easing.bezierCurve: Anims.emphasizedDecel
+        easing.bezierCurve: isTopCenter ? Anims.standardDecel : Anims.emphasizedDecel
         onStopped: {
-            if (!win.exiting && !win._isDestroying && Math.abs(tx.x) < 0.5) {
-                win.entered()
+            if (!win.exiting && !win._isDestroying) {
+                if (isTopCenter) {
+                    if (Math.abs(tx.y) < 0.5) win.entered()
+                } else {
+                    if (Math.abs(tx.x) < 0.5) win.entered()
+                }
             }
         }
     }
@@ -483,9 +575,13 @@ PanelWindow {
 
         PropertyAnimation {
             target: tx
-            property: "x"
+            property: isTopCenter ? "y" : "x"
             from: 0
-            to: Anims.slidePx
+            to: {
+                if (isTopCenter) return -Anims.slidePx
+                const isLeft = SettingsData.notificationPopupPosition === SettingsData.Position.Left || SettingsData.notificationPopupPosition === SettingsData.Position.Bottom
+                return isLeft ? -Anims.slidePx : Anims.slidePx
+            }
             duration: Anims.durShort
             easing.type: Easing.BezierSpline
             easing.bezierCurve: Anims.emphasizedAccel

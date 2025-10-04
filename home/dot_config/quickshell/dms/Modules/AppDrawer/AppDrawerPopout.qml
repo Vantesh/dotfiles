@@ -12,7 +12,6 @@ import qs.Widgets
 DankPopout {
     id: appDrawerPopout
 
-    property string triggerSection: "left"
     property var triggerScreen: null
 
     // Setting to Exclusive, so virtual keyboards can send input to app drawer
@@ -33,9 +32,9 @@ DankPopout {
     popupWidth: 520
     popupHeight: 600
     triggerX: Theme.spacingL
-    triggerY: Math.max(26 + SettingsData.topBarInnerPadding + 4, Theme.barHeight - 4 - (8 - SettingsData.topBarInnerPadding)) + SettingsData.topBarSpacing + SettingsData.topBarBottomGap - 2 + Theme.popupDistance
+    triggerY: Math.max(26 + SettingsData.dankBarInnerPadding + 4, Theme.barHeight - 4 - (8 - SettingsData.dankBarInnerPadding)) + SettingsData.dankBarSpacing + SettingsData.dankBarBottomGap - 2
     triggerWidth: 40
-    positioning: "center"
+    positioning: ""
     screen: triggerScreen
 
     onShouldBeVisibleChanged: {
@@ -126,6 +125,44 @@ DankPopout {
                         keyMappings[event.key]()
                         event.accepted = true
                         return
+                    }
+
+                    if (event.key === Qt.Key_N && event.modifiers & Qt.ControlModifier) {
+                        appLauncher.selectNext()
+                        event.accepted = true
+                        return
+                    }
+
+                    if (event.key === Qt.Key_P && event.modifiers & Qt.ControlModifier) {
+                        appLauncher.selectPrevious()
+                        event.accepted = true
+                        return
+                    }
+
+                    if (event.key === Qt.Key_J && event.modifiers & Qt.ControlModifier) {
+                        appLauncher.selectNext()
+                        event.accepted = true
+                        return
+                    }
+
+                    if (event.key === Qt.Key_K && event.modifiers & Qt.ControlModifier) {
+                        appLauncher.selectPrevious()
+                        event.accepted = true
+                        return
+                    }
+
+                    if (appLauncher.viewMode === "grid") {
+                        if (event.key === Qt.Key_L && event.modifiers & Qt.ControlModifier) {
+                            appLauncher.selectNextInRow()
+                            event.accepted = true
+                            return
+                        }
+
+                        if (event.key === Qt.Key_H && event.modifiers & Qt.ControlModifier) {
+                            appLauncher.selectPreviousInRow()
+                            event.accepted = true
+                            return
+                        }
                     }
 
                     if (!searchField.activeFocus && event.text && /[a-zA-Z0-9\s]/.test(event.text)) {
@@ -234,18 +271,17 @@ DankPopout {
                         spacing: Theme.spacingM
                         visible: searchField.text.length === 0
                         leftPadding: Theme.spacingS
-                        topPadding: Theme.spacingXS
 
-                        Item {
-                            width: 200
-                            height: 36
+                        Rectangle {
+                            width: 180
+                            height: 40
+                            radius: Theme.cornerRadius
+                            color: "transparent"
 
                             DankDropdown {
                                 anchors.fill: parent
-                            anchors.leftMargin: Theme.spacingS
-                            anchors.rightMargin: Theme.spacingS
-                            anchors.bottomMargin: Theme.spacingS
                                 text: ""
+                                dropdownWidth: 180
                                 currentValue: appLauncher.selectedCategory
                                 options: appLauncher.categories
                                 optionIcons: appLauncher.categoryIcons
@@ -256,7 +292,7 @@ DankPopout {
                         }
 
                         Item {
-                            width: parent.width - 310
+                            width: parent.width - 290
                             height: 1
                         }
 

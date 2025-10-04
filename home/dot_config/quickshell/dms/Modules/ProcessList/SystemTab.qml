@@ -7,6 +7,7 @@ import qs.Widgets
 DankFlickable {
     anchors.fill: parent
     contentHeight: systemColumn.implicitHeight
+    clip: true
     Component.onCompleted: {
         DgopService.addRef(["system", "hardware", "diskmounts"]);
     }

@@ -13,83 +13,22 @@ Card {
         anchors.verticalCenter: parent.verticalCenter
         spacing: Theme.spacingM
 
-        Item {
+        DankCircularImage {
             id: avatarContainer
-            
-            property bool hasImage: profileImageLoader.status === Image.Ready
-            
+
             width: 77
             height: 77
             anchors.verticalCenter: parent.verticalCenter
-            
-            Rectangle {
-                anchors.fill: parent
-                radius: 36
-                color: Theme.primary
-                visible: !avatarContainer.hasImage
-                
-                StyledText {
-                    anchors.centerIn: parent
-                    text: UserInfoService.username.length > 0 ? UserInfoService.username.charAt(0).toUpperCase() : "b"
-                    font.pixelSize: Theme.fontSizeXLarge + 4
-                    font.weight: Font.Bold
-                    color: Theme.background
-                }
+            imageSource: {
+                if (PortalService.profileImage === "")
+                    return ""
+
+                if (PortalService.profileImage.startsWith("/"))
+                    return "file://" + PortalService.profileImage
+
+                return PortalService.profileImage
             }
-            
-            Image {
-                id: profileImageLoader
-                
-                source: {
-                    if (PortalService.profileImage === "")
-                        return ""
-                    
-                    if (PortalService.profileImage.startsWith("/"))
-                        return "file://" + PortalService.profileImage
-                    
-                    return PortalService.profileImage
-                }
-                smooth: true
-                asynchronous: true
-                mipmap: true
-                cache: true
-                visible: false
-            }
-            
-            MultiEffect {
-                anchors.fill: parent
-                anchors.margins: 2
-                source: profileImageLoader
-                maskEnabled: true
-                maskSource: circularMask
-                visible: avatarContainer.hasImage
-                maskThresholdMin: 0.5
-                maskSpreadAtMin: 1
-            }
-            
-            Item {
-                id: circularMask
-                width: 77 - 4
-                height: 77 - 4
-                layer.enabled: true
-                layer.smooth: true
-                visible: false
-                
-                Rectangle {
-                    anchors.fill: parent
-                    radius: width / 2
-                    color: "black"
-                    antialiasing: true
-                }
-            }
-            
-            DankIcon {
-                anchors.centerIn: parent
-                name: "person"
-                size: Theme.iconSize + 8
-                color: Theme.error
-                visible: PortalService.profileImage !== "" && profileImageLoader.status === Image.Error
-            }
+            fallbackIcon: "person"
         }
 
         Column {
@@ -104,7 +43,7 @@ Card {
                 elide: Text.ElideRight
                 width: parent.parent.parent.width - avatarContainer.width - Theme.spacingM * 3
             }
-            
+
             Row {
                 spacing: Theme.spacingS
 
@@ -128,7 +67,7 @@ Card {
                     width: parent.parent.parent.parent.width - avatarContainer.width - Theme.spacingM * 3 - 16 - Theme.spacingS
                 }
             }
-            
+
             Row {
                 spacing: Theme.spacingS
 
@@ -141,7 +80,7 @@ Card {
 
                 StyledText {
                     id: uptimeText
-                    
+
                     property real availableWidth: parent.parent.parent.parent.width - avatarContainer.width - Theme.spacingM * 3 - 16 - Theme.spacingS
                     property real longTextWidth: {
                         const fontSize = Math.round(Theme.fontSizeSmall || 12)

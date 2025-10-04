@@ -239,7 +239,12 @@ DankModal {
                 return
             }
             if (!keyboardNavigationActive) {
-                if (event.key === Qt.Key_Tab || event.key === Qt.Key_Down || event.key === Qt.Key_Right) {
+                const isInitKey = event.key === Qt.Key_Tab || event.key === Qt.Key_Down || event.key === Qt.Key_Right ||
+                                  (event.key === Qt.Key_N && event.modifiers & Qt.ControlModifier) ||
+                                  (event.key === Qt.Key_J && event.modifiers & Qt.ControlModifier) ||
+                                  (event.key === Qt.Key_L && event.modifiers & Qt.ControlModifier)
+
+                if (isInitKey) {
                     keyboardNavigationActive = true
                     if (currentPath !== homeDir) {
                         backButtonFocused = true
@@ -280,6 +285,69 @@ DankModal {
                     selectedIndex = totalItems - 1
                 }
                 event.accepted = true
+                break
+            case Qt.Key_N:
+                if (event.modifiers & Qt.ControlModifier) {
+                    if (backButtonFocused) {
+                        backButtonFocused = false
+                        selectedIndex = 0
+                    } else if (selectedIndex < totalItems - 1) {
+                        selectedIndex++
+                    }
+                    event.accepted = true
+                }
+                break
+            case Qt.Key_P:
+                if (event.modifiers & Qt.ControlModifier) {
+                    if (selectedIndex > 0) {
+                        selectedIndex--
+                    } else if (currentPath !== homeDir) {
+                        backButtonFocused = true
+                        selectedIndex = -1
+                    }
+                    event.accepted = true
+                }
+                break
+            case Qt.Key_J:
+                if (event.modifiers & Qt.ControlModifier) {
+                    if (selectedIndex < totalItems - 1) {
+                        selectedIndex++
+                    }
+                    event.accepted = true
+                }
+                break
+            case Qt.Key_K:
+                if (event.modifiers & Qt.ControlModifier) {
+                    if (selectedIndex > 0) {
+                        selectedIndex--
+                    } else if (currentPath !== homeDir) {
+                        backButtonFocused = true
+                        selectedIndex = -1
+                    }
+                    event.accepted = true
+                }
+                break
+            case Qt.Key_H:
+                if (event.modifiers & Qt.ControlModifier) {
+                    if (!backButtonFocused && selectedIndex > 0) {
+                        selectedIndex--
+                    } else if (currentPath !== homeDir) {
+                        backButtonFocused = true
+                        selectedIndex = -1
+                    }
+                    event.accepted = true
+                }
+                break
+            case Qt.Key_L:
+                if (event.modifiers & Qt.ControlModifier) {
+                    if (backButtonFocused) {
+                        backButtonFocused = false
+                        selectedIndex = 0
+                    } else if (selectedIndex < totalItems - 1) {
+                        selectedIndex++
+                    }
+                    event.accepted = true
+                }
                 break
             case Qt.Key_Left:
                 if (backButtonFocused)

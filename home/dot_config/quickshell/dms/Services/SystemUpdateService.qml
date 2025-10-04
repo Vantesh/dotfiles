@@ -17,6 +17,7 @@ Singleton {
     property string pkgManager: ""
     property string distribution: ""
     property bool distributionSupported: false
+    property string shellVersion: ""
 
     readonly property list<string> supportedDistributions: ["arch", "cachyos", "manjaro", "endeavouros"]
     readonly property int updateCount: availableUpdates.length
@@ -43,6 +44,21 @@ Singleton {
         }
 
         stdout: StdioCollector {}
+
+        Component.onCompleted: {
+            versionDetection.running = true
+        }
+    }
+
+    Process {
+        id: versionDetection
+        command: ["sh", "-c", "if [ -d .git ]; then echo \"(git) $(git rev-parse --short HEAD)\"; elif [ -f VERSION ]; then cat VERSION; fi"]
+
+        stdout: StdioCollector {
+            onStreamFinished: {
+                shellVersion = text.trim()
+            }            
+        }
     }
 
     Process {

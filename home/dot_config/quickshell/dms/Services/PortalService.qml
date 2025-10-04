@@ -21,10 +21,42 @@ Singleton {
         systemProfileCheckProcess.running = true
     }
 
+    function getUserProfileImage(username) {
+        if (!username) {
+            profileImage = ""
+            return
+        }
+        if (Quickshell.env("DMS_RUN_GREETER") === "1" || Quickshell.env("DMS_RUN_GREETER") === "true") {
+            profileImage = ""
+            return
+        }
+        userProfileCheckProcess.command = [
+            "bash", "-c",
+            `uid=$(id -u ${username} 2>/dev/null) && [ -n "$uid" ] && dbus-send --system --print-reply --dest=org.freedesktop.Accounts /org/freedesktop/Accounts/User$uid org.freedesktop.DBus.Properties.Get string:org.freedesktop.Accounts.User string:IconFile 2>/dev/null | grep -oP 'string "\\K[^"]+' || echo ""`
+        ]
+        userProfileCheckProcess.running = true
+    }
+
+    function getGreeterUserProfileImage(username) {
+        if (!username) {
+            profileImage = ""
+            return
+        }
+        userProfileCheckProcess.command = [
+            "bash", "-c",
+            `uid=$(id -u ${username} 2>/dev/null) && [ -n "$uid" ] && dbus-send --system --print-reply --dest=org.freedesktop.Accounts /org/freedesktop/Accounts/User$uid org.freedesktop.DBus.Properties.Get string:org.freedesktop.Accounts.User string:IconFile 2>/dev/null | grep -oP 'string "\\K[^"]+' || echo ""`
+        ]
+        userProfileCheckProcess.running = true
+    }
+
     function setProfileImage(imagePath) {
         profileImage = imagePath
-        if (accountsServiceAvailable && imagePath) {
-            setSystemProfileImage(imagePath)
+        if (accountsServiceAvailable) {
+            if (imagePath) {
+                setSystemProfileImage(imagePath)
+            } else {
+                setSystemProfileImage("")
+            }
         }
     }
 
@@ -43,7 +75,7 @@ Singleton {
             return
         }
 
-        const colorScheme = isLightMode ? "prefer-light" : "prefer-dark"
+        const colorScheme = isLightMode ? "default" : "prefer-dark"
         const script = `gsettings set org.gnome.desktop.interface color-scheme '${colorScheme}'`
 
         systemColorSchemeSetProcess.command = ["bash", "-c", script]
@@ -51,11 +83,12 @@ Singleton {
     }
 
     function setSystemProfileImage(imagePath) {
-        if (!accountsServiceAvailable || !imagePath) {
+        if (!accountsServiceAvailable) {
             return
         }
 
-        const script = `dbus-send --system --print-reply --dest=org.freedesktop.Accounts /org/freedesktop/Accounts/User$(id -u) org.freedesktop.Accounts.User.SetIconFile string:'${imagePath}'`
+        const path = imagePath || ""
+        const script = `dbus-send --system --print-reply --dest=org.freedesktop.Accounts /org/freedesktop/Accounts/User$(id -u) org.freedesktop.Accounts.User.SetIconFile string:'${path}'`
 
         systemProfileSetProcess.command = ["bash", "-c", script]
         systemProfileSetProcess.running = true
@@ -119,6 +152,29 @@ Singleton {
         onExited: exitCode => {
             if (exitCode === 0) {
                 root.getSystemProfileImage()
+            }
+        }
+    }
+
+    Process {
+        id: userProfileCheckProcess
+        command: []
+        running: false
+
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const trimmed = text.trim()
+                if (trimmed && trimmed !== "" && !trimmed.includes("Error") && trimmed !== "/var/lib/AccountsService/icons/") {
+                    root.profileImage = trimmed
+                } else {
+                    root.profileImage = ""
+                }
+            }
+        }
+
+        onExited: exitCode => {
+            if (exitCode !== 0) {
+                root.profileImage = ""
             }
         }
     }

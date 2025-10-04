@@ -11,14 +11,6 @@ Rectangle {
         "easing.bezierCurve": Appearance.anim.curves.standard
     }
 
-    Behavior on color {
-        ColorAnimation {
-            duration: standardAnimation.duration
-            easing.type: standardAnimation["easing.type"]
-            easing.bezierCurve: standardAnimation["easing.bezierCurve"]
-        }
-    }
-
     Behavior on radius {
         NumberAnimation {
             duration: standardAnimation.duration

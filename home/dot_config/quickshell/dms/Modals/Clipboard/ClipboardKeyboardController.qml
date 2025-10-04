@@ -53,7 +53,7 @@ QtObject {
                 modal.hide()
                 event.accepted = true
             }
-        } else if (event.key === Qt.Key_Down) {
+        } else if (event.key === Qt.Key_Down || event.key === Qt.Key_Tab) {
             if (!modal.keyboardNavigationActive) {
                 modal.keyboardNavigationActive = true
                 modal.selectedIndex = 0
@@ -62,7 +62,7 @@ QtObject {
                 selectNext()
                 event.accepted = true
             }
-        } else if (event.key === Qt.Key_Up) {
+        } else if (event.key === Qt.Key_Up || event.key === Qt.Key_Backtab) {
             if (!modal.keyboardNavigationActive) {
                 modal.keyboardNavigationActive = true
                 modal.selectedIndex = 0
@@ -74,6 +74,42 @@ QtObject {
                 selectPrevious()
                 event.accepted = true
             }
+        } else if (event.key === Qt.Key_N && event.modifiers & Qt.ControlModifier) {
+            if (!modal.keyboardNavigationActive) {
+                modal.keyboardNavigationActive = true
+                modal.selectedIndex = 0
+            } else {
+                selectNext()
+            }
+            event.accepted = true
+        } else if (event.key === Qt.Key_P && event.modifiers & Qt.ControlModifier) {
+            if (!modal.keyboardNavigationActive) {
+                modal.keyboardNavigationActive = true
+                modal.selectedIndex = 0
+            } else if (modal.selectedIndex === 0) {
+                modal.keyboardNavigationActive = false
+            } else {
+                selectPrevious()
+            }
+            event.accepted = true
+        } else if (event.key === Qt.Key_J && event.modifiers & Qt.ControlModifier) {
+            if (!modal.keyboardNavigationActive) {
+                modal.keyboardNavigationActive = true
+                modal.selectedIndex = 0
+            } else {
+                selectNext()
+            }
+            event.accepted = true
+        } else if (event.key === Qt.Key_K && event.modifiers & Qt.ControlModifier) {
+            if (!modal.keyboardNavigationActive) {
+                modal.keyboardNavigationActive = true
+                modal.selectedIndex = 0
+            } else if (modal.selectedIndex === 0) {
+                modal.keyboardNavigationActive = false
+            } else {
+                selectPrevious()
+            }
+            event.accepted = true
         } else if (event.key === Qt.Key_Delete && (event.modifiers & Qt.ShiftModifier)) {
             modal.clearAll()
             modal.hide()

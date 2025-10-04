@@ -211,6 +211,10 @@ Item {
         anchors.fill: parent
         isVisible: showSettingsMenu
         onSettingsRequested: showSettingsMenu = !showSettingsMenu
+        onFindRequested: {
+            showSettingsMenu = false
+            textEditor.showSearch()
+        }
     }
 
     FileView {

@@ -244,8 +244,8 @@ Rectangle {
                                             width: 36
                                             height: 36
                                             radius: Theme.cornerRadius
-                                            color: iconMouseArea.containsMouse ? Theme.primaryHover : "transparent"
-                                            border.color: root.currentIcon === modelData ? Theme.primary : "transparent"
+                                            color: iconMouseArea.containsMouse ? Theme.primaryHover : Theme.withAlpha(Theme.primaryHover, 0)
+                                            border.color: root.currentIcon === modelData ? Theme.primary : Theme.withAlpha(Theme.primary, 0)
                                             border.width: 2
 
                                             DankIcon {

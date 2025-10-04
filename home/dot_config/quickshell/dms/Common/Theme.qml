@@ -16,11 +16,12 @@ Singleton {
 
     readonly property bool envDisableMatugen: Quickshell.env("DMS_DISABLE_MATUGEN") === "1" || Quickshell.env("DMS_DISABLE_MATUGEN") === "true"
 
-    readonly property real popupDistance: 4
+    // ! TODO - Synchronize with niri/hyprland gaps?
+    readonly property real popupDistance: 2
 
     property string currentTheme: "blue"
     property string currentThemeCategory: "generic"
-    property bool isLightMode: false
+    property bool isLightMode: typeof SessionData !== "undefined" ? SessionData.isLightMode : false
 
     readonly property string dynamic: "dynamic"
     readonly property string custom : "custom"
@@ -30,9 +31,8 @@ Singleton {
     readonly property string shellDir: Paths.strip(Qt.resolvedUrl(".").toString()).replace("/Common/", "")
     readonly property string wallpaperPath: {
         if (typeof SessionData === "undefined") return ""
-        
+
         if (SessionData.perMonitorWallpaper) {
-            // Use first monitor's wallpaper for dynamic theming
             var screens = Quickshell.screens
             if (screens.length > 0) {
                 var firstMonitorWallpaper = SessionData.getMonitorWallpaper(screens[0].name)
@@ -56,7 +56,7 @@ Singleton {
     }
     readonly property string rawWallpaperPath: {
         if (typeof SessionData === "undefined") return ""
-        
+
         if (SessionData.perMonitorWallpaper) {
             // Use first monitor's wallpaper for dynamic theming
             var screens = Quickshell.screens
@@ -82,11 +82,20 @@ Singleton {
     Component.onCompleted: {
         Quickshell.execDetached(["mkdir", "-p", stateDir])
         matugenCheck.running = true
-        if (typeof SessionData !== "undefined")
+        if (typeof SessionData !== "undefined") {
             SessionData.isLightModeChanged.connect(root.onLightModeChanged)
-        
+            isLightMode = SessionData.isLightMode
+        }
+
         if (typeof SettingsData !== "undefined" && SettingsData.currentThemeName) {
-            switchTheme(SettingsData.currentThemeName, false)
+            switchTheme(SettingsData.currentThemeName, false, false)
+        }
+    }
+
+    function applyGreeterTheme(themeName) {
+        switchTheme(themeName, false, false)
+        if (themeName === dynamic && dynamicColorsFileView.path) {
+            dynamicColorsFileView.reload()
         }
     }
 
@@ -122,7 +131,7 @@ Singleton {
                 "surfaceContainer": getMatugenColor("surface_container", "#1e2023"),
                 "surfaceContainerHigh": getMatugenColor("surface_container_high", "#292b2f"),
                 "surfaceContainerHighest": getMatugenColor("surface_container_highest", "#343740"),
-                "error": "#F2B8B5",
+                "error": getMatugenColor("error", '#F2B8B5'),
                 "warning": "#FF9800",
                 "info": "#2196F3",
                 "success": "#4CAF50"
@@ -232,11 +241,22 @@ Singleton {
     property color shadowMedium: Qt.rgba(0, 0, 0, 0.08)
     property color shadowStrong: Qt.rgba(0, 0, 0, 0.3)
 
-    property int shorterDuration: 100
-    property int shortDuration: 150
-    property int mediumDuration: 300
-    property int longDuration: 500
-    property int extraLongDuration: 1000
+    readonly property var animationDurations: [
+        { shorter: 0, short: 0, medium: 0, long: 0, extraLong: 0 },
+        { shorter: 50, short: 75, medium: 150, long: 250, extraLong: 500 },
+        { shorter: 100, short: 150, medium: 300, long: 500, extraLong: 1000 },
+        { shorter: 150, short: 225, medium: 450, long: 750, extraLong: 1500 },
+        { shorter: 200, short: 300, medium: 600, long: 1000, extraLong: 2000 }
+    ]
+
+    readonly property int currentAnimationSpeed: typeof SettingsData !== "undefined" ? SettingsData.animationSpeed : SettingsData.AnimationSpeed.Short
+    readonly property var currentDurations: animationDurations[currentAnimationSpeed] || animationDurations[SettingsData.AnimationSpeed.Short]
+
+    property int shorterDuration: currentDurations.shorter
+    property int shortDuration: currentDurations.short
+    property int mediumDuration: currentDurations.medium
+    property int longDuration: currentDurations.long
+    property int extraLongDuration: currentDurations.extraLong
     property int standardEasing: Easing.OutCubic
     property int emphasizedEasing: Easing.OutQuart
 
@@ -256,8 +276,8 @@ Singleton {
     property real iconSizeLarge: 32
 
     property real panelTransparency: 0.85
-    property real widgetTransparency: typeof SettingsData !== "undefined" && SettingsData.topBarWidgetTransparency !== undefined ? SettingsData.topBarWidgetTransparency : 0.85
-    property real popupTransparency: typeof SettingsData !== "undefined" && SettingsData.popupTransparency !== undefined ? SettingsData.popupTransparency : 0.92
+    property real widgetTransparency: typeof SettingsData !== "undefined" && SettingsData.dankBarWidgetTransparency !== undefined ? SettingsData.dankBarWidgetTransparency : 1.0
+    property real popupTransparency: typeof SettingsData !== "undefined" && SettingsData.popupTransparency !== undefined ? SettingsData.popupTransparency : 1.0
 
     function screenTransition() {
         CompositorService.isNiri && NiriService.doScreenTransition()
@@ -266,7 +286,12 @@ Singleton {
     function switchTheme(themeName, savePrefs = true, enableTransition = true) {
         if (enableTransition) {
             screenTransition()
+            themeTransitionTimer.themeName = themeName
+            themeTransitionTimer.savePrefs = savePrefs
+            themeTransitionTimer.restart()
+            return
         }
+
         if (themeName === dynamic) {
             currentTheme = dynamic
             currentThemeCategory = dynamic
@@ -278,34 +303,45 @@ Singleton {
             }
         } else {
             currentTheme = themeName
-            // Determine category based on theme name
             if (StockThemes.isCatppuccinVariant(themeName)) {
                 currentThemeCategory = "catppuccin"
             } else {
                 currentThemeCategory = "generic"
             }
         }
-        if (savePrefs && typeof SettingsData !== "undefined")
+        const isGreeterMode = (typeof SessionData !== "undefined" && SessionData.isGreeterMode)
+        if (savePrefs && typeof SettingsData !== "undefined" && !isGreeterMode)
             SettingsData.setTheme(currentTheme)
 
-        generateSystemThemesFromCurrentTheme()
+        if (!isGreeterMode) {
+            generateSystemThemesFromCurrentTheme()
+        }
     }
 
-    function setLightMode(light, savePrefs = true) {
-        screenTransition()
+    function setLightMode(light, savePrefs = true, enableTransition = false) {
+        if (enableTransition) {
+            screenTransition()
+            lightModeTransitionTimer.lightMode = light
+            lightModeTransitionTimer.savePrefs = savePrefs
+            lightModeTransitionTimer.restart()
+            return
+        }
+
+        const isGreeterMode = (typeof SessionData !== "undefined" && SessionData.isGreeterMode)
         isLightMode = light
-        if (savePrefs && typeof SessionData !== "undefined")
+        if (savePrefs && typeof SessionData !== "undefined" && !isGreeterMode)
             SessionData.setLightMode(isLightMode)
-        PortalService.setLightMode(isLightMode)
-        generateSystemThemesFromCurrentTheme()
+        if (!isGreeterMode) {
+            PortalService.setLightMode(isLightMode)
+            generateSystemThemesFromCurrentTheme()
+        }
     }
 
     function toggleLightMode(savePrefs = true) {
-        setLightMode(!isLightMode, savePrefs)
+        setLightMode(!isLightMode, savePrefs, true)
     }
 
     function forceGenerateSystemThemes() {
-        screenTransition()
         if (!matugenAvailable) {
             return
         }
@@ -329,8 +365,10 @@ Singleton {
     }
 
     function switchThemeCategory(category, defaultTheme) {
-        currentThemeCategory = category
-        switchTheme(defaultTheme, true, false)
+        screenTransition()
+        themeCategoryTransitionTimer.category = category
+        themeCategoryTransitionTimer.defaultTheme = defaultTheme
+        themeCategoryTransitionTimer.restart()
     }
 
     function getCatppuccinColor(variantName) {
@@ -354,7 +392,6 @@ Singleton {
     }
 
     function loadCustomTheme(themeData) {
-        screenTransition()
         if (themeData.dark || themeData.light) {
             const colorMode = (typeof SessionData !== "undefined" && SessionData.isLightMode) ? "light" : "dark"
             const selectedTheme = themeData[colorMode] || themeData.dark || themeData.light
@@ -574,7 +611,8 @@ Singleton {
     }
 
     function generateSystemThemesFromCurrentTheme() {
-        if (!matugenAvailable)
+        const isGreeterMode = (typeof SessionData !== "undefined" && SessionData.isGreeterMode)
+        if (!matugenAvailable || isGreeterMode)
             return
 
         const isLight = (typeof SessionData !== "undefined" && SessionData.isLightMode)
@@ -638,14 +676,20 @@ Singleton {
         qtApplier.running = true
     }
 
+    function withAlpha(c, a) { return Qt.rgba(c.r, c.g, c.b, a); }
+
+    function snap(value, dpr) {
+        return Math.round(value * dpr) / dpr
+    }
 
     Process {
         id: matugenCheck
         command: ["which", "matugen"]
         onExited: code => {
             matugenAvailable = (code === 0) && !envDisableMatugen
-            if (!matugenAvailable) {
-                console.log("matugen not not available in path or disabled via DMS_DISABLE_MATUGEN")
+            const isGreeterMode = (typeof SessionData !== "undefined" && SessionData.isGreeterMode)
+
+            if (!matugenAvailable || isGreeterMode) {
                 return
             }
 
@@ -696,10 +740,7 @@ Singleton {
         onExited: exitCode => {
             workerRunning = false
 
-            if (exitCode === 2) {
-                // Exit code 2 means wallpaper/color not found - this is expected on first run
-                console.log("Theme worker: wallpaper/color not found, skipping theme generation")
-            } else if (exitCode !== 0) {
+            if (exitCode !== 0 && exitCode !== 2) {
                 if (typeof ToastService !== "undefined") {
                     ToastService.showError("Theme worker failed (" + exitCode + ")")
                 }
@@ -788,8 +829,14 @@ Singleton {
 
     FileView {
         id: dynamicColorsFileView
-        path: stateDir + "/dms-colors.json"
-        watchChanges: currentTheme === dynamic
+        path: {
+            const greetCfgDir = Quickshell.env("DMS_GREET_CFG_DIR") || "/etc/greetd/.dms"
+            const colorsPath = SessionData.isGreeterMode
+                ? greetCfgDir + "/colors.json"
+                : stateDir + "/dms-colors.json"
+            return colorsPath
+        }
+        watchChanges: currentTheme === dynamic && !SessionData.isGreeterMode
 
         function parseAndLoadColors() {
             try {
@@ -802,6 +849,7 @@ Singleton {
                     }
                 }
             } catch (e) {
+                console.error("Theme: Failed to parse dynamic colors:", e)
                 if (typeof ToastService !== "undefined") {
                     ToastService.wallpaperErrorStatus = "error"
                     ToastService.showError("Dynamic colors parse error: " + e.message)
@@ -833,21 +881,52 @@ Singleton {
 
         function toggle(): string {
             root.toggleLightMode()
-            return root.isLightMode ? "light" : "dark"
+            return root.isLightMode ? "dark" : "light"
         }
 
         function light(): string {
-            root.setLightMode(true)
+            root.setLightMode(true, true, true)
             return "light"
         }
 
         function dark(): string {
-            root.setLightMode(false)
+            root.setLightMode(false, true, true)
             return "dark"
         }
 
         function getMode(): string {
             return root.isLightMode ? "light" : "dark"
+        }
+    }
+
+    // These timers are for screen transitions, since sometimes QML still beats the niri call
+    Timer {
+        id: themeTransitionTimer
+        interval: 50
+        repeat: false
+        property string themeName: ""
+        property bool savePrefs: true
+        onTriggered: root.switchTheme(themeName, savePrefs, false)
+    }
+
+    Timer {
+        id: lightModeTransitionTimer
+        interval: 100
+        repeat: false
+        property bool lightMode: false
+        property bool savePrefs: true
+        onTriggered: root.setLightMode(lightMode, savePrefs, false)
+    }
+
+    Timer {
+        id: themeCategoryTransitionTimer
+        interval: 50
+        repeat: false
+        property string category: ""
+        property string defaultTheme: ""
+        onTriggered: {
+            root.currentThemeCategory = category
+            root.switchTheme(defaultTheme, true, false)
         }
     }
 }

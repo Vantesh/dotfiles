@@ -5,6 +5,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import "../Common/fzf.js" as Fzf
+import qs.Common
 
 Singleton {
     id: root
@@ -19,6 +20,7 @@ Singleton {
 
         const queryLower = query.toLowerCase().trim()
         const scoredApps = []
+        const usageRanking = AppUsageHistoryData.getAppUsageRanking()
 
         for (const app of applications) {
             const name = (app.name || "").toLowerCase()
@@ -66,7 +68,20 @@ Singleton {
                 }
             }
             if (!matched && genericName.includes(queryLower)) {
-                score = 4000
+                if (genericName === queryLower) {
+                    score = 9000
+                } else if (genericName.startsWith(queryLower)) {
+                    score = 8500
+                } else {
+                    const genericWords = genericName.trim().split(/\s+/).filter(w => w.length > 0)
+                    if (genericWords.includes(queryLower)) {
+                        score = 8000
+                    } else if (genericWords.some(word => word.startsWith(queryLower))) {
+                        score = 7500
+                    } else {
+                        score = 7000
+                    }
+                }
                 matched = true
             } else if (!matched && comment.includes(queryLower)) {
                 score = 3000
@@ -85,6 +100,42 @@ Singleton {
             }
 
             if (matched) {
+                const appId = app.id || (app.execString || app.exec || "")
+                const idVariants = [
+                    appId,
+                    appId.replace(".desktop", ""),
+                    app.id,
+                    app.id ? app.id.replace(".desktop", "") : null
+                ].filter(id => id)
+
+                let usageData = null
+                for (const variant of idVariants) {
+                    if (usageRanking[variant]) {
+                        usageData = usageRanking[variant]
+                        break
+                    }
+                }
+
+                if (usageData) {
+                    const usageCount = usageData.usageCount || 0
+                    const lastUsed = usageData.lastUsed || 0
+                    const now = Date.now()
+                    const daysSinceUsed = (now - lastUsed) / (1000 * 60 * 60 * 24)
+
+                    let usageBonus = 0
+                    usageBonus += Math.min(usageCount * 100, 2000)
+
+                    if (daysSinceUsed < 1) {
+                        usageBonus += 1500
+                    } else if (daysSinceUsed < 7) {
+                        usageBonus += 1000
+                    } else if (daysSinceUsed < 30) {
+                        usageBonus += 500
+                    }
+
+                    score += usageBonus
+                }
+
                 scoredApps.push({
                                     "app": app,
                                     "score": score

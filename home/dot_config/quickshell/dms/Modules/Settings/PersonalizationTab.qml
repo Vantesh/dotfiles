@@ -15,7 +15,6 @@ Item {
     property alias wallpaperBrowser: wallpaperBrowser
     property var parentModal: null
     property var cachedFontFamilies: []
-    property var cachedMonoFamilies: []
     property bool fontsEnumerated: false
     property string selectedMonitorName: {
         var screens = Quickshell.screens
@@ -45,28 +44,6 @@ Item {
             }
         }
         cachedFontFamilies = fonts.concat(rootFamilies.sort())
-        var monoFonts = ["Default"]
-        var monoFamilies = []
-        var seenMonoFamilies = new Set()
-        for (var j = 0; j < availableFonts.length; j++) {
-            var fontName2 = availableFonts[j]
-            if (fontName2.startsWith("."))
-                continue
-
-            if (fontName2 === SettingsData.defaultMonoFontFamily)
-                continue
-
-            var lowerName = fontName2.toLowerCase()
-            if (lowerName.includes("mono") || lowerName.includes("code") || lowerName.includes("console") || lowerName.includes("terminal") || lowerName.includes("courier") || lowerName.includes("dejavu sans mono") || lowerName.includes(
-                        "jetbrains") || lowerName.includes("fira") || lowerName.includes("hack") || lowerName.includes("source code") || lowerName.includes("ubuntu mono") || lowerName.includes("cascadia")) {
-                var rootName2 = fontName2.replace(/ (Thin|Extra Light|Light|Regular|Medium|Semi Bold|Demi Bold|Bold|Extra Bold|Black|Heavy)$/i, "").replace(/ (Italic|Oblique|Condensed|Extended|Narrow|Wide)$/i, "").trim()
-                if (!seenMonoFamilies.has(rootName2) && rootName2 !== "") {
-                    seenMonoFamilies.add(rootName2)
-                    monoFamilies.push(rootName2)
-                }
-            }
-        }
-        cachedMonoFamilies = monoFonts.concat(monoFamilies.sort())
     }
 
     Component.onCompleted: {
@@ -414,6 +391,63 @@ Item {
                         }
                     }
 
+                    // Per-Mode Wallpaper Section - Full Width
+                    Rectangle {
+                        width: parent.width
+                        height: 1
+                        color: Theme.outline
+                        opacity: 0.2
+                        visible: SessionData.wallpaperPath !== ""
+                    }
+
+                    Column {
+                        width: parent.width
+                        spacing: Theme.spacingM
+                        visible: SessionData.wallpaperPath !== ""
+
+                        Row {
+                            width: parent.width
+                            spacing: Theme.spacingM
+
+                            DankIcon {
+                                name: "brightness_6"
+                                size: Theme.iconSize
+                                color: SessionData.perModeWallpaper ? Theme.primary : Theme.surfaceVariantText
+                                anchors.verticalCenter: parent.verticalCenter
+                            }
+
+                            Column {
+                                width: parent.width - Theme.iconSize - Theme.spacingM - perModeToggle.width - Theme.spacingM
+                                spacing: Theme.spacingXS
+                                anchors.verticalCenter: parent.verticalCenter
+
+                                StyledText {
+                                    text: "Per-Mode Wallpapers"
+                                    font.pixelSize: Theme.fontSizeLarge
+                                    font.weight: Font.Medium
+                                    color: Theme.surfaceText
+                                }
+
+                                StyledText {
+                                    text: "Set different wallpapers for light and dark mode"
+                                    font.pixelSize: Theme.fontSizeSmall
+                                    color: Theme.surfaceVariantText
+                                    width: parent.width
+                                }
+                            }
+
+                            DankToggle {
+                                id: perModeToggle
+
+                                anchors.verticalCenter: parent.verticalCenter
+                                checked: SessionData.perModeWallpaper
+                                onToggled: toggled => {
+                                               return SessionData.setPerModeWallpaper(toggled)
+                                           }
+                            }
+                        }
+                    }
+
                     // Per-Monitor Wallpaper Section - Full Width
                     Rectangle {
                         width: parent.width
@@ -486,7 +520,6 @@ Item {
                             DankDropdown {
                                 id: monitorDropdown
 
-                                width: parent.width - parent.leftPadding
                                 text: "Monitor"
                                 description: "Select monitor to configure wallpaper"
                                 currentValue: selectedMonitorName || "No monitors"
@@ -505,19 +538,18 @@ Item {
                         }
                     }
 
-                    // Wallpaper Cycling Section - Full Width
                     Rectangle {
                         width: parent.width
                         height: 1
                         color: Theme.outline
                         opacity: 0.2
-                        visible: SessionData.wallpaperPath !== "" || SessionData.perMonitorWallpaper
+                        visible: (SessionData.wallpaperPath !== "" || SessionData.perMonitorWallpaper) && !SessionData.perModeWallpaper
                     }
 
                     Column {
                         width: parent.width
                         spacing: Theme.spacingM
-                        visible: SessionData.wallpaperPath !== "" || SessionData.perMonitorWallpaper
+                        visible: (SessionData.wallpaperPath !== "" || SessionData.perMonitorWallpaper) && !SessionData.perModeWallpaper
 
                         Row {
                             width: parent.width
@@ -574,7 +606,6 @@ Item {
                             }
                         }
 
-                        // Cycling mode and settings
                         Column {
                             width: parent.width
                             spacing: Theme.spacingS
@@ -646,7 +677,6 @@ Item {
                                 property var intervalOptions: ["1 minute", "5 minutes", "15 minutes", "30 minutes", "1 hour", "1.5 hours", "2 hours", "3 hours", "4 hours", "6 hours", "8 hours", "12 hours"]
                                 property var intervalValues: [60, 300, 900, 1800, 3600, 5400, 7200, 10800, 14400, 21600, 28800, 43200]
 
-                                width: parent.width - parent.leftPadding
                                 visible: {
                                     if (SessionData.perMonitorWallpaper) {
                                         return SessionData.getMonitorCyclingSettings(selectedMonitorName).mode === "interval"
@@ -801,7 +831,6 @@ Item {
                     }
 
                     DankDropdown {
-                        width: parent.width
                         text: "Transition Effect"
                         description: "Visual effect used when wallpaper changes"
                         currentValue: {
@@ -819,8 +848,6 @@ Item {
                         width: parent.width
                         spacing: Theme.spacingS
                         visible: SessionData.wallpaperTransition === "random"
-                        leftPadding: Theme.spacingM
-                        rightPadding: Theme.spacingM
 
                         StyledText {
                             text: "Include Transitions"
@@ -834,12 +861,12 @@ Item {
                             font.pixelSize: Theme.fontSizeSmall
                             color: Theme.surfaceVariantText
                             wrapMode: Text.WordWrap
-                            width: parent.width - parent.leftPadding - parent.rightPadding
+                            width: parent.width
                         }
 
                         DankButtonGroup {
                             id: transitionGroup
-                            width: parent.width - parent.leftPadding - parent.rightPadding
+                            width: parent.width
                             selectionMode: "multi"
                             model: SessionData.availableWallpaperTransitions.filter(t => t !== "none")
                             initialSelection: SessionData.includedTransitions
@@ -927,7 +954,6 @@ Item {
 
                     DankDropdown {
                         id: personalizationMatugenPaletteDropdown
-                        width: parent.width
                         text: "Matugen Palette"
                         description: "Select the palette algorithm used for wallpaper-based colors"
                         options: Theme.availableMatugenSchemes.map(function (option) { return option.label })
@@ -1008,7 +1034,8 @@ Item {
                         text: "Light Mode"
                         description: "Use light theme instead of dark theme"
                         checked: SessionData.isLightMode
-                        onToggled: checked => {
+                        onToggleCompleted: checked => {
+                                       Theme.screenTransition()
                                        Theme.setLightMode(checked)
                                    }
                     }
@@ -1042,7 +1069,6 @@ Item {
                     }
 
                     DankDropdown {
-                        width: parent.width
                         text: "Temperature"
                         description: "Color temperature for night mode"
                         currentValue: SessionData.nightModeTemperature + "K"
@@ -1354,17 +1380,17 @@ Item {
                 }
             }
 
-            // Lock Screen Settings
+            // Notification Popup Settings
             StyledRect {
                 width: parent.width
-                height: lockScreenSection.implicitHeight + Theme.spacingL * 2
+                height: notificationPopupSection.implicitHeight + Theme.spacingL * 2
                 radius: Theme.cornerRadius
                 color: Theme.surfaceContainerHigh
                 border.color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.2)
                 border.width: 0
 
                 Column {
-                    id: lockScreenSection
+                    id: notificationPopupSection
 
                     anchors.fill: parent
                     anchors.margins: Theme.spacingL
@@ -1375,14 +1401,14 @@ Item {
                         spacing: Theme.spacingM
 
                         DankIcon {
-                            name: "lock"
+                            name: "notifications"
                             size: Theme.iconSize
                             color: Theme.primary
                             anchors.verticalCenter: parent.verticalCenter
                         }
 
                         StyledText {
-                            text: "Lock Screen"
+                            text: "Notification Popups"
                             font.pixelSize: Theme.fontSizeLarge
                             font.weight: Font.Medium
                             color: Theme.surfaceText
@@ -1390,14 +1416,47 @@ Item {
                         }
                     }
 
-                    DankToggle {
-                        width: parent.width
-                        text: "Show Power Actions"
-                        description: "Show power, restart, and logout buttons on the lock screen"
-                        checked: SettingsData.lockScreenShowPowerActions
-                        onToggled: checked => {
-                                       SettingsData.setLockScreenShowPowerActions(checked)
-                                   }
+                    DankDropdown {
+                        text: "Popup Position"
+                        description: "Choose where notification popups appear on screen"
+                        currentValue: {
+                            if (SettingsData.notificationPopupPosition === -1) {
+                                return "Top Center"
+                            }
+                            switch (SettingsData.notificationPopupPosition) {
+                            case SettingsData.Position.Top:
+                                return "Top Right"
+                            case SettingsData.Position.Bottom:
+                                return "Bottom Left"
+                            case SettingsData.Position.Left:
+                                return "Top Left"
+                            case SettingsData.Position.Right:
+                                return "Bottom Right"
+                            default:
+                                return "Top Right"
+                            }
+                        }
+                        options: ["Top Right", "Top Left", "Top Center", "Bottom Right", "Bottom Left"]
+                        onValueChanged: value => {
+                            switch (value) {
+                            case "Top Right":
+                                SettingsData.setNotificationPopupPosition(SettingsData.Position.Top)
+                                break
+                            case "Top Left":
+                                SettingsData.setNotificationPopupPosition(SettingsData.Position.Left)
+                                break
+                            case "Top Center":
+                                SettingsData.setNotificationPopupPosition(-1)
+                                break
+                            case "Bottom Right":
+                                SettingsData.setNotificationPopupPosition(SettingsData.Position.Right)
+                                break
+                            case "Bottom Left":
+                                SettingsData.setNotificationPopupPosition(SettingsData.Position.Bottom)
+                                break
+                            }
+                            SettingsData.sendTestNotifications()
+                        }
                     }
                 }
             }
@@ -1439,7 +1498,6 @@ Item {
                     }
 
                     DankDropdown {
-                        width: parent.width
                         text: "Font Family"
                         description: "Select system font family"
                         currentValue: {
@@ -1461,7 +1519,6 @@ Item {
                     }
 
                     DankDropdown {
-                        width: parent.width
                         text: "Font Weight"
                         description: "Select font weight"
                         currentValue: {
@@ -1528,7 +1585,6 @@ Item {
                     }
 
                     DankDropdown {
-                        width: parent.width
                         text: "Monospace Font"
                         description: "Select monospace font for process list and technical displays"
                         currentValue: {
@@ -1540,7 +1596,7 @@ Item {
                         enableFuzzySearch: true
                         popupWidthOffset: 100
                         maxPopupHeight: 400
-                        options: cachedMonoFamilies
+                        options: cachedFontFamilies
                         onValueChanged: value => {
                                             if (value === "Default")
                                             SettingsData.setMonoFontFamily(SettingsData.defaultMonoFontFamily)
@@ -1631,6 +1687,125 @@ Item {
                                 }
                             }
                         }
+                    }
+                }
+            }
+
+            // Animation Settings
+            StyledRect {
+                width: parent.width
+                height: animationSection.implicitHeight + Theme.spacingL * 2
+                radius: Theme.cornerRadius
+                color: Theme.surfaceContainerHigh
+                border.color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.2)
+                border.width: 0
+
+                Column {
+                    id: animationSection
+
+                    anchors.fill: parent
+                    anchors.margins: Theme.spacingL
+                    spacing: Theme.spacingM
+
+                    Row {
+                        width: parent.width
+                        spacing: Theme.spacingM
+
+                        DankIcon {
+                            name: "animation"
+                            size: Theme.iconSize
+                            color: Theme.primary
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+
+                        StyledText {
+                            text: "Animations"
+                            font.pixelSize: Theme.fontSizeLarge
+                            font.weight: Font.Medium
+                            color: Theme.surfaceText
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+                    }
+
+                    Column {
+                        width: parent.width
+                        spacing: Theme.spacingS
+
+                        StyledText {
+                            text: "Animation Speed"
+                            font.pixelSize: Theme.fontSizeMedium
+                            color: Theme.surfaceText
+                            font.weight: Font.Medium
+                        }
+
+                        StyledText {
+                            text: "Control the speed of animations throughout the interface"
+                            font.pixelSize: Theme.fontSizeSmall
+                            color: Theme.surfaceVariantText
+                            wrapMode: Text.WordWrap
+                            width: parent.width
+                        }
+
+                        DankButtonGroup {
+                            id: animationSpeedGroup
+                            width: parent.width
+                            model: ["None", "Shortest", "Short", "Medium", "Long"]
+                            selectionMode: "single"
+                            currentIndex: SettingsData.animationSpeed
+                            onSelectionChanged: (index, selected) => {
+                                if (selected) {
+                                    SettingsData.setAnimationSpeed(index)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Lock Screen Settings
+            StyledRect {
+                width: parent.width
+                height: lockScreenSection.implicitHeight + Theme.spacingL * 2
+                radius: Theme.cornerRadius
+                color: Theme.surfaceContainerHigh
+                border.color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.2)
+                border.width: 0
+
+                Column {
+                    id: lockScreenSection
+
+                    anchors.fill: parent
+                    anchors.margins: Theme.spacingL
+                    spacing: Theme.spacingM
+
+                    Row {
+                        width: parent.width
+                        spacing: Theme.spacingM
+
+                        DankIcon {
+                            name: "lock"
+                            size: Theme.iconSize
+                            color: Theme.primary
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+
+                        StyledText {
+                            text: "Lock Screen"
+                            font.pixelSize: Theme.fontSizeLarge
+                            font.weight: Font.Medium
+                            color: Theme.surfaceText
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+                    }
+
+                    DankToggle {
+                        width: parent.width
+                        text: "Show Power Actions"
+                        description: "Show power, restart, and logout buttons on the lock screen"
+                        checked: SettingsData.lockScreenShowPowerActions
+                        onToggled: checked => {
+                                       SettingsData.setLockScreenShowPowerActions(checked)
+                                   }
                     }
                 }
             }

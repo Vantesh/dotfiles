@@ -30,9 +30,6 @@ CompoundPill {
         if (!BluetoothService.adapter || !BluetoothService.adapter.enabled) {
             return "bluetooth_disabled"
         }
-        if (primaryDevice) {
-            return BluetoothService.getDeviceIcon(primaryDevice)
-        }
         return "bluetooth"
     }
 

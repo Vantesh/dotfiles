@@ -6,6 +6,8 @@ import qs.Services
 import qs.Widgets
 
 Rectangle {
+    id: root
+
     property string currentMountPath: "/"
     property string instanceId: ""
 
@@ -76,9 +78,9 @@ Rectangle {
                     width: parent.width
                     height: 80
                     radius: Theme.cornerRadius
-                    color: Theme.surfaceContainerHigh
+                    color: Theme.surfaceContainerHighest
                     border.color: modelData.mount === currentMountPath ? Theme.primary : Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.12)
-                    border.width: modelData.mount === currentMountPath ? 2 : 1
+                    border.width: modelData.mount === currentMountPath ? 2 : 0
 
                     Row {
                         anchors.left: parent.left
@@ -152,16 +154,11 @@ Rectangle {
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
                         onClicked: {
-                            if (modelData.mount !== currentMountPath) {
-                                currentMountPath = modelData.mount
-                                mountPathChanged(modelData.mount)
-                            }
+                            currentMountPath = modelData.mount
+                            mountPathChanged(modelData.mount)
                         }
                     }
 
-                    Behavior on border.color {
-                        ColorAnimation { duration: Theme.shortDuration }
-                    }
                 }
             }
         }

@@ -15,6 +15,7 @@ Item {
     property bool fontsEnumerated: false
 
     signal settingsRequested()
+    signal findRequested()
 
     function enumerateFonts() {
         var fonts = ["Default"]
@@ -155,6 +156,56 @@ Item {
                 }
             }
 
+            StyledRect {
+                width: parent.width
+                height: 60
+                radius: Theme.cornerRadius
+                color: "transparent"
+
+                StateLayer {
+                    anchors.fill: parent
+                    anchors.leftMargin: -Theme.spacingM
+                    width: parent.width + Theme.spacingM
+                    stateColor: Theme.primary
+                    cornerRadius: parent.radius
+                    onClicked: root.findRequested()
+                }
+
+                Row {
+                    anchors.left: parent.left
+                    anchors.leftMargin: -Theme.spacingM
+                    anchors.right: parent.right
+                    anchors.rightMargin: Theme.spacingM
+                    anchors.verticalCenter: parent.verticalCenter
+                    spacing: Theme.spacingM
+
+                    DankIcon {
+                        name: "search"
+                        size: Theme.iconSize - 2
+                        color: Theme.primary
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
+
+                    Column {
+                        anchors.verticalCenter: parent.verticalCenter
+                        spacing: Theme.spacingXS
+
+                        StyledText {
+                            text: "Find in Text"
+                            font.pixelSize: Theme.fontSizeMedium
+                            font.weight: Font.Medium
+                            color: Theme.surfaceText
+                        }
+
+                        StyledText {
+                            text: "Open search bar to find text"
+                            font.pixelSize: Theme.fontSizeSmall
+                            color: Theme.surfaceVariantText
+                        }
+                    }
+                }
+            }
+
             Rectangle {
                 width: parent.width
                 height: visible ? (fontDropdown.height + Theme.spacingS) : 0
@@ -163,7 +214,7 @@ Item {
 
                 DankDropdown {
                     id: fontDropdown
-                    anchors.left: parent.left
+                    anchors.left: parent.left 
                     anchors.leftMargin: -Theme.spacingM
                     width: parent.width + Theme.spacingM
                     text: "Font Family"

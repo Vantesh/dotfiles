@@ -6,6 +6,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import Quickshell.Hyprland
+import Quickshell.Wayland
 import qs.Common
 
 Singleton {
@@ -18,9 +19,18 @@ Singleton {
     property bool idleInhibited: false
     property string inhibitReason: "Keep system awake"
 
+    readonly property bool nativeInhibitorAvailable: {
+        try {
+            return typeof IdleInhibitor !== "undefined"
+        } catch (e) {
+            return false
+        }
+    }
+
     Component.onCompleted: {
         detectElogindProcess.running = true
         detectHibernateProcess.running = true
+        console.log("SessionService: Native inhibitor available:", nativeInhibitorAvailable)
     }
 
 
@@ -132,6 +142,7 @@ Singleton {
         if (idleInhibited) {
             return
         }
+        console.log("SessionService: Enabling idle inhibit (native:", nativeInhibitorAvailable, ")")
         idleInhibited = true
         inhibitorChanged()
     }
@@ -140,6 +151,7 @@ Singleton {
         if (!idleInhibited) {
             return
         }
+        console.log("SessionService: Disabling idle inhibit (native:", nativeInhibitorAvailable, ")")
         idleInhibited = false
         inhibitorChanged()
     }
@@ -155,7 +167,7 @@ Singleton {
     function setInhibitReason(reason) {
         inhibitReason = reason
 
-        if (idleInhibited) {
+        if (idleInhibited && !nativeInhibitorAvailable) {
             const wasActive = idleInhibited
             idleInhibited = false
 
@@ -171,17 +183,22 @@ Singleton {
         id: idleInhibitProcess
 
         command: {
-            if (!idleInhibited) {
+            if (!idleInhibited || nativeInhibitorAvailable) {
                 return ["true"]
             }
 
+            console.log("SessionService: Starting systemd/elogind inhibit process")
             return [isElogind ? "elogind-inhibit" : "systemd-inhibit", "--what=idle", "--who=quickshell", `--why=${inhibitReason}`, "--mode=block", "sleep", "infinity"]
         }
 
-        running: idleInhibited
+        running: idleInhibited && !nativeInhibitorAvailable
+
+        onRunningChanged: {
+            console.log("SessionService: Inhibit process running:", running, "(native:", nativeInhibitorAvailable, ")")
+        }
 
         onExited: function (exitCode) {
-            if (idleInhibited && exitCode !== 0) {
+            if (idleInhibited && exitCode !== 0 && !nativeInhibitorAvailable) {
                 console.warn("SessionService: Inhibitor process crashed with exit code:", exitCode)
                 idleInhibited = false
                 ToastService.showWarning("Idle inhibitor failed")
@@ -189,35 +206,4 @@ Singleton {
         }
     }
 
-    IpcHandler {
-        function toggle(): string {
-            root.toggleIdleInhibit()
-            return root.idleInhibited ? "Idle inhibit enabled" : "Idle inhibit disabled"
-        }
-
-        function enable(): string {
-            root.enableIdleInhibit()
-            return "Idle inhibit enabled"
-        }
-
-        function disable(): string {
-            root.disableIdleInhibit()
-            return "Idle inhibit disabled"
-        }
-
-        function status(): string {
-            return root.idleInhibited ? "Idle inhibit is enabled" : "Idle inhibit is disabled"
-        }
-
-        function reason(newReason: string): string {
-            if (!newReason) {
-                return `Current reason: ${root.inhibitReason}`
-            }
-
-            root.setInhibitReason(newReason)
-            return `Inhibit reason set to: ${newReason}`
-        }
-
-        target: "inhibit"
-    }
 }

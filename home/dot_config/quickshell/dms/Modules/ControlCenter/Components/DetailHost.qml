@@ -7,6 +7,7 @@ Item {
 
     property string expandedSection: ""
     property var expandedWidgetData: null
+    property var bluetoothCodecSelector: null
 
     Loader {
         width: parent.width
@@ -42,7 +43,17 @@ Item {
 
     Component {
         id: bluetoothDetailComponent
-        BluetoothDetail {}
+        BluetoothDetail {
+            id: bluetoothDetail
+            onShowCodecSelector: function(device) {
+                if (root.bluetoothCodecSelector) {
+                    root.bluetoothCodecSelector.show(device)
+                    root.bluetoothCodecSelector.codecSelected.connect(function(deviceAddress, codecName) {
+                        bluetoothDetail.updateDeviceCodecDisplay(deviceAddress, codecName)
+                    })
+                }
+            }
+        }
     }
 
     Component {

@@ -2,10 +2,12 @@ pragma Singleton
 
 pragma ComponentBehavior: Bound
 
+import QtCore
 import QtQuick
 import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
+import qs.Common
 
 Singleton {
     id: root
@@ -21,6 +23,8 @@ Singleton {
 
     property var windows: []
 
+    signal windowUrgentChanged()
+
     property bool inOverview: false
 
     property int currentKeyboardLayoutIndex: 0
@@ -31,6 +35,7 @@ Singleton {
     property bool suppressConfigToast: true
     property bool suppressNextConfigToast: false
     property bool matugenSuppression: false
+    property bool configGenerationPending: false
 
     readonly property string socketPath: Quickshell.env("NIRI_SOCKET")
 
@@ -185,6 +190,9 @@ Singleton {
                 break;
             case 'KeyboardLayoutSwitched':
                 handleKeyboardLayoutSwitched(event.KeyboardLayoutSwitched);
+                break;
+            case 'WorkspaceUrgencyChanged':
+                handleWorkspaceUrgencyChanged(event.WorkspaceUrgencyChanged);
                 break;
         }
     }
@@ -370,6 +378,22 @@ Singleton {
         currentKeyboardLayoutIndex = data.idx
     }
 
+    function handleWorkspaceUrgencyChanged(data) {
+        const ws = root.workspaces[data.id]
+        if (!ws) {
+            return
+        }
+
+        ws.is_urgent = data.urgent
+
+        const idx = allWorkspaces.findIndex(w => w.id === data.id)
+        if (idx >= 0) {
+            allWorkspaces[idx].is_urgent = data.urgent
+        }
+
+        windowUrgentChanged()
+    }
+
     Process {
         id: validateProcess
         command: ["niri", "validate"]
@@ -415,7 +439,7 @@ Singleton {
         return send({
                         "Action": {
                             "DoScreenTransition": {
-                                "delay_ms": 100,
+                                "delay_ms": 0,
                             }
                         }
                     })
@@ -652,6 +676,7 @@ Singleton {
         return result
     }
 
+
     Timer {
         id: suppressToastTimer
         interval: 3000
@@ -663,4 +688,101 @@ Singleton {
         interval: 2000
         onTriggered: root.matugenSuppression = false
     }
+
+    Timer {
+        id: configGenerationDebounce
+        interval: 100
+        onTriggered: root.doGenerateNiriLayoutConfig()
+    }
+
+    function generateNiriLayoutConfig() {
+        const niriSocket = Quickshell.env("NIRI_SOCKET")
+        if (!niriSocket || niriSocket.length === 0) {
+            return
+        }
+
+        if (configGenerationPending) {
+            return
+        }
+
+        configGenerationPending = true
+        configGenerationDebounce.restart()
+    }
+
+    function doGenerateNiriLayoutConfig() {
+        console.log("NiriService: Generating layout config...")
+
+        const cornerRadius = typeof SettingsData !== "undefined" ? SettingsData.cornerRadius : 12
+        const gaps = typeof SettingsData !== "undefined" ? Math.max(4, SettingsData.dankBarSpacing) : 4
+
+        const configContent = `layout {
+    gaps ${gaps}
+
+    border {
+        width 2
+    }
+
+    focus-ring {
+        width 2
+    }
+}
+
+window-rule {
+    geometry-corner-radius ${cornerRadius}
+    clip-to-geometry true
+    tiled-state true
+    draw-border-with-background false
+}`
+
+        const configDir = Paths.strip(StandardPaths.writableLocation(StandardPaths.ConfigLocation))
+        const niriDmsDir = configDir + "/niri/dms"
+        const configPath = niriDmsDir + "/layout.kdl"
+
+        writeConfigProcess.configContent = configContent
+        writeConfigProcess.configPath = configPath
+        writeConfigProcess.command = ["sh", "-c", `mkdir -p "${niriDmsDir}" && cat > "${configPath}" << 'EOF'\n${configContent}\nEOF`]
+        writeConfigProcess.running = true
+        configGenerationPending = false
+    }
+
+    function generateNiriBinds() {
+        console.log("NiriService: Generating binds config...")
+
+        const configDir = Paths.strip(StandardPaths.writableLocation(StandardPaths.ConfigLocation))
+        const niriDmsDir = configDir + "/niri/dms"
+        const bindsPath = niriDmsDir + "/binds.kdl"
+        const sourceBindsPath = Paths.strip(Qt.resolvedUrl("niri-binds.kdl"))
+
+        writeBindsProcess.bindsPath = bindsPath
+        writeBindsProcess.command = ["sh", "-c", `mkdir -p "${niriDmsDir}" && cp "${sourceBindsPath}" "${bindsPath}"`]
+        writeBindsProcess.running = true
+    }
+
+    Process {
+        id: writeConfigProcess
+        property string configContent: ""
+        property string configPath: ""
+
+        onExited: exitCode => {
+            if (exitCode === 0) {
+                console.log("NiriService: Generated layout config at", configPath)
+            } else {
+                console.warn("NiriService: Failed to write layout config, exit code:", exitCode)
+            }
+        }
+    }
+
+    Process {
+        id: writeBindsProcess
+        property string bindsPath: ""
+
+        onExited: exitCode => {
+            if (exitCode === 0) {
+                console.log("NiriService: Generated binds config at", bindsPath)
+            } else {
+                console.warn("NiriService: Failed to write binds config, exit code:", exitCode)
+            }
+        }
+    }
+
 }
