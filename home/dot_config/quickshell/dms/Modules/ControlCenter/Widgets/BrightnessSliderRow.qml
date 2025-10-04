@@ -18,17 +18,13 @@ Row {
         radius: (Theme.iconSize + Theme.spacingS * 2) / 2
         color: iconArea.containsMouse
                ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.12)
-               : "transparent"
-
-        Behavior on color {
-            ColorAnimation { duration: Theme.shortDuration }
-        }
+               : Theme.withAlpha(Theme.primary, 0)
 
         MouseArea {
             id: iconArea
             anchors.fill: parent
             hoverEnabled: true
-            cursorShape: Qt.PointingHandCursor
+            cursorShape: DisplayService.devices.length > 1 ? Qt.PointingHandCursor : Qt.ArrowCursor
 
             onClicked: function(event) {
                 if (DisplayService.devices.length > 1) {
@@ -39,6 +35,22 @@ Row {
                     }
                     event.accepted = true
                 }
+            }
+
+            onEntered: {
+                tooltipLoader.active = true
+                if (tooltipLoader.item) {
+                    const tooltipText = DisplayService.currentDevice ? "bl device: " + DisplayService.currentDevice : "Backlight Control"
+                    const p = iconArea.mapToItem(null, iconArea.width / 2, 0)
+                    tooltipLoader.item.show(tooltipText, p.x, p.y - 40, null)
+                }
+            }
+
+            onExited: {
+                if (tooltipLoader.item) {
+                    tooltipLoader.item.hide()
+                }
+                tooltipLoader.active = false
             }
 
             DankIcon {
@@ -140,5 +152,11 @@ Row {
             onObjectAdded: (index, object) => deviceMenu.insertItem(index, object)
             onObjectRemoved: (index, object) => deviceMenu.removeItem(object)
         }
+    }
+
+    Loader {
+        id: tooltipLoader
+        active: false
+        sourceComponent: DankTooltip {}
     }
 }

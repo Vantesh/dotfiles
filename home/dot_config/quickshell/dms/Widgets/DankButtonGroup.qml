@@ -19,8 +19,15 @@ Flow {
     property int textSize: Theme.fontSizeMedium
 
     signal selectionChanged(int index, bool selected)
+    signal animationCompleted()
 
     spacing: Theme.spacingXS
+
+    Timer {
+        id: animationTimer
+        interval: Theme.shortDuration
+        onTriggered: root.animationCompleted()
+    }
 
     function isSelected(index) {
         if (multiSelect) {
@@ -43,6 +50,7 @@ Flow {
 
             currentSelection = newSelection
             selectionChanged(index, !isCurrentlySelected)
+            animationTimer.restart()
         } else {
             const oldIndex = currentIndex
             currentIndex = index
@@ -50,6 +58,7 @@ Flow {
             if (oldIndex !== index && oldIndex >= 0) {
                 selectionChanged(oldIndex, false)
             }
+            animationTimer.restart()
         }
     }
 
@@ -71,7 +80,7 @@ Flow {
             width: Math.max(contentItem.implicitWidth + root.buttonPadding * 2, root.minButtonWidth) + (selected ? 4 : 0)
             height: root.buttonHeight
 
-            color: selected ? Theme.primaryContainer : Theme.primary
+            color: selected ? Theme.primary : Theme.surfaceVariant
             border.color: "transparent"
             border.width: 0
 
@@ -130,8 +139,8 @@ Flow {
                 topRightRadius: parent.topRightRadius
                 bottomRightRadius: parent.bottomRightRadius
                 color: {
-                    if (pressed) return selected ? Theme.primaryPressed : Theme.surfacePressed
-                    if (hovered) return selected ? Theme.primaryHover : Theme.surfaceHover
+                    if (pressed) return selected ? Theme.primaryPressed : Theme.surfaceTextHover
+                    if (hovered) return selected ? Theme.primaryHover : Theme.surfaceTextHover
                     return "transparent"
                 }
 
@@ -157,7 +166,7 @@ Flow {
                         id: checkIcon
                         name: "check"
                         size: root.checkIconSize
-                        color: segment.selected ? Theme.surfaceText : Theme.primaryText
+                        color: segment.selected ? Theme.primaryText : Theme.surfaceVariantText
                         visible: root.checkEnabled && segment.selected
                         opacity: segment.selected ? 1 : 0
                         scale: segment.selected ? 1 : 0.6
@@ -183,7 +192,7 @@ Flow {
                         text: typeof modelData === "string" ? modelData : modelData.text || ""
                         font.pixelSize: root.textSize
                         font.weight: segment.selected ? Font.Medium : Font.Normal
-                        color: segment.selected ? Theme.surfaceText : Theme.primaryText
+                        color: segment.selected ? Theme.primaryText : Theme.surfaceVariantText
                         anchors.verticalCenter: parent.verticalCenter
                     }
                 }

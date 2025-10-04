@@ -30,7 +30,7 @@ Column {
                 if (DgopService.currentSort === "name") {
                     return Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.12);
                 }
-                return processHeaderArea.containsMouse ? Qt.rgba(Theme.surfaceText.r, Theme.surfaceText.g, Theme.surfaceText.b, 0.08) : "transparent";
+                return processHeaderArea.containsMouse ? Qt.rgba(Theme.surfaceText.r, Theme.surfaceText.g, Theme.surfaceText.b, 0.08) : Theme.withAlpha(Theme.surfaceText, 0);
             }
             radius: Theme.cornerRadius
             anchors.left: parent.left
@@ -74,7 +74,7 @@ Column {
                 if (DgopService.currentSort === "cpu") {
                     return Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.12);
                 }
-                return cpuHeaderArea.containsMouse ? Qt.rgba(Theme.surfaceText.r, Theme.surfaceText.g, Theme.surfaceText.b, 0.08) : "transparent";
+                return cpuHeaderArea.containsMouse ? Qt.rgba(Theme.surfaceText.r, Theme.surfaceText.g, Theme.surfaceText.b, 0.08) : Theme.withAlpha(Theme.surfaceText, 0);
             }
             radius: Theme.cornerRadius
             anchors.right: parent.right
@@ -118,7 +118,7 @@ Column {
                 if (DgopService.currentSort === "memory") {
                     return Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.12);
                 }
-                return memoryHeaderArea.containsMouse ? Qt.rgba(Theme.surfaceText.r, Theme.surfaceText.g, Theme.surfaceText.b, 0.08) : "transparent";
+                return memoryHeaderArea.containsMouse ? Qt.rgba(Theme.surfaceText.r, Theme.surfaceText.g, Theme.surfaceText.b, 0.08) : Theme.withAlpha(Theme.surfaceText, 0);
             }
             radius: Theme.cornerRadius
             anchors.right: parent.right
@@ -162,7 +162,7 @@ Column {
                 if (DgopService.currentSort === "pid") {
                     return Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.12);
                 }
-                return pidHeaderArea.containsMouse ? Qt.rgba(Theme.surfaceText.r, Theme.surfaceText.g, Theme.surfaceText.b, 0.08) : "transparent";
+                return pidHeaderArea.containsMouse ? Qt.rgba(Theme.surfaceText.r, Theme.surfaceText.g, Theme.surfaceText.b, 0.08) : Theme.withAlpha(Theme.surfaceText, 0);
             }
             radius: Theme.cornerRadius
             anchors.right: parent.right
@@ -204,7 +204,7 @@ Column {
             width: 28
             height: 28
             radius: Theme.cornerRadius
-            color: sortOrderArea.containsMouse ? Qt.rgba(Theme.surfaceText.r, Theme.surfaceText.g, Theme.surfaceText.b, 0.08) : "transparent"
+            color: sortOrderArea.containsMouse ? Qt.rgba(Theme.surfaceText.r, Theme.surfaceText.g, Theme.surfaceText.b, 0.08) : Theme.withAlpha(Theme.surfaceText, 0)
             anchors.right: parent.right
             anchors.rightMargin: 8
             anchors.verticalCenter: parent.verticalCenter

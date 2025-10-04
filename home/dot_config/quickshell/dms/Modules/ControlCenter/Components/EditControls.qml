@@ -7,6 +7,7 @@ Row {
     id: root
 
     property var availableWidgets: []
+    property Item popoutContent: null
 
     signal addWidget(string widgetId)
     signal resetToDefault()
@@ -19,7 +20,9 @@ Row {
 
     Popup {
         id: addWidgetPopup
-        anchors.centerIn: parent
+        parent: popoutContent
+        x: parent ? Math.round((parent.width - width) / 2) : 0
+        y: parent ? Math.round((parent.height - height) / 2) : 0
         width: 400
         height: 300
         modal: true

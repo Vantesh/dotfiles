@@ -13,9 +13,10 @@ Item {
     property bool requestDockShow: false
     property int pinnedAppCount: 0
     property bool groupByApp: false
+    property bool isVertical: false
 
-    implicitWidth: row.width
-    implicitHeight: row.height
+    implicitWidth: isVertical ? appLayout.height : appLayout.width
+    implicitHeight: isVertical ? appLayout.width : appLayout.height
 
     function movePinnedApp(fromIndex, toIndex) {
         if (fromIndex === toIndex) {
@@ -33,11 +34,16 @@ Item {
         SessionData.setPinnedApps(currentPinned)
     }
 
-    Row {
-        id: row
-        spacing: 2
+    Item {
+        id: appLayout
         anchors.centerIn: parent
-        height: 40
+        width: layoutFlow.width
+        height: layoutFlow.height
+
+        Flow {
+            id: layoutFlow
+            flow: root.isVertical ? Flow.TopToBottom : Flow.LeftToRight
+            spacing: 8
 
         Repeater {
             id: repeater
@@ -217,6 +223,7 @@ Item {
                     windowTitle: model.windowTitle || ""
                 }
             }
+        }
         }
     }
 

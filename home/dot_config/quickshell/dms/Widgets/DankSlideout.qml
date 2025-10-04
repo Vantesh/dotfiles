@@ -10,6 +10,8 @@ pragma ComponentBehavior: Bound
 PanelWindow {
     id: root
 
+    WlrLayershell.namespace: "quickshell:slideout"
+
     property bool isVisible: false
     property var targetScreen: null
     property var modelData: null
@@ -57,6 +59,7 @@ PanelWindow {
 
     StyledRect {
         id: contentRect
+        layer.enabled: true
 
         anchors.top: parent.top
         anchors.bottom: parent.bottom
@@ -66,7 +69,7 @@ PanelWindow {
                        customTransparency >= 0 ? customTransparency : SettingsData.popupTransparency)
         border.color: Theme.outlineMedium
         border.width: 1
-        visible: isVisible
+        visible: isVisible || slideAnimation.running
 
         transform: Translate {
             id: slideTransform

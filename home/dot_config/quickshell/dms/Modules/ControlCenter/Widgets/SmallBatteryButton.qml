@@ -28,10 +28,14 @@ Rectangle {
     readonly property color _tileBgInactive: Theme.surfaceContainerHigh
     readonly property color _tileRingActive:
         Qt.rgba(Theme.primaryText.r, Theme.primaryText.g, Theme.primaryText.b, 0.22)
-    readonly property color _tileIconActive: Theme.primaryContainer
+    readonly property color _tileIconActive: Theme.primaryText
     readonly property color _tileIconInactive: Theme.primary
 
-    color: isActive ? _tileBgActive : _tileBgInactive
+    color: {
+        if (isActive) return _tileBgActive
+        const baseColor = mouseArea.containsMouse ? Theme.widgetBaseHoverColor : _tileBgInactive
+        return baseColor
+    }
     border.color: isActive ? _tileRingActive : "transparent"
     border.width: isActive ? 1 : 0
     antialiasing: true
@@ -85,13 +89,6 @@ Rectangle {
         cursorShape: Qt.PointingHandCursor
         enabled: root.enabled
         onClicked: root.clicked()
-    }
-
-    Behavior on color {
-        ColorAnimation {
-            duration: Theme.shortDuration
-            easing.type: Theme.standardEasing
-        }
     }
 
     Behavior on radius {

@@ -13,6 +13,8 @@ StyledRect {
     property int buttonSize: 32
 
     signal clicked
+    signal entered
+    signal exited
 
     width: buttonSize
     height: buttonSize
@@ -30,5 +32,7 @@ StyledRect {
         stateColor: Theme.primary
         cornerRadius: root.radius
         onClicked: root.clicked()
+        onEntered: root.entered()
+        onExited: root.exited()
     }
 }

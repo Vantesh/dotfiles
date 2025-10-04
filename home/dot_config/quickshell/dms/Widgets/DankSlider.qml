@@ -21,7 +21,6 @@ Item {
 
     property color thumbOutlineColor: Theme.surfaceContainer
     property color trackColor: enabled ? Theme.outline : Theme.outline
-    function withAlpha(c, a) { return Qt.rgba(c.r, c.g, c.b, a) }
 
     signal sliderValueChanged(int newValue)
     signal sliderDragFinished(int finalValue)
@@ -45,7 +44,7 @@ Item {
         DankIcon {
             name: slider.leftIcon
             size: Theme.iconSize
-            color: slider.enabled ? Theme.onSurface : Theme.onSurface_38
+            color: slider.enabled ? Theme.surfaceText : Theme.onSurface_38
             anchors.verticalCenter: parent.verticalCenter
             visible: slider.leftIcon.length > 0
         }
@@ -73,7 +72,7 @@ Item {
                     const center = (travel * ratio) + sliderHandle.width / 2
                     return Math.max(0, Math.min(sliderTrack.width, center))
                 }
-                color: slider.enabled ? Theme.primary : withAlpha(Theme.onSurface, 0.12)
+                color: slider.enabled ? Theme.primary : Theme.withAlpha(Theme.onSurface, 0.12)
 
             }
 
@@ -91,7 +90,7 @@ Item {
                     return Math.max(0, Math.min(travel, travel * ratio))
                 }
                 anchors.verticalCenter: parent.verticalCenter
-                color: slider.enabled ? Theme.primary : withAlpha(Theme.onSurface, 0.12)
+                color: slider.enabled ? Theme.primary : Theme.withAlpha(Theme.onSurface, 0.12)
                 border.width: 3
                 border.color: slider.thumbOutlineColor
 
@@ -266,7 +265,7 @@ Item {
         DankIcon {
             name: slider.rightIcon
             size: Theme.iconSize
-            color: slider.enabled ? Theme.onSurface : Theme.onSurface_38
+            color: slider.enabled ? Theme.surfaceText : Theme.onSurface_38
             anchors.verticalCenter: parent.verticalCenter
             visible: slider.rightIcon.length > 0
         }

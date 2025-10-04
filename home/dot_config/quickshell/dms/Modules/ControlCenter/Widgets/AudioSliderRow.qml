@@ -20,11 +20,7 @@ Row {
         height: Theme.iconSize + Theme.spacingS * 2
         anchors.verticalCenter: parent.verticalCenter
         radius: (Theme.iconSize + Theme.spacingS * 2) / 2
-        color: iconArea.containsMouse ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.12) : "transparent"
-
-        Behavior on color {
-            ColorAnimation { duration: Theme.shortDuration }
-        }
+        color: iconArea.containsMouse ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.12) : Theme.withAlpha(Theme.primary, 0)
 
         MouseArea {
             id: iconArea
@@ -34,7 +30,9 @@ Row {
             cursorShape: Qt.PointingHandCursor
             onClicked: {
                 if (defaultSink) {
+                    AudioService.suppressOSD = true
                     defaultSink.audio.muted = !defaultSink.audio.muted
+                    AudioService.suppressOSD = false
                 }
             }
         }
@@ -71,6 +69,9 @@ Row {
         valueOverride: actualVolumePercent
         thumbOutlineColor: Theme.surfaceContainer
         trackColor: root.sliderTrackColor.a > 0 ? root.sliderTrackColor : Theme.surfaceContainerHigh
+        onIsDraggingChanged: {
+            AudioService.suppressOSD = isDragging
+        }
         onSliderValueChanged: function(newValue) {
             if (defaultSink) {
                 defaultSink.audio.volume = newValue / 100.0

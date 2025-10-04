@@ -226,6 +226,7 @@ Singleton {
             }
 
             const shouldShowPopup = !root.popupsDisabled && !SessionData.doNotDisturb
+            const isTransient = notif.transient
             const wrapper = notifComponent.createObject(root, {
                                                             "popup": shouldShowPopup,
                                                             "notification": notif
@@ -233,8 +234,10 @@ Singleton {
 
             if (wrapper) {
                 root.allWrappers.push(wrapper)
-                root.notifications.push(wrapper)
-                _trimStored()
+                if (!isTransient) {
+                    root.notifications.push(wrapper)
+                    _trimStored()
+                }
 
                 Qt.callLater(() => {
                                  _initWrapperPersistence(wrapper)
@@ -407,8 +410,11 @@ Singleton {
         addGateBusy = false
         notificationQueue = []
 
-        for (const w of allWrappers)
-            w.popup = false
+        for (const w of allWrappers) {
+            if (w) {
+                w.popup = false
+            }
+        }
         visibleNotifications = []
 
         _dismissQueue = notifications.slice()
@@ -528,6 +534,7 @@ Singleton {
         const groups = {}
 
         for (const notif of notifications) {
+            if (!notif) continue
             const groupKey = getGroupKey(notif)
             if (!groups[groupKey]) {
                 groups[groupKey] = {
@@ -563,6 +570,7 @@ Singleton {
         const groups = {}
 
         for (const notif of popups) {
+            if (!notif) continue
             const groupKey = getGroupKey(notif)
             if (!groups[groupKey]) {
                 groups[groupKey] = {
@@ -630,7 +638,9 @@ Singleton {
         const currentMessageIds = new Set()
         for (const group of groupedNotifications) {
             for (const notif of group.notifications) {
-                currentMessageIds.add(notif.notification.id)
+                if (notif && notif.notification) {
+                    currentMessageIds.add(notif.notification.id)
+                }
             }
         }
         let newExpandedGroups = {}

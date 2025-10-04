@@ -206,7 +206,7 @@ Item {
                         radius: Theme.cornerRadius
                         color: {
                             if (modelData.name === currentCodec)
-                                return Theme.surfaceContainerHigh;
+                                return Theme.surfaceContainerHighest;
                             else if (codecMouseArea.containsMouse)
                                 return Theme.surfaceHover;
                             else
@@ -272,12 +272,6 @@ Item {
                             }
                         }
 
-                        Behavior on color {
-                            ColorAnimation {
-                                duration: Theme.shortDuration
-                            }
-
-                        }
 
                     }
 

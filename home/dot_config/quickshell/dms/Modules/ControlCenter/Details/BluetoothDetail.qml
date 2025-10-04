@@ -96,13 +96,6 @@ Rectangle {
                         BluetoothService.adapter.discovering = !BluetoothService.adapter.discovering
                 }
             }
-            
-            Behavior on color {
-                ColorAnimation {
-                    duration: Theme.shortDuration
-                    easing.type: Theme.standardEasing
-                }
-            }
         }
     }
     
@@ -159,7 +152,7 @@ Rectangle {
                             return Qt.rgba(Theme.warning.r, Theme.warning.g, Theme.warning.b, 0.12)
                         if (deviceMouseArea.containsMouse)
                             return Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.08)
-                        return Theme.surfaceContainerHigh
+                        return Theme.surfaceContainerHighest
                     }
                     border.color: {
                         if (modelData.state === BluetoothDeviceState.Connecting)
@@ -168,7 +161,7 @@ Rectangle {
                             return Theme.primary
                         return Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.12)
                     }
-                    border.width: (modelData.connected || modelData.state === BluetoothDeviceState.Connecting) ? 2 : 1
+                    border.width: 0
                     
                     Row {
                         anchors.left: parent.left
@@ -284,14 +277,6 @@ Rectangle {
                             }
                         }
                     }
-                    
-                    Behavior on color {
-                        ColorAnimation { duration: Theme.shortDuration }
-                    }
-                    
-                    Behavior on border.color {
-                        ColorAnimation { duration: Theme.shortDuration }
-                    }
                 }
             }
             
@@ -347,7 +332,7 @@ Rectangle {
                     width: parent.width
                     height: 50
                     radius: Theme.cornerRadius
-                    color: availableMouseArea.containsMouse && !isBusy ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.08) : Theme.surfaceContainerHigh
+                    color: availableMouseArea.containsMouse && !isBusy ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.08) : Theme.surfaceContainerHighest
                     border.color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.12)
                     border.width: 0
                     opacity: canConnect ? 1 : 0.6
@@ -427,9 +412,6 @@ Rectangle {
                         }
                     }
                     
-                    Behavior on color {
-                        ColorAnimation { duration: Theme.shortDuration }
-                    }
                 }
             }
             

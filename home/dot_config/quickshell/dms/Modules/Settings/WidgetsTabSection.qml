@@ -142,13 +142,14 @@ Column {
                         spacing: Theme.spacingXS
 
                         Item {
-                            width: 120
+                            width: 60
                             height: 32
                             visible: modelData.id === "gpuTemp"
 
                             DankDropdown {
                                 id: gpuDropdown
                                 anchors.fill: parent
+                                popupWidth: -1
                                 currentValue: {
                                     var selectedIndex = modelData.selectedGpuIndex
                                             !== undefined ? modelData.selectedGpuIndex : 0
@@ -223,12 +224,7 @@ Column {
                         Item {
                             width: 32
                             height: 32
-                            visible: (modelData.warning !== undefined
-                                      && modelData.warning !== "")
-                                     && (modelData.id === "cpuUsage"
-                                         || modelData.id === "memUsage"
-                                         || modelData.id === "cpuTemp"
-                                         || modelData.id === "gpuTemp")
+                            visible: modelData.warning !== undefined && modelData.warning !== ""
 
                             DankIcon {
                                 name: "warning"
@@ -305,6 +301,19 @@ Column {
                                 onClicked: {
                                     root.compactModeChanged("music", 0)
                                 }
+                                onEntered: {
+                                    smallTooltipLoader.active = true
+                                    if (smallTooltipLoader.item) {
+                                        const p = smallSizeButton.mapToItem(null, smallSizeButton.width / 2, 0)
+                                        smallTooltipLoader.item.show("Small", p.x, p.y - 40, null)
+                                    }
+                                }
+                                onExited: {
+                                    if (smallTooltipLoader.item) {
+                                        smallTooltipLoader.item.hide()
+                                    }
+                                    smallTooltipLoader.active = false
+                                }
                             }
 
                             DankActionButton {
@@ -318,6 +327,19 @@ Column {
                                 onClicked: {
                                     root.compactModeChanged("music", 1)
                                 }
+                                onEntered: {
+                                    mediumTooltipLoader.active = true
+                                    if (mediumTooltipLoader.item) {
+                                        const p = mediumSizeButton.mapToItem(null, mediumSizeButton.width / 2, 0)
+                                        mediumTooltipLoader.item.show("Medium", p.x, p.y - 40, null)
+                                    }
+                                }
+                                onExited: {
+                                    if (mediumTooltipLoader.item) {
+                                        mediumTooltipLoader.item.hide()
+                                    }
+                                    mediumTooltipLoader.active = false
+                                }
                             }
 
                             DankActionButton {
@@ -330,6 +352,19 @@ Column {
                                            === 2 ? Theme.primary : Theme.outline
                                 onClicked: {
                                     root.compactModeChanged("music", 2)
+                                }
+                                onEntered: {
+                                    largeTooltipLoader.active = true
+                                    if (largeTooltipLoader.item) {
+                                        const p = largeSizeButton.mapToItem(null, largeSizeButton.width / 2, 0)
+                                        largeTooltipLoader.item.show("Large", p.x, p.y - 40, null)
+                                    }
+                                }
+                                onExited: {
+                                    if (largeTooltipLoader.item) {
+                                        largeTooltipLoader.item.hide()
+                                    }
+                                    largeTooltipLoader.active = false
                                 }
                             }
 
@@ -372,6 +407,27 @@ Column {
                                                     "runningApps",
                                                     !SettingsData.runningAppsCompactMode)
                                     }
+                                }
+                                onEntered: {
+                                    compactTooltipLoader.active = true
+                                    if (compactTooltipLoader.item) {
+                                        let tooltipText = "Toggle Compact Mode"
+                                        if (modelData.id === "clock") {
+                                            tooltipText = SettingsData.clockCompactMode ? "Full Size" : "Compact"
+                                        } else if (modelData.id === "focusedWindow") {
+                                            tooltipText = SettingsData.focusedWindowCompactMode ? "Full Size" : "Compact"
+                                        } else if (modelData.id === "runningApps") {
+                                            tooltipText = SettingsData.runningAppsCompactMode ? "Full Size" : "Compact"
+                                        }
+                                        const p = compactModeButton.mapToItem(null, compactModeButton.width / 2, 0)
+                                        compactTooltipLoader.item.show(tooltipText, p.x, p.y - 40, null)
+                                    }
+                                }
+                                onExited: {
+                                    if (compactTooltipLoader.item) {
+                                        compactTooltipLoader.item.hide()
+                                    }
+                                    compactTooltipLoader.active = false
                                 }
                             }
 
@@ -426,6 +482,7 @@ Column {
                         }
 
                         DankActionButton {
+                            id: visibilityButton
                             visible: modelData.id !== "spacer"
                             buttonSize: 32
                             iconName: modelData.enabled ? "visibility" : "visibility_off"
@@ -435,6 +492,20 @@ Column {
                                 root.itemEnabledChanged(root.sectionId,
                                                         modelData.id,
                                                         !modelData.enabled)
+                            }
+                            onEntered: {
+                                visibilityTooltipLoader.active = true
+                                if (visibilityTooltipLoader.item) {
+                                    const tooltipText = modelData.enabled ? "Hide" : "Show"
+                                    const p = visibilityButton.mapToItem(null, visibilityButton.width / 2, 0)
+                                    visibilityTooltipLoader.item.show(tooltipText, p.x, p.y - 40, null)
+                                }
+                            }
+                            onExited: {
+                                if (visibilityTooltipLoader.item) {
+                                    visibilityTooltipLoader.item.hide()
+                                }
+                                visibilityTooltipLoader.active = false
                             }
                         }
 
@@ -790,5 +861,35 @@ Column {
             }
 
         }
+    }
+
+    Loader {
+        id: smallTooltipLoader
+        active: false
+        sourceComponent: DankTooltip {}
+    }
+
+    Loader {
+        id: mediumTooltipLoader
+        active: false
+        sourceComponent: DankTooltip {}
+    }
+
+    Loader {
+        id: largeTooltipLoader
+        active: false
+        sourceComponent: DankTooltip {}
+    }
+
+    Loader {
+        id: compactTooltipLoader
+        active: false
+        sourceComponent: DankTooltip {}
+    }
+
+    Loader {
+        id: visibilityTooltipLoader
+        active: false
+        sourceComponent: DankTooltip {}
     }
 }

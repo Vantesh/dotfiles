@@ -93,6 +93,48 @@ DankModal {
             selectedButton = 1
             event.accepted = true
             break
+        case Qt.Key_N:
+            if (event.modifiers & Qt.ControlModifier) {
+                keyboardNavigation = true
+                selectedButton = (selectedButton + 1) % 2
+                event.accepted = true
+            }
+            break
+        case Qt.Key_P:
+            if (event.modifiers & Qt.ControlModifier) {
+                keyboardNavigation = true
+                selectedButton = selectedButton === -1 ? 1 : (selectedButton - 1 + 2) % 2
+                event.accepted = true
+            }
+            break
+        case Qt.Key_J:
+            if (event.modifiers & Qt.ControlModifier) {
+                keyboardNavigation = true
+                selectedButton = 1
+                event.accepted = true
+            }
+            break
+        case Qt.Key_K:
+            if (event.modifiers & Qt.ControlModifier) {
+                keyboardNavigation = true
+                selectedButton = 0
+                event.accepted = true
+            }
+            break
+        case Qt.Key_H:
+            if (event.modifiers & Qt.ControlModifier) {
+                keyboardNavigation = true
+                selectedButton = 0
+                event.accepted = true
+            }
+            break
+        case Qt.Key_L:
+            if (event.modifiers & Qt.ControlModifier) {
+                keyboardNavigation = true
+                selectedButton = 1
+                event.accepted = true
+            }
+            break
         case Qt.Key_Tab:
             keyboardNavigation = true
             selectedButton = selectedButton === -1 ? 0 : (selectedButton + 1) % 2

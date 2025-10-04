@@ -63,7 +63,7 @@ Column {
                         width: calculatedWidth
                         height: 32
                         radius: Theme.cornerRadius
-                        color: isActive ? Theme.primaryPressed : isHovered ? Theme.primaryHoverLight : "transparent"
+                        color: isActive ? Theme.primaryPressed : isHovered ? Theme.primaryHoverLight : Theme.withAlpha(Theme.primaryPressed, 0)
                         border.width: isActive ? 0 : 1
                         border.color: Theme.outlineMedium
 
@@ -104,7 +104,7 @@ Column {
                                 width: 20
                                 height: 20
                                 radius: 10
-                                color: closeMouseArea.containsMouse ? Theme.surfaceTextHover : "transparent"
+                                color: closeMouseArea.containsMouse ? Theme.surfaceTextHover : Theme.withAlpha(Theme.surfaceTextHover, 0)
                                 visible: NotepadStorageService.tabs.length > 1
                                 anchors.verticalCenter: parent.verticalCenter
 

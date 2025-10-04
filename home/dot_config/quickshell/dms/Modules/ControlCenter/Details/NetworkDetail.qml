@@ -27,18 +27,9 @@ Rectangle {
             NetworkService.scanWifi()
         }
     }
-    
+
     Component.onDestruction: {
         NetworkService.removeRef()
-    }
-    
-    property var wifiPasswordModalRef: {
-        wifiPasswordModalLoader.active = true
-        return wifiPasswordModalLoader.item
-    }
-    property var networkInfoModalRef: {
-        networkInfoModalLoader.active = true
-        return networkInfoModalLoader.item
     }
     
     Row {
@@ -177,12 +168,6 @@ Rectangle {
                     onClicked: NetworkService.toggleWifiRadio()
                 }
                 
-                Behavior on color {
-                    ColorAnimation {
-                        duration: Theme.shortDuration
-                        easing.type: Theme.standardEasing
-                    }
-                }
             }
         }
     }
@@ -242,9 +227,9 @@ Rectangle {
                     width: parent.width
                     height: 50
                     radius: Theme.cornerRadius
-                    color: networkMouseArea.containsMouse ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.08) : Theme.surfaceContainerHigh
+                    color: networkMouseArea.containsMouse ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.08) : Theme.surfaceContainerHighest
                     border.color: modelData.ssid === NetworkService.currentWifiSSID ? Theme.primary : Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.12)
-                    border.width: modelData.ssid === NetworkService.currentWifiSSID ? 2 : 1
+                    border.width: 0
                     
                     Row {
                         anchors.left: parent.left
@@ -332,9 +317,7 @@ Rectangle {
                         onClicked: function(event) {
                             if (modelData.ssid !== NetworkService.currentWifiSSID) {
                                 if (modelData.secured && !modelData.saved) {
-                                    if (wifiPasswordModalRef) {
-                                        wifiPasswordModalRef.show(modelData.ssid)
-                                    }
+                                    wifiPasswordModal.show(modelData.ssid)
                                 } else {
                                     NetworkService.connectToWifi(modelData.ssid)
                                 }
@@ -343,13 +326,6 @@ Rectangle {
                         }
                     }
                     
-                    Behavior on color {
-                        ColorAnimation { duration: Theme.shortDuration }
-                    }
-                    
-                    Behavior on border.color {
-                        ColorAnimation { duration: Theme.shortDuration }
-                    }
                 }
             }
         }
@@ -395,9 +371,7 @@ Rectangle {
                     NetworkService.disconnectWifi()
                 } else {
                     if (networkContextMenu.currentSecured && !networkContextMenu.currentSaved) {
-                        if (wifiPasswordModalRef) {
-                            wifiPasswordModalRef.show(networkContextMenu.currentSSID)
-                        }
+                        wifiPasswordModal.show(networkContextMenu.currentSSID)
                     } else {
                         NetworkService.connectToWifi(networkContextMenu.currentSSID)
                     }
@@ -423,10 +397,8 @@ Rectangle {
             }
             
             onTriggered: {
-                if (networkInfoModalRef) {
-                    let networkData = NetworkService.getNetworkInfo(networkContextMenu.currentSSID)
-                    networkInfoModalRef.showNetworkInfo(networkContextMenu.currentSSID, networkData)
-                }
+                let networkData = NetworkService.getNetworkInfo(networkContextMenu.currentSSID)
+                networkInfoModal.showNetworkInfo(networkContextMenu.currentSSID, networkData)
             }
         }
         
@@ -454,22 +426,12 @@ Rectangle {
         }
     }
     
-    LazyLoader {
-        id: wifiPasswordModalLoader
-        active: false
-        
-        WifiPasswordModal {
-            id: wifiPasswordModal
-        }
+    WifiPasswordModal {
+        id: wifiPasswordModal
     }
-    
-    LazyLoader {
-        id: networkInfoModalLoader
-        active: false
-        
-        NetworkInfoModal {
-            id: networkInfoModal
-        }
+
+    NetworkInfoModal {
+        id: networkInfoModal
     }
 
 

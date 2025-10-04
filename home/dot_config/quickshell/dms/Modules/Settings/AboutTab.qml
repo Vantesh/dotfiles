@@ -56,7 +56,7 @@ Item {
                     }
 
                     StyledText {
-                        text: "DankMaterialShell"
+                        text: SystemUpdateService.shellVersion ? `dms ${SystemUpdateService.shellVersion}` : "dms"
                         font.pixelSize: Theme.fontSizeXLarge
                         font.weight: Font.Bold
                         color: Theme.surfaceText
@@ -257,8 +257,8 @@ Item {
                     }
 
                     StyledText {
-                        text: `DankMaterialShell is a modern desktop with a <a href="https://m3.material.io/" style="text-decoration:none; color:${Theme.primary};">material</a>-ish design.
-                        <br /><br/>The goal is to provide a high level of functionality and customization so that it can be a suitable replacement for complete desktop environments like Gnome, KDE, or Cosmic.
+                        text: `dms is a highly customizable, modern desktop shell with a <a href="https://m3.material.io/" style="text-decoration:none; color:${Theme.primary};">material 3 inspired</a> design.
+                        <br /><br/>It is built on top of <a href="https://quickshell.org" style="text-decoration:none; color:${Theme.primary};">Quickshell</a>, a QT6 framework for building desktop shells.
                         `
                         textFormat: Text.RichText
                         font.pixelSize: Theme.fontSizeMedium
@@ -476,6 +476,34 @@ Item {
                                 font.pixelSize: Theme.fontSizeMedium
                                 color: Theme.surfaceVariantText
                                 anchors.verticalCenter: parent.verticalCenter
+                            }
+                        }
+
+                        StyledText {
+                            text: "Dank Suite:"
+                            font.pixelSize: Theme.fontSizeMedium
+                            font.weight: Font.Medium
+                            color: Theme.surfaceText
+                        }
+
+                        Row {
+                            spacing: 4
+                            
+                            StyledText {
+                                text: `<a href="https://danklinux.com" style="text-decoration:none; color:${Theme.primary};">danklinux.com</a>`
+                                font.pixelSize: Theme.fontSizeMedium
+                                color: Theme.surfaceVariantText
+                                linkColor: Theme.primary
+                                textFormat: Text.RichText
+                                onLinkActivated: url => Qt.openUrlExternally(url)
+                                anchors.verticalCenter: parent.verticalCenter
+
+                                MouseArea {
+                                    anchors.fill: parent
+                                    cursorShape: parent.hoveredLink ? Qt.PointingHandCursor : Qt.ArrowCursor
+                                    acceptedButtons: Qt.NoButton
+                                    propagateComposedEvents: true
+                                }
                             }
                         }
                     }

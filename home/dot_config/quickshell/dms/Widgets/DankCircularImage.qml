@@ -69,7 +69,7 @@ Rectangle {
         name: root.fallbackIcon
         size: parent.width * 0.5
         color: Theme.surfaceVariantText
-        visible: internalImage.status !== Image.Ready && root.imageSource === "" && root.fallbackIcon !== ""
+        visible: (internalImage.status !== Image.Ready || root.imageSource === "") && root.fallbackIcon !== ""
     }
 
 
@@ -77,8 +77,8 @@ Rectangle {
         anchors.centerIn: parent
         visible: root.imageSource === "" && root.fallbackIcon === "" && root.fallbackText !== ""
         text: root.fallbackText
-        font.pixelSize: Math.max(12, parent.width * 0.36)
+        font.pixelSize: Math.max(12, parent.width * 0.5)
         font.weight: Font.Bold
-        color: Theme.primaryText
+        color: Theme.surfaceVariantText
     }
 }

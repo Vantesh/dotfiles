@@ -21,23 +21,23 @@ Popup {
             filteredWidgets = allWidgets.slice()
             return
         }
-        
+
         var filtered = []
         var query = searchQuery.toLowerCase()
-        
+
         for (var i = 0; i < allWidgets.length; i++) {
             var widget = allWidgets[i]
             var text = widget.text ? widget.text.toLowerCase() : ""
             var description = widget.description ? widget.description.toLowerCase() : ""
             var id = widget.id ? widget.id.toLowerCase() : ""
-            
-            if (text.indexOf(query) !== -1 || 
-                description.indexOf(query) !== -1 || 
+
+            if (text.indexOf(query) !== -1 ||
+                description.indexOf(query) !== -1 ||
                 id.indexOf(query) !== -1) {
                 filtered.push(widget)
             }
         }
-        
+
         filteredWidgets = filtered
         selectedIndex = -1
         keyboardNavigationActive = false
@@ -85,7 +85,6 @@ Popup {
     onOpened: {
         isOpening = false
         Qt.callLater(() => {
-            contentItem.forceActiveFocus()
             searchField.forceActiveFocus()
         })
     }
@@ -119,6 +118,18 @@ Popup {
                 root.selectNext()
                 event.accepted = true
             } else if (event.key === Qt.Key_Up) {
+                root.selectPrevious()
+                event.accepted = true
+            } else if (event.key === Qt.Key_N && event.modifiers & Qt.ControlModifier) {
+                root.selectNext()
+                event.accepted = true
+            } else if (event.key === Qt.Key_P && event.modifiers & Qt.ControlModifier) {
+                root.selectPrevious()
+                event.accepted = true
+            } else if (event.key === Qt.Key_J && event.modifiers & Qt.ControlModifier) {
+                root.selectNext()
+                event.accepted = true
+            } else if (event.key === Qt.Key_K && event.modifiers & Qt.ControlModifier) {
                 root.selectPrevious()
                 event.accepted = true
             } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {

@@ -411,6 +411,78 @@ QtObject {
                 selectPrevious()
                 event.accepted = true
             }
+        } else if (event.key === Qt.Key_N && event.modifiers & Qt.ControlModifier) {
+            if (!keyboardNavigationActive) {
+                keyboardNavigationActive = true
+                rebuildFlatNavigation()
+                selectedFlatIndex = 0
+                updateSelectedIdFromIndex()
+                if (listView) {
+                    listView.keyboardActive = true
+                }
+                selectionVersion++
+                ensureVisible()
+            } else {
+                selectNext()
+            }
+            event.accepted = true
+        } else if (event.key === Qt.Key_P && event.modifiers & Qt.ControlModifier) {
+            if (!keyboardNavigationActive) {
+                keyboardNavigationActive = true
+                rebuildFlatNavigation()
+                selectedFlatIndex = 0
+                updateSelectedIdFromIndex()
+                if (listView) {
+                    listView.keyboardActive = true
+                }
+                selectionVersion++
+                ensureVisible()
+            } else if (selectedFlatIndex === 0) {
+                keyboardNavigationActive = false
+                if (listView) {
+                    listView.keyboardActive = false
+                }
+                selectionVersion++
+            } else {
+                selectPrevious()
+            }
+            event.accepted = true
+        } else if (event.key === Qt.Key_J && event.modifiers & Qt.ControlModifier) {
+            if (!keyboardNavigationActive) {
+                keyboardNavigationActive = true
+                rebuildFlatNavigation()
+                selectedFlatIndex = 0
+                updateSelectedIdFromIndex()
+                if (listView) {
+                    listView.keyboardActive = true
+                }
+                selectionVersion++
+                ensureVisible()
+            } else {
+                selectNext()
+            }
+            event.accepted = true
+        } else if (event.key === Qt.Key_K && event.modifiers & Qt.ControlModifier) {
+            if (!keyboardNavigationActive) {
+                keyboardNavigationActive = true
+                rebuildFlatNavigation()
+                selectedFlatIndex = 0
+                updateSelectedIdFromIndex()
+                if (listView) {
+                    listView.keyboardActive = true
+                }
+                selectionVersion++
+                ensureVisible()
+            } else if (selectedFlatIndex === 0) {
+                keyboardNavigationActive = false
+                if (listView) {
+                    listView.keyboardActive = false
+                }
+                selectionVersion++
+            } else {
+                selectPrevious()
+            }
+            event.accepted = true
         } else if (keyboardNavigationActive) {
             if (event.key === Qt.Key_Space) {
                 toggleGroupExpanded()
@@ -425,7 +497,10 @@ QtObject {
                 clearSelected()
                 event.accepted = true
             } else if (event.key === Qt.Key_Tab) {
-                selectNextWrapping()
+                selectNext()
+                event.accepted = true
+            } else if (event.key === Qt.Key_Backtab) {
+                selectPrevious()
                 event.accepted = true
             } else if (event.key >= Qt.Key_1 && event.key <= Qt.Key_9) {
                 const actionIndex = event.key - Qt.Key_1

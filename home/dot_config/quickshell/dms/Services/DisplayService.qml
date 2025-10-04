@@ -708,7 +708,6 @@ Singleton {
 
         onExited: function (exitCode) {
             geoclueAvailable = (exitCode === 0)
-            console.log("DisplayService: geoclue available:", geoclueAvailable)
         }
     }
 

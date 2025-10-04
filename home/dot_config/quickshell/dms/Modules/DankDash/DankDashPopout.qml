@@ -13,30 +13,33 @@ DankPopout {
     id: root
 
     property bool dashVisible: false
-    property string triggerSection: "center"
     property var triggerScreen: null
     property int currentTabIndex: 0
 
     function setTriggerPosition(x, y, width, section, screen) {
-        if (section === "center") {
+        triggerSection = section
+        triggerScreen = screen
+        triggerY = y
+
+        if (section === "center" && (SettingsData.dankBarPosition === SettingsData.Position.Top || SettingsData.dankBarPosition === SettingsData.Position.Bottom)) {
             const screenWidth = screen ? screen.width : Screen.width
             triggerX = (screenWidth - popupWidth) / 2
             triggerWidth = popupWidth
+        } else if (section === "center" && (SettingsData.dankBarPosition === SettingsData.Position.Left || SettingsData.dankBarPosition === SettingsData.Position.Right)) {
+            const screenHeight = screen ? screen.height : Screen.height
+            triggerX = (screenHeight - popupHeight) / 2
+            triggerWidth = popupHeight
         } else {
             triggerX = x
             triggerWidth = width
         }
-        triggerY = y
-        triggerSection = section
-        triggerScreen = screen
     }
 
     popupWidth: 700
     popupHeight: contentLoader.item ? contentLoader.item.implicitHeight : 500
     triggerX: Screen.width - 620 - Theme.spacingL
-    triggerY: Math.max(26 + SettingsData.topBarInnerPadding + 4, Theme.barHeight - 4 - (8 - SettingsData.topBarInnerPadding)) + SettingsData.topBarSpacing + SettingsData.topBarBottomGap - 2 + Theme.popupDistance
+    triggerY: Math.max(26 + SettingsData.dankBarInnerPadding + 4, Theme.barHeight - 4 - (8 - SettingsData.dankBarInnerPadding)) + SettingsData.dankBarSpacing + SettingsData.dankBarBottomGap - 2
     triggerWidth: 80
-    positioning: "center"
     shouldBeVisible: dashVisible
     visible: shouldBeVisible
 

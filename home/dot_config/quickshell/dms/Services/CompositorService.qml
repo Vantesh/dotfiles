@@ -82,6 +82,7 @@ Singleton {
 
     Component.onCompleted: {
         detectCompositor()
+        NiriService.generateNiriLayoutConfig()
     }
 
     function filterCurrentWorkspace(toplevels, screen) {
@@ -192,6 +193,7 @@ Singleton {
                 root.isHyprland = false
                 root.compositor = "niri"
                 console.log("CompositorService: Detected Niri with socket:", root.niriSocket)
+                NiriService.generateNiriBinds()
             } else {
                 root.isHyprland = false
                 root.isNiri = true

@@ -13,8 +13,17 @@ Singleton {
     readonly property PwNode sink: Pipewire.defaultAudioSink
     readonly property PwNode source: Pipewire.defaultAudioSource
 
-    signal volumeChanged
+    property bool suppressOSD: true
+
     signal micMuteChanged
+
+    Timer {
+        id: startupTimer
+        interval: 500
+        repeat: false
+        running: true
+        onTriggered: root.suppressOSD = false
+    }
 
     function displayName(node) {
         if (!node) {
@@ -95,7 +104,6 @@ Singleton {
 
         const clampedVolume = Math.max(0, Math.min(100, percentage))
         root.sink.audio.volume = clampedVolume / 100
-        root.volumeChanged()
         return `Volume set to ${clampedVolume}%`
     }
 
@@ -148,7 +156,6 @@ Singleton {
             const newVolume = Math.max(0, Math.min(100, currentVolume + stepValue))
 
             root.sink.audio.volume = newVolume / 100
-            root.volumeChanged()
             return `Volume increased to ${newVolume}%`
         }
 
@@ -166,14 +173,11 @@ Singleton {
             const newVolume = Math.max(0, Math.min(100, currentVolume - stepValue))
 
             root.sink.audio.volume = newVolume / 100
-            root.volumeChanged()
             return `Volume decreased to ${newVolume}%`
         }
 
         function mute(): string {
-            const result = root.toggleMute()
-            root.volumeChanged()
-            return result
+            return root.toggleMute()
         }
 
         function setmic(percentage: string): string {
