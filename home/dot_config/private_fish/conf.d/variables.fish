@@ -39,7 +39,7 @@ set -xg PNPM_HOME $XDG_DATA_HOME/pnpm
 set -xg WGETRC $XDG_CONFIG_HOME/wget/wgetrc
 set -xg GNUPGHOME $XDG_DATA_HOME/gnupg
 set -xg CUDA_CACHE_PATH $XDG_CACHE_HOME/nv
-set -xg PYTHON_HISTORY $XDG_STATE_HOME/python_history
+set -xg PYTHON_HISTORY $XDG_STATE_HOME/python/history
 set -xg _JAVA_OPTIONS -Djava.util.prefs.userRoot=$XDG_CONFIG_HOME/java
 set -xg MAVEN_OPTS -Dmaven.repo.local=$XDG_DATA_HOME/maven/repository
 set -xg MAVEN_ARGS --settings $XDG_CONFIG_HOME/maven/settings.xml
