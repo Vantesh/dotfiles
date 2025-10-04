@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+# 01_repos.sh - Set up Fedora repositories
+# Exit codes: 0 (success), 1 (failure)
+
+set -euo pipefail
+
+shopt -s nullglob globstar
+
+readonly LIB_DIR="${CHEZMOI_SOURCE_DIR:-$(chezmoi source-path)}/.chezmoiscripts/linux/lib"
+
+# shellcheck source=/dev/null
+source "$LIB_DIR/.lib-common.sh"
+# shellcheck source=/dev/null
+source "$LIB_DIR/.lib-fedora_repos.sh"
+
+main() {
+ print_box "Copr"
+  log STEP "Setting up Fedora repositories"
+
+  if ! setup_rpmfusion; then
+    die "RPM Fusion setup failed: $LAST_ERROR"
+  fi
+
+  log INFO "RPM Fusion configured"
+
+  local copr_repos=(
+{{ range .fedora.copr_repos }}    "{{ . }}"
+{{ end }}  )
+
+  if ! setup_copr_repos "${copr_repos[@]}"; then
+    die "COPR repos setup failed: $LAST_ERROR"
+  fi
+
+  log INFO "COPR repos configured"
+}
+
+main "$@"
