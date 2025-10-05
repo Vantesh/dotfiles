@@ -1283,7 +1283,6 @@ Or add to distro-specific package lists in `.chezmoiscripts/linux/{arch,fedora}/
 - `local var=$(cmd)` → Separate: `local var; var=$(cmd)`
 - `for i in $(cmd)` → Use: `while read -r i; do ... done < <(cmd)`
 - `cd dir; command` → Use: `cd dir || exit 1; command`
-- `[[ -n "$var" ]]` → Use: `[[ "$var" != "" ]]`
 - `$var` → Always quote: `"$var"`
 
 ---

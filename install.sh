@@ -48,7 +48,7 @@ log() {
   shift || true
   local message="$*"
 
-  if [[ "$level" = "" ]] || [[ "$message" = "" ]]; then
+  if [[ -z "$level" ]] || [[ -z "$message" ]]; then
     printf '[ERROR] log() requires a level and a message\n' >&2
     return 1
   fi
@@ -154,7 +154,7 @@ backup_config_if_needed() {
       return
     fi
 
-    if [[ "$response" =~ ^[Yy]$ ]] || [[ "$response" = "" ]]; then
+    if [[ "$response" =~ ^[Yy]$ ]] || [[ -z "$response" ]]; then
       local timestamp backup_dir
       timestamp=$(date -u +%Y%m%d%H%M%S)
       backup_dir="${HOME}/.config.backup.${timestamp}"

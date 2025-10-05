@@ -170,7 +170,7 @@ setup_vscode_repo() {
   local tmp_file
   tmp_file="$(mktemp 2>/dev/null)"
 
-  if [[ "$tmp_file" = "" ]]; then
+  if [[ -z "$tmp_file" ]]; then
     LAST_ERROR="Failed to create temporary file for Visual Studio Code repo"
     return 1
   fi
