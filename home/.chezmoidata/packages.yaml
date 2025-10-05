@@ -10,7 +10,7 @@ arch:
     - xdg-desktop-portal-gtk
     - xdg-autostart
     - gnome-keyring
-    - NetworkManager
+    - networkmanager
     - udiskie
     - ntfs-3g
     - exfatprogs
@@ -179,7 +179,7 @@ fedora:
     - hyprpolkitagent
     - xdg-desktop-portal-gtk
     - gnome-keyring
-    - networkmanager
+    - NetworkManager
     - udiskie
     - ntfs-3g
     - exfatprogs
