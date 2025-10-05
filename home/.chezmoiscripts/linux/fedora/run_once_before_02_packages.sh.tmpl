@@ -14,8 +14,16 @@ source "$LIB_DIR/.lib-common.sh"
 source "$LIB_DIR/.lib-package_manager.sh"
 # shellcheck source=/dev/null
 source "$LIB_DIR/.lib-fedora_repos.sh"
+# shellcheck source=/dev/null
+source "$LIB_DIR/.lib-xdg_setup.sh"
 
 print_box "Packages"
+
+if ! setup_xdg; then
+  die "XDG setup failed: $LAST_ERROR"
+fi
+
+log INFO "Configured XDG directories"
 
 core_pkgs=(
 {{- range .fedora.core }}

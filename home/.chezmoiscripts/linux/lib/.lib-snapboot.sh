@@ -354,9 +354,21 @@ update_grub_cmdline() {
     return 1
   fi
 
-  # Regenerate GRUB config
-  if ! sudo grub-mkconfig -o /boot/grub/grub.cfg >/dev/null 2>&1; then
-    LAST_ERROR="Failed to regenerate GRUB configuration"
+  # Regenerate GRUB config using available mkconfig command
+  local mkconfig_cmd
+
+  mkconfig_cmd=""
+  if command_exists grub-mkconfig; then
+    mkconfig_cmd="grub-mkconfig"
+  elif command_exists grub2-mkconfig; then
+    mkconfig_cmd="grub2-mkconfig"
+  else
+    LAST_ERROR="GRUB mkconfig command not found (grub-mkconfig or grub2-mkconfig)"
+    return 127
+  fi
+
+  if ! sudo "$mkconfig_cmd" -o /boot/grub/grub.cfg >/dev/null 2>&1; then
+    LAST_ERROR="Failed to regenerate GRUB configuration with $mkconfig_cmd"
     return 1
   fi
 

@@ -143,7 +143,18 @@ confirm() {
 
   while true; do
     printf '\n%b%s%b %s ' "$COLOR_CYAN" "$prompt" "$COLOR_RESET" "$options" >&2
-    read -r response
+
+    if [[ -t 0 ]]; then
+      if ! read -r response; then
+        response=""
+      fi
+    elif [[ -r /dev/tty ]]; then
+      if ! read -r response </dev/tty; then
+        response=""
+      fi
+    else
+      response="$default"
+    fi
 
     response="${response,,}"
 
