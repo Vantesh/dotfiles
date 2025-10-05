@@ -87,11 +87,6 @@ enable_configured_services() {
         log INFO "${COLOR_INFO}${pacman_service}${COLOR_RESET} enabled (system)"
       fi
     done
-  else
-    local pacman_service
-    for pacman_service in "${PACMAN_SERVICES[@]}"; do
-      log SKIP "$pacman_service (system) skipped (pacman not available)"
-    done
   fi
 
   return 0
