@@ -100,7 +100,7 @@ package_exists() {
 
   case "$manager" in
   dnf)
-    dnf list --installed "$package_name" >/dev/null 2>&1
+    rpm -q "$package_name" >/dev/null 2>&1
     ;;
   pacman)
     local aur_helper
