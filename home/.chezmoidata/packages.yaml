@@ -10,7 +10,7 @@ arch:
     - xdg-desktop-portal-gtk
     - xdg-autostart
     - gnome-keyring
-    - networkmanager
+    - NetworkManager
     - udiskie
     - ntfs-3g
     - exfatprogs
