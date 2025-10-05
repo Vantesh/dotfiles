@@ -367,6 +367,13 @@ update_grub_cmdline() {
     return 127
   fi
 
+  if [[ ! -d /boot/grub ]]; then
+    if ! sudo mkdir -p /boot/grub >/dev/null 2>&1; then
+      LAST_ERROR="Failed to create /boot/grub directory"
+      return 1
+    fi
+  fi
+
   if ! sudo "$mkconfig_cmd" -o /boot/grub/grub.cfg >/dev/null 2>&1; then
     LAST_ERROR="Failed to regenerate GRUB configuration with $mkconfig_cmd"
     return 1

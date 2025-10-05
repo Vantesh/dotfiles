@@ -186,7 +186,7 @@ fedora:
     - dosfstools
     - mtools
     - f2fs-tools
-    - wget
+    - wget2-wget
     - man-db
     - plocate
     - usbutils
