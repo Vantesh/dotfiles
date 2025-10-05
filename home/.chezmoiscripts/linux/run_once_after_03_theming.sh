@@ -15,6 +15,24 @@ source "$LIB_DIR/.lib-snapboot.sh"
 
 readonly GRUB_THEME_URL="https://github.com/semimqmo/sekiro_grub_theme"
 readonly GRUB_THEME_DIR="/usr/share/grub/themes/Sekiro"
+readonly TELA_REPO_URL="https://github.com/vinceliuice/Tela-icon-theme.git"
+readonly TELA_ICON_DIR="$HOME/.local/share/icons/Tela"
+
+tela_icons_present() {
+  LAST_ERROR=""
+
+  if [[ -d "$TELA_ICON_DIR" ]]; then
+    return 0
+  fi
+
+  local system_tela_dir="/usr/share/icons/Tela"
+
+  if [[ -d "$system_tela_dir" ]]; then
+    return 0
+  fi
+
+  return 1
+}
 
 install_grub_theme() {
   local temp_dir
@@ -160,6 +178,43 @@ add_nautilus_bookmarks() {
   return 0
 }
 
+install_tela_icons() {
+  LAST_ERROR=""
+
+  if tela_icons_present; then
+    return 0
+  fi
+
+  local temp_dir
+  temp_dir="$(mktemp -d)"
+
+  if [[ ! -d "$temp_dir" ]]; then
+    LAST_ERROR="Failed to create temporary directory"
+    return 1
+  fi
+
+  if ! command_exists git; then
+    LAST_ERROR="git is required to install Tela icons"
+    rm -rf "$temp_dir"
+    return 1
+  fi
+
+  if ! git clone --depth 1 "$TELA_REPO_URL" "$temp_dir" >/dev/null 2>&1; then
+    LAST_ERROR="Failed to clone Tela icon theme repository"
+    rm -rf "$temp_dir"
+    return 1
+  fi
+
+  if ! (cd "$temp_dir" && ./install.sh -a >/dev/null 2>&1); then
+    LAST_ERROR="Failed to install Tela icons"
+    rm -rf "$temp_dir"
+    return 1
+  fi
+
+  rm -rf "$temp_dir"
+  return 0
+}
+
 configure_qt_theme() {
   local version="$1"
   local config_dir="$HOME/.config/$version"
@@ -167,7 +222,7 @@ configure_qt_theme() {
 
   LAST_ERROR=""
 
-  if [[ -z "$version" ]]; then
+  if [[ "$version" = "" ]]; then
     LAST_ERROR="configure_qt_theme() requires version argument"
     return 2
   fi
@@ -299,6 +354,17 @@ main() {
       log INFO "Configured $qt_version theme"
     fi
   done
+
+  if command_exists dnf; then
+    if tela_icons_present; then
+      log SKIP "Tela icons already installed"
+    elif ! install_tela_icons; then
+      local error_msg="$LAST_ERROR"
+      log WARN "Failed to install Tela icons: $error_msg"
+    else
+      log INFO "Installed Tela icon theme"
+    fi
+  fi
 
   log INFO "System theming complete"
 }

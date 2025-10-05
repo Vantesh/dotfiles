@@ -50,14 +50,14 @@ resolve_icon_variant() {
 
   if [[ "$nearest_color" == "dark" ]]; then
     if [[ "$variant" == "dark" ]]; then
-      printf 'Tela-circle-dark\n'
+      printf 'Tela-dark\n'
     else
-      printf 'Tela-circle\n'
+      printf 'Tela\n'
     fi
     return
   fi
 
-  printf 'Tela-circle-%s-%s\n' "$nearest_color" "$variant"
+  printf 'Tela-%s-%s\n' "$nearest_color" "$variant"
 }
 
 apply_icon_theme() {

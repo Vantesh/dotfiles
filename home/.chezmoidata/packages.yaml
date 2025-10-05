@@ -84,7 +84,7 @@ arch:
     - frameworkintegration
     - qt6ct-kde
     - qt5ct-kde
-    - tela-circle-icon-theme-all
+    - tela-icon-theme
     - plymouth
     - layer-shell-qt
     - qt6-multimedia-ffmpeg
