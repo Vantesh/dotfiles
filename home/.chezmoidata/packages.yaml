@@ -176,7 +176,7 @@ fedora:
     - hyprlock
     - uwsm
     - accountsservice
-    - hyprpolkit
+    - hyprpolkitagent
     - xdg-desktop-portal-gtk
     - gnome-keyring
     - networkmanager
