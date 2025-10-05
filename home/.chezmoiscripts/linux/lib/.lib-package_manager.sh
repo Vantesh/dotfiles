@@ -184,3 +184,32 @@ install_package() {
 
   return 0
 }
+
+# Installs a group of packages with a descriptive name.
+#
+# Arguments:
+#   $1 - Group name (for logging)
+#   $@ - Package names
+# Globals:
+#   LAST_ERROR - Set on failure
+#   COLOR_INFO, COLOR_RESET - Used for logging
+# Outputs:
+#   STEP messages to stderr via log()
+# Returns:
+#   0 on success, 1 on failure, 2 on invalid args, 127 if no AUR helper (Arch only)
+
+install_group() {
+  local group_name="$1"
+  shift
+
+  if [[ $# -eq 0 ]]; then
+    return 0
+  fi
+
+  log STEP "Installing $group_name packages"
+
+  if ! install_package "$@"; then
+    local error_msg="$LAST_ERROR"
+    die "Failed to install $group_name packages: $error_msg"
+  fi
+}

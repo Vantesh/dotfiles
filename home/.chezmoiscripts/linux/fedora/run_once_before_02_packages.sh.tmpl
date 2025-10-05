@@ -13,5 +13,21 @@ source "$LIB_DIR/.lib-common.sh"
 # shellcheck source=/dev/null
 source "$LIB_DIR/.lib-package_manager.sh"
 
-# TODO: Implement Fedora package installation
-log INFO "Fedora package installation not yet implemented"
+print_box "Packages"
+
+core_pkgs=(
+{{- range .fedora.core }}
+  "{{ . }}"
+{{- end }}
+  "{{ .default_shell }}"
+)
+
+{{- if eq .compositor "niri" }}
+core_pkgs+=(
+  "niri"
+)
+{{- end }}
+
+
+install_group core "${core_pkgs[@]}"
+

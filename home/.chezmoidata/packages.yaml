@@ -165,7 +165,6 @@ fedora:
     - alternateved/eza
     - heus-sueh/packages
     - azandure/clipse
-    - yalter/niri
     - deltacopy/darkly
     - brycensranch/gpu-screen-recorder-git
 
@@ -222,5 +221,7 @@ fedora:
     - unzip
     - matugen
     - darkly
+    - qt6ct-kde
+    - qt6-positioning
     - xdg-terminal-exec
     - gpu-screen-recorder-ui
