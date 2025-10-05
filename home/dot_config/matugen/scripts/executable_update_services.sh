@@ -2,7 +2,10 @@
 set -euo pipefail
 
 readonly SERVICES_TO_RESTART=("xdg-desktop-portal-gtk")
-readonly POLKIT_AGENT="/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1"
+readonly -a POLKIT_AGENTS=(
+  "/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1"
+  "/usr/libexec/polkit-mate-authentication-agent-1"
+)
 
 refresh_user_services() {
   for service in "${SERVICES_TO_RESTART[@]}"; do
@@ -11,18 +14,29 @@ refresh_user_services() {
 }
 
 ensure_polkit_agent() {
-  if [[ ! -x "$POLKIT_AGENT" ]]; then
-    log "WARN" "Polkit agent binary not found at $POLKIT_AGENT"
+  local agent=""
+  local agent_name=""
+
+  for candidate in "${POLKIT_AGENTS[@]}"; do
+    if [[ -x "$candidate" ]]; then
+      agent="$candidate"
+      agent_name=$(basename "$agent")
+      break
+    fi
+  done
+
+  if [[ -z "$agent" ]]; then
+    log "WARN" "No polkit agent found"
     return 0
   fi
 
-  pkill -f "polkit-gnome-authentication-agent-1" >/dev/null 2>&1 || true
+  pkill -f "$agent_name" >/dev/null 2>&1 || true
 
-  if nohup "$POLKIT_AGENT" >/dev/null 2>&1 & then
+  if nohup "$agent" >/dev/null 2>&1 & then
     disown || true
-    log "INFO" "Launched polkit authentication agent"
+    log "INFO" "Launched polkit authentication agent: $agent_name"
   else
-    log "WARN" "Failed to start polkit authentication agent"
+    log "WARN" "Failed to start polkit authentication agent: $agent_name"
   fi
 }
 
