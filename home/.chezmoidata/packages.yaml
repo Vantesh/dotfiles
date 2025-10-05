@@ -28,6 +28,7 @@ arch:
     - rofimoji
     - kitty
     - imv
+    - mpv
     - evince
     - nautilus
     - gvfs-mtp
@@ -44,7 +45,6 @@ arch:
     - brightnessctl
     - ddcutil
     - clipse
-    - unzip
 
   compositor:
     hyprland:
@@ -74,6 +74,9 @@ arch:
     - chafa
     - topgrade
     - yazi
+    - unzip
+    - neovim
+    - git-delta
 
   theming:
     - nwg-look
@@ -81,7 +84,7 @@ arch:
     - frameworkintegration
     - qt6ct-kde
     - qt5ct-kde
-    - tela-circle-icon-theme-all
+    - tela-icon-theme
     - plymouth
     - layer-shell-qt
     - qt6-multimedia-ffmpeg
@@ -112,11 +115,8 @@ arch:
     - brave-bin
     - visual-studio-code-bin
     - qbittorrent
-    - mpv
-    - neovim
     - spotify-launcher
     - spicetify-cli
-    - git-delta
     - localsend
     - vesktop-bin
 
@@ -161,11 +161,11 @@ fedora:
     - solopasha/hyprland
     - errornointernet/quickshell
     - tofik/nwg-shell
+    - lilay/topgrade
     - lihaohong/yazi
     - alternateved/eza
     - heus-sueh/packages
     - azandure/clipse
-    - yalter/niri
     - deltacopy/darkly
     - brycensranch/gpu-screen-recorder-git
 
@@ -176,27 +176,26 @@ fedora:
     - hyprlock
     - uwsm
     - accountsservice
-    - polkit-gnome
+    - hyprpolkitagent
     - xdg-desktop-portal-gtk
-    - xdg-autostart
     - gnome-keyring
-    - NetworkManager
+    - networkmanager
     - udiskie
     - ntfs-3g
     - exfatprogs
     - dosfstools
     - mtools
     - f2fs-tools
-    - ntfs-3g
-    - exfatprogs
-    - dosfstools
-    - mtools
+    - wget2-wget
+    - man-db
+    - plocate
     - usbutils
     - ufw
     - rofi
     - rofimoji
     - kitty
     - imv
+    - mpv
     - evince
     - nautilus
     - gvfs-mtp
@@ -205,22 +204,80 @@ fedora:
     - playerctl
     - libcanberra
     - gammastep
-    - geoclue
-    - kernel-devel
+    - geoclue2
+    - zig
     - pam-devel
     - libxcb-devel
-    - zig
-    - xorg-x11-xauth
-    - xorg-x11-server
-    - ly
+    - kernel-devel
+
     - kdialog
     - gparted
-    - xorg-xhost
+    - xhost
     - brightnessctl
     - ddcutil
     - clipse
-    - unzip
-    - matugen
-    - darkly
     - xdg-terminal-exec
-    - gpu-screen-recorder-ui
+    - quickshell-git
+    - gpu-screen-recorder
+
+  compositor:
+    hyprland:
+      - hyprland
+      - xdg-desktop-portal-hyprland
+      - socat
+      - yad # keybinds popup
+    niri:
+      - niri
+      - xdg-desktop-portal-gnome
+      - xwayland-satellite
+
+  cli:
+    - fastfetch
+    - btop
+    - starship
+    - zoxide
+    - fd-find
+    - duf
+    - eza
+    - fzf
+    - bat
+    - ripgrep
+    - shfmt
+    - imagemagick
+    - chafa
+    - topgrade
+    - yazi
+    - unzip
+    - neovim
+    - git-delta
+
+  theming:
+    - nwg-look
+    - qt6ct
+    - qt5ct
+    - plymouth
+    - layer-shell-qt
+    - qt6-qtmultimedia
+    - qt6-qtpositioning
+    - qt6-qt5compat
+    - darkly
+    - matugen
+
+  fonts:
+    - liberation-sans-fonts
+    - rsms-inter-fonts
+    - google-noto-sans-cjk-fonts
+    - google-noto-color-emoji-fonts
+    - google-noto-emoji-fonts
+    - jetbrains-mono-fonts
+
+  optional:
+    - rust
+    - go
+    - code
+    - qbittorrent
+
+  laptop:
+    - power-profiles-daemon
+    - upower
+    - powertop

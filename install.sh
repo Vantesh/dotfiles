@@ -8,7 +8,7 @@ IFS=$'\n\t'
 
 readonly REPO="https://github.com/vantesh/dotfiles"
 
-if [[ -n "${NO_COLOR:-}" ]] || [[ ! -t 2 ]] || [[ "${TERM:-}" == "dumb" ]]; then
+if [[ -n "${NO_COLOR:-}" ]] || [[ ! -t 2 ]] || [[ "${TERM:-}" = "dumb" ]]; then
   readonly COLOR_RESET=""
   readonly COLOR_INFO=""
   readonly COLOR_WARN=""
@@ -81,10 +81,10 @@ command_exists() { command -v "$1" >/dev/null 2>&1; }
 install_with_dnf() {
   local -a packages=("$@")
 
-  log INFO "Using dnf to install required packages."
+  log INFO "Using dnf to install required packages"
 
   if sudo dnf install -y "${packages[@]}" >/dev/null 2>&1; then
-    log INFO "Required packages installed successfully."
+    log INFO "Required packages installed successfully"
     return 0
   fi
 
@@ -94,10 +94,10 @@ install_with_dnf() {
 install_with_pacman() {
   local -a packages=("$@")
 
-  log INFO "Using pacman to install required packages."
+  log INFO "Using pacman to install required packages"
 
   if sudo pacman -S --needed --noconfirm "${packages[@]}" >/dev/null 2>&1; then
-    log INFO "Required packages installed successfully."
+    log INFO "Required packages installed successfully"
     return 0
   fi
 
@@ -114,8 +114,8 @@ ensure_dependencies_installed() {
     fi
   done
 
-  if [ "${#missing_packages[@]}" -eq 0 ]; then
-    log INFO "Required commands already installed. Skipping dependency installation."
+  if [[ "${#missing_packages[@]}" -eq 0 ]]; then
+    log INFO "Required commands already installed. Skipping dependency installation"
     return
   fi
 
@@ -123,25 +123,25 @@ ensure_dependencies_installed() {
     if install_with_dnf "${missing_packages[@]}"; then
       return
     fi
-    die "Failed to install required packages with dnf."
+    die "Failed to install required packages with dnf"
   fi
 
   if command_exists pacman; then
     if install_with_pacman "${missing_packages[@]}"; then
       return
     fi
-    die "Failed to install required packages with pacman."
+    die "Failed to install required packages with pacman"
   fi
 
-  die "Unsupported distribution."
+  die "Unsupported distribution"
 }
 
 backup_config_if_needed() {
-  if [ ! -d "${HOME}/.config" ]; then
+  if [[ ! -d "${HOME}/.config" ]]; then
     return
   fi
 
-  if [ -z "$(find "${HOME}/.config" -mindepth 1 -maxdepth 1)" ]; then
+  if [[ -z "$(find "${HOME}/.config" -mindepth 1 -maxdepth 1)" ]]; then
     return
   fi
 
@@ -150,23 +150,23 @@ backup_config_if_needed() {
 
     printf '%bBack up existing ~/.config before continuing?%b %b[Y/n]%b ' "$COLOR_STEP" "$COLOR_RESET" "$COLOR_WARN" "$COLOR_RESET" >&2
     if ! read -r response </dev/tty; then
-      log INFO "Input read failed. Skipping backup of ~/.config."
+      log INFO "Input read failed. Skipping backup of ~/.config"
       return
     fi
 
-    if [[ "$response" =~ ^[Yy]$ || -z "$response" ]]; then
+    if [[ "$response" =~ ^[Yy]$ ]] || [[ -z "$response" ]]; then
       local timestamp backup_dir
       timestamp=$(date -u +%Y%m%d%H%M%S)
       backup_dir="${HOME}/.config.backup.${timestamp}"
 
       if mv -n "${HOME}/.config" "$backup_dir"; then
-        log INFO "Backed up existing ~/.config to ${backup_dir}."
+        log INFO "Backed up existing ~/.config to ${backup_dir}"
         return
       else
-        die "Failed to back up ~/.config to ${backup_dir}."
+        die "Failed to back up ~/.config to ${backup_dir}"
       fi
     elif [[ "$response" =~ ^[Nn]$ ]]; then
-      log INFO "Skipping backup of ~/.config."
+      log INFO "Skipping backup of ~/.config"
       return
     else
       printf '%bPlease enter Y/y (Yes), N/n (No), or press Enter for Yes.%b\n' "$COLOR_WARN" "$COLOR_RESET" >&2
@@ -180,9 +180,8 @@ run_chezmoi_init() {
 }
 
 main() {
-
-  if [ "$(id -u)" -eq 0 ]; then
-    die "This script must not be run as root."
+  if [[ "$(id -u)" -eq 0 ]]; then
+    die "This script must not be run as root"
   fi
 
   logo

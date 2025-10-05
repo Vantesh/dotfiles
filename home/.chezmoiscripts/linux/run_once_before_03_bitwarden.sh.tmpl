@@ -17,17 +17,17 @@ source "$LIB_DIR/.lib-package_manager.sh"
 
 install_bitwarden_packages() {
   local -a packages=(
-    bitwarden-bin
     rbw
   )
 
-  local package
-  for package in "${packages[@]}"; do
-    if ! install_package "$package"; then
-      log ERROR "Failed to install $package: $LAST_ERROR"
-      return 1
-    fi
-  done
+  if command_exists pacman; then
+    packages+=(bitwarden-bin)
+  fi
+
+  if ! install_package "${packages[@]}"; then
+    log ERROR "Failed to install Bitwarden packages: $LAST_ERROR"
+    return 1
+  fi
 
   return 0
 }

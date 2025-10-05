@@ -15,6 +15,8 @@ readonly LY_CONFIG_FILE="/etc/ly/config.ini"
 readonly LY_SAVE_FILE="/etc/ly/save.ini"
 
 disable_conflicting_dms() {
+  local skip_service="${1:-}"
+
   local other_dm_services=(
     gdm.service gdm3.service sddm.service lightdm.service lxdm.service
     greetd.service emptty.service
@@ -24,8 +26,12 @@ disable_conflicting_dms() {
   local svc
 
   for svc in "${other_dm_services[@]}"; do
-    if systemctl list-unit-files --type=service | grep -q "^${svc}"; then
-      if systemctl is-enabled --quiet "$svc" 2>/dev/null; then
+    if [[ -n "$skip_service" ]] && [[ "$svc" == "$skip_service" ]]; then
+      continue
+    fi
+
+    if systemctl list-unit-files --type=service 2>/dev/null | grep -q "^${svc}"; then
+      if sudo systemctl is-enabled --quiet "$svc" 2>/dev/null; then
         if sudo systemctl disable "$svc" >/dev/null 2>&1; then
           log INFO "Disabled $svc"
           disabled_any=true
@@ -36,7 +42,11 @@ disable_conflicting_dms() {
     fi
   done
 
-  if [[ "$disabled_any" == false ]]; then
+  # Force systemd to reload after disabling services
+  if [[ "$disabled_any" = true ]]; then
+    reload_systemd_daemon
+    log INFO "Conflicting display managers disabled"
+  else
     log SKIP "No conflicting display managers found"
   fi
 }
@@ -106,6 +116,23 @@ EOF
 {{- end }}
 
 main() {
+  local is_fedora="false"
+  if command_exists dnf; then
+    is_fedora="true"
+  fi
+
+  if [[ "$is_fedora" == "true" ]]; then
+    print_box "Display Manager"
+    log STEP "Display Manager Configuration"
+
+    log SKIP "Fedora distro detected, skipping Ly configuration"
+
+{{- if eq .compositor "niri" }}
+    setup_niri_session
+{{- end }}
+    return 0
+  fi
+
   print_box "LY"
   log STEP "Ly Configuration"
 

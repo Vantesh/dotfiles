@@ -44,7 +44,7 @@ get_nvidia_pci_address() {
 
   nvidia_pci=$(lspci -Dnnd 10de: | awk '{print $1}' | head -n1)
 
-  if [[ "$nvidia_pci" = "" ]]; then
+  if [[ -z "$nvidia_pci" ]]; then
     nvidia_pci=$(lspci -D 2>/dev/null | grep -iE "NVIDIA.*(VGA|3D|Display)" | awk '{print $1}' | head -n1)
   fi
 
@@ -155,7 +155,7 @@ setup_hibernation() {
 
   swap_path=$(get_swap_path)
 
-  if [[ "$swap_path" = "" ]]; then
+  if [[ -z "$swap_path" ]]; then
     log INFO "No swap found, creating btrfs swapfile"
 
     if ! create_btrfs_swap; then
@@ -164,7 +164,7 @@ setup_hibernation() {
 
     swap_path=$(get_swap_path)
 
-    if [[ "$swap_path" = "" ]]; then
+    if [[ -z "$swap_path" ]]; then
       log WARN "Swap still not detected after creation; resume parameters will be skipped"
       hibernation_params=("hibernate.compressor=lz4")
     fi
@@ -172,7 +172,7 @@ setup_hibernation() {
 
   hibernation_params=("hibernate.compressor=lz4")
 
-  if [[ "$swap_path" != "" ]]; then
+  if [[ -n "$swap_path" ]]; then
     if [[ -b "$swap_path" ]]; then
       if ! resume_uuid=$(sudo blkid -s UUID -o value "$swap_path" 2>/dev/null); then
         die "Failed to get UUID for swap device: $swap_path"
@@ -248,7 +248,7 @@ setup_hibernation() {
 
     hooks=$(sed -nE 's/^[[:space:]]*HOOKS=\((.*)\)[[:space:]]*$/\1/p' "$mkinitcpio_conf" 2>/dev/null | head -n1)
 
-    if [[ "$hooks" != "" ]] && [[ "$hooks" != *" systemd "* ]]; then
+    if [[ -n "$hooks" ]] && [[ "$hooks" != *" systemd "* ]]; then
       if [[ "$hooks" != *" resume "* ]]; then
         local new_hooks
         new_hooks=$(sed -E 's/(^| )filesystems( |$)/\1filesystems resume\2/' <<<"$hooks" | xargs)
@@ -419,7 +419,7 @@ EOF
     local nvidia_pci
     nvidia_pci=$(get_nvidia_pci_address)
 
-    if [[ "$nvidia_pci" != "" ]]; then
+    if [[ -n "$nvidia_pci" ]]; then
       if ! write_system_config "/etc/tmpfiles.d/nvidia_pm.conf" <<EOF; then
 # NVIDIA power management
 w /sys/bus/pci/devices/${nvidia_pci}/power/control - - - - auto

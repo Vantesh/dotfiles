@@ -53,21 +53,6 @@ if ! command_exists paru && ! command_exists yay; then
   log INFO "Installed AUR helper: $AUR_HELPER"
 fi
 
-install_group() {
-  local group_name="$1"
-  shift
-
-  if [[ $# -eq 0 ]]; then
-    return 0
-  fi
-
-  log STEP "Installing $group_name packages"
-
-  if ! install_package "$@"; then
-    local error_msg="$LAST_ERROR"
-    die "Failed to install $group_name packages: $error_msg"
-  fi
-}
 
 print_box "Packages"
 
