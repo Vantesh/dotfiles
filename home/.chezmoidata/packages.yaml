@@ -265,7 +265,7 @@ fedora:
 
   fonts:
     - liberation-sans-fonts
-    - rsms-inter-font
+    - rsms-inter-fonts
     - google-noto-sans-cjk-fonts
     - google-noto-color-emoji-fonts
     - google-noto-emoji-fonts
