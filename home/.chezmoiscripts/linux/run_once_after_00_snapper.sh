@@ -118,9 +118,17 @@ enable_snapper_services() {
     )
     ;;
   grub)
-    services+=(
-      grub-btrfsd.service
-    )
+    if systemctl list-unit-files grub-btrfsd.service >/dev/null 2>&1; then
+      services+=(
+        grub-btrfsd.service
+      )
+    elif systemctl list-unit-files grub-btrfs.service >/dev/null 2>&1; then
+      services+=(
+        grub-btrfs.service
+      )
+    else
+      log WARN "grub-btrfs unit not found (grub-btrfsd.service or grub-btrfs.service)"
+    fi
     ;;
   esac
 
