@@ -27,26 +27,11 @@ setup_snapper_packages() {
     inotify-tools
   )
 
-  local manager
-
-  if ! get_package_manager >/dev/null; then
-    log ERROR "Failed to detect package manager: $LAST_ERROR"
-    return 1
-  fi
-
-  manager="$(get_package_manager)"
-
-  case "$manager" in
-  pacman)
+  if command_exists pacman; then
     packages+=(
       snap-pac
     )
-    ;;
-  dnf) ;;
-  *)
-    log WARN "Unsupported package manager $manager: skipping snap-pac"
-    ;;
-  esac
+  fi
 
   local bootloader
   if ! bootloader=$(detect_bootloader); then

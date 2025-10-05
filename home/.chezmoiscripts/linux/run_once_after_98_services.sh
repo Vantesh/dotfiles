@@ -22,6 +22,9 @@ readonly -a SYSTEM_SERVICES=(
   "bluetooth"
   "udisks2"
   "ufw"
+)
+
+readonly -a PACMAN_SERVICES=(
   "reflector.timer"
   "pacman-filesdb-refresh.timer"
   "paccache.timer"
@@ -63,6 +66,28 @@ enable_configured_services() {
 
   if ((${#failed_services[@]} > 0)); then
     log WARN "Some services failed to enable: ${failed_services[*]}"
+  fi
+
+  if command_exists pacman; then
+    local pacman_service
+    for pacman_service in "${PACMAN_SERVICES[@]}"; do
+      if ! enable_service "$pacman_service" "system"; then
+        local error_msg="$LAST_ERROR"
+
+        if [[ "$error_msg" == "Service not found: "* ]]; then
+          log SKIP "$pacman_service (system) not available"
+        else
+          log WARN "Failed to enable $pacman_service (system): $error_msg"
+        fi
+      else
+        log INFO "${COLOR_INFO}${pacman_service}${COLOR_RESET} enabled (system)"
+      fi
+    done
+  else
+    local pacman_service
+    for pacman_service in "${PACMAN_SERVICES[@]}"; do
+      log SKIP "$pacman_service (system) skipped (pacman not available)"
+    done
   fi
 
   return 0

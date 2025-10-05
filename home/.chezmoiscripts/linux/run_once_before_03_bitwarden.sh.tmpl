@@ -20,14 +20,7 @@ install_bitwarden_packages() {
     rbw
   )
 
-  local manager
-
-  if ! manager="$(get_package_manager)"; then
-    log ERROR "Failed to detect package manager: $LAST_ERROR"
-    return 1
-  fi
-
-  if [[ "$manager" = "pacman" ]]; then
+  if command_exists pacman; then
     packages+=(bitwarden-bin)
   fi
 
