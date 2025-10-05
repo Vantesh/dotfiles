@@ -122,21 +122,14 @@ main() {
   fi
 
   if [[ "$is_fedora" == "true" ]]; then
-    print_box "SDDM"
-    log STEP "SDDM Configuration"
+    print_box "Display Manager"
+    log STEP "Display Manager Configuration"
 
-    disable_conflicting_dms "sddm.service"
-
-    if ! enable_service "sddm.service" "system"; then
-      die "Failed to enable sddm.service: $LAST_ERROR"
-    fi
-    log INFO "Enabled sddm.service"
+    log SKIP "Fedora distro detected, skipping Ly configuration"
 
 {{- if eq .compositor "niri" }}
     setup_niri_session
 {{- end }}
-
-    log INFO "SDDM display manager configuration complete"
     return 0
   fi
 
