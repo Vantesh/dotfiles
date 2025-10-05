@@ -169,6 +169,7 @@ fedora:
     - deltacopy/darkly
     - brycensranch/gpu-screen-recorder-git
     - atim/starship
+    - kylegospo/grub-btrfs
 
   core:
     - hypridle

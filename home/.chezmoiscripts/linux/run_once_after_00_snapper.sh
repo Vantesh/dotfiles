@@ -35,6 +35,11 @@ setup_snapper_packages() {
     packages+=(
       snap-pac
     )
+  elif command_exists dnf; then
+    packages+=(
+      python3-dnf-plugin-snapper
+      libdnf5-plugin-actions
+    )
   fi
 
   local bootloader
@@ -298,6 +303,39 @@ optimize_btrfs_fstab() {
   return 0
 }
 
+configure_dnf_snapper_plugin() {
+  if ! command_exists dnf; then
+    return 0
+  fi
+
+  local actions_file="/etc/dnf/libdnf5-plugins/actions.d/snapper.actions"
+
+  if [[ -f "$actions_file" ]]; then
+    log SKIP "DNF snapper actions already configured"
+    return 0
+  fi
+
+  local content
+  # SC2016: Variables in single quotes are intentional - they should not expand here
+  # shellcheck disable=SC2016
+  content='# /etc/dnf/libdnf5-plugins/actions.d/snapper.actions
+# Get snapshot description
+pre_transaction::::/usr/bin/sh -c echo\ "tmp.cmd=$(ps\ -o\ command\ --no-headers\ -p\ '"'"'${pid}'"'"')"
+# Creates pre snapshot before the transaction and stores the snapshot number in the "tmp.snapper_pre_number"  variable.
+pre_transaction::::/usr/bin/sh -c echo\ "tmp.snapper_pre_number=$(snapper\ create\ -c\ number\ -t\ pre\ -p\ -d\ '"'"'${tmp.cmd}'"'"')"
+
+# If the variable "tmp.snapper_pre_number" exists, it creates post snapshot after the transaction and removes the variable "tmp.snapper_pre_number".
+post_transaction::::/usr/bin/sh -c [\ -n\ "${tmp.snapper_pre_number}"\ ]\ &&\ snapper\ create\ -c\ number\ -t\ post\ --pre-number\ "${tmp.snapper_pre_number}"\ -d\ "${tmp.cmd}"\ ;\ echo\ tmp.snapper_pre_number\ ;\ echo\ tmp.cmd'
+
+  if ! write_system_config "$actions_file" "$content"; then
+    log ERROR "Failed to create DNF snapper actions: $LAST_ERROR"
+    return 1
+  fi
+
+  log INFO "Configured DNF snapper plugin"
+  return 0
+}
+
 main() {
   if [[ -f /etc/os-release ]]; then
     # shellcheck source=/dev/null
@@ -326,6 +364,10 @@ main() {
 
   if ! setup_snapper_packages; then
     die "Failed to install snapper packages"
+  fi
+
+  if ! configure_dnf_snapper_plugin; then
+    log WARN "Failed to configure DNF snapper plugin: $LAST_ERROR"
   fi
 
   if ! enable_snapper_services; then
