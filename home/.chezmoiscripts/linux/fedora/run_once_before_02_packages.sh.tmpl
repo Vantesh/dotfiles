@@ -12,6 +12,8 @@ readonly LIB_DIR="${CHEZMOI_SOURCE_DIR:-$(chezmoi source-path)}/.chezmoiscripts/
 source "$LIB_DIR/.lib-common.sh"
 # shellcheck source=/dev/null
 source "$LIB_DIR/.lib-package_manager.sh"
+# shellcheck source=/dev/null
+source "$LIB_DIR/.lib-fedora_repos.sh"
 
 print_box "Packages"
 
@@ -22,12 +24,84 @@ core_pkgs=(
   "{{ .default_shell }}"
 )
 
-{{- if eq .compositor "niri" }}
+{{- if eq .compositor "hyprland" }}
 core_pkgs+=(
-  "niri"
+{{- range .fedora.compositor.hyprland }}
+  "{{ . }}"
+{{- end }}
+)
+{{- else if eq .compositor "niri" }}
+core_pkgs+=(
+{{- range .fedora.compositor.niri }}
+  "{{ . }}"
+{{- end }}
 )
 {{- end }}
 
+install_group "Core" "${core_pkgs[@]}"
 
-install_group core "${core_pkgs[@]}"
+cli_pkgs=(
+{{- range .fedora.cli }}
+  "{{ . }}"
+{{- end }}
+)
+
+install_group "CLI Tools" "${cli_pkgs[@]}"
+
+theme_pkgs=(
+{{- range .fedora.theming }}
+  "{{ . }}"
+{{- end }}
+)
+
+install_group "Theming" "${theme_pkgs[@]}"
+
+font_pkgs=(
+{{- range .fedora.fonts }}
+  "{{ . }}"
+{{- end }}
+)
+
+install_group "Fonts" "${font_pkgs[@]}"
+
+opt_pkgs=(
+{{- range .fedora.optional }}
+  "{{ . }}"
+{{- end }}
+)
+
+if [[ ${#opt_pkgs[@]} -gt 0 ]]; then
+  if confirm "Install optional packages (${#opt_pkgs[@]} packages)?"; then
+    needs_vscode_repo=0
+
+    for package in "${opt_pkgs[@]}"; do
+      if [[ "$package" = "code" ]]; then
+        needs_vscode_repo=1
+        break
+      fi
+    done
+
+    if [[ $needs_vscode_repo -eq 1 ]]; then
+      if ! setup_vscode_repo; then
+        die "Visual Studio Code repo setup failed: $LAST_ERROR"
+      fi
+
+      log INFO "Visual Studio Code repo configured"
+    fi
+
+    install_group "Optional" "${opt_pkgs[@]}"
+  else
+    log INFO "Skipped optional packages"
+  fi
+fi
+
+if is_laptop; then
+  laptop_pkgs=(
+{{- range .fedora.laptop }}
+    "{{ . }}"
+{{- end }}
+  )
+
+  install_group "Laptop" "${laptop_pkgs[@]}"
+fi
 

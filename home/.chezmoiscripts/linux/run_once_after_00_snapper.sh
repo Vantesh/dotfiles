@@ -22,11 +22,31 @@ readonly MKINITCPIO_CONF="/etc/mkinitcpio.conf"
 setup_snapper_packages() {
   local -a packages=(
     snapper
-    snap-pac
     btrfs-assistant
     btrfs-progs
     inotify-tools
   )
+
+  local manager
+
+  if ! get_package_manager >/dev/null; then
+    log ERROR "Failed to detect package manager: $LAST_ERROR"
+    return 1
+  fi
+
+  manager="$(get_package_manager)"
+
+  case "$manager" in
+  pacman)
+    packages+=(
+      snap-pac
+    )
+    ;;
+  dnf) ;;
+  *)
+    log WARN "Unsupported package manager $manager: skipping snap-pac"
+    ;;
+  esac
 
   local bootloader
   if ! bootloader=$(detect_bootloader); then

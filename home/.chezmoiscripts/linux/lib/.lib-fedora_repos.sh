@@ -17,6 +17,12 @@ readonly RPMFUSION_FREE
 RPMFUSION_NONFREE="https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-$(rpm -E %fedora).noarch.rpm"
 readonly RPMFUSION_NONFREE
 
+VSCODE_REPO_KEY_URL="https://packages.microsoft.com/keys/microsoft.asc"
+readonly VSCODE_REPO_KEY_URL
+
+VSCODE_REPO_FILE="/etc/yum.repos.d/vscode.repo"
+readonly VSCODE_REPO_FILE
+
 _install_rpm_from_url() {
   local url="${1:-}"
 
@@ -136,6 +142,52 @@ setup_copr_repos() {
     LAST_ERROR="Failed to enable COPR repos: ${failed_repos[*]}"
     return 1
   fi
+
+  return 0
+}
+
+# Configures the Visual Studio Code repository.
+#
+# Imports the Microsoft GPG key and writes the repository configuration
+# for the Visual Studio Code yum repo. Idempotent by overwriting the repo
+# file when content changes.
+#
+# Globals:
+#   LAST_ERROR - Set on failure
+# Returns:
+#   0 on success, 1 on failure
+setup_vscode_repo() {
+  LAST_ERROR=""
+
+  if ! sudo rpm --import "$VSCODE_REPO_KEY_URL" >/dev/null 2>&1; then
+    LAST_ERROR="Failed to import Visual Studio Code GPG key"
+    return 1
+  fi
+
+  local repo_file
+  repo_file="$VSCODE_REPO_FILE"
+
+  local tmp_file
+  tmp_file="$(mktemp 2>/dev/null)"
+
+  if [[ "$tmp_file" = "" ]]; then
+    LAST_ERROR="Failed to create temporary file for Visual Studio Code repo"
+    return 1
+  fi
+
+  if ! printf '%s\n' "[code]" "name=Visual Studio Code" "baseurl=https://packages.microsoft.com/yumrepos/vscode" "enabled=1" "autorefresh=1" "type=rpm-md" "gpgcheck=1" "gpgkey=$VSCODE_REPO_KEY_URL" >"$tmp_file"; then
+    rm -f "$tmp_file"
+    LAST_ERROR="Failed to write Visual Studio Code repo configuration"
+    return 1
+  fi
+
+  if ! sudo install -m 0644 "$tmp_file" "$repo_file" >/dev/null 2>&1; then
+    rm -f "$tmp_file"
+    LAST_ERROR="Failed to install Visual Studio Code repo file"
+    return 1
+  fi
+
+  rm -f "$tmp_file"
 
   return 0
 }
