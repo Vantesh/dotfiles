@@ -222,7 +222,7 @@ configure_qt_theme() {
 
   LAST_ERROR=""
 
-  if [[ "$version" = "" ]]; then
+  if [[ -z "$version" ]]; then
     LAST_ERROR="configure_qt_theme() requires version argument"
     return 2
   fi

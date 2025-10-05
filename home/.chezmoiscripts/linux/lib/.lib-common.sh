@@ -586,7 +586,7 @@ enable_service() {
 
   LAST_ERROR=""
 
-  if [[ "$service" = "" ]]; then
+  if [[ -z "$service" ]]; then
     LAST_ERROR="enable_service() requires a service argument"
     return 2
   fi
@@ -611,7 +611,7 @@ enable_service() {
   local resolved=""
 
   for candidate in "${candidates[@]}"; do
-    [[ "$candidate" != "" ]] && [[ -z "${seen[$candidate]+x}" ]] || continue
+    [[ -n "$candidate" ]] && [[ -z "${seen[$candidate]+x}" ]] || continue
     seen["$candidate"]=1
     if _run_with_optional_sudo "$use_sudo" systemctl "${systemctl_args[@]}" list-unit-files "$candidate" >/dev/null 2>&1; then
       resolved="$candidate"
@@ -619,7 +619,7 @@ enable_service() {
     fi
   done
 
-  if [[ "$resolved" = "" ]]; then
+  if [[ -z "$resolved" ]]; then
     LAST_ERROR="Service not found: $service"
     return 1
   fi

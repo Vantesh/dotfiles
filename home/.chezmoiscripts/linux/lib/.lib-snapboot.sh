@@ -31,7 +31,7 @@ build_cmdline() {
 
   LAST_ERROR=""
 
-  if [[ "$current" = "" ]] && [[ "$new_params" = "" ]]; then
+  if [[ -z "$current" ]] && [[ -z "$new_params" ]]; then
     LAST_ERROR="build_cmdline() requires at least one argument"
     return 2
   fi
@@ -41,10 +41,10 @@ build_cmdline() {
   local param key
 
   # Parse current parameters - intentional word splitting
-  if [[ "$current" != "" ]]; then
+  if [[ -n "$current" ]]; then
     # shellcheck disable=SC2086
     while IFS= read -r param; do
-      [[ "$param" = "" ]] && continue
+      [[ -z "$param" ]] && continue
       key="${param%%=*}"
       if [[ -z "${params_map[$key]+x}" ]]; then
         ordered_keys+=("$key")
@@ -54,10 +54,10 @@ build_cmdline() {
   fi
 
   # Parse new parameters - intentional word splitting (override existing)
-  if [[ "$new_params" != "" ]]; then
+  if [[ -n "$new_params" ]]; then
     # shellcheck disable=SC2086
     while IFS= read -r param; do
-      [[ "$param" = "" ]] && continue
+      [[ -z "$param" ]] && continue
       key="${param%%=*}"
       if [[ -z "${params_map[$key]+x}" ]]; then
         ordered_keys+=("$key")
@@ -116,7 +116,7 @@ add_mkinitcpio_hook() {
 
   LAST_ERROR=""
 
-  if [[ "$hook" = "" ]]; then
+  if [[ -z "$hook" ]]; then
     LAST_ERROR="add_mkinitcpio_hook() requires hook name"
     return 2
   fi
@@ -129,7 +129,7 @@ add_mkinitcpio_hook() {
   local current_hooks
   current_hooks=$(sed -nE 's/^[[:space:]]*HOOKS=\((.*)\)[[:space:]]*$/\1/p' "$mkinitcpio_conf" 2>/dev/null | head -n1)
 
-  if [[ "$current_hooks" = "" ]]; then
+  if [[ -z "$current_hooks" ]]; then
     LAST_ERROR="Failed to parse HOOKS from mkinitcpio.conf"
     return 1
   fi
@@ -169,7 +169,7 @@ get_btrfs_root_device() {
   local device
   device=$(findmnt -n -o SOURCE --target / 2>/dev/null)
 
-  if [[ "$device" = "" ]]; then
+  if [[ -z "$device" ]]; then
     LAST_ERROR="Failed to find root device"
     return 1
   fi
@@ -197,7 +197,7 @@ add_fstab_entry() {
 
   LAST_ERROR=""
 
-  if [[ "$entry" = "" ]] || [[ "$description" = "" ]]; then
+  if [[ -z "$entry" ]] || [[ -z "$description" ]]; then
     LAST_ERROR="add_fstab_entry() requires entry and description"
     return 2
   fi
@@ -246,7 +246,7 @@ set_snapper_config_value() {
 
   LAST_ERROR=""
 
-  if [[ "$config_name" = "" ]] || [[ "$key" = "" ]] || [[ "$value" = "" ]]; then
+  if [[ -z "$config_name" ]] || [[ -z "$key" ]] || [[ -z "$value" ]]; then
     LAST_ERROR="set_snapper_config_value() requires config_name, key, and value"
     return 2
   fi
@@ -325,7 +325,7 @@ update_grub_cmdline() {
 
   LAST_ERROR=""
 
-  if [[ "$params" = "" ]]; then
+  if [[ -z "$params" ]]; then
     LAST_ERROR="update_grub_cmdline() requires kernel parameters"
     return 2
   fi
@@ -399,7 +399,7 @@ update_limine_cmdline() {
 
   LAST_ERROR=""
 
-  if [[ "$dropin_name" = "" ]]; then
+  if [[ -z "$dropin_name" ]]; then
     LAST_ERROR="update_limine_cmdline() requires drop-in filename as first argument"
     return 2
   fi
@@ -407,7 +407,7 @@ update_limine_cmdline() {
   shift
   local params="$*"
 
-  if [[ "$params" = "" ]]; then
+  if [[ -z "$params" ]]; then
     LAST_ERROR="update_limine_cmdline() requires kernel parameters"
     return 2
   fi
@@ -464,7 +464,7 @@ add_dracut_module() {
 
   LAST_ERROR=""
 
-  if [[ "$module" = "" ]]; then
+  if [[ -z "$module" ]]; then
     LAST_ERROR="add_dracut_module() requires module name"
     return 2
   fi

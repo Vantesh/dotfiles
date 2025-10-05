@@ -1163,18 +1163,13 @@ if [[ "$s" = "yes" ]]; then
   echo "Yes"
 fi
 
-# Empty string checks
-if [[ "$s" = "" ]]; then    # Good - clear intent
+# Empty string checks - use -z/-n for readability and convention
+if [[ -z "$s" ]]; then
   echo "Empty"
 fi
 
-if [[ "$s" != "" ]]; then   # Good - clear intent
+if [[ -n "$s" ]]; then
   echo "Not empty"
-fi
-
-# Avoid -z/-n flags (less readable)
-if [[ -z "$s" ]]; then      # Acceptable but less clear
-  echo "Empty"
 fi
 
 # File existence

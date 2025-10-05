@@ -26,7 +26,7 @@ disable_conflicting_dms() {
   local svc
 
   for svc in "${other_dm_services[@]}"; do
-    if [[ "$skip_service" != "" ]] && [[ "$svc" == "$skip_service" ]]; then
+    if [[ -n "$skip_service" ]] && [[ "$svc" == "$skip_service" ]]; then
       continue
     fi
 
