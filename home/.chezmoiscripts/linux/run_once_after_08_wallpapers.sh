@@ -89,11 +89,12 @@ main() {
   print_box "Wallpapers"
   log STEP "Installing Wallpapers"
 
-  if ! download_wallpapers; then
-    log WARN "Failed to download wallpapers: $LAST_ERROR"
+  if download_wallpapers; then
+    log INFO "Installed wallpapers to $WALLPAPERS_DIR"
+  else
+    log WARN "Failed to install wallpapers: $LAST_ERROR"
   fi
 
-  log INFO "Installed wallpapers to $WALLPAPERS_DIR"
 }
 
 main "$@"
