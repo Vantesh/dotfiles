@@ -75,6 +75,7 @@ Documents/*
 .config/niri/**
 {{- end }}
 
+# shell-specific
 {{- if eq .default_shell "fish" }}
 .config/zsh
 .config/fsh
@@ -84,11 +85,9 @@ Documents/*
 .config/fish
 {{- end }}
 
-{{- if lookPath "pacman" }}
+# distro-specific
+{{- if (.distro_family | contains "arch") }}
 .chezmoiscripts/linux/fedora/**
-
-{{- else if lookPath "dnf" }}
+{{- else if (.distro_family | contains "fedora") }}
 .chezmoiscripts/linux/arch/**
-
 {{- end }}
-
