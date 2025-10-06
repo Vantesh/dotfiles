@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Configure Snapper for btrfs snapshots
+# 00_snapper.sh - Set up snapper for btrfs snapshots
+# Exit codes: 0 (success), 1 (failure)
 
 set -euo pipefail
 

@@ -112,10 +112,12 @@ NOT_PERSONAL=1 chezmoi apply --verbose
 ### Detecting Distribution
 
 ```bash
-# In chezmoi templates
-{{ if eq .distro "$distro_name" }}
-  # Distro-specific config
-{{ end }}
+# in chezmoi templates
+{{- if or (contains .distro_family "arch") (eq .distro_family "arch") -}}
+  # Arch-specific config
+{{- else if or (contains .distro_family "fedora") (contains .distro_family "rhel") (eq .distro_family "fedora") (eq .distro_family "rhel") -}}
+  # Fedora-specific config
+{{- end -}}
 
 # In bash scripts
 if command_exists pacman; then
