@@ -26,7 +26,7 @@ ensure_polkit_agent() {
   done
 
   if [[ -z "$agent" ]]; then
-    log "WARN" "No polkit agent found"
+    log WARN "No polkit agent found"
     return 0
   fi
 
@@ -34,9 +34,9 @@ ensure_polkit_agent() {
 
   if nohup "$agent" >/dev/null 2>&1 & then
     disown || true
-    log "INFO" "Launched polkit authentication agent: $agent_name"
+    log INFO "Launched polkit authentication agent: $agent_name"
   else
-    log "WARN" "Failed to start polkit authentication agent: $agent_name"
+    log WARN "Failed to start polkit authentication agent: $agent_name"
   fi
 }
 
