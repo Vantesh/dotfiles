@@ -96,7 +96,6 @@ arch:
     - noto-fonts-cjk
     - noto-fonts-extra
     - ttf-liberation
-    - ttf-jetbrains-mono-nerd
     - inter-font
 
   aur:
@@ -268,9 +267,6 @@ fedora:
     - liberation-sans-fonts
     - rsms-inter-fonts
     - google-noto-sans-cjk-fonts
-    - google-noto-color-emoji-fonts
-    - google-noto-emoji-fonts
-    - jetbrains-mono-fonts
 
   optional:
     - rust
