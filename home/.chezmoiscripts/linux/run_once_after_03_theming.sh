@@ -297,10 +297,9 @@ main() {
     fi
     ;;
   limine)
-    if [[ -f /etc/os-release ]]; then
-      # shellcheck source=/dev/null
-      source /etc/os-release
-      if [[ "${ID:-}" = "cachyos" ]]; then
+    local os_id
+    if os_id=$(get_os_id); then
+      if [[ "$os_id" = "cachyos" ]]; then
         log SKIP "CachyOS has pre-configured Limine theme"
       else
         if ! configure_limine_theme; then

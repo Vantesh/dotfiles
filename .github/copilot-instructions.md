@@ -93,6 +93,101 @@ NOT_PERSONAL=1 chezmoi apply --verbose
 
 ---
 
+## Chezmoi Naming Convention Guidelines
+
+### Handling Chezmoi Prefixes and Attributes
+
+#### File Naming Recognition
+
+When working with files in a chezmoi repository, the AI agent must:
+
+**Strip chezmoi prefixes and attributes when referring to files in:**
+
+- Comments and documentation
+- Function names and descriptions
+- Log messages and error reporting
+- Script headers and inline references
+
+#### Chezmoi Prefix Mapping
+
+| Chezmoi Prefix/Attribute | Purpose                      | Example                           | Should Reference As     |
+| ------------------------ | ---------------------------- | --------------------------------- | ----------------------- |
+| `dot_`                   | Creates dotfile (`.` prefix) | `dot_bashrc`                      | `.bashrc`               |
+| `private_`               | Sets 0600 permissions        | `private_dot_ssh`                 | `.ssh`                  |
+| `readonly_`              | Sets 0400 permissions        | `readonly_dot_netrc`              | `.netrc`                |
+| `empty_`                 | Creates empty file           | `empty_dot_gitkeep`               | `.gitkeep`              |
+| `executable_`            | Makes file executable        | `executable_install.sh`           | `install.sh`            |
+| `run_once_`              | Run script once              | `run_once_setup.sh`               | `setup.sh`              |
+| `run_onchange_`          | Run on file change           | `run_onchange_config.sh`          | `config.sh`             |
+| `run_once_before_`       | Run before applying          | `run_once_before_01_deps.sh`      | `01_deps.sh`            |
+| `run_once_after_`        | Run after applying           | `run_once_after_08_wallpapers.sh` | `08_wallpapers.sh`      |
+| `modify_`                | Modify existing file         | `modify_bashrc`                   | `bashrc` (modification) |
+| `create_`                | Create file if missing       | `create_config.toml`              | `config.toml`           |
+| `symlink_`               | Create symlink               | `symlink_dot_config`              | `.config` (symlink)     |
+
+#### Practical Examples
+
+**When writing script headers:**
+
+```bash
+#!/usr/bin/env bash
+# 08_wallpapers.sh - Configure desktop wallpapers
+# NOT: run_once_after_08_wallpapers.sh - Configure desktop wallpapers
+```
+
+**When creating function documentation:**
+
+```bash
+# setup_wallpapers configures the desktop wallpaper settings
+# NOT: run_once_after_08_wallpapers configures the desktop wallpaper settings
+```
+
+#### Complex Prefix Combinations
+
+For files with multiple prefixes, strip all chezmoi attributes:
+
+| Full Chezmoi Name                            | Reference As              |
+| -------------------------------------------- | ------------------------- |
+| `private_readonly_dot_ssh/private_id_rsa`    | `.ssh/id_rsa`             |
+| `executable_run_once_install.sh`             | `install.sh`              |
+| `run_once_before_01_dot_config.sh.tmpl`      | `01_config.sh`            |
+| `private_dot_config/private_app/secret.conf` | `.config/app/secret.conf` |
+
+#### Template Files
+
+- Strip `.tmpl` extension when referring to the final file
+- Example: `dot_bashrc.tmpl` → `.bashrc`
+- Only mention template nature when specifically discussing templating logic
+
+#### Important Notes
+
+1. **Preserve prefixes in actual file operations:** When creating, editing, or moving files, use the full chezmoi-prefixed name
+2. **Strip prefixes in human-readable content:** Comments, documentation, logs, and descriptions should use clean names
+3. **Maintain number prefixes:** Keep ordering numbers like `01_`, `02_` as they indicate execution order
+4. **Be context-aware:** When explaining chezmoi functionality itself, it's appropriate to mention the prefixes
+
+#### Code Review Example
+
+**Incorrect:**
+
+```bash
+#!/usr/bin/env bash
+# run_once_after_08_wallpapers.sh - Configure wallpapers after dotfiles are applied
+#
+# This script (run_once_after_08_wallpapers.sh) sets up desktop wallpapers
+```
+
+**Correct:**
+
+```bash
+#!/usr/bin/env bash
+# 08_wallpapers.sh - Configure wallpapers after dotfiles are applied
+#
+# This script configures desktop wallpapers
+```
+
+---
+
 ## Distro Support
 
 ### Arch Linux (Primary Target)
@@ -112,10 +207,12 @@ NOT_PERSONAL=1 chezmoi apply --verbose
 ### Detecting Distribution
 
 ```bash
-# In chezmoi templates
-{{ if eq .distro "$distro_name" }}
-  # Distro-specific config
-{{ end }}
+# in chezmoi templates
+{{- if or (contains .distro_family "arch") (eq .distro_family "arch") -}}
+  # Arch-specific config
+{{- else if or (contains .distro_family "fedora") (contains .distro_family "rhel") (eq .distro_family "fedora") (eq .distro_family "rhel") -}}
+  # Fedora-specific config
+{{- end -}}
 
 # In bash scripts
 if command_exists pacman; then

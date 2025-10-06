@@ -96,15 +96,12 @@ arch:
     - noto-fonts-cjk
     - noto-fonts-extra
     - ttf-liberation
-    - ttf-jetbrains-mono-nerd
     - inter-font
 
   aur:
     - darkly-bin
     - xdg-terminal-exec-git
-    - app2unit-git
     - quickshell-git
-    - dgop-bin
     - clipse-gui
     - matugen-bin
     - gpu-screen-recorder-git
@@ -168,6 +165,8 @@ fedora:
     - azandure/clipse
     - deltacopy/darkly
     - brycensranch/gpu-screen-recorder-git
+    - atim/starship
+    - kylegospo/grub-btrfs
 
   core:
     - hypridle
@@ -176,7 +175,7 @@ fedora:
     - hyprlock
     - uwsm
     - accountsservice
-    - hyprpolkitagent
+    - mate-polkit
     - xdg-desktop-portal-gtk
     - gnome-keyring
     - NetworkManager
@@ -209,7 +208,6 @@ fedora:
     - pam-devel
     - libxcb-devel
     - kernel-devel
-
     - kdialog
     - gparted
     - xhost
@@ -243,7 +241,7 @@ fedora:
     - bat
     - ripgrep
     - shfmt
-    - imagemagick
+    - ImageMagick
     - chafa
     - topgrade
     - yazi
@@ -267,9 +265,6 @@ fedora:
     - liberation-sans-fonts
     - rsms-inter-fonts
     - google-noto-sans-cjk-fonts
-    - google-noto-color-emoji-fonts
-    - google-noto-emoji-fonts
-    - jetbrains-mono-fonts
 
   optional:
     - rust

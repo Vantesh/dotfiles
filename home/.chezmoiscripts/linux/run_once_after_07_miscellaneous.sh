@@ -19,6 +19,10 @@ if ! keep_sudo_alive; then
 fi
 
 setup_pkgfile() {
+  if ! command_exists pacman; then
+    return 0
+  fi
+
   if ! command_exists pkgfile; then
     log SKIP "pkgfile not installed"
     return 0

@@ -1,74 +1,70 @@
+{{/* Font directory configuration */}}
 {{- $fontDir := "" -}}
-{{- if eq .chezmoi.os "linux" }}
-  {{- $fontDir = ".local/share/fonts" }}
-{{- else if eq .chezmoi.os "windows" }}
-  {{- $fontDir = "AppData/Local/Microsoft/Windows/Fonts" }}
-{{- end }}
+{{- if eq .chezmoi.os "linux" -}}
+  {{- $fontDir = ".local/share/fonts" -}}
+{{- else if eq .chezmoi.os "windows" -}}
+  {{- $fontDir = "AppData/Local/Microsoft/Windows/Fonts" -}}
+{{- end -}}
 
-{{ if not (env "OFFLINE") }}
-{{- $refresh := "336h" }}
+{{/* Skip font downloads in offline mode */}}
+{{- if not (env "OFFLINE") -}}
 
+{{/* Common refresh period for all fonts */}}
+{{- $refresh := "336h" -}}
+
+{{/* Font Awesome */}}
 "{{ $fontDir }}/font-awesome":
   type: archive
-  url: {{ gitHubLatestReleaseAssetURL "FortAwesome/Font-Awesome" (printf "fontawesome-free-*-desktop.zip") | quote }}
+  url: {{ gitHubLatestReleaseAssetURL "FortAwesome/Font-Awesome" "fontawesome-free-*-desktop.zip" | quote }}
   exact: true
   stripComponents: 2
   refreshPeriod: {{ $refresh | quote }}
   include:
     - "**/otfs/Font*.otf"
 
+{{/* Material Symbols */}}
+{{- $materialBase := "https://github.com/google/material-design-icons/raw/refs/heads/master/variablefont" }}
+
 "{{ $fontDir }}/Material-Symbols/MaterialSymbolsRounded[FILL,GRAD,opsz,wght].ttf":
-  url: "https://github.com/google/material-design-icons/raw/refs/heads/master/variablefont/MaterialSymbolsRounded%5BFILL,GRAD,opsz,wght%5D.ttf"
   type: file
+  url: "{{ $materialBase }}/MaterialSymbolsRounded%5BFILL,GRAD,opsz,wght%5D.ttf"
   refreshPeriod: {{ $refresh | quote }}
 
 "{{ $fontDir }}/Material-Symbols/MaterialSymbolsOutlined[FILL,GRAD,opsz,wght].ttf":
-  url: "https://github.com/google/material-design-icons/raw/refs/heads/master/variablefont/MaterialSymbolsOutlined%5BFILL,GRAD,opsz,wght%5D.ttf"
   type: file
+  url: "{{ $materialBase }}/MaterialSymbolsOutlined%5BFILL,GRAD,opsz,wght%5D.ttf"
   refreshPeriod: {{ $refresh | quote }}
 
 "{{ $fontDir }}/Material-Symbols/MaterialSymbolsSharp[FILL,GRAD,opsz,wght].ttf":
-  url: "https://github.com/google/material-design-icons/raw/refs/heads/master/variablefont/MaterialSymbolsSharp%5BFILL,GRAD,opsz,wght%5D.ttf"
   type: file
+  url: "{{ $materialBase }}/MaterialSymbolsSharp%5BFILL,GRAD,opsz,wght%5D.ttf"
   refreshPeriod: {{ $refresh | quote }}
 
-{{- if eq .chezmoi.os "linux" }}
+{{/* Linux-specific fonts */}}
+{{- if eq .chezmoi.os "linux" -}}
 
+{{/* Apple Color Emoji for Linux */}}
 "{{ $fontDir }}/emojis/AppleColorEmoji.ttf":
-  url: {{ gitHubLatestReleaseAssetURL "samuelngs/apple-emoji-linux" "AppleColorEmoji.ttf" | quote }}
   type: file
+  url: "https://github.com/samuelngs/apple-emoji-linux/releases/latest/download/AppleColorEmoji.ttf"
   refreshPeriod: {{ $refresh | quote }}
 
-{{- $fluent := "https://github.com/microsoft/fluentui-system-icons/raw/refs/heads/main/fonts" }}
-"{{ $fontDir }}/fluent-icons/FluentSystemIcons-Regular.ttf":
-  url: "{{ $fluent }}/FluentSystemIcons-Regular.ttf"
-  type: file
-  refreshPeriod: {{ $refresh | quote }}
-
-"{{ $fontDir }}/fluent-icons/FluentSystemIcons-Filled.ttf":
-  url: "{{ $fluent }}/FluentSystemIcons-Filled.ttf"
-  type: file
-  refreshPeriod: {{ $refresh | quote }}
-
-"{{ $fontDir }}/fluent-icons/FluentSystemIcons-Light.ttf":
-  url: "{{ $fluent }}/FluentSystemIcons-Light.ttf"
-  type: file
-  refreshPeriod: {{ $refresh | quote }}
-
-
-"{{ $fontDir }}/Segoe-UI":
+{{/* JetBrains Mono Nerd Font */}}
+"{{ $fontDir }}/JetBrainsMono":
   type: archive
-  url: https://aka.ms/SegoeFluentIcons
-  include:
-    - "*ttf"
+  url: "https://github.com/ryanoasis/nerd-fonts/releases/latest/download/JetBrainsMono.tar.xz"
   refreshPeriod: {{ $refresh | quote }}
+  exclude:
+    - "JetBrainsMonoNerdFontPropo-**.ttf"
+    - "JetBrainsMonoNL**.ttf"
+    - "README.md"
+    - "OFL.txt"
 
-"{{ $fontDir }}/Segoe-VF":
-  type: archive
-  url: https://aka.ms/SegoeUIVariable
-  include:
-    - "*ttf"
-  refreshPeriod: {{ $refresh | quote }}
+{{- end -}}
 
-{{- end }}
-{{ end }}
+{{/* Windows-specific fonts */}}
+{{- if eq .chezmoi.os "windows" -}}
+{{/* Add Windows-specific fonts here */}}
+{{- end -}}
+
+{{- end -}}

@@ -1,5 +1,20 @@
 {{- $personal := true -}} {{/* if false skip the secrets steps */}}
-{{- if eq (env "NOT_PERSONAL") "1" -}} {{- $personal = false -}} {{- end -}}
+{{- if eq (env "NOT_PERSONAL") "1" -}}
+  {{- $personal = false -}}
+{{- end -}}
+
+{{- $distro_family := "" -}}
+{{- if .chezmoi.osRelease -}}
+  {{- if .chezmoi.osRelease.idLike -}}
+    {{- $distro_family = .chezmoi.osRelease.idLike -}}
+  {{- else if .chezmoi.osRelease.id -}}
+    {{- $distro_family = .chezmoi.osRelease.id -}}
+  {{- else -}}
+    {{- $distro_family = .chezmoi.os -}}
+  {{- end -}}
+{{- else -}}
+  {{- $distro_family = .chezmoi.os -}}
+{{- end -}}
 
 data:
   {{- if not $personal }}
@@ -9,7 +24,7 @@ data:
   default_shell: {{ promptChoice "What's your preferred shell" (list "fish" "zsh") | quote }}
   compositor: {{ promptChoice "What's your preferred compositor" (list "hyprland" "niri") | quote }}
   personal: {{ $personal }}
-  distro: {{ if .chezmoi.osRelease }}{{ .chezmoi.osRelease.id | quote }}{{ else }}{{ .chezmoi.os | quote }}{{ end }}
+  distro_family: {{ $distro_family | lower | quote }}
 
 edit:
   command: "code"
@@ -36,5 +51,6 @@ bitwarden:
   unlock: auto
   command: "{{ .chezmoi.homeDir }}/.local/bin/bw"
 
-github: {{/* api refresh */}}
+{{/* api refresh */}}
+github:
   refreshPeriod: 12h

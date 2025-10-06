@@ -38,7 +38,7 @@ login_atuin() {
     return 1
   fi
 
-  if ! atuin sync >/dev/null 2>&1; then
+  if ! atuin sync; then
     LAST_ERROR="Failed to sync Atuin history"
     return 1
   fi

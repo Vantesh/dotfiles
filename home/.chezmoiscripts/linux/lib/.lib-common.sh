@@ -186,6 +186,40 @@ command_exists() {
   command -v "$1" >/dev/null 2>&1
 }
 
+# Gets the OS ID from /etc/os-release.
+#
+# Outputs:
+#   OS ID to stdout (e.g., "arch", "fedora", "cachyos")
+# Returns:
+#   0 on success, 1 if os-release not found
+get_os_id() {
+  if [[ ! -f /etc/os-release ]]; then
+    return 1
+  fi
+
+  # shellcheck source=/dev/null
+  source /etc/os-release
+  printf '%s\n' "${ID:-}"
+  return 0
+}
+
+# Gets the OS NAME from /etc/os-release.
+#
+# Outputs:
+#   OS NAME to stdout (e.g., "Arch Linux", "Fedora Linux")
+# Returns:
+#   0 on success, 1 if os-release not found
+get_os_name() {
+  if [[ ! -f /etc/os-release ]]; then
+    return 1
+  fi
+
+  # shellcheck source=/dev/null
+  source /etc/os-release
+  printf '%s\n' "${NAME:-}"
+  return 0
+}
+
 # Reloads and triggers udev rules.
 #
 # Globals:

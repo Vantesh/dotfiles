@@ -23,6 +23,10 @@ if [[ "$(id -u)" -eq 0 ]]; then
   die "Do not run this script as root."
 fi
 
+if ! keep_sudo_alive; then
+  die "Failed to keep sudo alive"
+fi
+
 if [[ "${SKIP_PACKAGES:-0}" == "1" ]]; then
   log INFO "Skipping package installation"
   exit 0
@@ -137,11 +141,19 @@ if [[ $gpu_info == *"NVIDIA"* ]]; then
     nvidia_variant="nvidia-dkms"
   fi
 
-  if [[ "{{ .distro }}" == "cachyos" ]]; then
-    log WARN "Detected CachyOS: skipping $nvidia_variant"
+  if os_id=$(get_os_id); then
+    case "$os_id" in
+      cachyos|garuda)
+        log SKIP "Skipping NVIDIA variant selection on $os_id"
+        ;;
+      *)
+        drivers+=("${nvidia_variant}")
+        ;;
+    esac
   else
-    drivers+=("$nvidia_variant")
+    drivers+=("${nvidia_variant}")
   fi
+
 fi
 
 if [[ $gpu_info == *"AMD/ATI"* ]]; then

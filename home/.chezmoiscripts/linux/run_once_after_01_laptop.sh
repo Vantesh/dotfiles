@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# run_once_after_01_laptop.sh - Configure laptop optimizations and hibernation
+# 01_laptop.sh - Configure laptop optimizations and hibernation
 # Exit codes: 0 (success), 1 (failure)
 
 set -euo pipefail

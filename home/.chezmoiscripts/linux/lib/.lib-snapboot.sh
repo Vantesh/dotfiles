@@ -356,25 +356,31 @@ update_grub_cmdline() {
 
   # Regenerate GRUB config using available mkconfig command
   local mkconfig_cmd
+  local grub_cfg_dir
+  local grub_cfg_file
 
   mkconfig_cmd=""
   if command_exists grub-mkconfig; then
     mkconfig_cmd="grub-mkconfig"
+    grub_cfg_dir="/boot/grub"
+    grub_cfg_file="/boot/grub/grub.cfg"
   elif command_exists grub2-mkconfig; then
     mkconfig_cmd="grub2-mkconfig"
+    grub_cfg_dir="/boot/grub2"
+    grub_cfg_file="/boot/grub2/grub.cfg"
   else
     LAST_ERROR="GRUB mkconfig command not found (grub-mkconfig or grub2-mkconfig)"
     return 127
   fi
 
-  if [[ ! -d /boot/grub ]]; then
-    if ! sudo mkdir -p /boot/grub >/dev/null 2>&1; then
-      LAST_ERROR="Failed to create /boot/grub directory"
+  if [[ ! -d "$grub_cfg_dir" ]]; then
+    if ! sudo mkdir -p "$grub_cfg_dir" >/dev/null 2>&1; then
+      LAST_ERROR="Failed to create $grub_cfg_dir directory"
       return 1
     fi
   fi
 
-  if ! sudo "$mkconfig_cmd" -o /boot/grub/grub.cfg >/dev/null 2>&1; then
+  if ! sudo "$mkconfig_cmd" -o "$grub_cfg_file" >/dev/null 2>&1; then
     LAST_ERROR="Failed to regenerate GRUB configuration with $mkconfig_cmd"
     return 1
   fi

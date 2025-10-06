@@ -152,12 +152,13 @@ update_bootloader_params() {
 }
 
 main() {
-  if [[ -f /etc/os-release ]]; then
-    # shellcheck source=/dev/null
-    source /etc/os-release
-    case "${ID:-}" in
+  local os_id
+  local os_name
+
+  if os_id=$(get_os_id) && os_name=$(get_os_name); then
+    case "$os_id" in
     fedora | cachyos | garuda)
-      log SKIP "$NAME already has plymouth pre-configured"
+      log SKIP "$os_name already has plymouth pre-configured"
       return 0
       ;;
     esac
