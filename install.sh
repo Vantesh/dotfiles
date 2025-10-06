@@ -184,7 +184,7 @@ main() {
     die "This script must not be run as root"
   fi
 
-  if [[ "$(uname -)" != "Linux" ]]; then
+  if [[ "$(uname)" != "Linux" ]]; then
     die "This script only supports Linux"
   fi
 
