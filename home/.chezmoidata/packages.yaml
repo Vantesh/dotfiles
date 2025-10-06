@@ -101,9 +101,7 @@ arch:
   aur:
     - darkly-bin
     - xdg-terminal-exec-git
-    - app2unit-git
     - quickshell-git
-    - dgop-bin
     - clipse-gui
     - matugen-bin
     - gpu-screen-recorder-git
