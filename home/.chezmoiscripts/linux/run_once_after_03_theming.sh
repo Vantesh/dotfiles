@@ -18,6 +18,10 @@ readonly GRUB_THEME_DIR="/usr/share/grub/themes/Sekiro"
 readonly TELA_REPO_URL="https://github.com/vinceliuice/Tela-icon-theme.git"
 readonly TELA_ICON_DIR="$HOME/.local/share/icons/Tela"
 
+if ! keep_sudo_alive; then
+  die "Failed to keep sudo alive"
+fi
+
 tela_icons_present() {
   LAST_ERROR=""
 

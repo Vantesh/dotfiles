@@ -19,6 +19,10 @@ readonly LIMINE_ENTRY_TEMPLATE="/etc/limine-entry-tool.conf"
 readonly LIMINE_SNAPPER_TEMPLATE="/etc/limine-snapper-sync.conf"
 readonly MKINITCPIO_CONF="/etc/mkinitcpio.conf"
 
+if ! keep_sudo_alive; then
+  die "Failed to keep sudo alive"
+fi
+
 setup_snapper_packages() {
   local -a packages=(
     snapper

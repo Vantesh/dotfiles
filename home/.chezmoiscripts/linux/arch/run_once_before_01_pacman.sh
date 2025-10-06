@@ -15,6 +15,10 @@ readonly PACMAN_CONF="/etc/pacman.conf"
 readonly PACCACHE_CONFIG="/etc/conf.d/pacman-contrib"
 readonly HOOKS_DIR="/etc/pacman.d/hooks"
 
+if ! keep_sudo_alive; then
+  die "Failed to keep sudo alive"
+fi
+
 _ensure_pacman_contrib() {
   if pacman -Q "pacman-contrib" &>/dev/null; then
     return 0

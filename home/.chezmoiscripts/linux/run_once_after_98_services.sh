@@ -30,6 +30,10 @@ readonly -a PACMAN_SERVICES=(
   "paccache.timer"
 )
 
+if ! keep_sudo_alive; then
+  die "Failed to keep sudo alive"
+fi
+
 enable_configured_services() {
   local -a failed_services=()
   local scope

@@ -14,6 +14,10 @@ source "$LIB_DIR/.lib-common.sh"
 readonly LY_CONFIG_FILE="/etc/ly/config.ini"
 readonly LY_SAVE_FILE="/etc/ly/save.ini"
 
+if ! keep_sudo_alive; then
+  die "Failed to keep sudo alive"
+fi
+
 disable_conflicting_dms() {
   local skip_service="${1:-}"
 

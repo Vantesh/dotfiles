@@ -17,6 +17,10 @@ readonly SWAP_SUBVOL="@swap"
 readonly SWAP_MOUNT_POINT="/swap"
 readonly SWAP_FILE_PATH="/swap/swapfile"
 
+if ! keep_sudo_alive; then
+  die "Failed to keep sudo alive"
+fi
+
 calculate_swap_size() {
   local ram_gb
   ram_gb=$(get_ram_size)

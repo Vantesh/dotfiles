@@ -15,6 +15,10 @@ source "$LIB_DIR/.lib-snapboot.sh"
 
 readonly QUIET_BOOT_PARAMS="quiet splash loglevel=3 systemd.show_status=auto rd.udev.log_level=3 vt.global_cursor_default=0"
 
+if ! keep_sudo_alive; then
+  die "Failed to keep sudo alive"
+fi
+
 add_plymouth_hook() {
   local mkinitcpio_conf="/etc/mkinitcpio.conf"
   local current_hooks

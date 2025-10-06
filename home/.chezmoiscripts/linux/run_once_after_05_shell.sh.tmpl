@@ -14,6 +14,10 @@ source "$LIB_DIR/.lib-common.sh"
 readonly PREFERRED_SHELL="{{ .default_shell }}"
 readonly ZSHENV_FILE="/etc/zsh/zshenv"
 
+if ! keep_sudo_alive; then
+  die "Failed to keep sudo alive"
+fi
+
 setup_zsh_env() {
   if ! write_system_config "$ZSHENV_FILE" <<'EOF'; then
 export XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"

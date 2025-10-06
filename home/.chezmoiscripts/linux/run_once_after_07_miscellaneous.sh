@@ -14,6 +14,10 @@ source "$LIB_DIR/.lib-common.sh"
 readonly SSH_KNOWN_HOSTS="${HOME}/.ssh/known_hosts"
 readonly SPOTIFY_PREFS="${HOME}/.config/spotify/prefs"
 
+if ! keep_sudo_alive; then
+  die "Failed to keep sudo alive"
+fi
+
 setup_pkgfile() {
   if ! command_exists pkgfile; then
     log SKIP "pkgfile not installed"
