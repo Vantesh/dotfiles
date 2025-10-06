@@ -81,9 +81,9 @@ command_exists() { command -v "$1" >/dev/null 2>&1; }
 install_with_dnf() {
   local -a packages=("$@")
 
-  log INFO "Using dnf to install required packages"
+  log STEP "Using dnf to install required packages"
 
-  if sudo dnf install -y "${packages[@]}" >/dev/null 2>&1; then
+  if sudo dnf install -y "${packages[@]}"; then
     log INFO "Required packages installed successfully"
     return 0
   fi
@@ -96,7 +96,7 @@ install_with_pacman() {
 
   log INFO "Using pacman to install required packages"
 
-  if sudo pacman -S --needed --noconfirm "${packages[@]}" >/dev/null 2>&1; then
+  if sudo pacman -S --needed --noconfirm "${packages[@]}"; then
     log INFO "Required packages installed successfully"
     return 0
   fi
@@ -175,7 +175,7 @@ backup_config_if_needed() {
 }
 
 run_chezmoi_init() {
-  printf "\n"
+  clear
   exec env NOT_PERSONAL=1 chezmoi init --apply "$REPO" "$@"
 }
 
@@ -183,6 +183,18 @@ main() {
   if [[ "$(id -u)" -eq 0 ]]; then
     die "This script must not be run as root"
   fi
+
+  if [[ "$(uname -)" != "Linux" ]]; then
+    die "This script only supports Linux"
+  fi
+
+  ARCH="$(uname -m)"
+  case "$ARCH" in
+  x86_64 | amd64 | aarch64 | arm64) ;;
+  *)
+    die "Unsupported architecture: $ARCH"
+    ;;
+  esac
 
   logo
   ensure_dependencies_installed
