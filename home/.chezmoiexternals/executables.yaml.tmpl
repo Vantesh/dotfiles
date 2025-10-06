@@ -4,6 +4,7 @@
 {{- $tag := (gitHubLatestTag "Vladimir-csp/app2unit").Name }}
 ".local/bin/app2unit":
   type: archive-file
+  executable: true
   url: "https://github.com/Vladimir-csp/app2unit/archive/refs/tags/{{ $tag }}.zip"
   refreshPeriod: "168h"
   path: "app2unit-{{ trimPrefix "v" $tag }}/app2unit"
