@@ -602,26 +602,22 @@ update_config() {
   return 0
 }
 
-# Enables systemd service/timer/socket (auto-detects unit type).
-#
-# Automatically tries .service, .timer, and .socket extensions.
-# Idempotent - does nothing if already enabled.
-#
+# Enables systemd service/timer/socket.
 # Arguments:
-#   $1 - Service name (with or without extension)
+#   $1 - Unit name (e.g., 'ly', 'ly.service', 'docker.socket')
 #   $2 - Scope: 'system' or 'user' (default: 'system')
 # Globals:
 #   LAST_ERROR - Set on failure
 # Returns:
 #   0 on success, 1 on failure, 2 on invalid args
 enable_service() {
-  local service="${1:-}"
+  local unit="${1:-}"
   local scope="${2:-system}"
 
   LAST_ERROR=""
 
-  if [[ -z "$service" ]]; then
-    LAST_ERROR="enable_service() requires a service argument"
+  if [[ -z "$unit" ]]; then
+    LAST_ERROR="enable_service() requires a unit argument"
     return 2
   fi
 
@@ -637,35 +633,27 @@ enable_service() {
     systemctl_args=("--user")
   fi
 
-  local base="${service%.service}"
-  base="${base%.timer}"
-  base="${base%.socket}"
-  local candidates=("$service" "${base}.service" "${base}.timer" "${base}.socket")
-  local -A seen=()
-  local resolved=""
+  local status_code=0
+  _run_with_optional_sudo "$use_sudo" systemctl "${systemctl_args[@]}" is-enabled "$unit" >/dev/null 2>&1 || status_code=$?
 
-  for candidate in "${candidates[@]}"; do
-    [[ -n "$candidate" ]] && [[ -z "${seen[$candidate]+x}" ]] || continue
-    seen["$candidate"]=1
-    if _run_with_optional_sudo "$use_sudo" systemctl "${systemctl_args[@]}" list-unit-files "$candidate" >/dev/null 2>&1; then
-      resolved="$candidate"
-      break
-    fi
-  done
-
-  if [[ -z "$resolved" ]]; then
-    LAST_ERROR="Service not found: $service"
-    return 1
-  fi
-
-  if _run_with_optional_sudo "$use_sudo" systemctl "${systemctl_args[@]}" is-enabled "$resolved" >/dev/null 2>&1; then
+  case "$status_code" in
+  0 | 3)
     return 0
-  fi
-
-  if ! _run_with_optional_sudo "$use_sudo" systemctl "${systemctl_args[@]}" enable "$resolved" >/dev/null 2>&1; then
-    LAST_ERROR="Failed to enable $resolved (scope: $scope)"
+    ;;
+  1)
+    if _run_with_optional_sudo "$use_sudo" systemctl "${systemctl_args[@]}" enable "$unit" >/dev/null 2>&1; then
+      return 0
+    fi
+    LAST_ERROR="Failed to enable $unit (scope: $scope)"
     return 1
-  fi
-
-  return 0
+    ;;
+  4)
+    LAST_ERROR="Unit not found: $unit"
+    return 1
+    ;;
+  *)
+    LAST_ERROR="Failed to query state of $unit (scope: $scope)"
+    return 1
+    ;;
+  esac
 }
