@@ -157,7 +157,7 @@ main() {
 
   if os_id=$(get_os_id) && os_name=$(get_os_name); then
     case "$os_id" in
-    fedora | cachyos | garuda)
+    fedora | cachyos)
       log SKIP "$os_name already has plymouth pre-configured"
       return 0
       ;;

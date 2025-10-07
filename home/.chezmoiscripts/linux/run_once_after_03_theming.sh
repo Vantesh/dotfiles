@@ -361,11 +361,15 @@ main() {
   if command_exists dnf; then
     if tela_icons_present; then
       log SKIP "Tela icons already installed"
-    elif ! install_tela_icons; then
-      local error_msg="$LAST_ERROR"
-      log WARN "Failed to install Tela icons: $error_msg"
     else
-      log INFO "Installed Tela icon theme"
+      log INFO "Installing Tela icons (this may take a moment)"
+
+      if ! install_tela_icons; then
+        local error_msg="$LAST_ERROR"
+        log WARN "Failed to install Tela icons: $error_msg"
+      else
+        log INFO "Installed Tela icon theme"
+      fi
     fi
   fi
 
