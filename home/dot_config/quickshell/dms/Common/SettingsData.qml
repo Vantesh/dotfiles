@@ -103,15 +103,19 @@ Singleton {
     property bool qt5ctAvailable: false
     property bool qt6ctAvailable: false
     property bool gtkAvailable: false
-    property bool useOSLogo: false
-    property string osLogoColorOverride: ""
-    property real osLogoBrightness: 0.5
-    property real osLogoContrast: 1
+    property string launcherLogoMode: "apps"
+    property string launcherLogoCustomPath: ""
+    property string launcherLogoColorOverride: ""
+    property bool launcherLogoColorInvertOnMode: false
+    property real launcherLogoBrightness: 0.5
+    property real launcherLogoContrast: 1
+    property int launcherLogoSizeOffset: 0
     property bool weatherEnabled: true
     property string fontFamily: "Inter Variable"
     property string monoFontFamily: "Fira Code"
     property int fontWeight: Font.Normal
     property real fontScale: 1.0
+    property real dankBarFontScale: 1.0
     property bool notepadUseMonospace: true
     property string notepadFontFamily: ""
     property real notepadFontSize: 14
@@ -150,6 +154,7 @@ Singleton {
     property bool dankBarSquareCorners: false
     property bool dankBarNoBackground: false
     property bool dankBarGothCornersEnabled: false
+    property bool dankBarBorderEnabled: false
     property int dankBarPosition: SettingsData.Position.Top
     property bool dankBarIsVertical: dankBarPosition === SettingsData.Position.Left || dankBarPosition === SettingsData.Position.Right
     property bool lockScreenShowPowerActions: true
@@ -160,6 +165,7 @@ Singleton {
     property int notificationTimeoutNormal: 5000
     property int notificationTimeoutCritical: 0
     property int notificationPopupPosition: SettingsData.Position.Top
+    property bool osdAlwaysShowValue: false
     property var screenPreferences: ({})
     property int animationSpeed: SettingsData.AnimationSpeed.Short
     readonly property string defaultFontFamily: "Inter Variable"
@@ -167,6 +173,7 @@ Singleton {
     readonly property string _homeUrl: StandardPaths.writableLocation(StandardPaths.HomeLocation)
     readonly property string _configUrl: StandardPaths.writableLocation(StandardPaths.ConfigLocation)
     readonly property string _configDir: Paths.strip(_configUrl)
+    readonly property string pluginSettingsPath: _configDir + "/DankMaterialShell/plugin_settings.json"
 
     signal forceDankBarLayoutRefresh
     signal forceDockLayoutRefresh
@@ -174,6 +181,7 @@ Singleton {
     signal workspaceIconsUpdated
 
     property bool _loading: false
+    property bool _pluginSettingsLoading: false
 
     property var pluginSettings: ({})
 
@@ -202,7 +210,8 @@ Singleton {
             "size": 20,
             "selectedGpuIndex": 0,
             "pciId": "",
-            "mountPath": "/"
+            "mountPath": "/",
+            "minimumWidth": true
         }
         leftWidgetsModel.append(dummyItem)
         centerWidgetsModel.append(dummyItem)
@@ -217,13 +226,41 @@ Singleton {
         _loading = true
         parseSettings(settingsFile.text())
         _loading = false
+        loadPluginSettings()
+    }
+
+    function loadPluginSettings() {
+        _pluginSettingsLoading = true
+        parsePluginSettings(pluginSettingsFile.text())
+        _pluginSettingsLoading = false
+    }
+
+    function parsePluginSettings(content) {
+        _pluginSettingsLoading = true
+        try {
+            if (content && content.trim()) {
+                pluginSettings = JSON.parse(content)
+            } else {
+                pluginSettings = {}
+            }
+        } catch (e) {
+            console.warn("SettingsData: Failed to parse plugin settings:", e.message)
+            pluginSettings = {}
+        } finally {
+            _pluginSettingsLoading = false
+        }
     }
 
     function parseSettings(content) {
         _loading = true
+        var shouldMigrate = false
         try {
             if (content && content.trim()) {
                 var settings = JSON.parse(content)
+                if (settings.pluginSettings !== undefined) {
+                    pluginSettings = settings.pluginSettings
+                    shouldMigrate = true
+                }
                 // Auto-migrate from old theme system
                 if (settings.themeIndex !== undefined || settings.themeIsDynamic !== undefined) {
                     const themeNames = ["blue", "deepBlue", "purple", "green", "orange", "red", "cyan", "pink", "amber", "coral"]
@@ -319,14 +356,25 @@ Singleton {
                 spotlightModalViewMode = settings.spotlightModalViewMode !== undefined ? settings.spotlightModalViewMode : "list"
                 networkPreference = settings.networkPreference !== undefined ? settings.networkPreference : "auto"
                 iconTheme = settings.iconTheme !== undefined ? settings.iconTheme : "System Default"
-                useOSLogo = settings.useOSLogo !== undefined ? settings.useOSLogo : false
-                osLogoColorOverride = settings.osLogoColorOverride !== undefined ? settings.osLogoColorOverride : ""
-                osLogoBrightness = settings.osLogoBrightness !== undefined ? settings.osLogoBrightness : 0.5
-                osLogoContrast = settings.osLogoContrast !== undefined ? settings.osLogoContrast : 1
+                if (settings.useOSLogo !== undefined) {
+                    launcherLogoMode = settings.useOSLogo ? "os" : "apps"
+                    launcherLogoColorOverride = settings.osLogoColorOverride !== undefined ? settings.osLogoColorOverride : ""
+                    launcherLogoBrightness = settings.osLogoBrightness !== undefined ? settings.osLogoBrightness : 0.5
+                    launcherLogoContrast = settings.osLogoContrast !== undefined ? settings.osLogoContrast : 1
+                } else {
+                    launcherLogoMode = settings.launcherLogoMode !== undefined ? settings.launcherLogoMode : "apps"
+                    launcherLogoCustomPath = settings.launcherLogoCustomPath !== undefined ? settings.launcherLogoCustomPath : ""
+                    launcherLogoColorOverride = settings.launcherLogoColorOverride !== undefined ? settings.launcherLogoColorOverride : ""
+                    launcherLogoColorInvertOnMode = settings.launcherLogoColorInvertOnMode !== undefined ? settings.launcherLogoColorInvertOnMode : false
+                    launcherLogoBrightness = settings.launcherLogoBrightness !== undefined ? settings.launcherLogoBrightness : 0.5
+                    launcherLogoContrast = settings.launcherLogoContrast !== undefined ? settings.launcherLogoContrast : 1
+                    launcherLogoSizeOffset = settings.launcherLogoSizeOffset !== undefined ? settings.launcherLogoSizeOffset : 0
+                }
                 fontFamily = settings.fontFamily !== undefined ? settings.fontFamily : defaultFontFamily
                 monoFontFamily = settings.monoFontFamily !== undefined ? settings.monoFontFamily : defaultMonoFontFamily
                 fontWeight = settings.fontWeight !== undefined ? settings.fontWeight : Font.Normal
                 fontScale = settings.fontScale !== undefined ? settings.fontScale : 1.0
+                dankBarFontScale = settings.dankBarFontScale !== undefined ? settings.dankBarFontScale : 1.0
                 notepadUseMonospace = settings.notepadUseMonospace !== undefined ? settings.notepadUseMonospace : true
                 notepadFontFamily = settings.notepadFontFamily !== undefined ? settings.notepadFontFamily : ""
                 notepadFontSize = settings.notepadFontSize !== undefined ? settings.notepadFontSize : 14
@@ -351,19 +399,20 @@ Singleton {
                 notificationTimeoutNormal = settings.notificationTimeoutNormal !== undefined ? settings.notificationTimeoutNormal : 5000
                 notificationTimeoutCritical = settings.notificationTimeoutCritical !== undefined ? settings.notificationTimeoutCritical : 0
                 notificationPopupPosition = settings.notificationPopupPosition !== undefined ? settings.notificationPopupPosition : SettingsData.Position.Top
+                osdAlwaysShowValue = settings.osdAlwaysShowValue !== undefined ? settings.osdAlwaysShowValue : false
                 dankBarSpacing = settings.dankBarSpacing !== undefined ? settings.dankBarSpacing : (settings.topBarSpacing !== undefined ? settings.topBarSpacing : 4)
                 dankBarBottomGap = settings.dankBarBottomGap !== undefined ? settings.dankBarBottomGap : (settings.topBarBottomGap !== undefined ? settings.topBarBottomGap : 0)
                 dankBarInnerPadding = settings.dankBarInnerPadding !== undefined ? settings.dankBarInnerPadding : (settings.topBarInnerPadding !== undefined ? settings.topBarInnerPadding : 4)
                 dankBarSquareCorners = settings.dankBarSquareCorners !== undefined ? settings.dankBarSquareCorners : (settings.topBarSquareCorners !== undefined ? settings.topBarSquareCorners : false)
                 dankBarNoBackground = settings.dankBarNoBackground !== undefined ? settings.dankBarNoBackground : (settings.topBarNoBackground !== undefined ? settings.topBarNoBackground : false)
                 dankBarGothCornersEnabled = settings.dankBarGothCornersEnabled !== undefined ? settings.dankBarGothCornersEnabled : (settings.topBarGothCornersEnabled !== undefined ? settings.topBarGothCornersEnabled : false)
+                dankBarBorderEnabled = settings.dankBarBorderEnabled !== undefined ? settings.dankBarBorderEnabled : false
                 dankBarPosition = settings.dankBarPosition !== undefined ? settings.dankBarPosition : (settings.dankBarAtBottom !== undefined ? (settings.dankBarAtBottom ? SettingsData.Position.Bottom : SettingsData.Position.Top) : (settings.topBarAtBottom !== undefined ? (settings.topBarAtBottom ? SettingsData.Position.Bottom : SettingsData.Position.Top) : SettingsData.Position.Top))
                 lockScreenShowPowerActions = settings.lockScreenShowPowerActions !== undefined ? settings.lockScreenShowPowerActions : true
                 hideBrightnessSlider = settings.hideBrightnessSlider !== undefined ? settings.hideBrightnessSlider : false
                 widgetBackgroundColor = settings.widgetBackgroundColor !== undefined ? settings.widgetBackgroundColor : "sch"
                 surfaceBase = settings.surfaceBase !== undefined ? settings.surfaceBase : "s"
                 screenPreferences = settings.screenPreferences !== undefined ? settings.screenPreferences : ({})
-                pluginSettings = settings.pluginSettings !== undefined ? settings.pluginSettings : ({})
                 animationSpeed = settings.animationSpeed !== undefined ? settings.animationSpeed : SettingsData.AnimationSpeed.Short
                 applyStoredTheme()
                 detectAvailableIconThemes()
@@ -377,6 +426,11 @@ Singleton {
             applyStoredTheme()
         } finally {
             _loading = false
+        }
+
+        if (shouldMigrate) {
+            savePluginSettings()
+            saveSettings()
         }
     }
 
@@ -440,14 +494,18 @@ Singleton {
                                                 "spotlightModalViewMode": spotlightModalViewMode,
                                                 "networkPreference": networkPreference,
                                                 "iconTheme": iconTheme,
-                                                "useOSLogo": useOSLogo,
-                                                "osLogoColorOverride": osLogoColorOverride,
-                                                "osLogoBrightness": osLogoBrightness,
-                                                "osLogoContrast": osLogoContrast,
+                                                "launcherLogoMode": launcherLogoMode,
+                                                "launcherLogoCustomPath": launcherLogoCustomPath,
+                                                "launcherLogoColorOverride": launcherLogoColorOverride,
+                                                "launcherLogoColorInvertOnMode": launcherLogoColorInvertOnMode,
+                                                "launcherLogoBrightness": launcherLogoBrightness,
+                                                "launcherLogoContrast": launcherLogoContrast,
+                                                "launcherLogoSizeOffset": launcherLogoSizeOffset,
                                                 "fontFamily": fontFamily,
                                                 "monoFontFamily": monoFontFamily,
                                                 "fontWeight": fontWeight,
                                                 "fontScale": fontScale,
+                                                "dankBarFontScale": dankBarFontScale,
                                                 "notepadUseMonospace": notepadUseMonospace,
                                                 "notepadFontFamily": notepadFontFamily,
                                                 "notepadFontSize": notepadFontSize,
@@ -474,6 +532,7 @@ Singleton {
                                                 "dankBarSquareCorners": dankBarSquareCorners,
                                                 "dankBarNoBackground": dankBarNoBackground,
                                                 "dankBarGothCornersEnabled": dankBarGothCornersEnabled,
+                                                "dankBarBorderEnabled": dankBarBorderEnabled,
                                                 "dankBarPosition": dankBarPosition,
                                                 "lockScreenShowPowerActions": lockScreenShowPowerActions,
                                                 "hideBrightnessSlider": hideBrightnessSlider,
@@ -483,10 +542,16 @@ Singleton {
                                                 "notificationTimeoutNormal": notificationTimeoutNormal,
                                                 "notificationTimeoutCritical": notificationTimeoutCritical,
                                                 "notificationPopupPosition": notificationPopupPosition,
+                                                "osdAlwaysShowValue": osdAlwaysShowValue,
                                                 "screenPreferences": screenPreferences,
-                                                "pluginSettings": pluginSettings,
                                                 "animationSpeed": animationSpeed
                                             }, null, 2))
+    }
+
+    function savePluginSettings() {
+        if (_pluginSettingsLoading)
+            return
+        pluginSettingsFile.setText(JSON.stringify(pluginSettings, null, 2))
     }
 
     function setShowWorkspaceIndex(enabled) {
@@ -805,6 +870,7 @@ Singleton {
             var selectedGpuIndex = typeof order[i] === "string" ? undefined : order[i].selectedGpuIndex
             var pciId = typeof order[i] === "string" ? undefined : order[i].pciId
             var mountPath = typeof order[i] === "string" ? undefined : order[i].mountPath
+            var minimumWidth = typeof order[i] === "string" ? undefined : order[i].minimumWidth
             var item = {
                 "widgetId": widgetId,
                 "enabled": enabled
@@ -817,6 +883,8 @@ Singleton {
                 item.pciId = pciId
             if (mountPath !== undefined)
                 item.mountPath = mountPath
+            if (minimumWidth !== undefined)
+                item.minimumWidth = minimumWidth
 
             listModel.append(item)
         }
@@ -939,23 +1007,38 @@ Singleton {
         updateQtIconTheme(iconTheme)
     }
 
-    function setUseOSLogo(enabled) {
-        useOSLogo = enabled
+    function setLauncherLogoMode(mode) {
+        launcherLogoMode = mode
         saveSettings()
     }
 
-    function setOSLogoColorOverride(color) {
-        osLogoColorOverride = color
+    function setLauncherLogoCustomPath(path) {
+        launcherLogoCustomPath = path
         saveSettings()
     }
 
-    function setOSLogoBrightness(brightness) {
-        osLogoBrightness = brightness
+    function setLauncherLogoColorOverride(color) {
+        launcherLogoColorOverride = color
         saveSettings()
     }
 
-    function setOSLogoContrast(contrast) {
-        osLogoContrast = contrast
+    function setLauncherLogoColorInvertOnMode(invert) {
+        launcherLogoColorInvertOnMode = invert
+        saveSettings()
+    }
+
+    function setLauncherLogoBrightness(brightness) {
+        launcherLogoBrightness = brightness
+        saveSettings()
+    }
+
+    function setLauncherLogoContrast(contrast) {
+        launcherLogoContrast = contrast
+        saveSettings()
+    }
+
+    function setLauncherLogoSizeOffset(offset) {
+        launcherLogoSizeOffset = offset
         saveSettings()
     }
 
@@ -976,6 +1059,11 @@ Singleton {
 
     function setFontScale(scale) {
         fontScale = scale
+        saveSettings()
+    }
+
+    function setDankBarFontScale(scale) {
+        dankBarFontScale = scale
         saveSettings()
     }
 
@@ -1083,6 +1171,11 @@ Singleton {
         saveSettings()
     }
 
+    function setOsdAlwaysShowValue(enabled) {
+        osdAlwaysShowValue = enabled
+        saveSettings()
+    }
+
     function sendTestNotifications() {
         sendTestNotification(0)
         testNotifTimer1.start()
@@ -1155,6 +1248,11 @@ Singleton {
 
     function setDankBarGothCornersEnabled(enabled) {
         dankBarGothCornersEnabled = enabled
+        saveSettings()
+    }
+
+    function setDankBarBorderEnabled(enabled) {
+        dankBarBorderEnabled = enabled
         saveSettings()
     }
 
@@ -1283,13 +1381,13 @@ Singleton {
             pluginSettings[pluginId] = {}
         }
         pluginSettings[pluginId][key] = value
-        saveSettings()
+        savePluginSettings()
     }
 
     function removePluginSettings(pluginId) {
         if (pluginSettings[pluginId]) {
             delete pluginSettings[pluginId]
-            saveSettings()
+            savePluginSettings()
         }
     }
 
@@ -1369,6 +1467,26 @@ Singleton {
                 defaultSettingsCheckProcess.running = true
             } else if (!isGreeterMode) {
                 applyStoredTheme()
+            }
+        }
+    }
+
+    FileView {
+        id: pluginSettingsFile
+
+        path: isGreeterMode ? "" : pluginSettingsPath
+        blockLoading: true
+        blockWrites: true
+        atomicWrites: true
+        watchChanges: !isGreeterMode
+        onLoaded: {
+            if (!isGreeterMode) {
+                parsePluginSettings(pluginSettingsFile.text())
+            }
+        }
+        onLoadFailed: error => {
+            if (!isGreeterMode) {
+                pluginSettings = {}
             }
         }
     }

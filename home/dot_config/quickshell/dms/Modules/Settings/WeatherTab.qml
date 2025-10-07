@@ -54,14 +54,14 @@ Item {
                             anchors.verticalCenter: parent.verticalCenter
 
                             StyledText {
-                                text: "Enable Weather"
+                                text: qsTr("Enable Weather")
                                 font.pixelSize: Theme.fontSizeLarge
                                 font.weight: Font.Medium
                                 color: Theme.surfaceText
                             }
 
                             StyledText {
-                                text: "Show weather information in top bar and control center"
+                                text: qsTr("Show weather information in top bar and control center")
                                 font.pixelSize: Theme.fontSizeSmall
                                 color: Theme.surfaceVariantText
                                 wrapMode: Text.WordWrap
@@ -120,14 +120,14 @@ Item {
                             anchors.verticalCenter: parent.verticalCenter
 
                             StyledText {
-                                text: "Use Fahrenheit"
+                                text: qsTr("Use Fahrenheit")
                                 font.pixelSize: Theme.fontSizeLarge
                                 font.weight: Font.Medium
                                 color: Theme.surfaceText
                             }
 
                             StyledText {
-                                text: "Use Fahrenheit instead of Celsius for temperature"
+                                text: qsTr("Use Fahrenheit instead of Celsius for temperature")
                                 font.pixelSize: Theme.fontSizeSmall
                                 color: Theme.surfaceVariantText
                                 wrapMode: Text.WordWrap
@@ -193,14 +193,14 @@ Item {
                             anchors.verticalCenter: parent.verticalCenter
 
                             StyledText {
-                                text: "Auto Location"
+                                text: qsTr("Auto Location")
                                 font.pixelSize: Theme.fontSizeLarge
                                 font.weight: Font.Medium
                                 color: Theme.surfaceText
                             }
 
                             StyledText {
-                                text: "Automatically determine your location using your IP address"
+                                text: qsTr("Automatically determine your location using your IP address")
                                 font.pixelSize: Theme.fontSizeSmall
                                 color: Theme.surfaceVariantText
                                 wrapMode: Text.WordWrap
@@ -233,7 +233,7 @@ Item {
                         }
 
                         StyledText {
-                            text: "Custom Location"
+                            text: qsTr("Custom Location")
                             font.pixelSize: Theme.fontSizeMedium
                             color: Theme.surfaceText
                             font.weight: Font.Medium
@@ -248,7 +248,7 @@ Item {
                                     spacing: Theme.spacingXS
 
                                     StyledText {
-                                        text: "Latitude"
+                                        text: qsTr("Latitude")
                                         font.pixelSize: Theme.fontSizeSmall
                                         color: Theme.surfaceVariantText
                                     }
@@ -299,7 +299,7 @@ Item {
                                     spacing: Theme.spacingXS
 
                                     StyledText {
-                                        text: "Longitude"
+                                        text: qsTr("Longitude")
                                         font.pixelSize: Theme.fontSizeSmall
                                         color: Theme.surfaceVariantText
                                     }
@@ -352,7 +352,7 @@ Item {
                             spacing: Theme.spacingXS
 
                             StyledText {
-                                text: "Location Search"
+                                text: qsTr("Location Search")
                                 font.pixelSize: Theme.fontSizeSmall
                                 color: Theme.surfaceVariantText
                                 font.weight: Font.Medium
@@ -362,7 +362,7 @@ Item {
                                 id: locationSearchInput
                                 width: parent.width
                                 currentLocation: ""
-                                placeholderText: "New York, NY"
+                                placeholderText: qsTr("New York, NY")
                                 keyNavigationBacktab: longitudeInput
                                 onLocationSelected: (displayName, coordinates) => {
                                                         SettingsData.setWeatherLocation(displayName, coordinates)

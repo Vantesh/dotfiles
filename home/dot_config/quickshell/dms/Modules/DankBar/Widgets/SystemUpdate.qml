@@ -43,7 +43,7 @@ Rectangle {
             if (hasUpdates) return "system_update_alt";
             return "check_circle";
         }
-        size: Theme.iconSize - 6
+        size: Theme.barIconSize(barThickness, -4)
         color: {
             if (SystemUpdateService.hasError) return Theme.error;
             if (hasUpdates) return Theme.primary;
@@ -97,7 +97,7 @@ Rectangle {
                 if (hasUpdates) return "system_update_alt";
                 return "check_circle";
             }
-            size: Theme.iconSize - 6
+            size: Theme.barIconSize(barThickness, -4)
             color: {
                 if (SystemUpdateService.hasError) return Theme.error;
                 if (hasUpdates) return Theme.primary;
@@ -127,7 +127,7 @@ Rectangle {
 
             anchors.verticalCenter: parent.verticalCenter
             text: SystemUpdateService.updateCount.toString()
-            font.pixelSize: Theme.fontSizeSmall
+            font.pixelSize: Theme.barTextSize(barThickness)
             font.weight: Font.Medium
             color: Theme.surfaceText
             visible: hasUpdates && !isChecking

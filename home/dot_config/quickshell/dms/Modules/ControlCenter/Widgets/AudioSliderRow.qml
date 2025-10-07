@@ -69,9 +69,6 @@ Row {
         valueOverride: actualVolumePercent
         thumbOutlineColor: Theme.surfaceContainer
         trackColor: root.sliderTrackColor.a > 0 ? root.sliderTrackColor : Theme.surfaceContainerHigh
-        onIsDraggingChanged: {
-            AudioService.suppressOSD = isDragging
-        }
         onSliderValueChanged: function(newValue) {
             if (defaultSink) {
                 defaultSink.audio.volume = newValue / 100.0

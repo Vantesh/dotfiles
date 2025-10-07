@@ -311,7 +311,7 @@ DankPopout {
                             spacing: Theme.spacingXS
 
                             StyledText {
-                                text: "Health"
+                                text: qsTr("Health")
                                 font.pixelSize: Theme.fontSizeSmall
                                 color: Theme.primary
                                 font.weight: Font.Medium
@@ -346,7 +346,7 @@ DankPopout {
                             spacing: Theme.spacingXS
 
                             StyledText {
-                                text: "Capacity"
+                                text: qsTr("Capacity")
                                 font.pixelSize: Theme.fontSizeSmall
                                 color: Theme.primary
                                 font.weight: Font.Medium
@@ -415,7 +415,7 @@ DankPopout {
                                 width: parent.width - Theme.iconSize - Theme.spacingM
 
                                 StyledText {
-                                    text: "Power Profile Degradation"
+                                    text: qsTr("Power Profile Degradation")
                                     font.pixelSize: Theme.fontSizeLarge
                                     color: Theme.error
                                     font.weight: Font.Medium

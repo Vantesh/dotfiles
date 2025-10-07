@@ -52,7 +52,7 @@ Rectangle {
 
                 return NetworkService.wifiSignalIcon
             }
-            size: Theme.iconSize - 8
+            size: Theme.barIconSize(barThickness)
             color: {
                 if (NetworkService.wifiToggling) {
                     return Theme.primary
@@ -66,7 +66,7 @@ Rectangle {
 
         DankIcon {
             name: "bluetooth"
-            size: Theme.iconSize - 8
+            size: Theme.barIconSize(barThickness)
             color: BluetoothService.enabled ? Theme.primary : Theme.outlineButton
             anchors.horizontalCenter: parent.horizontalCenter
             visible: root.showBluetoothIcon && BluetoothService.available && BluetoothService.enabled
@@ -94,7 +94,7 @@ Rectangle {
                     }
                     return "volume_up"
                 }
-                size: Theme.iconSize - 8
+                size: Theme.barIconSize(barThickness)
                 color: Theme.surfaceText
                 anchors.centerIn: parent
             }
@@ -124,7 +124,7 @@ Rectangle {
 
         DankIcon {
             name: "settings"
-            size: Theme.iconSize - 8
+            size: Theme.barIconSize(barThickness)
             color: controlCenterArea.containsMouse || root.isActive ? Theme.primary : Theme.surfaceText
             anchors.horizontalCenter: parent.horizontalCenter
             visible: !root.showNetworkIcon && !root.showBluetoothIcon && !root.showAudioIcon
@@ -151,7 +151,7 @@ Rectangle {
 
                 return NetworkService.wifiSignalIcon;
             }
-            size: Theme.iconSize - 8
+            size: Theme.barIconSize(barThickness)
             color: {
                 if (NetworkService.wifiToggling) {
                     return Theme.primary;
@@ -169,7 +169,7 @@ Rectangle {
             id: bluetoothIcon
 
             name: "bluetooth"
-            size: Theme.iconSize - 8
+            size: Theme.barIconSize(barThickness)
             color: BluetoothService.enabled ? Theme.primary : Theme.outlineButton
             anchors.verticalCenter: parent.verticalCenter
             visible: root.showBluetoothIcon && BluetoothService.available && BluetoothService.enabled
@@ -197,7 +197,7 @@ Rectangle {
                     }
                     return "volume_up";
                 }
-                size: Theme.iconSize - 8
+                size: Theme.barIconSize(barThickness)
                 color: Theme.surfaceText
                 anchors.centerIn: parent
             }
@@ -230,7 +230,7 @@ Rectangle {
 
         DankIcon {
             name: "mic"
-            size: Theme.iconSize - 8
+            size: Theme.barIconSize(barThickness)
             color: Theme.primary
             anchors.verticalCenter: parent.verticalCenter
             visible: false // TODO: Add mic detection
@@ -239,7 +239,7 @@ Rectangle {
         // Fallback settings icon when all other icons are hidden
         DankIcon {
             name: "settings"
-            size: Theme.iconSize - 8
+            size: Theme.barIconSize(barThickness)
             color: controlCenterArea.containsMouse || root.isActive ? Theme.primary : Theme.surfaceText
             anchors.verticalCenter: parent.verticalCenter
             visible: !root.showNetworkIcon && !root.showBluetoothIcon && !root.showAudioIcon

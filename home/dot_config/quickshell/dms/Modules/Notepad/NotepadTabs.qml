@@ -103,7 +103,7 @@ Column {
                                 id: tabCloseButton
                                 width: 20
                                 height: 20
-                                radius: 10
+                                radius: Theme.cornerRadius
                                 color: closeMouseArea.containsMouse ? Theme.surfaceTextHover : Theme.withAlpha(Theme.surfaceTextHover, 0)
                                 visible: NotepadStorageService.tabs.length > 1
                                 anchors.verticalCenter: parent.verticalCenter

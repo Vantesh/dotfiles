@@ -308,8 +308,10 @@ Item {
         }
 
         // For plugin components, get from PluginService
-        let pluginMap = PluginService.getWidgetComponents()
-        return pluginMap[widgetId] || null
+        var parts = widgetId.split(":")
+        var pluginId = parts[0]
+        let pluginComponents = PluginService.getWidgetComponents()
+        return pluginComponents[pluginId] || null
     }
 
     height: parent.height
@@ -397,8 +399,18 @@ Item {
 
                 // Inject PluginService for plugin widgets
                 if (item.pluginService !== undefined) {
+                    var parts = model.widgetId.split(":")
+                    var pluginId = parts[0]
+                    var variantId = parts.length > 1 ? parts[1] : null
+
                     if (item.pluginId !== undefined) {
-                        item.pluginId = model.widgetId
+                        item.pluginId = pluginId
+                    }
+                    if (item.variantId !== undefined) {
+                        item.variantId = variantId
+                    }
+                    if (item.variantData !== undefined && variantId) {
+                        item.variantData = PluginService.getPluginVariantData(pluginId, variantId)
                     }
                     item.pluginService = PluginService
                 }
@@ -430,8 +442,8 @@ Item {
             // Force refresh of component lookups
             for (var i = 0; i < centerRepeater.count; i++) {
                 var item = centerRepeater.itemAt(i)
-                if (item && item.widgetId === pluginId) {
-                    item.sourceComponent = root.getWidgetComponent(pluginId)
+                if (item && item.widgetId.startsWith(pluginId)) {
+                    item.sourceComponent = root.getWidgetComponent(item.widgetId)
                 }
             }
         }
@@ -439,8 +451,8 @@ Item {
             // Force refresh of component lookups
             for (var i = 0; i < centerRepeater.count; i++) {
                 var item = centerRepeater.itemAt(i)
-                if (item && item.widgetId === pluginId) {
-                    item.sourceComponent = root.getWidgetComponent(pluginId)
+                if (item && item.widgetId.startsWith(pluginId)) {
+                    item.sourceComponent = root.getWidgetComponent(item.widgetId)
                 }
             }
         }

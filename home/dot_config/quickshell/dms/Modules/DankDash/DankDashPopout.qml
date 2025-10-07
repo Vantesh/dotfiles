@@ -131,15 +131,15 @@ DankPopout {
 
                     model: {
                         let tabs = [
-                            { icon: "dashboard", text: "Overview" },
-                            { icon: "music_note", text: "Media" }
+                            { icon: "dashboard", text: qsTr("Overview") },
+                            { icon: "music_note", text: qsTr("Media") }
                         ]
                         
                         if (SettingsData.weatherEnabled) {
-                            tabs.push({ icon: "wb_sunny", text: "Weather" })
+                            tabs.push({ icon: "wb_sunny", text: qsTr("Weather") })
                         }
                         
-                        tabs.push({ icon: "settings", text: "Settings", isAction: true })
+                        tabs.push({ icon: "settings", text: qsTr("Settings"), isAction: true })
                         return tabs
                     }
 

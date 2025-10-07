@@ -44,7 +44,7 @@ Rectangle {
         
         StyledText {
             id: headerText
-            text: "Network Settings"
+            text: qsTr("Network Settings")
             font.pixelSize: Theme.fontSizeLarge
             color: Theme.surfaceText
             font.weight: Font.Medium
@@ -136,7 +136,7 @@ Rectangle {
             
             StyledText {
                 anchors.horizontalCenter: parent.horizontalCenter
-                text: "WiFi is off"
+                text: qsTr("WiFi is off")
                 font.pixelSize: Theme.fontSizeLarge
                 color: Theme.surfaceText
                 font.weight: Font.Medium
@@ -154,7 +154,7 @@ Rectangle {
                 
                 StyledText {
                     anchors.centerIn: parent
-                    text: "Enable WiFi"
+                    text: qsTr("Enable WiFi")
                     color: Theme.primary
                     font.pixelSize: Theme.fontSizeMedium
                     font.weight: Font.Medium
@@ -380,7 +380,7 @@ Rectangle {
         }
         
         MenuItem {
-            text: "Network Info"
+            text: qsTr("Network Info")
             height: 32
             
             contentItem: StyledText {
@@ -403,7 +403,7 @@ Rectangle {
         }
         
         MenuItem {
-            text: "Forget Network"
+            text: qsTr("Forget Network")
             height: networkContextMenu.currentSaved || networkContextMenu.currentConnected ? 32 : 0
             visible: networkContextMenu.currentSaved || networkContextMenu.currentConnected
             

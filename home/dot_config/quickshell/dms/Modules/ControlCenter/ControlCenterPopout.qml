@@ -167,8 +167,10 @@ DankPopout {
                     visible: editMode
                     popoutContent: controlContent
                     availableWidgets: {
+                        if (!editMode) return []
                         const existingIds = (SettingsData.controlCenterWidgets || []).map(w => w.id)
-                        return widgetModel.baseWidgetDefinitions.filter(w => w.allowMultiple || !existingIds.includes(w.id))
+                        const allWidgets = widgetModel.baseWidgetDefinitions.concat(widgetModel.getPluginWidgets())
+                        return allWidgets.filter(w => w.allowMultiple || !existingIds.includes(w.id))
                     }
                     onAddWidget: (widgetId) => widgetModel.addWidget(widgetId)
                     onResetToDefault: () => widgetModel.resetToDefault()

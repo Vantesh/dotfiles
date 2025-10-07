@@ -66,7 +66,7 @@ PanelWindow {
             }
         }
 
-        width: shouldBeVisible ? (ToastService.hasDetails ? 380 : 350) : frozenWidth
+        width: Math.min(900, messageText.implicitWidth + statusIcon.width + Theme.spacingM + (ToastService.hasDetails ? (expandButton.width + closeButton.width + 4) : 0) + Theme.spacingL * 2 + Theme.spacingM * 2)
         height: toastContent.height + Theme.spacingL * 2
         anchors.horizontalCenter: parent.horizontalCenter
         y: Theme.barHeight - 4 + SettingsData.dankBarSpacing + 2
@@ -99,7 +99,7 @@ PanelWindow {
 
             Item {
                 width: parent.width
-                height: Theme.iconSize + 8
+                height: Math.max(Theme.iconSize + 8, messageText.implicitHeight)
 
                 DankIcon {
                     id: statusIcon
@@ -146,10 +146,8 @@ PanelWindow {
                     anchors.left: statusIcon.right
                     anchors.leftMargin: Theme.spacingM
                     anchors.verticalCenter: parent.verticalCenter
-                    anchors.right: ToastService.hasDetails ? expandButton.left : closeButton.left
-                    anchors.rightMargin: Theme.spacingM
+                    width: implicitWidth
                     wrapMode: Text.NoWrap
-                    elide: Text.ElideRight
                 }
 
                 DankActionButton {
@@ -282,7 +280,7 @@ PanelWindow {
                         StyledText {
                             id: tooltipLabel
                             anchors.centerIn: parent
-                            text: "Copied!"
+                            text: qsTr("Copied!")
                             font.pixelSize: Theme.fontSizeSmall
                             color: Theme.surfaceText
                         }

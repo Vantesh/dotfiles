@@ -48,7 +48,7 @@ Row {
             spacing: 2
 
             StyledText {
-                text: "CPU"
+                text: qsTr("CPU")
                 font.pixelSize: Theme.fontSizeSmall
                 font.weight: Font.Medium
                 color: DgopService.sortBy === "cpu" ? Theme.primary : Theme.secondary
@@ -163,7 +163,7 @@ Row {
             spacing: 2
 
             StyledText {
-                text: "Memory"
+                text: qsTr("Memory")
                 font.pixelSize: Theme.fontSizeSmall
                 font.weight: Font.Medium
                 color: DgopService.sortBy === "memory" ? Theme.primary : Theme.secondary
@@ -315,7 +315,7 @@ Row {
             spacing: 2
 
             StyledText {
-                text: "GPU"
+                text: qsTr("GPU")
                 font.pixelSize: Theme.fontSizeSmall
                 font.weight: Font.Medium
                 color: Theme.secondary
@@ -388,7 +388,7 @@ Row {
             id: gpuContextMenu
 
             MenuItem {
-                text: "Enable GPU Temperature"
+                text: qsTr("Enable GPU Temperature")
                 checkable: true
                 checked: {
                     if (!DgopService.availableGpus || DgopService.availableGpus.length === 0) {

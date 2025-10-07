@@ -131,7 +131,7 @@ Singleton {
                 "surfaceContainer": getMatugenColor("surface_container", "#1e2023"),
                 "surfaceContainerHigh": getMatugenColor("surface_container_high", "#292b2f"),
                 "surfaceContainerHighest": getMatugenColor("surface_container_highest", "#343740"),
-                "error": getMatugenColor("error", '#F2B8B5'),
+                "error": getMatugenColor("error", "#F2B8B5"),
                 "warning": "#FF9800",
                 "info": "#2196F3",
                 "success": "#4CAF50"
@@ -473,6 +473,19 @@ Singleton {
         return (0.299 * c.r + 0.587 * c.g + 0.114 * c.b) < 0.5
     }
 
+    function barIconSize(barThickness, offset) {
+        const defaultOffset = offset !== undefined ? offset : -6
+        return Math.round((barThickness / 48) * (iconSize + defaultOffset))
+    }
+
+    function barTextSize(barThickness) {
+        const scale = barThickness / 48
+        const dankBarScale = (typeof SettingsData !== "undefined" ? SettingsData.dankBarFontScale : 1.0)
+        if (scale <= 0.75) return fontSizeSmall * 0.9 * dankBarScale
+        if (scale >= 1.25) return fontSizeMedium * dankBarScale
+        return fontSizeSmall * dankBarScale
+    }
+
     function getBatteryIcon(level, isCharging, batteryAvailable) {
         if (!batteryAvailable)
             return _getBatteryPowerProfileIcon()
@@ -602,10 +615,10 @@ Singleton {
             console.log("calling matugen worker")
             systemThemeGenerator.command = [
                 "sh", "-c",
-                `sleep 1 && ${shellDir}/scripts/matugen-worker.sh '${stateDir}' '${shellDir}' --run`
+                `sleep 1 && ${shellDir}/scripts/matugen-worker.sh '${stateDir}' '${shellDir}' '${configDir}' --run`
             ]
         } else {
-            systemThemeGenerator.command = [shellDir + "/scripts/matugen-worker.sh", stateDir, shellDir, "--run"]
+            systemThemeGenerator.command = [shellDir + "/scripts/matugen-worker.sh", stateDir, shellDir, configDir, "--run"]
         }
         systemThemeGenerator.running = true
     }
@@ -681,6 +694,50 @@ Singleton {
     function snap(value, dpr) {
         return Math.round(value * dpr) / dpr
     }
+
+    function invertHex(hex) {
+        hex = hex.replace('#', '');
+
+        if (!/^[0-9A-Fa-f]{6}$/.test(hex)) {
+            return hex;
+        }
+
+        const r = parseInt(hex.substr(0, 2), 16);
+        const g = parseInt(hex.substr(2, 2), 16);
+        const b = parseInt(hex.substr(4, 2), 16);
+
+        const invR = (255 - r).toString(16).padStart(2, '0');
+        const invG = (255 - g).toString(16).padStart(2, '0');
+        const invB = (255 - b).toString(16).padStart(2, '0');
+
+        return `#${invR}${invG}${invB}`;
+    }
+
+    property string baseLogoColor: {
+        if (typeof SettingsData === "undefined") return ""
+        const colorOverride = SettingsData.launcherLogoColorOverride
+        if (!colorOverride || colorOverride === "") return ""
+        return colorOverride
+    }
+
+    property string effectiveLogoColor: {
+        if (typeof SettingsData === "undefined") return ""
+
+        const colorOverride = SettingsData.launcherLogoColorOverride
+        if (!colorOverride || colorOverride === "") return ""
+
+        if (!SettingsData.launcherLogoColorInvertOnMode) {
+            return colorOverride
+        }
+
+        if (typeof SessionData !== "undefined" && SessionData.isLightMode) {
+            return invertHex(baseLogoColor)
+        }
+
+        return baseLogoColor
+    }
+
+
 
     Process {
         id: matugenCheck

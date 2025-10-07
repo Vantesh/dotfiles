@@ -50,7 +50,7 @@ Item {
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.verticalCenter: parent.verticalCenter
             name: "content_paste"
-            size: Theme.iconSize - 6
+            size: Theme.barIconSize(barThickness)
             color: Theme.surfaceText
         }
     }

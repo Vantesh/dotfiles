@@ -85,7 +85,7 @@ Popup {
                     anchors.left: parent.left
                     anchors.leftMargin: Theme.spacingS
                     anchors.verticalCenter: parent.verticalCenter
-                    text: "Copy PID"
+                    text: qsTr("Copy PID")
                     font.pixelSize: Theme.fontSizeSmall
                     color: Theme.surfaceText
                     font.weight: Font.Normal
@@ -118,7 +118,7 @@ Popup {
                     anchors.left: parent.left
                     anchors.leftMargin: Theme.spacingS
                     anchors.verticalCenter: parent.verticalCenter
-                    text: "Copy Process Name"
+                    text: qsTr("Copy Process Name")
                     font.pixelSize: Theme.fontSizeSmall
                     color: Theme.surfaceText
                     font.weight: Font.Normal
@@ -168,7 +168,7 @@ Popup {
                     anchors.left: parent.left
                     anchors.leftMargin: Theme.spacingS
                     anchors.verticalCenter: parent.verticalCenter
-                    text: "Kill Process"
+                    text: qsTr("Kill Process")
                     font.pixelSize: Theme.fontSizeSmall
                     color: parent.enabled ? (killArea.containsMouse ? Theme.error : Theme.surfaceText) : Qt.rgba(Theme.surfaceText.r, Theme.surfaceText.g, Theme.surfaceText.b, 0.5)
                     font.weight: Font.Normal
@@ -204,7 +204,7 @@ Popup {
                     anchors.left: parent.left
                     anchors.leftMargin: Theme.spacingS
                     anchors.verticalCenter: parent.verticalCenter
-                    text: "Force Kill Process"
+                    text: qsTr("Force Kill Process")
                     font.pixelSize: Theme.fontSizeSmall
                     color: parent.enabled ? (forceKillArea.containsMouse ? Theme.error : Theme.surfaceText) : Qt.rgba(Theme.surfaceText.r, Theme.surfaceText.g, Theme.surfaceText.b, 0.5)
                     font.weight: Font.Normal

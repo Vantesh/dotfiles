@@ -152,30 +152,30 @@ Singleton {
             return []
 
         const categoryMap = {
-            "AudioVideo": "Media",
-            "Audio": "Media",
-            "Video": "Media",
-            "Development": "Development",
-            "TextEditor": "Development",
-            "IDE": "Development",
-            "Education": "Education",
-            "Game": "Games",
-            "Graphics": "Graphics",
-            "Photography": "Graphics",
-            "Network": "Internet",
-            "WebBrowser": "Internet",
-            "Email": "Internet",
-            "Office": "Office",
-            "WordProcessor": "Office",
-            "Spreadsheet": "Office",
-            "Presentation": "Office",
-            "Science": "Science",
-            "Settings": "Settings",
-            "System": "System",
-            "Utility": "Utilities",
-            "Accessories": "Utilities",
-            "FileManager": "Utilities",
-            "TerminalEmulator": "Utilities"
+            "AudioVideo": qsTr("Media"),
+            "Audio": qsTr("Media"),
+            "Video": qsTr("Media"),
+            "Development": qsTr("Development"),
+            "TextEditor": qsTr("Development"),
+            "IDE": qsTr("Development"),
+            "Education": qsTr("Education"),
+            "Game": qsTr("Games"),
+            "Graphics": qsTr("Graphics"),
+            "Photography": qsTr("Graphics"),
+            "Network": qsTr("Internet"),
+            "WebBrowser": qsTr("Internet"),
+            "Email": qsTr("Internet"),
+            "Office": qsTr("Office"),
+            "WordProcessor": qsTr("Office"),
+            "Spreadsheet": qsTr("Office"),
+            "Presentation": qsTr("Office"),
+            "Science": qsTr("Science"),
+            "Settings": qsTr("Settings"),
+            "System": qsTr("System"),
+            "Utility": qsTr("Utilities"),
+            "Accessories": qsTr("Utilities"),
+            "FileManager": qsTr("Utilities"),
+            "TerminalEmulator": qsTr("Utilities")
         }
 
         const mappedCategories = new Set()
@@ -206,7 +206,7 @@ Singleton {
     }
 
     function getAllCategories() {
-        const categories = new Set(["All"])
+        const categories = new Set([qsTr("All")])
 
         for (const app of applications) {
             const appCategories = getCategoriesForApp(app)
@@ -217,7 +217,7 @@ Singleton {
     }
 
     function getAppsInCategory(category) {
-        if (category === "All") {
+        if (category === qsTr("All")) {
             return applications
         }
 

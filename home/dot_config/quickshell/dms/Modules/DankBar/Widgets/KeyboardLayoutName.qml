@@ -13,6 +13,7 @@ Rectangle {
     property bool isVertical: axis?.isVertical ?? false
     property var axis: null
     property real widgetThickness: 30
+    property real barThickness: 48
     readonly property real horizontalPadding: SettingsData.dankBarNoBackground ? 0 : Math.max(Theme.spacingXS, Theme.spacingS * (widgetThickness / 30))
     property string currentLayout: ""
     property string hyprlandKeyboard: ""
@@ -59,7 +60,7 @@ Rectangle {
 
         DankIcon {
             name: "keyboard"
-            size: Theme.iconSize - 8
+            size: Theme.barIconSize(barThickness)
             color: Theme.surfaceText
             anchors.horizontalCenter: parent.horizontalCenter
         }
@@ -73,7 +74,7 @@ Rectangle {
                 }
                 return currentLayout.substring(0, 2).toUpperCase()
             }
-            font.pixelSize: Theme.fontSizeSmall
+            font.pixelSize: Theme.barTextSize(barThickness)
             font.weight: Font.Medium
             color: Theme.surfaceText
             anchors.horizontalCenter: parent.horizontalCenter
@@ -89,7 +90,7 @@ Rectangle {
 
         StyledText {
             text: currentLayout
-            font.pixelSize: Theme.fontSizeSmall
+            font.pixelSize: Theme.barTextSize(barThickness)
             color: Theme.surfaceText
             anchors.verticalCenter: parent.verticalCenter
         }

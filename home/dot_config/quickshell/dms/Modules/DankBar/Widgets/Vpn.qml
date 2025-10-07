@@ -34,7 +34,7 @@ Rectangle {
         id: icon
 
         name: VpnService.isBusy ? "sync" : (VpnService.connected ? "vpn_lock" : "vpn_key_off")
-        size: Theme.iconSize - 6
+        size: Theme.barIconSize(barThickness, -4)
         color: VpnService.connected ? Theme.primary : Theme.surfaceText
         anchors.centerIn: parent
     }

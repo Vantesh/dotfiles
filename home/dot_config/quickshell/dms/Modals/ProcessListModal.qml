@@ -123,7 +123,7 @@ DankModal {
                     }
 
                     StyledText {
-                        text: "System Monitor Unavailable"
+                        text: qsTr("System Monitor Unavailable")
                         font.pixelSize: Theme.fontSizeLarge
                         font.weight: Font.Bold
                         color: Theme.error
@@ -154,7 +154,7 @@ DankModal {
                     height: 40
 
                     StyledText {
-                        text: "System Monitor"
+                        text: qsTr("System Monitor")
                         font.pixelSize: Theme.fontSizeLarge + 4
                         font.weight: Font.Bold
                         color: Theme.surfaceText

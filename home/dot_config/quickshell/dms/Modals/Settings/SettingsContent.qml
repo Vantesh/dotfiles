@@ -2,11 +2,12 @@ import QtQuick
 import qs.Common
 import qs.Modules.Settings
 
-Item {
+FocusScope {
     id: root
 
     property int currentIndex: 0
     property var parentModal: null
+    focus: true
 
     Rectangle {
         anchors.fill: parent
@@ -68,6 +69,7 @@ Item {
             asynchronous: true
 
             sourceComponent: DankBarTab {
+                parentModal: root.parentModal
             }
 
         }
@@ -162,6 +164,7 @@ Item {
             asynchronous: true
 
             sourceComponent: PluginsTab {
+                parentModal: root.parentModal
             }
 
         }

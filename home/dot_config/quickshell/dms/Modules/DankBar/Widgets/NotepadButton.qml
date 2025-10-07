@@ -60,7 +60,7 @@ Rectangle {
 
         anchors.centerIn: parent
         name: "assignment"
-        size: Theme.iconSize - 6
+        size: Theme.barIconSize(barThickness, -4)
         color: notepadArea.containsMouse || root.isActive ? Theme.primary : Theme.surfaceText
     }
 

@@ -19,6 +19,7 @@ Rectangle {
     property real barThickness: 48
     property real widgetThickness: 30
     property int selectedGpuIndex: (widgetData && widgetData.selectedGpuIndex !== undefined) ? widgetData.selectedGpuIndex : 0
+    property bool minimumWidth: (widgetData && widgetData.minimumWidth !== undefined) ? widgetData.minimumWidth : true
     readonly property real horizontalPadding: SettingsData.dankBarNoBackground ? 0 : Math.max(Theme.spacingXS, Theme.spacingS * (widgetThickness / 30))
     property real displayTemp: {
         if (!DgopService.availableGpus || DgopService.availableGpus.length === 0) {
@@ -134,7 +135,7 @@ Rectangle {
 
         DankIcon {
             name: "auto_awesome_mosaic"
-            size: Theme.iconSize - 8
+            size: Theme.barIconSize(barThickness)
             color: {
                 if (root.displayTemp > 80) {
                     return Theme.tempDanger;
@@ -157,7 +158,7 @@ Rectangle {
 
                 return Math.round(root.displayTemp).toString();
             }
-            font.pixelSize: Theme.fontSizeSmall
+            font.pixelSize: Theme.barTextSize(barThickness)
             font.weight: Font.Medium
             color: Theme.surfaceText
             anchors.horizontalCenter: parent.horizontalCenter
@@ -172,7 +173,7 @@ Rectangle {
 
         DankIcon {
             name: "auto_awesome_mosaic"
-            size: Theme.iconSize - 8
+            size: Theme.barIconSize(barThickness)
             color: {
                 if (root.displayTemp > 80) {
                     return Theme.tempDanger;
@@ -195,7 +196,7 @@ Rectangle {
 
                 return Math.round(root.displayTemp) + "°";
             }
-            font.pixelSize: Theme.fontSizeSmall
+            font.pixelSize: Theme.barTextSize(barThickness)
             font.weight: Font.Medium
             color: Theme.surfaceText
             anchors.verticalCenter: parent.verticalCenter
@@ -204,12 +205,12 @@ Rectangle {
 
             StyledTextMetrics {
                 id: gpuTempBaseline
-                font.pixelSize: Theme.fontSizeSmall
+                font.pixelSize: Theme.barTextSize(barThickness)
                 font.weight: Font.Medium
                 text: "100°"
             }
 
-            width: Math.max(gpuTempBaseline.width, paintedWidth)
+            width: root.minimumWidth ? Math.max(gpuTempBaseline.width, paintedWidth) : paintedWidth
 
             Behavior on width {
                 NumberAnimation {

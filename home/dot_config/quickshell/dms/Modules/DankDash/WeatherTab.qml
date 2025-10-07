@@ -24,7 +24,7 @@ Item {
         }
 
         StyledText {
-            text: "No Weather Data Available"
+            text: qsTr("No Weather Data Available")
             font.pixelSize: Theme.fontSizeLarge
             color: Qt.rgba(Theme.surfaceText.r, Theme.surfaceText.g, Theme.surfaceText.b, 0.7)
             anchors.horizontalCenter: parent.horizontalCenter
@@ -257,7 +257,7 @@ Item {
                         spacing: 2
 
                         StyledText {
-                            text: "Feels Like"
+                            text: qsTr("Feels Like")
                             font.pixelSize: Theme.fontSizeSmall
                             color: Qt.rgba(Theme.surfaceText.r, Theme.surfaceText.g, Theme.surfaceText.b, 0.7)
                             anchors.horizontalCenter: parent.horizontalCenter
@@ -304,7 +304,7 @@ Item {
                         spacing: 2
 
                         StyledText {
-                            text: "Humidity"
+                            text: qsTr("Humidity")
                             font.pixelSize: Theme.fontSizeSmall
                             color: Qt.rgba(Theme.surfaceText.r, Theme.surfaceText.g, Theme.surfaceText.b, 0.7)
                             anchors.horizontalCenter: parent.horizontalCenter
@@ -351,7 +351,7 @@ Item {
                         spacing: 2
 
                         StyledText {
-                            text: "Wind"
+                            text: qsTr("Wind")
                             font.pixelSize: Theme.fontSizeSmall
                             color: Qt.rgba(Theme.surfaceText.r, Theme.surfaceText.g, Theme.surfaceText.b, 0.7)
                             anchors.horizontalCenter: parent.horizontalCenter
@@ -398,7 +398,7 @@ Item {
                         spacing: 2
 
                         StyledText {
-                            text: "Pressure"
+                            text: qsTr("Pressure")
                             font.pixelSize: Theme.fontSizeSmall
                             color: Qt.rgba(Theme.surfaceText.r, Theme.surfaceText.g, Theme.surfaceText.b, 0.7)
                             anchors.horizontalCenter: parent.horizontalCenter
@@ -445,7 +445,7 @@ Item {
                         spacing: 2
 
                         StyledText {
-                            text: "Rain Chance"
+                            text: qsTr("Rain Chance")
                             font.pixelSize: Theme.fontSizeSmall
                             color: Qt.rgba(Theme.surfaceText.r, Theme.surfaceText.g, Theme.surfaceText.b, 0.7)
                             anchors.horizontalCenter: parent.horizontalCenter
@@ -492,14 +492,14 @@ Item {
                         spacing: 2
 
                         StyledText {
-                            text: "Visibility"
+                            text: qsTr("Visibility")
                             font.pixelSize: Theme.fontSizeSmall
                             color: Qt.rgba(Theme.surfaceText.r, Theme.surfaceText.g, Theme.surfaceText.b, 0.7)
                             anchors.horizontalCenter: parent.horizontalCenter
                         }
 
                         StyledText {
-                            text: "Good"
+                            text: qsTr("Good")
                             font.pixelSize: Theme.fontSizeSmall + 1
                             color: Theme.surfaceText
                             font.weight: Font.Medium
@@ -522,7 +522,7 @@ Item {
             spacing: Theme.spacingS
 
             StyledText {
-                text: "7-Day Forecast"
+                text: qsTr("7-Day Forecast")
                 font.pixelSize: Theme.fontSizeMedium
                 color: Theme.surfaceText
                 font.weight: Font.Medium

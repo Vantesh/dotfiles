@@ -207,4 +207,121 @@ Item {
             ctx.fill()
         }
     }
+
+    Canvas {
+        id: barBorder
+        anchors.fill: parent
+        antialiasing: true
+        visible: SettingsData.dankBarBorderEnabled
+        renderTarget: Canvas.FramebufferObject
+        renderStrategy: Canvas.Cooperative
+
+        readonly property real correctWidth: root.width
+        readonly property real correctHeight: root.height
+        canvasSize: Qt.size(barWindow.px(correctWidth), barWindow.px(correctHeight))
+
+        property real wing: SettingsData.dankBarGothCornersEnabled ? barWindow._wingR : 0
+        property real rt: SettingsData.dankBarSquareCorners ? 0 : Theme.cornerRadius
+        property bool borderEnabled: SettingsData.dankBarBorderEnabled
+
+        onWingChanged: requestPaint()
+        onRtChanged: requestPaint()
+        onBorderEnabledChanged: requestPaint()
+        onCorrectWidthChanged: requestPaint()
+        onCorrectHeightChanged: requestPaint()
+        onVisibleChanged: if (visible) requestPaint()
+        Component.onCompleted: requestPaint()
+
+        Connections {
+            target: barWindow
+            function on_DprChanged() { barBorder.requestPaint() }
+        }
+
+        Connections {
+            target: Theme
+            function onSecondaryChanged() { barBorder.requestPaint() }
+        }
+
+        Connections {
+            target: SettingsData
+            function onDankBarSpacingChanged() { barBorder.requestPaint() }
+            function onDankBarSquareCornersChanged() { barBorder.requestPaint() }
+            function onCornerRadiusChanged() { barBorder.requestPaint() }
+        }
+
+        onPaint: {
+            if (!borderEnabled) return
+
+            const ctx = getContext("2d")
+            const scale = barWindow._dpr
+            const W = barWindow.px(barWindow.isVertical ? correctHeight : correctWidth)
+            const H_raw = barWindow.px(barWindow.isVertical ? correctWidth : correctHeight)
+            const R = barWindow.px(wing)
+            const RT = barWindow.px(rt)
+            const H = H_raw - (R > 0 ? R : 0)
+            const isTop = SettingsData.dankBarPosition === SettingsData.Position.Top
+            const isBottom = SettingsData.dankBarPosition === SettingsData.Position.Bottom
+            const isLeft = SettingsData.dankBarPosition === SettingsData.Position.Left
+            const isRight = SettingsData.dankBarPosition === SettingsData.Position.Right
+
+            const spacing = SettingsData.dankBarSpacing
+            const hasEdgeGap = spacing > 0 || RT > 0
+
+            ctx.scale(scale, scale)
+
+            function drawTopBorder() {
+                ctx.beginPath()
+
+                if (!hasEdgeGap) {
+                    ctx.moveTo(0, H)
+                    ctx.lineTo(W, H)
+                } else {
+                    ctx.moveTo(RT, 0)
+                    ctx.lineTo(W - RT, 0)
+                    ctx.arcTo(W, 0, W, RT, RT)
+                    ctx.lineTo(W, H)
+
+                    if (R > 0) {
+                        ctx.lineTo(W, H + R)
+                        ctx.arc(W - R, H + R, R, 0, -Math.PI / 2, true)
+                        ctx.lineTo(R, H)
+                        ctx.arc(R, H + R, R, -Math.PI / 2, -Math.PI, true)
+                        ctx.lineTo(0, H + R)
+                    } else {
+                        ctx.lineTo(W, H - RT)
+                        ctx.arcTo(W, H, W - RT, H, RT)
+                        ctx.lineTo(RT, H)
+                        ctx.arcTo(0, H, 0, H - RT, RT)
+                    }
+
+                    ctx.lineTo(0, RT)
+                    ctx.arcTo(0, 0, RT, 0, RT)
+                }
+
+                ctx.closePath()
+            }
+
+            ctx.reset()
+            ctx.clearRect(0, 0, W, H_raw)
+
+            ctx.save()
+            if (isBottom) {
+                ctx.translate(W, H_raw)
+                ctx.rotate(Math.PI)
+            } else if (isLeft) {
+                ctx.translate(0, W)
+                ctx.rotate(-Math.PI / 2)
+            } else if (isRight) {
+                ctx.translate(H_raw, 0)
+                ctx.rotate(Math.PI / 2)
+            }
+
+            drawTopBorder()
+            ctx.restore()
+
+            ctx.lineWidth = 1
+            ctx.strokeStyle = Theme.secondary
+            ctx.stroke()
+        }
+    }
 }

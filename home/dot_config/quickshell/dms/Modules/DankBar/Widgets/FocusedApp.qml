@@ -16,6 +16,7 @@ Rectangle {
     property bool compactMode: SettingsData.focusedWindowCompactMode
     property int availableWidth: 400
     property real widgetThickness: 30
+    property real barThickness: 48
     readonly property real horizontalPadding: SettingsData.dankBarNoBackground ? 2 : Theme.spacingS
     readonly property int baseWidth: contentRow.implicitWidth + horizontalPadding * 2
     readonly property int maxNormalWidth: 456
@@ -171,7 +172,7 @@ Rectangle {
                 const desktopEntry = DesktopEntries.heuristicLookup(activeWindow.appId);
                 return desktopEntry && desktopEntry.name ? desktopEntry.name : activeWindow.appId;
             }
-            font.pixelSize: Theme.fontSizeSmall
+            font.pixelSize: Theme.barTextSize(barThickness)
             font.weight: Font.Medium
             color: Theme.surfaceText
             anchors.verticalCenter: parent.verticalCenter
@@ -183,7 +184,7 @@ Rectangle {
 
         StyledText {
             text: "•"
-            font.pixelSize: Theme.fontSizeSmall
+            font.pixelSize: Theme.barTextSize(barThickness)
             color: Theme.outlineButton
             anchors.verticalCenter: parent.verticalCenter
             visible: !compactMode && appText.text && titleText.text
@@ -209,7 +210,7 @@ Rectangle {
 
                 return title;
             }
-            font.pixelSize: Theme.fontSizeSmall
+            font.pixelSize: Theme.barTextSize(barThickness)
             font.weight: Font.Medium
             color: Theme.surfaceText
             anchors.verticalCenter: parent.verticalCenter

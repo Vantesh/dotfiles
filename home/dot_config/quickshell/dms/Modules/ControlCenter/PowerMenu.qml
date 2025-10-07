@@ -65,7 +65,7 @@ PanelWindow {
                 width: parent.width
 
                 StyledText {
-                    text: "Power Options"
+                    text: qsTr("Power Options")
                     font.pixelSize: Theme.fontSizeLarge
                     color: Theme.surfaceText
                     font.weight: Font.Medium
@@ -118,7 +118,7 @@ PanelWindow {
                         }
 
                         StyledText {
-                            text: "Log Out"
+                            text: qsTr("Log Out")
                             font.pixelSize: Theme.fontSizeMedium
                             color: Theme.surfaceText
                             font.weight: Font.Medium
@@ -168,7 +168,7 @@ PanelWindow {
                         }
 
                         StyledText {
-                            text: "Suspend"
+                            text: qsTr("Suspend")
                             font.pixelSize: Theme.fontSizeMedium
                             color: Theme.surfaceText
                             font.weight: Font.Medium
@@ -218,7 +218,7 @@ PanelWindow {
                         }
 
                         StyledText {
-                            text: "Reboot"
+                            text: qsTr("Reboot")
                             font.pixelSize: Theme.fontSizeMedium
                             color: rebootArea.containsMouse ? Theme.warning : Theme.surfaceText
                             font.weight: Font.Medium
@@ -268,7 +268,7 @@ PanelWindow {
                         }
 
                         StyledText {
-                            text: "Power Off"
+                            text: qsTr("Power Off")
                             font.pixelSize: Theme.fontSizeMedium
                             color: powerOffArea.containsMouse ? Theme.error : Theme.surfaceText
                             font.weight: Font.Medium

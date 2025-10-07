@@ -14,6 +14,7 @@ Rectangle {
     readonly property int baseWidth: contentRow.implicitWidth + Theme.spacingS * 2
     readonly property int maxNormalWidth: 456
     property real widgetThickness: 30
+    property real barThickness: 48
     readonly property real horizontalPadding: SettingsData.dankBarNoBackground ? 0 : Math.max(Theme.spacingXS, Theme.spacingS * (widgetThickness / 30))
 
     function formatNetworkSpeed(bytesPerSec) {
@@ -63,7 +64,7 @@ Rectangle {
 
         DankIcon {
             name: "network_check"
-            size: Theme.iconSize - 8
+            size: Theme.barIconSize(barThickness)
             color: Theme.surfaceText
             anchors.horizontalCenter: parent.horizontalCenter
         }
@@ -75,7 +76,7 @@ Rectangle {
                 if (rate < 1024 * 1024) return (rate / 1024).toFixed(0) + "K"
                 return (rate / (1024 * 1024)).toFixed(0) + "M"
             }
-            font.pixelSize: Theme.fontSizeSmall
+            font.pixelSize: Theme.barTextSize(barThickness)
             font.weight: Font.Medium
             color: Theme.info
             anchors.horizontalCenter: parent.horizontalCenter
@@ -88,7 +89,7 @@ Rectangle {
                 if (rate < 1024 * 1024) return (rate / 1024).toFixed(0) + "K"
                 return (rate / (1024 * 1024)).toFixed(0) + "M"
             }
-            font.pixelSize: Theme.fontSizeSmall
+            font.pixelSize: Theme.barTextSize(barThickness)
             font.weight: Font.Medium
             color: Theme.error
             anchors.horizontalCenter: parent.horizontalCenter
@@ -104,7 +105,7 @@ Rectangle {
 
         DankIcon {
             name: "network_check"
-            size: Theme.iconSize - 8
+            size: Theme.barIconSize(barThickness)
             color: Theme.surfaceText
             anchors.verticalCenter: parent.verticalCenter
         }
@@ -115,13 +116,13 @@ Rectangle {
 
             StyledText {
                 text: "↓"
-                font.pixelSize: Theme.fontSizeSmall
+                font.pixelSize: Theme.barTextSize(barThickness)
                 color: Theme.info
             }
 
             StyledText {
                 text: DgopService.networkRxRate > 0 ? formatNetworkSpeed(DgopService.networkRxRate) : "0 B/s"
-                font.pixelSize: Theme.fontSizeSmall
+                font.pixelSize: Theme.barTextSize(barThickness)
                 font.weight: Font.Medium
                 color: Theme.surfaceText
                 anchors.verticalCenter: parent.verticalCenter
@@ -131,7 +132,7 @@ Rectangle {
 
                 StyledTextMetrics {
                     id: rxBaseline
-                    font.pixelSize: Theme.fontSizeSmall
+                    font.pixelSize: Theme.barTextSize(barThickness)
                     font.weight: Font.Medium
                     text: "88.8 MB/s"
                 }
@@ -154,13 +155,13 @@ Rectangle {
 
             StyledText {
                 text: "↑"
-                font.pixelSize: Theme.fontSizeSmall
+                font.pixelSize: Theme.barTextSize(barThickness)
                 color: Theme.error
             }
 
             StyledText {
                 text: DgopService.networkTxRate > 0 ? formatNetworkSpeed(DgopService.networkTxRate) : "0 B/s"
-                font.pixelSize: Theme.fontSizeSmall
+                font.pixelSize: Theme.barTextSize(barThickness)
                 font.weight: Font.Medium
                 color: Theme.surfaceText
                 anchors.verticalCenter: parent.verticalCenter
@@ -170,7 +171,7 @@ Rectangle {
 
                 StyledTextMetrics {
                     id: txBaseline
-                    font.pixelSize: Theme.fontSizeSmall
+                    font.pixelSize: Theme.barTextSize(barThickness)
                     font.weight: Font.Medium
                     text: "88.8 MB/s"
                 }

@@ -8,6 +8,8 @@ import qs.Widgets
 Item {
     id: dankBarTab
 
+    property var parentModal: null
+
     function getWidgetsForPopup() {
         return baseWidgetDefinitions.filter(widget => {
             if (widget.warning && widget.warning.includes("Plugin is disabled")) {
@@ -188,18 +190,16 @@ Item {
             "enabled": SystemUpdateService.distributionSupported
         }]
 
-        // Add all available plugins (loaded and unloaded)
-        var allPlugins = PluginService.getAvailablePlugins()
-        for (var i = 0; i < allPlugins.length; i++) {
-            var plugin = allPlugins[i]
-            var isLoaded = PluginService.isPluginLoaded(plugin.id)
+        var allPluginVariants = PluginService.getAllPluginVariants()
+        for (var i = 0; i < allPluginVariants.length; i++) {
+            var variant = allPluginVariants[i]
             coreWidgets.push({
-                "id": plugin.id,
-                "text": plugin.name,
-                "description": plugin.description || "Plugin widget",
-                "icon": plugin.icon || "extension",
-                "enabled": isLoaded,
-                "warning": !isLoaded ? "Plugin is disabled - enable in Plugins settings to use" : undefined
+                "id": variant.fullId,
+                "text": variant.name,
+                "description": variant.description,
+                "icon": variant.icon,
+                "enabled": variant.loaded,
+                "warning": !variant.loaded ? "Plugin is disabled - enable in Plugins settings to use" : undefined
             })
         }
 
@@ -260,6 +260,9 @@ Item {
         }
         if (widgetId === "diskUsage") {
             widgetObj.mountPath = "/"
+        }
+        if (widgetId === "cpuUsage" || widgetId === "memUsage" || widgetId === "cpuTemp" || widgetId === "gpuTemp") {
+            widgetObj.minimumWidth = true
         }
 
         var widgets = []
@@ -507,6 +510,54 @@ Item {
         }
     }
 
+    function handleMinimumWidthChanged(sectionId, widgetIndex, enabled) {
+        var widgets = []
+        if (sectionId === "left")
+            widgets = SettingsData.dankBarLeftWidgets.slice()
+        else if (sectionId === "center")
+            widgets = SettingsData.dankBarCenterWidgets.slice()
+        else if (sectionId === "right")
+            widgets = SettingsData.dankBarRightWidgets.slice()
+
+        if (widgetIndex >= 0 && widgetIndex < widgets.length) {
+            var widget = widgets[widgetIndex]
+            if (typeof widget === "string") {
+                widgets[widgetIndex] = {
+                    "id": widget,
+                    "enabled": true,
+                    "minimumWidth": enabled
+                }
+            } else {
+                var newWidget = {
+                    "id": widget.id,
+                    "enabled": widget.enabled,
+                    "minimumWidth": enabled
+                }
+                if (widget.size !== undefined)
+                    newWidget.size = widget.size
+                if (widget.selectedGpuIndex !== undefined)
+                    newWidget.selectedGpuIndex = widget.selectedGpuIndex
+                if (widget.pciId !== undefined)
+                    newWidget.pciId = widget.pciId
+                if (widget.mountPath !== undefined)
+                    newWidget.mountPath = widget.mountPath
+                if (widget.id === "controlCenterButton") {
+                    newWidget.showNetworkIcon = widget.showNetworkIcon !== undefined ? widget.showNetworkIcon : true
+                    newWidget.showBluetoothIcon = widget.showBluetoothIcon !== undefined ? widget.showBluetoothIcon : true
+                    newWidget.showAudioIcon = widget.showAudioIcon !== undefined ? widget.showAudioIcon : true
+                }
+                widgets[widgetIndex] = newWidget
+            }
+        }
+
+        if (sectionId === "left")
+            SettingsData.setDankBarLeftWidgets(widgets)
+        else if (sectionId === "center")
+            SettingsData.setDankBarCenterWidgets(widgets)
+        else if (sectionId === "right")
+            SettingsData.setDankBarRightWidgets(widgets)
+    }
+
     function getItemsForSection(sectionId) {
         var widgets = []
         var widgetData = []
@@ -530,6 +581,7 @@ Item {
                                var widgetShowNetworkIcon = typeof widget === "string" ? undefined : widget.showNetworkIcon
                                var widgetShowBluetoothIcon = typeof widget === "string" ? undefined : widget.showBluetoothIcon
                                var widgetShowAudioIcon = typeof widget === "string" ? undefined : widget.showAudioIcon
+                               var widgetMinimumWidth = typeof widget === "string" ? undefined : widget.minimumWidth
                                var widgetDef = baseWidgetDefinitions.find(w => {
                                                                               return w.id === widgetId
                                                                           })
@@ -550,6 +602,8 @@ Item {
                                    item.showBluetoothIcon = widgetShowBluetoothIcon
                                    if (widgetShowAudioIcon !== undefined)
                                    item.showAudioIcon = widgetShowAudioIcon
+                                   if (widgetMinimumWidth !== undefined)
+                                   item.minimumWidth = widgetMinimumWidth
 
                                    widgets.push(item)
                                }
@@ -641,7 +695,7 @@ Item {
                         }
 
                         StyledText {
-                            text: "Position"
+                            text: qsTr("Position")
                             font.pixelSize: Theme.fontSizeLarge
                             font.weight: Font.Medium
                             color: Theme.surfaceText
@@ -711,14 +765,14 @@ Item {
                             anchors.verticalCenter: parent.verticalCenter
 
                             StyledText {
-                                text: "Auto-hide"
+                                text: qsTr("Auto-hide")
                                 font.pixelSize: Theme.fontSizeLarge
                                 font.weight: Font.Medium
                                 color: Theme.surfaceText
                             }
 
                             StyledText {
-                                text: "Automatically hide the top bar to expand screen real estate"
+                                text: qsTr("Automatically hide the top bar to expand screen real estate")
                                 font.pixelSize: Theme.fontSizeSmall
                                 color: Theme.surfaceVariantText
                                 wrapMode: Text.WordWrap
@@ -770,7 +824,7 @@ Item {
                             }
 
                             StyledText {
-                                text: "Toggle top bar visibility manually (can be controlled via IPC)"
+                                text: qsTr("Toggle top bar visibility manually (can be controlled via IPC)")
                                 font.pixelSize: Theme.fontSizeSmall
                                 color: Theme.surfaceVariantText
                                 wrapMode: Text.WordWrap
@@ -817,7 +871,7 @@ Item {
                             anchors.verticalCenter: parent.verticalCenter
 
                             StyledText {
-                                text: "Show on Overview"
+                                text: qsTr("Show on Overview")
                                 font.pixelSize: Theme.fontSizeLarge
                                 font.weight: Font.Medium
                                 color: Theme.surfaceText
@@ -876,7 +930,7 @@ Item {
                         }
 
                         StyledText {
-                            text: "Spacing"
+                            text: qsTr("Spacing")
                             font.pixelSize: Theme.fontSizeLarge
                             font.weight: Font.Medium
                             color: Theme.surfaceText
@@ -917,7 +971,7 @@ Item {
                         spacing: Theme.spacingS
 
                         StyledText {
-                            text: "Exclusive Zone Offset"
+                            text: qsTr("Exclusive Zone Offset")
                             font.pixelSize: Theme.fontSizeSmall
                             color: Theme.surfaceText
                             font.weight: Font.Medium
@@ -945,7 +999,7 @@ Item {
                         spacing: Theme.spacingS
 
                         StyledText {
-                            text: "Size"
+                            text: qsTr("Size")
                             font.pixelSize: Theme.fontSizeSmall
                             color: Theme.surfaceText
                             font.weight: Font.Medium
@@ -971,7 +1025,7 @@ Item {
 
                     DankToggle {
                         width: parent.width
-                        text: "Square Corners"
+                        text: qsTr("Square Corners")
                         description: "Removes rounded corners from bar container."
                         checked: SettingsData.dankBarSquareCorners
                         onToggled: checked => {
@@ -982,7 +1036,7 @@ Item {
 
                     DankToggle {
                         width: parent.width
-                        text: "No Background"
+                        text: qsTr("No Background")
                         description: "Remove widget backgrounds for a minimal look with tighter spacing."
                         checked: SettingsData.dankBarNoBackground
                         onToggled: checked => {
@@ -993,13 +1047,114 @@ Item {
 
                     DankToggle {
                         width: parent.width
-                        text: "Goth Corners"
+                        text: qsTr("Goth Corners")
                         description: "Add curved swooping tips at the bottom of the bar."
                         checked: SettingsData.dankBarGothCornersEnabled
                         onToggled: checked => {
                                        SettingsData.setDankBarGothCornersEnabled(
                                            checked)
                                    }
+                    }
+
+                    DankToggle {
+                        width: parent.width
+                        text: qsTr("Border")
+                        description: "Add a 1px border to the bar. Smart edge detection only shows border on exposed sides."
+                        checked: SettingsData.dankBarBorderEnabled
+                        onToggled: checked => {
+                                       SettingsData.setDankBarBorderEnabled(checked)
+                                   }
+                    }
+
+                    Rectangle {
+                        width: parent.width
+                        height: 1
+                        color: Theme.outline
+                        opacity: 0.2
+                    }
+
+                    Rectangle {
+                        width: parent.width
+                        height: 60
+                        radius: Theme.cornerRadius
+                        color: "transparent"
+
+                        Column {
+                            anchors.left: parent.left
+                            anchors.right: dankBarFontScaleControls.left
+                            anchors.verticalCenter: parent.verticalCenter
+                            anchors.leftMargin: Theme.spacingM
+                            anchors.rightMargin: Theme.spacingM
+                            spacing: Theme.spacingXS
+
+                            StyledText {
+                                text: qsTr("DankBar Font Scale")
+                                font.pixelSize: Theme.fontSizeMedium
+                                font.weight: Font.Medium
+                                color: Theme.surfaceText
+                            }
+
+                            StyledText {
+                                text: qsTr("Scale DankBar font sizes independently")
+                                font.pixelSize: Theme.fontSizeSmall
+                                color: Theme.surfaceVariantText
+                                width: parent.width
+                            }
+                        }
+
+                        Row {
+                            id: dankBarFontScaleControls
+
+                            width: 180
+                            height: 36
+                            anchors.right: parent.right
+                            anchors.rightMargin: 0
+                            anchors.verticalCenter: parent.verticalCenter
+                            spacing: Theme.spacingS
+
+                            DankActionButton {
+                                buttonSize: 32
+                                iconName: "remove"
+                                iconSize: Theme.iconSizeSmall
+                                enabled: SettingsData.dankBarFontScale > 0.5
+                                backgroundColor: Theme.surfaceContainerHigh
+                                iconColor: Theme.surfaceText
+                                onClicked: {
+                                    var newScale = Math.max(0.5, SettingsData.dankBarFontScale - 0.05)
+                                    SettingsData.setDankBarFontScale(newScale)
+                                }
+                            }
+
+                            StyledRect {
+                                width: 60
+                                height: 32
+                                radius: Theme.cornerRadius
+                                color: Theme.surfaceContainerHigh
+                                border.color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.2)
+                                border.width: 0
+
+                                StyledText {
+                                    anchors.centerIn: parent
+                                    text: (SettingsData.dankBarFontScale * 100).toFixed(0) + "%"
+                                    font.pixelSize: Theme.fontSizeSmall
+                                    font.weight: Font.Medium
+                                    color: Theme.surfaceText
+                                }
+                            }
+
+                            DankActionButton {
+                                buttonSize: 32
+                                iconName: "add"
+                                iconSize: Theme.iconSizeSmall
+                                enabled: SettingsData.dankBarFontScale < 2.0
+                                backgroundColor: Theme.surfaceContainerHigh
+                                iconColor: Theme.surfaceText
+                                onClicked: {
+                                    var newScale = Math.min(2.0, SettingsData.dankBarFontScale + 0.05)
+                                    SettingsData.setDankBarFontScale(newScale)
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -1035,7 +1190,7 @@ Item {
 
                         StyledText {
                             id: widgetTitle
-                            text: "Widget Management"
+                            text: qsTr("Widget Management")
                             font.pixelSize: Theme.fontSizeLarge
                             font.weight: Font.Medium
                             color: Theme.surfaceText
@@ -1073,7 +1228,7 @@ Item {
                                 }
 
                                 StyledText {
-                                    text: "Reset"
+                                    text: qsTr("Reset")
                                     font.pixelSize: Theme.fontSizeSmall
                                     font.weight: Font.Medium
                                     color: Theme.surfaceText
@@ -1159,7 +1314,7 @@ Item {
                                          widgetSelectionPopup.allWidgets
                                          = dankBarTab.getWidgetsForPopup()
                                          widgetSelectionPopup.targetSection = sectionId
-                                         widgetSelectionPopup.safeOpen()
+                                         widgetSelectionPopup.show()
                                      }
                         onRemoveWidget: (sectionId, widgetIndex) => {
                                             dankBarTab.removeWidgetFromSection(
@@ -1196,6 +1351,10 @@ Item {
                                                          dankBarTab.handleDiskMountSelectionChanged(
                                                              sectionId, widgetIndex, mountPath)
                                                      }
+                        onMinimumWidthChanged: (sectionId, widgetIndex, enabled) => {
+                                                   dankBarTab.handleMinimumWidthChanged(
+                                                       sectionId, widgetIndex, enabled)
+                                               }
                     }
                 }
 
@@ -1213,7 +1372,7 @@ Item {
                         id: centerSection
                         anchors.fill: parent
                         anchors.margins: Theme.spacingL
-                        title: "Center Section"
+                        title: qsTr("Center Section")
                         titleIcon: "format_align_center"
                         sectionId: "center"
                         allWidgets: dankBarTab.baseWidgetDefinitions
@@ -1231,7 +1390,7 @@ Item {
                                          widgetSelectionPopup.allWidgets
                                          = dankBarTab.getWidgetsForPopup()
                                          widgetSelectionPopup.targetSection = sectionId
-                                         widgetSelectionPopup.safeOpen()
+                                         widgetSelectionPopup.show()
                                      }
                         onRemoveWidget: (sectionId, widgetIndex) => {
                                             dankBarTab.removeWidgetFromSection(
@@ -1268,6 +1427,10 @@ Item {
                                                          dankBarTab.handleDiskMountSelectionChanged(
                                                              sectionId, widgetIndex, mountPath)
                                                      }
+                        onMinimumWidthChanged: (sectionId, widgetIndex, enabled) => {
+                                                   dankBarTab.handleMinimumWidthChanged(
+                                                       sectionId, widgetIndex, enabled)
+                                               }
                     }
                 }
 
@@ -1303,7 +1466,7 @@ Item {
                                          widgetSelectionPopup.allWidgets
                                          = dankBarTab.getWidgetsForPopup()
                                          widgetSelectionPopup.targetSection = sectionId
-                                         widgetSelectionPopup.safeOpen()
+                                         widgetSelectionPopup.show()
                                      }
                         onRemoveWidget: (sectionId, widgetIndex) => {
                                             dankBarTab.removeWidgetFromSection(
@@ -1340,6 +1503,10 @@ Item {
                                                          dankBarTab.handleDiskMountSelectionChanged(
                                                              sectionId, widgetIndex, mountPath)
                                                      }
+                        onMinimumWidthChanged: (sectionId, widgetIndex, enabled) => {
+                                                   dankBarTab.handleMinimumWidthChanged(
+                                                       sectionId, widgetIndex, enabled)
+                                               }
                     }
                 }
             }
@@ -1349,7 +1516,7 @@ Item {
     WidgetSelectionPopup {
         id: widgetSelectionPopup
 
-        anchors.centerIn: parent
+        parentModal: dankBarTab.parentModal
         onWidgetSelected: (widgetId, targetSection) => {
                               dankBarTab.addWidgetToSection(widgetId,
                                                            targetSection)

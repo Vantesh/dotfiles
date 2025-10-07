@@ -94,6 +94,7 @@ DankOSD {
                 unit: "%"
                 thumbOutlineColor: Theme.surfaceContainer
                 valueOverride: displayPercent
+                alwaysShowValue: SettingsData.osdAlwaysShowValue
 
                 Component.onCompleted: {
                     if (AudioService.sink && AudioService.sink.audio) {
@@ -103,7 +104,9 @@ DankOSD {
 
                 onSliderValueChanged: newValue => {
                                           if (AudioService.sink && AudioService.sink.audio) {
+                                              AudioService.suppressOSD = true
                                               AudioService.sink.audio.volume = newValue / 100
+                                              AudioService.suppressOSD = false
                                           }
                                       }
 

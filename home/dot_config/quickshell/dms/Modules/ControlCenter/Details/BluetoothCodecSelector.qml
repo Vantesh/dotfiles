@@ -170,7 +170,7 @@ Item {
                     }
 
                     StyledText {
-                        text: "Audio Codec Selection"
+                        text: qsTr("Audio Codec Selection")
                         font.pixelSize: Theme.fontSizeSmall
                         color: Theme.surfaceTextMedium
                     }

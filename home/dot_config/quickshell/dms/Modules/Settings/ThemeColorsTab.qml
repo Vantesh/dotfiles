@@ -130,7 +130,7 @@ Item {
                         }
 
                         StyledText {
-                            text: "Theme Color"
+                            text: qsTr("Theme Color")
                             font.pixelSize: Theme.fontSizeLarge
                             font.weight: Font.Medium
                             color: Theme.surfaceText
@@ -651,7 +651,7 @@ Item {
 
                             DankDropdown {
                                 id: matugenPaletteDropdown
-                                text: "Matugen Palette"
+                                text: qsTr("Matugen Palette")
                                 description: "Select the palette algorithm used for wallpaper-based colors"
                                 options: Theme.availableMatugenSchemes.map(function (option) { return option.label })
                                 currentValue: Theme.getMatugenScheme(SettingsData.matugenScheme).label
@@ -756,7 +756,7 @@ Item {
                         }
 
                         StyledText {
-                            text: "Widget Styling"
+                            text: qsTr("Widget Styling")
                             font.pixelSize: Theme.fontSizeLarge
                             font.weight: Font.Medium
                             color: Theme.surfaceText
@@ -769,7 +769,7 @@ Item {
                         spacing: Theme.spacingS
 
                         StyledText {
-                            text: "Dank Bar Transparency"
+                            text: qsTr("Dank Bar Transparency")
                             font.pixelSize: Theme.fontSizeSmall
                             color: Theme.surfaceText
                             font.weight: Font.Medium
@@ -803,7 +803,7 @@ Item {
 
                             StyledText {
                                 id: transparencyLabel
-                                text: "Dank Bar Widget Transparency"
+                                text: qsTr("Dank Bar Widget Transparency")
                                 font.pixelSize: Theme.fontSizeSmall
                                 color: Theme.surfaceText
                                 font.weight: Font.Medium
@@ -867,7 +867,7 @@ Item {
                         spacing: Theme.spacingS
 
                         StyledText {
-                            text: "Popup Transparency"
+                            text: qsTr("Popup Transparency")
                             font.pixelSize: Theme.fontSizeSmall
                             color: Theme.surfaceText
                             font.weight: Font.Medium
@@ -993,7 +993,7 @@ Item {
 
                         DankDropdown {
                             anchors.verticalCenter: parent.verticalCenter
-                            text: "Icon Theme"
+                            text: qsTr("Icon Theme")
                             description: "DankShell & System Icons\n(requires restart)"
                             currentValue: SettingsData.iconTheme
                             enableFuzzySearch: true
@@ -1046,7 +1046,7 @@ Item {
                         }
 
                         StyledText {
-                            text: "System App Theming"
+                            text: qsTr("System App Theming")
                             font.pixelSize: Theme.fontSizeLarge
                             font.weight: Font.Medium
                             color: Theme.surfaceText
@@ -1078,7 +1078,7 @@ Item {
                                 }
 
                                 StyledText {
-                                    text: "Apply GTK Colors"
+                                    text: qsTr("Apply GTK Colors")
                                     font.pixelSize: Theme.fontSizeMedium
                                     color: Theme.primary
                                     font.weight: Font.Medium
@@ -1114,7 +1114,7 @@ Item {
                                 }
 
                                 StyledText {
-                                    text: "Apply Qt Colors"
+                                    text: qsTr("Apply Qt Colors")
                                     font.pixelSize: Theme.fontSizeMedium
                                     color: Theme.primary
                                     font.weight: Font.Medium

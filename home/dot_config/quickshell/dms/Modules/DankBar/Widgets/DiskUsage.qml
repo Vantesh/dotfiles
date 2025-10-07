@@ -12,6 +12,7 @@ Rectangle {
     property var widgetData: null
     property var parentScreen: null
     property real widgetThickness: 30
+    property real barThickness: 48
     property string mountPath: (widgetData && widgetData.mountPath !== undefined) ? widgetData.mountPath : "/"
     readonly property real horizontalPadding: SettingsData.dankBarNoBackground ? 0 : Math.max(Theme.spacingXS, Theme.spacingS * (widgetThickness / 30))
 
@@ -144,7 +145,7 @@ Rectangle {
 
         DankIcon {
             name: "storage"
-            size: Theme.iconSize - 8
+            size: Theme.barIconSize(barThickness)
             color: {
                 if (root.diskUsagePercent > 90) {
                     return Theme.tempDanger
@@ -164,7 +165,7 @@ Rectangle {
                 }
                 return root.diskUsagePercent.toFixed(0)
             }
-            font.pixelSize: Theme.fontSizeSmall
+            font.pixelSize: Theme.barTextSize(barThickness)
             font.weight: Font.Medium
             color: Theme.surfaceText
             anchors.horizontalCenter: parent.horizontalCenter
@@ -179,7 +180,7 @@ Rectangle {
 
         DankIcon {
             name: "storage"
-            size: Theme.iconSize - 8
+            size: Theme.barIconSize(barThickness)
             color: {
                 if (root.diskUsagePercent > 90) {
                     return Theme.tempDanger
@@ -199,7 +200,7 @@ Rectangle {
                 }
                 return root.selectedMount.mount
             }
-            font.pixelSize: Theme.fontSizeSmall
+            font.pixelSize: Theme.barTextSize(barThickness)
             font.weight: Font.Medium
             color: Theme.surfaceText
             anchors.verticalCenter: parent.verticalCenter
@@ -214,7 +215,7 @@ Rectangle {
                 }
                 return root.diskUsagePercent.toFixed(0) + "%"
             }
-            font.pixelSize: Theme.fontSizeSmall
+            font.pixelSize: Theme.barTextSize(barThickness)
             font.weight: Font.Medium
             color: Theme.surfaceText
             anchors.verticalCenter: parent.verticalCenter
@@ -223,7 +224,7 @@ Rectangle {
 
             StyledTextMetrics {
                 id: diskBaseline
-                font.pixelSize: Theme.fontSizeSmall
+                font.pixelSize: Theme.barTextSize(barThickness)
                 font.weight: Font.Medium
                 text: "100%"
             }

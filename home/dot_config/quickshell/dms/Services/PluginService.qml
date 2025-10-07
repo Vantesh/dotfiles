@@ -41,6 +41,7 @@ Singleton {
 
     property int currentScanIndex: 0
     property var scanResults: []
+    property var foundPlugins: ({})
 
     property var lsProcess: Process {
         id: dirScanner
@@ -68,12 +69,14 @@ Singleton {
                 scanNextDirectory()
             } else {
                 currentScanIndex = 0
+                cleanupRemovedPlugins()
             }
         }
     }
 
     function scanPlugins() {
         currentScanIndex = 0
+        foundPlugins = {}
         scanNextDirectory()
     }
 
@@ -88,39 +91,57 @@ Singleton {
     function loadPluginManifest(manifestPath) {
         var readerId = "reader_" + Date.now() + "_" + Math.random()
 
-        var catProcess = Qt.createComponent("data:text/plain,import Quickshell.Io; Process { stdout: StdioCollector { } }")
-        if (catProcess.status === Component.Ready) {
-            var process = catProcess.createObject(root)
-            process.command = ["cat", manifestPath]
-            process.stdout.streamFinished.connect(function() {
-                try {
-                    var manifest = JSON.parse(process.stdout.text.trim())
-                    processManifest(manifest, manifestPath)
-                } catch (e) {
-                    console.error("PluginService: Failed to parse manifest", manifestPath, ":", e.message)
-                }
-                process.destroy()
-                delete manifestReaders[readerId]
-            })
-            process.exited.connect(function(exitCode) {
+        var checkProcess = Qt.createComponent("data:text/plain,import Quickshell.Io; Process { stdout: StdioCollector { } }")
+        if (checkProcess.status === Component.Ready) {
+            var checker = checkProcess.createObject(root)
+            checker.command = ["test", "-f", manifestPath]
+            checker.exited.connect(function(exitCode) {
                 if (exitCode !== 0) {
-                    console.error("PluginService: Failed to read manifest file:", manifestPath, "exit code:", exitCode)
-                    process.destroy()
+                    checker.destroy()
                     delete manifestReaders[readerId]
+                    return
                 }
+
+                var catProcess = Qt.createComponent("data:text/plain,import Quickshell.Io; Process { stdout: StdioCollector { } }")
+                if (catProcess.status === Component.Ready) {
+                    var process = catProcess.createObject(root)
+                    process.command = ["cat", manifestPath]
+                    process.stdout.streamFinished.connect(function() {
+                        try {
+                            var manifest = JSON.parse(process.stdout.text.trim())
+                            processManifest(manifest, manifestPath)
+                        } catch (e) {
+                            console.error("PluginService: Failed to parse manifest", manifestPath, ":", e.message)
+                        }
+                        process.destroy()
+                        delete manifestReaders[readerId]
+                    })
+                    process.exited.connect(function(exitCode) {
+                        if (exitCode !== 0) {
+                            console.error("PluginService: Failed to read manifest file:", manifestPath, "exit code:", exitCode)
+                            process.destroy()
+                            delete manifestReaders[readerId]
+                        }
+                    })
+                    manifestReaders[readerId] = process
+                    process.running = true
+                } else {
+                    console.error("PluginService: Failed to create manifest reader process")
+                }
+
+                checker.destroy()
             })
-            manifestReaders[readerId] = process
-            process.running = true
+            manifestReaders[readerId] = checker
+            checker.running = true
         } else {
-            console.error("PluginService: Failed to create manifest reader process")
+            console.error("PluginService: Failed to create file check process")
         }
     }
 
     function processManifest(manifest, manifestPath) {
         registerPlugin(manifest, manifestPath)
 
-        // Auto-load plugin if it's enabled in settings (default to enabled)
-        var enabled = SettingsData.getPluginSetting(manifest.id, "enabled", true)
+        var enabled = SettingsData.getPluginSetting(manifest.id, "enabled", false)
         if (enabled) {
             loadPlugin(manifest.id)
         }
@@ -156,7 +177,10 @@ Singleton {
         pluginInfo.loaded = false
         pluginInfo.type = manifest.type || "widget"
 
-        availablePlugins[manifest.id] = pluginInfo
+        var newPlugins = Object.assign({}, availablePlugins)
+        newPlugins[manifest.id] = pluginInfo
+        availablePlugins = newPlugins
+        foundPlugins[manifest.id] = true
     }
 
     function hasPermission(pluginId, permission) {
@@ -166,6 +190,27 @@ Singleton {
         }
         var permissions = plugin.permissions || []
         return permissions.indexOf(permission) !== -1
+    }
+
+    function cleanupRemovedPlugins() {
+        var pluginsToRemove = []
+        for (var pluginId in availablePlugins) {
+            if (!foundPlugins[pluginId]) {
+                pluginsToRemove.push(pluginId)
+            }
+        }
+
+        if (pluginsToRemove.length > 0) {
+            var newPlugins = Object.assign({}, availablePlugins)
+            for (var i = 0; i < pluginsToRemove.length; i++) {
+                var pluginId = pluginsToRemove[i]
+                if (isPluginLoaded(pluginId)) {
+                    unloadPlugin(pluginId)
+                }
+                delete newPlugins[pluginId]
+            }
+            availablePlugins = newPlugins
+        }
     }
 
     function loadPlugin(pluginId) {
@@ -184,14 +229,15 @@ Singleton {
         var componentMap = isDaemon ? pluginDaemonComponents : pluginWidgetComponents
 
         if (componentMap[pluginId]) {
-            var oldComponent = componentMap[pluginId]
-            if (oldComponent) {
-                oldComponent.destroy()
-            }
+            componentMap[pluginId]?.destroy()
             if (isDaemon) {
-                delete pluginDaemonComponents[pluginId]
+                var newDaemons = Object.assign({}, pluginDaemonComponents)
+                delete newDaemons[pluginId]
+                pluginDaemonComponents = newDaemons
             } else {
-                delete pluginWidgetComponents[pluginId]
+                var newComponents = Object.assign({}, pluginWidgetComponents)
+                delete newComponents[pluginId]
+                pluginWidgetComponents = newComponents
             }
         }
 
@@ -204,7 +250,6 @@ Singleton {
                     if (component.status === Component.Error) {
                         console.error("PluginService: Failed to create component for plugin:", pluginId, "Error:", component.errorString())
                         pluginLoadFailed(pluginId, component.errorString())
-                        component.destroy()
                     }
                 })
             }
@@ -212,7 +257,6 @@ Singleton {
             if (component.status === Component.Error) {
                 console.error("PluginService: Failed to create component for plugin:", pluginId, "Error:", component.errorString())
                 pluginLoadFailed(pluginId, component.errorString())
-                component.destroy()
                 return false
             }
 
@@ -250,18 +294,12 @@ Singleton {
             var isDaemon = plugin.type === "daemon"
 
             if (isDaemon && pluginDaemonComponents[pluginId]) {
-                var daemonComponent = pluginDaemonComponents[pluginId]
-                if (daemonComponent) {
-                    daemonComponent.destroy()
-                }
+                pluginDaemonComponents[pluginId]?.destroy()
                 var newDaemons = Object.assign({}, pluginDaemonComponents)
                 delete newDaemons[pluginId]
                 pluginDaemonComponents = newDaemons
             } else if (pluginWidgetComponents[pluginId]) {
-                var component = pluginWidgetComponents[pluginId]
-                if (component) {
-                    component.destroy()
-                }
+                pluginWidgetComponents[pluginId]?.destroy()
                 var newComponents = Object.assign({}, pluginWidgetComponents)
                 delete newComponents[pluginId]
                 pluginWidgetComponents = newComponents
@@ -293,6 +331,93 @@ Singleton {
             result.push(availablePlugins[key])
         }
         return result
+    }
+
+    function getPluginVariants(pluginId) {
+        var plugin = availablePlugins[pluginId]
+        if (!plugin) {
+            return []
+        }
+        var variants = SettingsData.getPluginSetting(pluginId, "variants", [])
+        return variants
+    }
+
+    function getAllPluginVariants() {
+        var result = []
+        for (var pluginId in availablePlugins) {
+            var plugin = availablePlugins[pluginId]
+            if (plugin.type !== "widget") {
+                continue
+            }
+            var variants = getPluginVariants(pluginId)
+            if (variants.length === 0) {
+                result.push({
+                    pluginId: pluginId,
+                    variantId: null,
+                    fullId: pluginId,
+                    name: plugin.name,
+                    icon: plugin.icon || "extension",
+                    description: plugin.description || "Plugin widget",
+                    loaded: plugin.loaded
+                })
+            } else {
+                for (var i = 0; i < variants.length; i++) {
+                    var variant = variants[i]
+                    result.push({
+                        pluginId: pluginId,
+                        variantId: variant.id,
+                        fullId: pluginId + ":" + variant.id,
+                        name: plugin.name + " - " + variant.name,
+                        icon: variant.icon || plugin.icon || "extension",
+                        description: variant.description || plugin.description || "Plugin widget variant",
+                        loaded: plugin.loaded
+                    })
+                }
+            }
+        }
+        return result
+    }
+
+    function createPluginVariant(pluginId, variantName, variantConfig) {
+        var variants = getPluginVariants(pluginId)
+        var variantId = "variant_" + Date.now()
+        var newVariant = Object.assign({}, variantConfig, {
+            id: variantId,
+            name: variantName
+        })
+        variants.push(newVariant)
+        SettingsData.setPluginSetting(pluginId, "variants", variants)
+        pluginDataChanged(pluginId)
+        return variantId
+    }
+
+    function removePluginVariant(pluginId, variantId) {
+        var variants = getPluginVariants(pluginId)
+        var newVariants = variants.filter(function(v) { return v.id !== variantId })
+        SettingsData.setPluginSetting(pluginId, "variants", newVariants)
+        pluginDataChanged(pluginId)
+    }
+
+    function updatePluginVariant(pluginId, variantId, variantConfig) {
+        var variants = getPluginVariants(pluginId)
+        for (var i = 0; i < variants.length; i++) {
+            if (variants[i].id === variantId) {
+                variants[i] = Object.assign({}, variants[i], variantConfig)
+                break
+            }
+        }
+        SettingsData.setPluginSetting(pluginId, "variants", variants)
+        pluginDataChanged(pluginId)
+    }
+
+    function getPluginVariantData(pluginId, variantId) {
+        var variants = getPluginVariants(pluginId)
+        for (var i = 0; i < variants.length; i++) {
+            if (variants[i].id === variantId) {
+                return variants[i]
+            }
+        }
+        return null
     }
 
     function getLoadedPlugins() {
@@ -332,6 +457,10 @@ Singleton {
 
     function loadPluginData(pluginId, key, defaultValue) {
         return SettingsData.getPluginSetting(pluginId, key, defaultValue)
+    }
+
+    function saveAllPluginSettings() {
+        SettingsData.savePluginSettings()
     }
 
     function createPluginDirectory() {

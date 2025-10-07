@@ -18,7 +18,6 @@ Item {
     readonly property color unselectedBorderColor: "transparent"
 
     function handleCategoryClick(category) {
-        selectedCategory = category
         categorySelected(category)
     }
 

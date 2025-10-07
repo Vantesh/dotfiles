@@ -33,7 +33,7 @@ Rectangle {
 
         anchors.centerIn: parent
         name: SessionService.idleInhibited ? "motion_sensor_active" : "motion_sensor_idle"
-        size: Theme.iconSize - 6
+        size: Theme.barIconSize(barThickness, -4)
         color: Theme.surfaceText
     }
 

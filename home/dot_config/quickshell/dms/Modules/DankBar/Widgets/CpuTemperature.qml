@@ -17,6 +17,8 @@ Rectangle {
     property var parentScreen: null
     property real barThickness: 48
     property real widgetThickness: 30
+    property var widgetData: null
+    property bool minimumWidth: (widgetData && widgetData.minimumWidth !== undefined) ? widgetData.minimumWidth : true
     readonly property real horizontalPadding: SettingsData.dankBarNoBackground ? 0 : Math.max(Theme.spacingXS, Theme.spacingS * (widgetThickness / 30))
 
     width: isVertical ? widgetThickness : (cpuTempContent.implicitWidth + horizontalPadding * 2)
@@ -65,8 +67,8 @@ Rectangle {
         spacing: 1
 
         DankIcon {
-            name: "memory"
-            size: Theme.iconSize - 8
+            name: "device_thermostat"
+            size: Theme.barIconSize(barThickness)
             color: {
                 if (DgopService.cpuTemperature > 85) {
                     return Theme.tempDanger;
@@ -89,7 +91,7 @@ Rectangle {
 
                 return Math.round(DgopService.cpuTemperature).toString();
             }
-            font.pixelSize: Theme.fontSizeSmall
+            font.pixelSize: Theme.barTextSize(barThickness)
             font.weight: Font.Medium
             color: Theme.surfaceText
             anchors.horizontalCenter: parent.horizontalCenter
@@ -103,8 +105,8 @@ Rectangle {
         spacing: 3
 
         DankIcon {
-            name: "memory"
-            size: Theme.iconSize - 8
+            name: "device_thermostat"
+            size: Theme.barIconSize(barThickness)
             color: {
                 if (DgopService.cpuTemperature > 85) {
                     return Theme.tempDanger;
@@ -127,7 +129,7 @@ Rectangle {
 
                 return Math.round(DgopService.cpuTemperature) + "°";
             }
-            font.pixelSize: Theme.fontSizeSmall
+            font.pixelSize: Theme.barTextSize(barThickness)
             font.weight: Font.Medium
             color: Theme.surfaceText
             anchors.verticalCenter: parent.verticalCenter
@@ -136,12 +138,12 @@ Rectangle {
 
             StyledTextMetrics {
                 id: tempBaseline
-                font.pixelSize: Theme.fontSizeSmall
+                font.pixelSize: Theme.barTextSize(barThickness)
                 font.weight: Font.Medium
                 text: "100°"
             }
 
-            width: Math.max(tempBaseline.width, paintedWidth)
+            width: root.minimumWidth ? Math.max(tempBaseline.width, paintedWidth) : paintedWidth
 
             Behavior on width {
                 NumberAnimation {
