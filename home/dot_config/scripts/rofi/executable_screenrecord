@@ -20,24 +20,24 @@ selected="$(printf "%b" "$options" | rofi -dmenu -mesg "Screen Recording" -theme
 
 case "$selected" in
 "$opt_fullscreen")
-  notify-send "Gpu Screen Recorder" "Starting recording" -t 1000 -e -i ~/.config/rofi/images/movie.svg -u low
+  notify-send "Gpu Screen Recorder" "Starting recording" -t 1000 -e -i video -u low
   sleep 1
   gpu-screen-recorder -w screen -f 60 -a default_output -o "$dir/Recording_${datetime}.mkv"
   ;;
 "$opt_window")
-  notify-send "Gpu Screen Recorder" "Starting recording" -t 1000 -e -i ~/.config/rofi/images/movie.svg -u low
+  notify-send "Gpu Screen Recorder" "Starting recording" -t 1000 -e -i video -u low
   sleep 1
   gpu-screen-recorder -w region -f 60 -a default_output -region "$(hyprctl activewindow -j | jq -r '"\(.size[0])x\(.size[1])+\(.at[0])+\(.at[1])"')" -o "$dir/Recording_${datetime}.mkv"
   ;;
 "$opt_area")
-  notify-send "Gpu Screen Recorder" "Starting recording" -t 1000 -e -i ~/.config/rofi/images/movie.svg -u low
+  notify-send "Gpu Screen Recorder" "Starting recording" -t 1000 -e -i video -u low
   sleep 1
   gpu-screen-recorder -w region -f 60 -a default_output -region "$(slurp -b#1e1e1e55 -c#b4befe -w4 -f %Wx%H+%X+%Y)" -o "$dir/Recording_${datetime}.mkv"
   ;;
 "$opt_countdown")
-  notify-send "Gpu Screen Recorder" "Recording starts in 10s" -t 2000 -e -u low -i ~/.config/rofi/images/movie.svg
+  notify-send "Gpu Screen Recorder" "Recording starts in 10s" -t 2000 -e -u low -i video
   sleep 10
-  notify-send "Gpu Screen Recorder" "Recording started" -t 1000 -e -i ~/.config/rofi/images/movie.svg -u low
+  notify-send "Gpu Screen Recorder" "Recording started" -t 1000 -e -i video -u low
   gpu-screen-recorder -w screen -f 60 -a default_output -o "$dir/Recording_${datetime}.mkv"
   ;;
 "$opt_folder")
