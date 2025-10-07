@@ -316,7 +316,7 @@ config-notification {
 
 spawn-at-startup "qs" "-c" "dms"
 spawn-at-startup "clipse -listen"
-spawn-at-startup "/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1"
+spawn-sh-at-startup "uwsm-exec ~/.config/scripts/polkit-agent"
 spawn-sh-at-startup "uwsm-exec ~/.config/scripts/initial_boot"
 spawn-at-startup "xwayland-satellite"
 

@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+# polkit-agent - Start the first available polkit authentication agent
+# Ensures only one agent runs at a time
+
+set -euo pipefail
+
+readonly POLKIT_AGENTS=(
+  "/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1"
+  "/usr/libexec/polkit-gnome-authentication-agent-1"
+  "/usr/lib/mate-polkit/polkit-mate-authentication-agent-1"
+  "/usr/lib/polkit-kde-authentication-agent-1"
+
+)
+
+readonly POLKIT_PROCESS_PATTERNS=(
+  "polkit-gnome-au"
+  "polkit-mate-aut"
+  "polkit-kde-auth"
+)
+
+is_agent_running() {
+  local pattern
+  for pattern in "${POLKIT_PROCESS_PATTERNS[@]}"; do
+    if pgrep -x "$pattern" >/dev/null 2>&1; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+start_agent() {
+  local agent
+  for agent in "${POLKIT_AGENTS[@]}"; do
+    if [[ -x "$agent" ]]; then
+      exec "$agent" &
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+main() {
+  if is_agent_running; then
+    return 0
+  fi
+
+  start_agent
+}
+
+main "$@"
