@@ -26,7 +26,7 @@ fi
 
 trap 'printf "%b" "$COLOR_RESET"' EXIT ERR INT TERM
 
-readonly -a REQUIRED_PACKAGES=(git chezmoi figlet)
+readonly -a REQUIRED_PACKAGES=(base-devel git chezmoi figlet)
 
 logo() {
   printf '%b' "$COLOR_CYAN"
