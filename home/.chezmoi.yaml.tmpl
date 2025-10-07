@@ -3,17 +3,10 @@
   {{- $personal = false -}}
 {{- end -}}
 
-{{- $distro_family := "" -}}
-{{- if .chezmoi.osRelease -}}
-  {{- if .chezmoi.osRelease.idLike -}}
-    {{- $distro_family = .chezmoi.osRelease.idLike -}}
-  {{- else if .chezmoi.osRelease.id -}}
-    {{- $distro_family = .chezmoi.osRelease.id -}}
-  {{- else -}}
-    {{- $distro_family = .chezmoi.os -}}
-  {{- end -}}
-{{- else -}}
-  {{- $distro_family = .chezmoi.os -}}
+{{- $osRelease := .chezmoi.osRelease -}}
+{{- $distro_family := .chezmoi.os -}}
+{{- if $osRelease -}}
+  {{- $distro_family = default $distro_family (or (index $osRelease "idLike") (index $osRelease "id_like") (index $osRelease "id")) -}}
 {{- end -}}
 
 data:
