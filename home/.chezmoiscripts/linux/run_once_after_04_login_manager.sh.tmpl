@@ -49,7 +49,6 @@ disable_conflicting_dms() {
   # Force systemd to reload after disabling services
   if [[ "$disabled_any" = true ]]; then
     reload_systemd_daemon
-    log INFO "Conflicting display managers disabled"
   else
     log SKIP "No conflicting display managers found"
   fi
@@ -144,9 +143,10 @@ main() {
   configure_ly
 
   if ! enable_service "ly.service" "system"; then
-    die "Failed to enable ly.service: $LAST_ERROR"
+    die "Failed : $LAST_ERROR"
+  else
+    log INFO "${COLOR_INFO}ly.service${COLOR_RESET} enabled"
   fi
-  log INFO "Enabled ly.service"
 
   disable_getty_tty2
 
