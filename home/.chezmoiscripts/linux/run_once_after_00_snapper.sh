@@ -132,7 +132,7 @@ enable_snapper_services() {
     if ! enable_service "$service"; then
       log WARN "Failed to enable $service: $LAST_ERROR"
     else
-      log INFO "${COLOR_INFO}${service}${COLOR_RESET} enabled"
+      log INFO "${COLOR_GREEN}${service}${COLOR_RESET} enabled"
     fi
   done
 

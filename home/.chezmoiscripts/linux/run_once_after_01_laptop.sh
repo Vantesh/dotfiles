@@ -212,10 +212,13 @@ setup_hibernation() {
 
   case "$bootloader" in
   grub)
+    log INFO "Updating GRUB kernel parameters"
     if ! update_grub_cmdline "${hibernation_params[@]}"; then
       die "Failed to update GRUB kernel command line: $LAST_ERROR"
+    else
+      log INFO "Updated GRUB kernel parameters"
     fi
-    log INFO "Updated GRUB kernel parameters"
+
     ;;
   limine)
     if [[ ! -f /etc/limine-entry-tool.d/01-default.conf ]]; then
@@ -273,15 +276,33 @@ setup_hibernation() {
     fi
     ;;
   dracut)
-    if ! add_dracut_module "resume"; then
-      die "Failed to add dracut resume module: $LAST_ERROR"
-    fi
-    log INFO "Added dracut resume module"
+    local dracut_result=0
+    local needs_initramfs_regen=false
 
-    if ! regenerate_initramfs; then
-      die "Failed to regenerate initramfs: $LAST_ERROR"
+    add_dracut_module "resume" || dracut_result=$?
+
+    case $dracut_result in
+    0)
+      log INFO "Added dracut resume module"
+      needs_initramfs_regen=true
+      ;;
+    2)
+      log SKIP "Dracut resume module already configured"
+      ;;
+    *)
+      die "Failed to add dracut resume module: $LAST_ERROR"
+      ;;
+    esac
+
+    if [[ "$needs_initramfs_regen" = true ]]; then
+      log INFO "Regenerating initramfs (this may take a moment)..."
+      if ! regenerate_initramfs; then
+        die "Failed to regenerate initramfs: $LAST_ERROR"
+      fi
+      log INFO "Regenerated initramfs"
+    else
+      log SKIP "No initramfs changes, skipping regeneration"
     fi
-    log INFO "Regenerated initramfs"
     ;;
   unsupported)
     log WARN "No supported initramfs generator found, skipping initramfs configuration"

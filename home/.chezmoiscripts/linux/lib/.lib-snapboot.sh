@@ -207,18 +207,15 @@ add_fstab_entry() {
     return 1
   fi
 
-  # Check if entry already exists (idempotent) - exact line match
   if grep -qxF "$entry" /etc/fstab 2>/dev/null; then
     return 0
   fi
 
-  # Add entry with newline separator
   if ! printf '\n%s\n' "$entry" | sudo tee -a /etc/fstab >/dev/null 2>&1; then
     LAST_ERROR="Failed to add $description to fstab"
     return 1
   fi
 
-  # Reload systemd if available
   if command_exists systemctl; then
     sudo systemctl daemon-reload >/dev/null 2>&1 || true
   fi
@@ -347,7 +344,6 @@ update_grub_cmdline() {
   fi
 
   # Update GRUB config file using update_config from .lib-common.sh
-  # Note: Caller must source .lib-common.sh before calling this function
   # Wrap value in quotes as GRUB requires quoted values
   if ! update_config "$grub_file" "GRUB_CMDLINE_LINUX_DEFAULT" "\"$new_cmdline\""; then
     LAST_ERROR="Failed to update GRUB configuration: $LAST_ERROR"

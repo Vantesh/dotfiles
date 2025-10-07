@@ -14,20 +14,20 @@ export LAST_ERROR="${LAST_ERROR:-}"
 
 if [[ -n "${NO_COLOR:-}" ]] || [[ ! -t 2 ]] || [[ "${TERM:-}" == "dumb" ]]; then
   readonly COLOR_RESET=""
-  readonly COLOR_INFO=""
-  readonly COLOR_WARN=""
-  readonly COLOR_ERROR=""
-  readonly COLOR_STEP=""
+  readonly COLOR_GREEN=""
+  readonly COLOR_YELLOW=""
+  readonly COLOR_RED=""
+  readonly COLOR_BLUE=""
   readonly COLOR_CYAN=""
-  readonly COLOR_SKIP=""
+  readonly COLOR_MAGENTA=""
 else
   readonly COLOR_RESET="\033[0m"
-  readonly COLOR_INFO="\033[1;32m"
-  readonly COLOR_WARN="\033[1;33m"
-  readonly COLOR_ERROR="\033[1;31m"
-  readonly COLOR_STEP="\033[1;34m"
+  readonly COLOR_GREEN="\033[1;32m"
+  readonly COLOR_YELLOW="\033[1;33m"
+  readonly COLOR_RED="\033[1;31m"
+  readonly COLOR_BLUE="\033[1;34m"
   readonly COLOR_CYAN="\033[1;36m"
-  readonly COLOR_SKIP="\033[0;33m"
+  readonly COLOR_MAGENTA="\033[0;35m"
 fi
 
 trap 'printf "%b" "$COLOR_RESET"' EXIT ERR INT TERM
@@ -56,12 +56,12 @@ log() {
 
   local color="$COLOR_RESET"
   case "${level^^}" in
-  INFO) color="$COLOR_INFO" ;;
-  WARN) color="$COLOR_WARN" ;;
-  ERROR) color="$COLOR_ERROR" ;;
-  SKIP) color="$COLOR_SKIP" ;;
+  INFO) color="$COLOR_GREEN" ;;
+  WARN) color="$COLOR_YELLOW" ;;
+  ERROR) color="$COLOR_RED" ;;
+  SKIP) color="$COLOR_MAGENTA" ;;
   STEP)
-    printf '\n%b::%b %s\n\n' "$COLOR_STEP" "$COLOR_RESET" "$message" >&2
+    printf '\n%b::%b %s\n\n' "$COLOR_BLUE" "$COLOR_RESET" "$message" >&2
     return 0
     ;;
   *)
@@ -170,7 +170,7 @@ confirm() {
       return 1
       ;;
     *)
-      printf '%bInvalid input. Please enter y or n.%b\n' "$COLOR_WARN" "$COLOR_RESET" >&2
+      printf '%bInvalid input. Please enter y or n.%b\n' "$COLOR_YELLOW" "$COLOR_RESET" >&2
       ;;
     esac
   done

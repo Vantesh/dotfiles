@@ -121,10 +121,12 @@ update_bootloader_params() {
 
   case "$bootloader" in
   grub)
+    log INFO "Updating GRUB kernel parameters"
     if ! update_grub_cmdline "$QUIET_BOOT_PARAMS"; then
       die "Failed to update GRUB kernel parameters: $LAST_ERROR"
+    else
+      log INFO "Updated GRUB kernel parameters"
     fi
-    log INFO "Updated GRUB kernel parameters"
     ;;
   limine)
     if [[ ! -f /etc/limine-entry-tool.d/01-default.conf ]]; then

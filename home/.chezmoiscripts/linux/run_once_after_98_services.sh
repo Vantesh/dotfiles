@@ -63,7 +63,7 @@ enable_configured_services() {
           log WARN "Failed to enable $service ($scope): $error_msg"
         fi
       else
-        log INFO "${COLOR_INFO}${service}${COLOR_RESET} enabled (${scope})"
+        log INFO "${COLOR_GREEN}${service}${COLOR_RESET} enabled (${scope})"
       fi
     done
   done
@@ -84,7 +84,7 @@ enable_configured_services() {
           log WARN "Failed to enable $pacman_service (system): $error_msg"
         fi
       else
-        log INFO "${COLOR_INFO}${pacman_service}${COLOR_RESET} enabled (system)"
+        log INFO "${COLOR_GREEN}${pacman_service}${COLOR_RESET} enabled (system)"
       fi
     done
   fi

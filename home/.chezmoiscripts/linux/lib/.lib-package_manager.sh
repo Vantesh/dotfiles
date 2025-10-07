@@ -125,7 +125,6 @@ package_exists() {
 #   $@ - Package names
 # Globals:
 #   LAST_ERROR - Set on failure
-#   COLOR_INFO, COLOR_RESET - Used for SKIP message formatting
 # Outputs:
 #   SKIP messages to stderr via log() for already-installed packages
 # Returns:
@@ -148,7 +147,7 @@ install_package() {
 
   for package_name in "$@"; do
     if package_exists "$package_name"; then
-      log SKIP "${COLOR_INFO}${package_name}${COLOR_RESET} exists"
+      log SKIP "${COLOR_GREEN}${package_name}${COLOR_RESET} exists"
     else
       packages_to_install+=("$package_name")
     fi
@@ -192,7 +191,6 @@ install_package() {
 #   $@ - Package names
 # Globals:
 #   LAST_ERROR - Set on failure
-#   COLOR_INFO, COLOR_RESET - Used for logging
 # Outputs:
 #   STEP messages to stderr via log()
 # Returns:

@@ -763,12 +763,12 @@ log() {
 
   local color="$COLOR_RESET"
   case "${level^^}" in
-  INFO) color="$COLOR_INFO" ;;
-  WARN) color="$COLOR_WARN" ;;
-  ERROR) color="$COLOR_ERROR" ;;
-  SKIP) color="$COLOR_SKIP" ;;
+  INFO) color="$COLOR_GREEN" ;;
+  WARN) color="$COLOR_YELLOW" ;;
+  ERROR) color="$COLOR_RED" ;;
+  SKIP) color="$COLOR_MAGENTA" ;;
   STEP)
-    printf '\n%b::%b %s\n\n' "$COLOR_STEP" "$COLOR_RESET" "$message" >&2
+    printf '\n%b::%b %s\n\n' "$COLOR_BLUE" "$COLOR_RESET" "$message" >&2
     return 0
     ;;
   *)

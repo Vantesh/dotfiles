@@ -145,7 +145,7 @@ main() {
   if ! enable_service "ly.service" "system"; then
     die "Failed : $LAST_ERROR"
   else
-    log INFO "${COLOR_INFO}ly.service${COLOR_RESET} enabled"
+  log INFO "${COLOR_GREEN}ly.service${COLOR_RESET} enabled"
   fi
 
   disable_getty_tty2
