@@ -82,7 +82,7 @@ get_aur_helper() {
 # Globals:
 #   LAST_ERROR - Set on failure
 # Returns:
-#   0 if installed, 1 if not, 2 on invalid args, 127 if no AUR helper (Arch only)
+#   0 if installed, 1 if not, 2 on invalid args
 package_exists() {
   local package_name="${1:-}"
 
@@ -103,11 +103,7 @@ package_exists() {
     rpm -q "$package_name" >/dev/null 2>&1
     ;;
   pacman)
-    local aur_helper
-    if ! aur_helper="$(get_aur_helper)"; then
-      return 127
-    fi
-    "$aur_helper" -Qi "$package_name" >/dev/null 2>&1
+    pacman -Qi "$package_name" >/dev/null 2>&1
     ;;
   *)
     LAST_ERROR="Unsupported package manager: $manager"
