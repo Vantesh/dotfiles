@@ -28,10 +28,6 @@ chaotic_repo_configured() {
   grep -q "^\[chaotic-aur\]" "$PACMAN_CONF" 2>/dev/null
 }
 
-_chaotic_gpg_key_exists() {
-  sudo pacman-key --list-keys "$CHAOTIC_KEY" >/dev/null 2>&1
-}
-
 _package_installed() {
   local package_name="${1:-}"
 
@@ -45,7 +41,7 @@ _package_installed() {
 _import_chaotic_gpg_key() {
   LAST_ERROR=""
 
-  if _chaotic_gpg_key_exists; then
+  if sudo pacman-key --list-keys "$CHAOTIC_KEY" >/dev/null 2>&1; then
     return 0
   fi
 
@@ -91,17 +87,6 @@ _add_chaotic_repo_to_pacman() {
   return 0
 }
 
-_sync_pacman_databases() {
-  LAST_ERROR=""
-
-  if ! sudo pacman -Sy --noconfirm >/dev/null 2>&1; then
-    LAST_ERROR="Failed to sync pacman databases"
-    return 1
-  fi
-
-  return 0
-}
-
 # Configures Chaotic-AUR repository.
 #
 # Imports GPG key, installs keyring and mirrorlist packages, adds repository
@@ -130,7 +115,8 @@ setup_chaotic_aur() {
     return 1
   fi
 
-  if ! _sync_pacman_databases; then
+  if ! sudo pacman -Sy --noconfirm >/dev/null 2>&1; then
+    LAST_ERROR="Failed to sync pacman databases"
     return 1
   fi
 

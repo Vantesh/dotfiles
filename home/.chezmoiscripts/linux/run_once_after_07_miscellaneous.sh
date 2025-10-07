@@ -47,16 +47,6 @@ setup_pkgfile() {
   return 0
 }
 
-regenerate_font_cache() {
-  if ! fc-cache -f -v >/dev/null 2>&1; then
-    LAST_ERROR="Failed to regenerate font cache"
-    return 1
-  fi
-
-  log INFO "Regenerated font cache"
-  return 0
-}
-
 setup_ssh_known_hosts() {
   if [[ ! -f "$SSH_KNOWN_HOSTS" ]]; then
     if ! touch "$SSH_KNOWN_HOSTS"; then
@@ -125,12 +115,8 @@ setup_spicetify() {
     fi
   fi
 
-  if ! spicetify backup apply >/dev/null 2>&1; then
-    LAST_ERROR="Failed to apply spicetify theme"
-    return 1
-  fi
+  log INFO "Set up Spotify prefs file"
 
-  log INFO "Applied spicetify theme"
   return 0
 }
 
@@ -175,8 +161,10 @@ main() {
     log WARN "pkgfile setup failed: $LAST_ERROR"
   fi
 
-  if ! regenerate_font_cache; then
-    log WARN "Font cache regeneration failed: $LAST_ERROR"
+  if ! fc-cache -f -v >/dev/null 2>&1; then
+    log WARN "Font cache regeneration failed"
+  else
+    log INFO "Regenerated font cache"
   fi
 
   if ! setup_ssh_known_hosts; then
