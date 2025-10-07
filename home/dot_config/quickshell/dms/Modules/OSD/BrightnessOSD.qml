@@ -79,6 +79,7 @@ DankOSD {
                 showValue: true
                 unit: "%"
                 thumbOutlineColor: Theme.surfaceContainer
+                alwaysShowValue: SettingsData.osdAlwaysShowValue
 
                 Component.onCompleted: {
                     if (DisplayService.brightnessAvailable) {

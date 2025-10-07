@@ -6,17 +6,27 @@ ShellRoot {
 
     readonly property bool runGreeter: Quickshell.env("DMS_RUN_GREETER") === "1" || Quickshell.env("DMS_RUN_GREETER") === "true"
 
+    Component {
+        id: shellComponent
+        DMSShell {}
+    }
+
+    Component {
+        id: greeterComponent
+        DMSGreeter {}
+    }
+
     Loader {
         id: dmsShellLoader
         asynchronous: false
-        sourceComponent: DMSShell{}
+        sourceComponent: shellComponent
         active: !entrypoint.runGreeter
     }
 
     Loader {
         id: dmsGreeterLoader
         asynchronous: false
-        sourceComponent: DMSGreeter{}
+        sourceComponent: greeterComponent
         active: entrypoint.runGreeter
     }
 }

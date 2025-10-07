@@ -26,7 +26,7 @@ Rectangle {
         }
 
         StyledText {
-            text: "Shift+Del: Clear All • Esc: Close"
+            text: qsTr("Shift+Del: Clear All • Esc: Close")
             font.pixelSize: Theme.fontSizeSmall
             color: Theme.surfaceText
             anchors.horizontalCenter: parent.horizontalCenter

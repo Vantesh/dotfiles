@@ -50,7 +50,7 @@ Rectangle {
                         return String(display).padStart(2, '0').charAt(0)
                     }
                 }
-                font.pixelSize: Theme.fontSizeSmall
+                font.pixelSize: Theme.barTextSize(barThickness)
                 color: Theme.surfaceText
                 font.weight: Font.Normal
                 width: 9
@@ -67,7 +67,7 @@ Rectangle {
                         return String(display).padStart(2, '0').charAt(1)
                     }
                 }
-                font.pixelSize: Theme.fontSizeSmall
+                font.pixelSize: Theme.barTextSize(barThickness)
                 color: Theme.surfaceText
                 font.weight: Font.Normal
                 width: 9
@@ -81,7 +81,7 @@ Rectangle {
 
             StyledText {
                 text: String(systemClock?.date?.getMinutes()).padStart(2, '0').charAt(0)
-                font.pixelSize: Theme.fontSizeSmall
+                font.pixelSize: Theme.barTextSize(barThickness)
                 color: Theme.surfaceText
                 font.weight: Font.Normal
                 width: 9
@@ -90,7 +90,7 @@ Rectangle {
 
             StyledText {
                 text: String(systemClock?.date?.getMinutes()).padStart(2, '0').charAt(1)
-                font.pixelSize: Theme.fontSizeSmall
+                font.pixelSize: Theme.barTextSize(barThickness)
                 color: Theme.surfaceText
                 font.weight: Font.Normal
                 width: 9
@@ -123,7 +123,7 @@ Rectangle {
                     const value = dayFirst ? String(systemClock?.date?.getDate()).padStart(2, '0') : String(systemClock?.date?.getMonth() + 1).padStart(2, '0')
                     return value.charAt(0)
                 }
-                font.pixelSize: Theme.fontSizeSmall
+                font.pixelSize: Theme.barTextSize(barThickness)
                 color: Theme.primary
                 font.weight: Font.Light
                 width: 9
@@ -138,7 +138,7 @@ Rectangle {
                     const value = dayFirst ? String(systemClock?.date?.getDate()).padStart(2, '0') : String(systemClock?.date?.getMonth() + 1).padStart(2, '0')
                     return value.charAt(1)
                 }
-                font.pixelSize: Theme.fontSizeSmall
+                font.pixelSize: Theme.barTextSize(barThickness)
                 color: Theme.primary
                 font.weight: Font.Light
                 width: 9
@@ -158,7 +158,7 @@ Rectangle {
                     const value = dayFirst ? String(systemClock?.date?.getMonth() + 1).padStart(2, '0') : String(systemClock?.date?.getDate()).padStart(2, '0')
                     return value.charAt(0)
                 }
-                font.pixelSize: Theme.fontSizeSmall
+                font.pixelSize: Theme.barTextSize(barThickness)
                 color: Theme.primary
                 font.weight: Font.Light
                 width: 9
@@ -173,7 +173,7 @@ Rectangle {
                     const value = dayFirst ? String(systemClock?.date?.getMonth() + 1).padStart(2, '0') : String(systemClock?.date?.getDate()).padStart(2, '0')
                     return value.charAt(1)
                 }
-                font.pixelSize: Theme.fontSizeSmall
+                font.pixelSize: Theme.barTextSize(barThickness)
                 color: Theme.primary
                 font.weight: Font.Light
                 width: 9
@@ -194,7 +194,7 @@ Rectangle {
                 const format = SettingsData.use24HourClock ? "HH:mm" : "h:mm AP"
                 return systemClock?.date?.toLocaleTimeString(Qt.locale(), format)
             }
-            font.pixelSize: Theme.fontSizeMedium - 1
+            font.pixelSize: Theme.barTextSize(barThickness)
             color: Theme.surfaceText
             anchors.verticalCenter: parent.verticalCenter
         }
@@ -215,7 +215,7 @@ Rectangle {
 
                 return systemClock?.date?.toLocaleDateString(Qt.locale(), "ddd d")
             }
-            font.pixelSize: Theme.fontSizeMedium - 1
+            font.pixelSize: Theme.barTextSize(barThickness)
             color: Theme.surfaceText
             anchors.verticalCenter: parent.verticalCenter
             visible: !SettingsData.clockCompactMode

@@ -65,6 +65,14 @@ Loader {
         restoreMode: Binding.RestoreNone
     }
 
+    Binding {
+        target: root.item
+        when: root.item && "widgetData" in root.item
+        property: "widgetData"
+        value: root.widgetData
+        restoreMode: Binding.RestoreNone
+    }
+
     onLoaded: {
         if (item) {
             contentItemReady(item)
@@ -79,8 +87,18 @@ Loader {
             }
 
             if (item.pluginService !== undefined) {
+                var parts = widgetId.split(":")
+                var pluginId = parts[0]
+                var variantId = parts.length > 1 ? parts[1] : null
+
                 if (item.pluginId !== undefined) {
-                    item.pluginId = widgetId
+                    item.pluginId = pluginId
+                }
+                if (item.variantId !== undefined) {
+                    item.variantId = variantId
+                }
+                if (item.variantData !== undefined && variantId) {
+                    item.variantData = PluginService.getPluginVariantData(pluginId, variantId)
                 }
                 item.pluginService = PluginService
             }
@@ -126,8 +144,11 @@ Loader {
             return componentMap[widgetId]
         }
 
+        var parts = widgetId.split(":")
+        var pluginId = parts[0]
+
         let pluginMap = PluginService.getWidgetComponents()
-        return pluginMap[widgetId] || null
+        return pluginMap[pluginId] || null
     }
 
     function getWidgetVisible(widgetId, dgopAvailable) {

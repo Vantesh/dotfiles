@@ -86,7 +86,7 @@ DankPopout {
                     height: 40
 
                     StyledText {
-                        text: "System Updates"
+                        text: qsTr("System Updates")
                         font.pixelSize: Theme.fontSizeLarge
                         color: Theme.surfaceText
                         font.weight: Font.Medium
@@ -282,7 +282,7 @@ DankPopout {
                             }
 
                             StyledText {
-                                text: "Update All"
+                                text: qsTr("Update All")
                                 font.pixelSize: Theme.fontSizeMedium
                                 font.weight: Font.Medium
                                 color: Theme.primary
@@ -326,7 +326,7 @@ DankPopout {
                             }
 
                             StyledText {
-                                text: "Close"
+                                text: qsTr("Close")
                                 font.pixelSize: Theme.fontSizeMedium
                                 font.weight: Font.Medium
                                 color: Theme.surfaceText

@@ -1,6 +1,8 @@
 import QtQuick
 import qs.Common
+import qs.Services
 import qs.Modules.ControlCenter.Details
+import qs.Modules.ControlCenter.Models
 
 Item {
     id: root
@@ -9,31 +11,94 @@ Item {
     property var expandedWidgetData: null
     property var bluetoothCodecSelector: null
 
+    property var pluginDetailInstance: null
+    property var widgetModel: null
+
     Loader {
+        id: pluginDetailLoader
         width: parent.width
         height: 250
         y: Theme.spacingS
-        active: parent.height > 0
-        property string sectionKey: root.expandedSection
-        sourceComponent: {
-            switch (root.expandedSection) {
-            case "network":
-            case "wifi": return networkDetailComponent
-            case "bluetooth": return bluetoothDetailComponent
-            case "audioOutput": return audioOutputDetailComponent
-            case "audioInput": return audioInputDetailComponent
-            case "battery": return batteryDetailComponent
-            default:
-                if (root.expandedSection.startsWith("diskUsage_")) {
-                    return diskUsageDetailComponent
-                }
-                return null
+        active: false
+        sourceComponent: null
+    }
+
+    Loader {
+        id: coreDetailLoader
+        width: parent.width
+        height: 250
+        y: Theme.spacingS
+        active: false
+        sourceComponent: null
+    }
+
+    onExpandedSectionChanged: {
+        if (pluginDetailInstance) {
+            pluginDetailInstance.destroy()
+            pluginDetailInstance = null
+        }
+        pluginDetailLoader.active = false
+        coreDetailLoader.active = false
+
+        if (!root.expandedSection) {
+            return
+        }
+
+        if (root.expandedSection.startsWith("builtin_")) {
+            const builtinId = root.expandedSection
+            let builtinInstance = null
+
+            if (builtinId === "builtin_vpn" && widgetModel?.vpnBuiltinInstance) {
+                builtinInstance = widgetModel.vpnBuiltinInstance
             }
+
+            if (!builtinInstance || !builtinInstance.ccDetailContent) {
+                return
+            }
+
+            pluginDetailLoader.sourceComponent = builtinInstance.ccDetailContent
+            pluginDetailLoader.active = parent.height > 0
+            return
         }
-        onSectionKeyChanged: {
-            active = false
-            active = true
+
+        if (root.expandedSection.startsWith("plugin_")) {
+            const pluginId = root.expandedSection.replace("plugin_", "")
+            const pluginComponent = PluginService.pluginWidgetComponents[pluginId]
+            if (!pluginComponent) {
+                return
+            }
+
+            pluginDetailInstance = pluginComponent.createObject(null)
+            if (!pluginDetailInstance || !pluginDetailInstance.ccDetailContent) {
+                if (pluginDetailInstance) {
+                    pluginDetailInstance.destroy()
+                    pluginDetailInstance = null
+                }
+                return
+            }
+
+            pluginDetailLoader.sourceComponent = pluginDetailInstance.ccDetailContent
+            pluginDetailLoader.active = parent.height > 0
+            return
         }
+
+        if (root.expandedSection.startsWith("diskUsage_")) {
+            coreDetailLoader.sourceComponent = diskUsageDetailComponent
+            coreDetailLoader.active = parent.height > 0
+            return
+        }
+
+        switch (root.expandedSection) {
+        case "network":
+        case "wifi": coreDetailLoader.sourceComponent = networkDetailComponent; break
+        case "bluetooth": coreDetailLoader.sourceComponent = bluetoothDetailComponent; break
+        case "audioOutput": coreDetailLoader.sourceComponent = audioOutputDetailComponent; break
+        case "audioInput": coreDetailLoader.sourceComponent = audioInputDetailComponent; break
+        case "battery": coreDetailLoader.sourceComponent = batteryDetailComponent; break
+        default: return
+        }
+
+        coreDetailLoader.active = parent.height > 0
     }
 
     Component {

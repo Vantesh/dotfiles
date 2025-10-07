@@ -12,13 +12,20 @@ Item {
 
     signal settingChanged()
 
+    property var variants: []
+
     implicitHeight: hasPermission ? settingsColumn.implicitHeight : errorText.implicitHeight
     height: implicitHeight
 
     readonly property bool hasPermission: pluginService && pluginService.hasPermission ? pluginService.hasPermission(pluginId, "settings_write") : true
 
+    Component.onCompleted: {
+        loadVariants()
+    }
+
     onPluginServiceChanged: {
         if (pluginService) {
+            loadVariants()
             for (let i = 0; i < settingsColumn.children.length; i++) {
                 const child = settingsColumn.children[i]
                 if (child.loadValue) {
@@ -26,6 +33,44 @@ Item {
                 }
             }
         }
+    }
+
+    Connections {
+        target: pluginService
+        function onPluginDataChanged(changedPluginId) {
+            if (changedPluginId === pluginId) {
+                loadVariants()
+            }
+        }
+    }
+
+    function loadVariants() {
+        if (!pluginService || !pluginId) {
+            variants = []
+            return
+        }
+        variants = pluginService.getPluginVariants(pluginId)
+    }
+
+    function createVariant(variantName, variantConfig) {
+        if (!pluginService || !pluginId) {
+            return null
+        }
+        return pluginService.createPluginVariant(pluginId, variantName, variantConfig)
+    }
+
+    function removeVariant(variantId) {
+        if (!pluginService || !pluginId) {
+            return
+        }
+        pluginService.removePluginVariant(pluginId, variantId)
+    }
+
+    function updateVariant(variantId, variantConfig) {
+        if (!pluginService || !pluginId) {
+            return
+        }
+        pluginService.updatePluginVariant(pluginId, variantId, variantConfig)
     }
 
     function saveValue(key, value) {

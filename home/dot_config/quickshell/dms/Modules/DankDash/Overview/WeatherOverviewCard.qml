@@ -33,7 +33,7 @@ Card {
         }
 
         Button {
-            text: "Refresh"
+            text: qsTr("Refresh")
             flat: true
             visible: !WeatherService.weather.loading
             anchors.horizontalCenter: parent.horizontalCenter

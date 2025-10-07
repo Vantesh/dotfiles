@@ -12,6 +12,8 @@ import qs.Common
 Singleton {
     id: root
 
+    readonly property string socketPath: Quickshell.env("NIRI_SOCKET")
+
     property var workspaces: ({})
     property var allWorkspaces: []
     property int focusedWorkspaceIndex: 0
@@ -20,10 +22,7 @@ Singleton {
     property string currentOutput: ""
 
     property var outputs: ({})
-
     property var windows: []
-
-    signal windowUrgentChanged()
 
     property bool inOverview: false
 
@@ -37,16 +36,42 @@ Singleton {
     property bool matugenSuppression: false
     property bool configGenerationPending: false
 
-    readonly property string socketPath: Quickshell.env("NIRI_SOCKET")
+    property bool _wantSockets: true
+    property int _reconnectAttempt: 0
 
-    Component.onCompleted: {
-        fetchOutputs()
+    readonly property int _reconnectBaseMs: 400
+    readonly property int _reconnectMaxMs: 15000
+
+    signal windowUrgentChanged()
+
+    Component.onCompleted: fetchOutputs()
+
+    Timer {
+        id: reconnectTimer
+        interval: 0
+        repeat: false
+        onTriggered: {
+            root._wantSockets = false
+            Qt.callLater(() => root._wantSockets = true)
+        }
     }
 
-    function fetchOutputs() {
-        if (CompositorService.isNiri) {
-            outputsProcess.running = true
-        }
+    Timer {
+        id: suppressToastTimer
+        interval: 3000
+        onTriggered: root.suppressConfigToast = false
+    }
+
+    Timer {
+        id: suppressResetTimer
+        interval: 2000
+        onTriggered: root.matugenSuppression = false
+    }
+
+    Timer {
+        id: configGenerationDebounce
+        interval: 100
+        onTriggered: root.doGenerateNiriLayoutConfig()
     }
 
     Process {
@@ -75,14 +100,70 @@ Singleton {
         }
     }
 
+    Process {
+        id: validateProcess
+        command: ["niri", "validate"]
+        running: false
+
+        stderr: StdioCollector {
+            onStreamFinished: {
+                const lines = text.split('\n')
+                const trimmedLines = lines.map(line => line.replace(/\s+$/, '')).filter(line => line.length > 0)
+                configValidationOutput = trimmedLines.join('\n').trim()
+                if (hasInitialConnection) {
+                    ToastService.showError("niri: failed to load config", configValidationOutput)
+                }
+            }
+        }
+
+        onExited: exitCode => {
+            if (exitCode === 0) {
+                configValidationOutput = ""
+            }
+        }
+    }
+
+    Process {
+        id: writeConfigProcess
+        property string configContent: ""
+        property string configPath: ""
+
+        onExited: exitCode => {
+            if (exitCode === 0) {
+                console.log("NiriService: Generated layout config at", configPath)
+                return
+            }
+            console.warn("NiriService: Failed to write layout config, exit code:", exitCode)
+        }
+    }
+
+    Process {
+        id: writeBindsProcess
+        property string bindsPath: ""
+
+        onExited: exitCode => {
+            if (exitCode === 0) {
+                console.log("NiriService: Generated binds config at", bindsPath)
+                return
+            }
+            console.warn("NiriService: Failed to write binds config, exit code:", exitCode)
+        }
+    }
+
     Socket {
         id: eventStreamSocket
         path: root.socketPath
-        connected: CompositorService.isNiri
+        connected: CompositorService.isNiri && root._wantSockets
 
         onConnectionStateChanged: {
             if (connected) {
+                _reconnectAttempt = 0
                 write('"EventStream"\n')
+                fetchOutputs()
+                return
+            }
+            if (CompositorService.isNiri) {
+                _scheduleReconnect()
             }
         }
 
@@ -101,99 +182,123 @@ Singleton {
     Socket {
         id: requestSocket
         path: root.socketPath
-        connected: CompositorService.isNiri
+        connected: CompositorService.isNiri && root._wantSockets
+
+        onConnectionStateChanged: {
+            if (connected) {
+                _reconnectAttempt = 0
+                return
+            }
+            if (CompositorService.isNiri) {
+                _scheduleReconnect()
+            }
+        }
+    }
+
+    function fetchOutputs() {
+        if (!CompositorService.isNiri) return
+        outputsProcess.running = true
+    }
+
+    function _scheduleReconnect() {
+        const pow = Math.min(_reconnectAttempt, 10)
+        const base = Math.min(_reconnectBaseMs * Math.pow(2, pow), _reconnectMaxMs)
+        const jitter = Math.floor(Math.random() * Math.floor(base / 4))
+        reconnectTimer.interval = base + jitter
+        reconnectTimer.restart()
+        _reconnectAttempt++
+        console.warn("NiriService: scheduling reconnect in ~", reconnectTimer.interval, "ms (attempt", _reconnectAttempt, ")")
     }
 
     function sortWindowsByLayout(windowList) {
         return [...windowList].sort((a, b) => {
-                                        const aWorkspace = workspaces[a.workspace_id]
-                                        const bWorkspace = workspaces[b.workspace_id]
+            const aWorkspace = workspaces[a.workspace_id]
+            const bWorkspace = workspaces[b.workspace_id]
 
-                                        if (aWorkspace && bWorkspace) {
-                                            const aOutput = aWorkspace.output
-                                            const bOutput = bWorkspace.output
+            if (aWorkspace && bWorkspace) {
+                const aOutput = aWorkspace.output
+                const bOutput = bWorkspace.output
 
-                                            const aOutputInfo = outputs[aOutput]
-                                            const bOutputInfo = outputs[bOutput]
+                const aOutputInfo = outputs[aOutput]
+                const bOutputInfo = outputs[bOutput]
 
-                                            if (aOutputInfo && bOutputInfo && aOutputInfo.logical && bOutputInfo.logical) {
-                                                if (aOutputInfo.logical.x !== bOutputInfo.logical.x) {
-                                                    return aOutputInfo.logical.x - bOutputInfo.logical.x
-                                                }
-                                                if (aOutputInfo.logical.y !== bOutputInfo.logical.y) {
-                                                    return aOutputInfo.logical.y - bOutputInfo.logical.y
-                                                }
-                                            }
+                if (aOutputInfo && bOutputInfo && aOutputInfo.logical && bOutputInfo.logical) {
+                    if (aOutputInfo.logical.x !== bOutputInfo.logical.x) {
+                        return aOutputInfo.logical.x - bOutputInfo.logical.x
+                    }
+                    if (aOutputInfo.logical.y !== bOutputInfo.logical.y) {
+                        return aOutputInfo.logical.y - bOutputInfo.logical.y
+                    }
+                }
 
-                                            if (aOutput === bOutput && aWorkspace.idx !== bWorkspace.idx) {
-                                                return aWorkspace.idx - bWorkspace.idx
-                                            }
-                                        }
+                if (aOutput === bOutput && aWorkspace.idx !== bWorkspace.idx) {
+                    return aWorkspace.idx - bWorkspace.idx
+                }
+            }
 
-                                        if (a.workspace_id === b.workspace_id && a.layout && b.layout) {
+            if (a.workspace_id === b.workspace_id && a.layout && b.layout) {
+                if (a.layout.pos_in_scrolling_layout && b.layout.pos_in_scrolling_layout) {
+                    const aPos = a.layout.pos_in_scrolling_layout
+                    const bPos = b.layout.pos_in_scrolling_layout
 
-                                            if (a.layout.pos_in_scrolling_layout && b.layout.pos_in_scrolling_layout) {
-                                                const aPos = a.layout.pos_in_scrolling_layout
-                                                const bPos = b.layout.pos_in_scrolling_layout
+                    if (aPos.length > 1 && bPos.length > 1) {
+                        if (aPos[0] !== bPos[0]) {
+                            return aPos[0] - bPos[0]
+                        }
+                        if (aPos[1] !== bPos[1]) {
+                            return aPos[1] - bPos[1]
+                        }
+                    }
+                }
+            }
 
-                                                if (aPos.length > 1 && bPos.length > 1) {
-                                                    if (aPos[0] !== bPos[0]) {
-                                                        return aPos[0] - bPos[0]
-                                                    }
-                                                    if (aPos[1] !== bPos[1]) {
-                                                        return aPos[1] - bPos[1]
-                                                    }
-                                                }
-                                            }
-                                        }
-
-                                        return a.id - b.id
-                                    })
+            return a.id - b.id
+        })
     }
 
     function handleNiriEvent(event) {
-        const eventType = Object.keys(event)[0];
-        
+        const eventType = Object.keys(event)[0]
+
         switch (eventType) {
-            case 'WorkspacesChanged':
-                handleWorkspacesChanged(event.WorkspacesChanged);
-                break;
-            case 'WorkspaceActivated':
-                handleWorkspaceActivated(event.WorkspaceActivated);
-                break;
-            case 'WorkspaceActiveWindowChanged':
-                handleWorkspaceActiveWindowChanged(event.WorkspaceActiveWindowChanged);
-                break;
-            case 'WindowsChanged':
-                handleWindowsChanged(event.WindowsChanged);
-                break;
-            case 'WindowClosed':
-                handleWindowClosed(event.WindowClosed);
-                break;
-            case 'WindowOpenedOrChanged':
-                handleWindowOpenedOrChanged(event.WindowOpenedOrChanged);
-                break;
-            case 'WindowLayoutsChanged':
-                handleWindowLayoutsChanged(event.WindowLayoutsChanged);
-                break;
-            case 'OutputsChanged':
-                handleOutputsChanged(event.OutputsChanged);
-                break;
-            case 'OverviewOpenedOrClosed':
-                handleOverviewChanged(event.OverviewOpenedOrClosed);
-                break;
-            case 'ConfigLoaded':
-                handleConfigLoaded(event.ConfigLoaded);
-                break;
-            case 'KeyboardLayoutsChanged':
-                handleKeyboardLayoutsChanged(event.KeyboardLayoutsChanged);
-                break;
-            case 'KeyboardLayoutSwitched':
-                handleKeyboardLayoutSwitched(event.KeyboardLayoutSwitched);
-                break;
-            case 'WorkspaceUrgencyChanged':
-                handleWorkspaceUrgencyChanged(event.WorkspaceUrgencyChanged);
-                break;
+        case 'WorkspacesChanged':
+            handleWorkspacesChanged(event.WorkspacesChanged)
+            break
+        case 'WorkspaceActivated':
+            handleWorkspaceActivated(event.WorkspaceActivated)
+            break
+        case 'WorkspaceActiveWindowChanged':
+            handleWorkspaceActiveWindowChanged(event.WorkspaceActiveWindowChanged)
+            break
+        case 'WindowsChanged':
+            handleWindowsChanged(event.WindowsChanged)
+            break
+        case 'WindowClosed':
+            handleWindowClosed(event.WindowClosed)
+            break
+        case 'WindowOpenedOrChanged':
+            handleWindowOpenedOrChanged(event.WindowOpenedOrChanged)
+            break
+        case 'WindowLayoutsChanged':
+            handleWindowLayoutsChanged(event.WindowLayoutsChanged)
+            break
+        case 'OutputsChanged':
+            handleOutputsChanged(event.OutputsChanged)
+            break
+        case 'OverviewOpenedOrClosed':
+            handleOverviewChanged(event.OverviewOpenedOrClosed)
+            break
+        case 'ConfigLoaded':
+            handleConfigLoaded(event.ConfigLoaded)
+            break
+        case 'KeyboardLayoutsChanged':
+            handleKeyboardLayoutsChanged(event.KeyboardLayoutsChanged)
+            break
+        case 'KeyboardLayoutSwitched':
+            handleKeyboardLayoutSwitched(event.KeyboardLayoutSwitched)
+            break
+        case 'WorkspaceUrgencyChanged':
+            handleWorkspaceUrgencyChanged(event.WorkspaceUrgencyChanged)
+            break
         }
     }
 
@@ -254,31 +359,26 @@ Singleton {
     }
 
     function handleWorkspaceActiveWindowChanged(data) {
-        if (data.active_window_id !== null && data.active_window_id !== undefined) {
-            const updatedWindows = []
-            for (var i = 0; i < windows.length; i++) {
-                const w = windows[i]
-                const updatedWindow = {}
-                for (let prop in w) {
-                    updatedWindow[prop] = w[prop]
-                }
+        const updatedWindows = []
+
+        for (var i = 0; i < windows.length; i++) {
+            const w = windows[i]
+            const updatedWindow = {}
+
+            for (let prop in w) {
+                updatedWindow[prop] = w[prop]
+            }
+
+            if (data.active_window_id !== null && data.active_window_id !== undefined) {
                 updatedWindow.is_focused = (w.id == data.active_window_id)
-                updatedWindows.push(updatedWindow)
-            }
-            windows = updatedWindows
-        } else {
-            const updatedWindows = []
-            for (var i = 0; i < windows.length; i++) {
-                const w = windows[i]
-                const updatedWindow = {}
-                for (let prop in w) {
-                    updatedWindow[prop] = w[prop]
-                }
+            } else {
                 updatedWindow.is_focused = w.workspace_id == data.workspace_id ? false : w.is_focused
-                updatedWindows.push(updatedWindow)
             }
-            windows = updatedWindows
+
+            updatedWindows.push(updatedWindow)
         }
+
+        windows = updatedWindows
     }
 
     function handleWindowsChanged(data) {
@@ -290,9 +390,7 @@ Singleton {
     }
 
     function handleWindowOpenedOrChanged(data) {
-        if (!data.window) {
-            return
-        }
+        if (!data.window) return
 
         const window = data.window
         const existingIndex = windows.findIndex(w => w.id === window.id)
@@ -301,15 +399,14 @@ Singleton {
             const updatedWindows = [...windows]
             updatedWindows[existingIndex] = window
             windows = sortWindowsByLayout(updatedWindows)
-        } else {
-            windows = sortWindowsByLayout([...windows, window])
+            return
         }
+
+        windows = sortWindowsByLayout([...windows, window])
     }
 
     function handleWindowLayoutsChanged(data) {
-        if (!data.changes) {
-            return
-        }
+        if (!data.changes) return
 
         const updatedWindows = [...windows]
         let hasChanges = false
@@ -319,28 +416,27 @@ Singleton {
             const layoutData = change[1]
 
             const windowIndex = updatedWindows.findIndex(w => w.id === windowId)
-            if (windowIndex >= 0) {
-                const updatedWindow = {}
-                for (var prop in updatedWindows[windowIndex]) {
-                    updatedWindow[prop] = updatedWindows[windowIndex][prop]
-                }
-                updatedWindow.layout = layoutData
-                updatedWindows[windowIndex] = updatedWindow
-                hasChanges = true
+            if (windowIndex < 0) continue
+
+            const updatedWindow = {}
+            for (var prop in updatedWindows[windowIndex]) {
+                updatedWindow[prop] = updatedWindows[windowIndex][prop]
             }
+            updatedWindow.layout = layoutData
+            updatedWindows[windowIndex] = updatedWindow
+            hasChanges = true
         }
 
-        if (hasChanges) {
-            windows = sortWindowsByLayout(updatedWindows)
-            windowsChanged()
-        }
+        if (!hasChanges) return
+
+        windows = sortWindowsByLayout(updatedWindows)
+        windowsChanged()
     }
 
     function handleOutputsChanged(data) {
-        if (data.outputs) {
-            outputs = data.outputs
-            windows = sortWindowsByLayout(windows)
-        }
+        if (!data.outputs) return
+        outputs = data.outputs
+        windows = sortWindowsByLayout(windows)
     }
 
     function handleOverviewChanged(data) {
@@ -380,9 +476,7 @@ Singleton {
 
     function handleWorkspaceUrgencyChanged(data) {
         const ws = root.workspaces[data.id]
-        if (!ws) {
-            return
-        }
+        if (!ws) return
 
         ws.is_urgent = data.urgent
 
@@ -392,29 +486,6 @@ Singleton {
         }
 
         windowUrgentChanged()
-    }
-
-    Process {
-        id: validateProcess
-        command: ["niri", "validate"]
-        running: false
-
-        stderr: StdioCollector {
-            onStreamFinished: {
-                const lines = text.split('\n')
-                const trimmedLines = lines.map(line => line.replace(/\s+$/, '')).filter(line => line.length > 0)
-                configValidationOutput = trimmedLines.join('\n').trim()
-                if (hasInitialConnection) {
-                    ToastService.showError("niri: failed to load config", configValidationOutput)
-                }
-            }
-        }
-
-        onExited: exitCode => {
-            if (exitCode === 0) {
-                configValidationOutput = ""
-            }
-        }
     }
 
     function updateCurrentOutputWorkspaces() {
@@ -428,59 +499,37 @@ Singleton {
     }
 
     function send(request) {
-        if (!CompositorService.isNiri || !requestSocket.connected) {
-            return false
-        }
+        if (!CompositorService.isNiri || !requestSocket.connected) return false
         requestSocket.write(JSON.stringify(request) + "\n")
         return true
     }
 
     function doScreenTransition() {
-        return send({
-                        "Action": {
-                            "DoScreenTransition": {
-                                "delay_ms": 0,
-                            }
-                        }
-                    })
+        return send({"Action": {"DoScreenTransition": {"delay_ms": 0}}})
     }
 
     function switchToWorkspace(workspaceIndex) {
-        return send({
-                        "Action": {
-                            "FocusWorkspace": {
-                                "reference": {
-                                    "Index": workspaceIndex
-                                }
-                            }
-                        }
-                    })
+        return send({"Action": {"FocusWorkspace": {"reference": {"Index": workspaceIndex}}}})
     }
 
     function focusWindow(windowId) {
-        return send({
-                        "Action": {
-                            "FocusWindow": {
-                                "id": windowId
-                            }
-                        }
-                    })
+        return send({"Action": {"FocusWindow": {"id": windowId}}})
     }
 
     function powerOffMonitors() {
-        return send({
-                        "Action": {
-                            "PowerOffMonitors": {}
-                        }
-                    })
+        return send({"Action": {"PowerOffMonitors": {}}})
     }
 
     function powerOnMonitors() {
-        return send({
-                        "Action": {
-                            "PowerOnMonitors": {}
-                        }
-                    })
+        return send({"Action": {"PowerOnMonitors": {}}})
+    }
+
+    function cycleKeyboardLayout() {
+        return send({"Action": {"SwitchLayout": {"layout": "Next"}}})
+    }
+
+    function quit() {
+        return send({"Action": {"Quit": {"skip_confirmation": true}}})
     }
 
     function getCurrentOutputWorkspaceNumbers() {
@@ -498,28 +547,7 @@ Singleton {
         if (currentKeyboardLayoutIndex >= 0 && currentKeyboardLayoutIndex < keyboardLayoutNames.length) {
             return keyboardLayoutNames[currentKeyboardLayoutIndex]
         }
-
         return ""
-    }
-
-    function cycleKeyboardLayout() {
-        return send({
-                        "Action": {
-                            "SwitchLayout": {
-                                "layout": "Next"
-                            }
-                        }
-                    })
-    }
-
-    function quit() {
-        return send({
-                        "Action": {
-                            "Quit": {
-                                "skip_confirmation": true
-                            }
-                        }
-                    })
     }
 
     function suppressNextToast() {
@@ -528,18 +556,13 @@ Singleton {
     }
 
     function findNiriWindow(toplevel) {
-        if (!toplevel.appId) {
-            return null
-        }
+        if (!toplevel.appId) return null
 
         for (var j = 0; j < windows.length; j++) {
             const niriWindow = windows[j]
             if (niriWindow.app_id === toplevel.appId) {
                 if (!niriWindow.title || niriWindow.title === toplevel.title) {
-                    return {
-                        "niriIndex": j,
-                        "niriWindow": niriWindow
-                    }
+                    return {"niriIndex": j, "niriWindow": niriWindow}
                 }
             }
         }
@@ -564,40 +587,41 @@ Singleton {
                     if (niriWindow.title && toplevel.title === niriWindow.title) {
                         bestMatch = toplevel
                         break
-                    } else if (!niriWindow.title && !bestMatch) {
+                    }
+                    if (!niriWindow.title && !bestMatch) {
                         bestMatch = toplevel
                     }
                 }
             }
 
-            if (bestMatch) {
-                usedToplevels.add(bestMatch)
+            if (!bestMatch) continue
 
-                const enrichedToplevel = {
-                    appId: bestMatch.appId,
-                    title: bestMatch.title,
-                    activated: bestMatch.activated,
-                    niriWindowId: niriWindow.id,
-                    niriWorkspaceId: niriWindow.workspace_id,
-                    activate: function() {
-                        return NiriService.focusWindow(niriWindow.id)
-                    },
-                    close: function() {
-                        if (bestMatch.close) {
-                            return bestMatch.close()
-                        }
-                        return false
+            usedToplevels.add(bestMatch)
+
+            const enrichedToplevel = {
+                appId: bestMatch.appId,
+                title: bestMatch.title,
+                activated: bestMatch.activated,
+                niriWindowId: niriWindow.id,
+                niriWorkspaceId: niriWindow.workspace_id,
+                activate: function() {
+                    return NiriService.focusWindow(niriWindow.id)
+                },
+                close: function() {
+                    if (bestMatch.close) {
+                        return bestMatch.close()
                     }
+                    return false
                 }
-
-                for (let prop in bestMatch) {
-                    if (!(prop in enrichedToplevel)) {
-                        enrichedToplevel[prop] = bestMatch[prop]
-                    }
-                }
-
-                enrichedToplevels.push(enrichedToplevel)
             }
+
+            for (let prop in bestMatch) {
+                if (!(prop in enrichedToplevel)) {
+                    enrichedToplevel[prop] = bestMatch[prop]
+                }
+            }
+
+            enrichedToplevels.push(enrichedToplevel)
         }
 
         for (const toplevel of toplevels) {
@@ -611,6 +635,7 @@ Singleton {
 
     function filterCurrentWorkspace(toplevels, screenName) {
         let currentWorkspaceId = null
+
         for (var i = 0; i < allWorkspaces.length; i++) {
             const ws = allWorkspaces[i]
             if (ws.output === screenName && ws.is_active) {
@@ -619,9 +644,7 @@ Singleton {
             }
         }
 
-        if (currentWorkspaceId === null) {
-            return toplevels
-        }
+        if (currentWorkspaceId === null) return toplevels
 
         const workspaceWindows = windows.filter(niriWindow => niriWindow.workspace_id === currentWorkspaceId)
         const usedToplevels = new Set()
@@ -637,73 +660,50 @@ Singleton {
                     if (niriWindow.title && toplevel.title === niriWindow.title) {
                         bestMatch = toplevel
                         break
-                    } else if (!niriWindow.title && !bestMatch) {
+                    }
+                    if (!niriWindow.title && !bestMatch) {
                         bestMatch = toplevel
                     }
                 }
             }
 
-            if (bestMatch) {
-                usedToplevels.add(bestMatch)
+            if (!bestMatch) continue
 
-                const enrichedToplevel = {
-                    appId: bestMatch.appId,
-                    title: bestMatch.title,
-                    activated: bestMatch.activated,
-                    niriWindowId: niriWindow.id,
-                    niriWorkspaceId: niriWindow.workspace_id,
-                    activate: function() {
-                        return NiriService.focusWindow(niriWindow.id)
-                    },
-                    close: function() {
-                        if (bestMatch.close) {
-                            return bestMatch.close()
-                        }
-                        return false
+            usedToplevels.add(bestMatch)
+
+            const enrichedToplevel = {
+                appId: bestMatch.appId,
+                title: bestMatch.title,
+                activated: bestMatch.activated,
+                niriWindowId: niriWindow.id,
+                niriWorkspaceId: niriWindow.workspace_id,
+                activate: function() {
+                    return NiriService.focusWindow(niriWindow.id)
+                },
+                close: function() {
+                    if (bestMatch.close) {
+                        return bestMatch.close()
                     }
+                    return false
                 }
-
-                for (let prop in bestMatch) {
-                    if (!(prop in enrichedToplevel)) {
-                        enrichedToplevel[prop] = bestMatch[prop]
-                    }
-                }
-
-                result.push(enrichedToplevel)
             }
+
+            for (let prop in bestMatch) {
+                if (!(prop in enrichedToplevel)) {
+                    enrichedToplevel[prop] = bestMatch[prop]
+                }
+            }
+
+            result.push(enrichedToplevel)
         }
 
         return result
     }
 
-
-    Timer {
-        id: suppressToastTimer
-        interval: 3000
-        onTriggered: root.suppressConfigToast = false
-    }
-
-    Timer {
-        id: suppressResetTimer
-        interval: 2000
-        onTriggered: root.matugenSuppression = false
-    }
-
-    Timer {
-        id: configGenerationDebounce
-        interval: 100
-        onTriggered: root.doGenerateNiriLayoutConfig()
-    }
-
     function generateNiriLayoutConfig() {
         const niriSocket = Quickshell.env("NIRI_SOCKET")
-        if (!niriSocket || niriSocket.length === 0) {
-            return
-        }
-
-        if (configGenerationPending) {
-            return
-        }
+        if (!niriSocket || niriSocket.length === 0) return
+        if (configGenerationPending) return
 
         configGenerationPending = true
         configGenerationDebounce.restart()
@@ -757,32 +757,4 @@ window-rule {
         writeBindsProcess.command = ["sh", "-c", `mkdir -p "${niriDmsDir}" && cp "${sourceBindsPath}" "${bindsPath}"`]
         writeBindsProcess.running = true
     }
-
-    Process {
-        id: writeConfigProcess
-        property string configContent: ""
-        property string configPath: ""
-
-        onExited: exitCode => {
-            if (exitCode === 0) {
-                console.log("NiriService: Generated layout config at", configPath)
-            } else {
-                console.warn("NiriService: Failed to write layout config, exit code:", exitCode)
-            }
-        }
-    }
-
-    Process {
-        id: writeBindsProcess
-        property string bindsPath: ""
-
-        onExited: exitCode => {
-            if (exitCode === 0) {
-                console.log("NiriService: Generated binds config at", bindsPath)
-            } else {
-                console.warn("NiriService: Failed to write binds config, exit code:", exitCode)
-            }
-        }
-    }
-
 }

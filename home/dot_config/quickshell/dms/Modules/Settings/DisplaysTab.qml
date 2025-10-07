@@ -108,14 +108,14 @@ Item {
                             anchors.verticalCenter: parent.verticalCenter
 
                             StyledText {
-                                text: "Connected Displays"
+                                text: qsTr("Connected Displays")
                                 font.pixelSize: Theme.fontSizeLarge
                                 font.weight: Font.Medium
                                 color: Theme.surfaceText
                             }
 
                             StyledText {
-                                text: "Configure which displays show shell components"
+                                text: qsTr("Configure which displays show shell components")
                                 font.pixelSize: Theme.fontSizeSmall
                                 color: Theme.surfaceVariantText
                                 wrapMode: Text.WordWrap
@@ -131,7 +131,7 @@ Item {
                         spacing: Theme.spacingS
 
                         StyledText {
-                            text: "Available Screens (" + Quickshell.screens.length + ")"
+                            text: qsTr("Available Screens (") + Quickshell.screens.length + ")"
                             font.pixelSize: Theme.fontSizeMedium
                             font.weight: Font.Medium
                             color: Theme.surfaceText
@@ -273,7 +273,7 @@ Item {
                                 spacing: Theme.spacingS
 
                                 StyledText {
-                                    text: "Show on screens:"
+                                    text: qsTr("Show on screens:")
                                     font.pixelSize: Theme.fontSizeSmall
                                     color: Theme.surfaceText
                                     font.weight: Font.Medium
@@ -288,7 +288,7 @@ Item {
 
                                     DankToggle {
                                         width: parent.width
-                                        text: "All displays"
+                                        text: qsTr("All displays")
                                         description: "Show on all connected displays"
                                         checked: parent.selectedScreens.includes("all")
                                         onToggled: (checked) => {

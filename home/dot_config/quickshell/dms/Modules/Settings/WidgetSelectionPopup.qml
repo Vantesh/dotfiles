@@ -1,18 +1,20 @@
 import QtQuick
 import QtQuick.Controls
 import qs.Common
+import qs.Modals.Common
 import qs.Widgets
 
-Popup {
+DankModal {
     id: root
 
     property var allWidgets: []
     property string targetSection: ""
-    property bool isOpening: false
     property string searchQuery: ""
     property var filteredWidgets: []
     property int selectedIndex: -1
     property bool keyboardNavigationActive: false
+    property Component widgetSelectionContent
+    property var parentModal: null
 
     signal widgetSelected(string widgetId, string targetSection)
 
@@ -70,46 +72,68 @@ Popup {
         }
     }
 
-    function safeOpen() {
-        if (!isOpening && !visible) {
-            isOpening = true
-            open()
+    function show() {
+        if (parentModal) {
+            parentModal.shouldHaveFocus = false
+        }
+        open()
+        Qt.callLater(() => {
+            if (contentLoader.item && contentLoader.item.searchField) {
+                contentLoader.item.searchField.forceActiveFocus()
+            }
+        })
+    }
+
+    function hide() {
+        close()
+        if (parentModal) {
+            parentModal.shouldHaveFocus = Qt.binding(() => {
+                return parentModal.shouldBeVisible
+            })
+            Qt.callLater(() => {
+                if (parentModal && parentModal.modalFocusScope) {
+                    parentModal.modalFocusScope.forceActiveFocus()
+                }
+            })
         }
     }
 
     width: 500
     height: 550
-    modal: true
-    focus: true
-    closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
-    onOpened: {
-        isOpening = false
-        Qt.callLater(() => {
-            searchField.forceActiveFocus()
-        })
-    }
-    onClosed: {
-        isOpening = false
+    allowStacking: true
+    backgroundOpacity: 0
+    closeOnEscapeKey: false
+    onDialogClosed: () => {
         allWidgets = []
         targetSection = ""
         searchQuery = ""
         filteredWidgets = []
         selectedIndex = -1
         keyboardNavigationActive = false
+        if (parentModal) {
+            parentModal.shouldHaveFocus = Qt.binding(() => {
+                return parentModal.shouldBeVisible
+            })
+            Qt.callLater(() => {
+                if (parentModal && parentModal.modalFocusScope) {
+                    parentModal.modalFocusScope.forceActiveFocus()
+                }
+            })
+        }
     }
-
-    background: Rectangle {
-        color: Qt.rgba(Theme.surfaceContainer.r, Theme.surfaceContainer.g,
-                       Theme.surfaceContainer.b, 1)
-        border.color: Theme.primarySelected
-        border.width: 0
-        radius: Theme.cornerRadius
+    onBackgroundClicked: () => {
+        return hide()
     }
+    content: widgetSelectionContent
 
-    contentItem: Item {
+    widgetSelectionContent: Component {
+        FocusScope {
+        id: widgetKeyHandler
+        property alias searchField: searchField
+
         anchors.fill: parent
         focus: true
-        
+
         Keys.onPressed: event => {
             if (event.key === Qt.Key_Escape) {
                 root.close()
@@ -141,10 +165,8 @@ Popup {
                     root.close()
                 }
                 event.accepted = true
-            } else if (event.text && event.text.length > 0 && event.text.match(/[a-zA-Z0-9\\s]/)) {
-                if (!searchField.activeFocus) {
-                    searchField.forceActiveFocus()
-                }
+            } else if (!searchField.activeFocus && event.text && event.text.length > 0 && event.text.match(/[a-zA-Z0-9\s]/)) {
+                searchField.forceActiveFocus()
                 searchField.insertText(event.text)
                 event.accepted = true
             }
@@ -181,7 +203,7 @@ Popup {
                 }
 
                 StyledText {
-                    text: "Add Widget to " + root.targetSection + " Section"
+                    text: qsTr("Add Widget to ") + root.targetSection + " Section"
                     font.pixelSize: Theme.fontSizeLarge
                     font.weight: Font.Medium
                     color: Theme.surfaceText
@@ -190,7 +212,7 @@ Popup {
             }
 
             StyledText {
-                text: "Select a widget to add to the " + root.targetSection.toLowerCase(
+                text: qsTr("Select a widget to add to the ") + root.targetSection.toLowerCase(
                           ) + " section of the top bar. You can add multiple instances of the same widget if needed."
                 font.pixelSize: Theme.fontSizeSmall
                 color: Theme.outline
@@ -204,19 +226,20 @@ Popup {
                 height: 48
                 cornerRadius: Theme.cornerRadius
                 backgroundColor: Theme.surfaceContainerHigh
-                normalBorderColor: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.2)
+                normalBorderColor: Theme.outlineMedium
                 focusedBorderColor: Theme.primary
                 leftIconName: "search"
-                leftIconSize: Theme.iconSize - 2
-                leftIconColor: Theme.outline
+                leftIconSize: Theme.iconSize
+                leftIconColor: Theme.surfaceVariantText
                 leftIconFocusedColor: Theme.primary
                 showClearButton: true
                 textColor: Theme.surfaceText
                 font.pixelSize: Theme.fontSizeMedium
-                placeholderText: "Search widgets..."
+                placeholderText: ""
                 text: root.searchQuery
+                focus: true
                 ignoreLeftRightKeys: true
-                keyForwardTargets: [root.contentItem]
+                keyForwardTargets: [widgetKeyHandler]
                 onTextEdited: {
                     root.searchQuery = text
                     updateFilteredWidgets()
@@ -225,7 +248,7 @@ Popup {
                     if (event.key === Qt.Key_Escape) {
                         root.close()
                         event.accepted = true
-                    } else if (event.key === Qt.Key_Down || event.key === Qt.Key_Up || 
+                    } else if (event.key === Qt.Key_Down || event.key === Qt.Key_Up ||
                                ((event.key === Qt.Key_Return || event.key === Qt.Key_Enter) && text.length === 0)) {
                         event.accepted = false
                     }
@@ -321,6 +344,7 @@ Popup {
                     }
                 }
             }
+        }
         }
     }
 }

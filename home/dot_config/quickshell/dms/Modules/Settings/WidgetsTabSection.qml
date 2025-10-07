@@ -22,6 +22,7 @@ Column {
     signal gpuSelectionChanged(string sectionId, int widgetIndex, int selectedIndex)
     signal diskMountSelectionChanged(string sectionId, int widgetIndex, string mountPath)
     signal controlCenterSettingChanged(string sectionId, int widgetIndex, string settingName, bool value)
+    signal minimumWidthChanged(string sectionId, int widgetIndex, bool enabled)
 
     width: parent.width
     height: implicitHeight
@@ -283,6 +284,37 @@ Column {
                             }
                         }
 
+                        DankActionButton {
+                            id: minimumWidthButton
+                            buttonSize: 28
+                            visible: modelData.id === "cpuUsage"
+                                     || modelData.id === "memUsage"
+                                     || modelData.id === "cpuTemp"
+                                     || modelData.id === "gpuTemp"
+                            iconName: "straighten"
+                            iconSize: 16
+                            iconColor: (modelData.minimumWidth !== undefined ? modelData.minimumWidth : true) ? Theme.primary : Theme.outline
+                            onClicked: {
+                                var currentEnabled = modelData.minimumWidth !== undefined ? modelData.minimumWidth : true
+                                root.minimumWidthChanged(root.sectionId, index, !currentEnabled)
+                            }
+                            onEntered: {
+                                minimumWidthTooltipLoader.active = true
+                                if (minimumWidthTooltipLoader.item) {
+                                    var currentEnabled = modelData.minimumWidth !== undefined ? modelData.minimumWidth : true
+                                    const tooltipText = currentEnabled ? "Force Padding" : "Dynamic Width"
+                                    const p = minimumWidthButton.mapToItem(null, minimumWidthButton.width / 2, 0)
+                                    minimumWidthTooltipLoader.item.show(tooltipText, p.x, p.y - 40, null)
+                                }
+                            }
+                            onExited: {
+                                if (minimumWidthTooltipLoader.item) {
+                                    minimumWidthTooltipLoader.item.hide()
+                                }
+                                minimumWidthTooltipLoader.active = false
+                            }
+                        }
+
                         Row {
                             spacing: Theme.spacingXS
                             visible: modelData.id === "clock"
@@ -448,7 +480,7 @@ Column {
                                 StyledText {
                                     id: tooltipText
                                     anchors.centerIn: parent
-                                    text: "Compact Mode"
+                                    text: qsTr("Compact Mode")
                                     font.pixelSize: Theme.fontSizeSmall
                                     color: Theme.surfaceText
                                 }
@@ -635,7 +667,7 @@ Column {
         anchors.horizontalCenter: parent.horizontalCenter
 
         StyledText {
-            text: "Add Widget"
+            text: qsTr("Add Widget")
             font.pixelSize: Theme.fontSizeSmall
             font.weight: Font.Medium
             color: Theme.primary
@@ -720,7 +752,7 @@ Column {
                         }
 
                         StyledText {
-                            text: "Network Icon"
+                            text: qsTr("Network Icon")
                             font.pixelSize: Theme.fontSizeSmall
                             color: Theme.surfaceText
                             font.weight: Font.Normal
@@ -773,7 +805,7 @@ Column {
                         }
 
                         StyledText {
-                            text: "Bluetooth Icon"
+                            text: qsTr("Bluetooth Icon")
                             font.pixelSize: Theme.fontSizeSmall
                             color: Theme.surfaceText
                             font.weight: Font.Normal
@@ -826,7 +858,7 @@ Column {
                         }
 
                         StyledText {
-                            text: "Audio Icon"
+                            text: qsTr("Audio Icon")
                             font.pixelSize: Theme.fontSizeSmall
                             color: Theme.surfaceText
                             font.weight: Font.Normal
@@ -889,6 +921,12 @@ Column {
 
     Loader {
         id: visibilityTooltipLoader
+        active: false
+        sourceComponent: DankTooltip {}
+    }
+
+    Loader {
+        id: minimumWidthTooltipLoader
         active: false
         sourceComponent: DankTooltip {}
     }

@@ -1,58 +1,150 @@
 #!/usr/bin/env bash
+# matugen-worker - Process matugen color scheme requests
+#
+# Reads desired color scheme from STATE_DIR/matugen.desired.json and executes
+# walset with appropriate arguments. Supports both image and hex color inputs
+# with optional mode (dark/light) and scheme selection.
+#
+# Arguments:
+#   $1 - STATE_DIR: Directory containing matugen.desired.json
+#   $2 - SHELL_DIR: Shell configuration directory (unused)
+#   $3 - CONFIG_DIR: Configuration directory (unused)
+#   $4 - Must be "--run" (safety flag)
+# Exit codes:
+#   0 (success), 1 (failure), 2 (invalid config), 127 (command not found)
+
 set -euo pipefail
 
-STATE_DIR="${1:-}"
-SHELL_DIR="${2:-}"
+shopt -s nullglob globstar
 
 die() {
-  local msg="$1"
+  local exit_code=1
+  local msg
+
+  if [[ "${1:-}" =~ ^[0-9]+$ ]]; then
+    exit_code="$1"
+    shift
+  fi
+
+  msg="$*"
+
   if command -v notify-send >/dev/null 2>&1; then
     notify-send "matugen-worker" "$msg" -i error -u critical
-  else
-    echo "matugen-worker: $msg" >&2
   fi
-  exit 1
+
+  printf 'matugen-worker: %s\n' "$msg" >&2
+  exit "$exit_code"
 }
 
-if [[ $# -ne 3 || "$3" != "--run" ]]; then
-  echo "Usage: $0 STATE_DIR SHELL_DIR --run" >&2
-  exit 1
-fi
+validate_arguments() {
+  if [[ $# -lt 4 ]]; then
+    die 1 "Usage: $0 STATE_DIR SHELL_DIR CONFIG_DIR --run"
+  fi
 
-[[ -d "$STATE_DIR" ]] || die "STATE_DIR '$STATE_DIR' does not exist"
-[[ -d "$SHELL_DIR" ]] || die "SHELL_DIR '$SHELL_DIR' does not exist"
+  readonly STATE_DIR="$1"
+  readonly SHELL_DIR="$2"
+  readonly CONFIG_DIR="$3"
 
-DESIRED_JSON="$STATE_DIR/matugen.desired.json"
-[[ -f "$DESIRED_JSON" ]] || exit 2
+  if [[ ! -d "$STATE_DIR" ]]; then
+    die 1 "STATE_DIR '$STATE_DIR' does not exist"
+  fi
 
-read -r mode kind value scheme < <(jq -r '[.mode // empty, .kind // empty, .value // empty, .matugenType // empty] | @tsv' "$DESIRED_JSON")
+  if [[ ! -d "$SHELL_DIR" ]]; then
+    die 1 "SHELL_DIR '$SHELL_DIR' does not exist"
+  fi
 
-[[ -n "$kind" && -n "$value" ]] || exit 2
-[[ "$kind" == "image" || "$kind" == "hex" ]] || exit 2
-[[ -z "$mode" || "$mode" == "dark" || "$mode" == "light" ]] || exit 2
+  if [[ ! -d "$CONFIG_DIR" ]]; then
+    die 1 "CONFIG_DIR '$CONFIG_DIR' does not exist"
+  fi
 
-case "$kind" in
-image)
-  [[ -n "$value" && -r "$value" ]] || exit 2
-  args=("image" "$value")
-  ;;
-hex)
-  [[ -n "$value" ]] || exit 2
-  args=("color" "$value")
-  ;;
-*)
-  exit 2
-  ;;
-esac
+  shift 3
 
-command -v walset >/dev/null 2>&1 || die "'walset' not found. Ensure ~/.local/bin is in PATH."
+  if [[ "${1:-}" != "--run" ]]; then
+    die 1 "Fourth argument must be '--run'"
+  fi
+}
 
-if [[ -n "$scheme" ]]; then
-  args+=("--scheme" "$scheme")
-fi
+read_config() {
+  local desired_json="$STATE_DIR/matugen.desired.json"
 
-if [[ "$mode" == "dark" || "$mode" == "light" ]]; then
-  args+=(--mode "$mode")
-fi
+  if [[ ! -f "$desired_json" ]]; then
+    exit 2
+  fi
 
-exec walset "${args[@]}"
+  local mode kind value scheme
+  read -r mode kind value scheme < <(
+    jq -r '[.mode // empty, .kind // empty, .value // empty, .matugenType // empty] | @tsv' "$desired_json"
+  )
+
+  if [[ -z "$kind" || -z "$value" ]]; then
+    exit 2
+  fi
+
+  if [[ "$kind" != "image" && "$kind" != "hex" ]]; then
+    exit 2
+  fi
+
+  if [[ -n "$mode" && "$mode" != "dark" && "$mode" != "light" ]]; then
+    exit 2
+  fi
+
+  printf '%s\n%s\n%s\n%s\n' "$mode" "$kind" "$value" "$scheme"
+}
+
+build_walset_args() {
+  local mode="$1"
+  local kind="$2"
+  local value="$3"
+  local scheme="$4"
+  local -a args=()
+
+  case "$kind" in
+  image)
+    if [[ ! -r "$value" ]]; then
+      exit 2
+    fi
+    args=("image" "$value")
+    ;;
+  hex)
+    args=("color" "$value")
+    ;;
+  *)
+    exit 2
+    ;;
+  esac
+
+  if [[ -n "$scheme" ]]; then
+    args+=("--scheme" "$scheme")
+  fi
+
+  if [[ "$mode" == "dark" || "$mode" == "light" ]]; then
+    args+=("--mode" "$mode")
+  fi
+
+  printf '%s\0' "${args[@]}"
+}
+
+main() {
+  validate_arguments "$@"
+
+  if ! command -v walset >/dev/null 2>&1; then
+    die 127 "walset not found. Ensure ~/.local/bin is in PATH"
+  fi
+
+  local mode kind value scheme
+  {
+    read -r mode
+    read -r kind
+    read -r value
+    read -r scheme
+  } < <(read_config)
+
+  local -a args=()
+  while read -rd '' arg; do
+    args+=("$arg")
+  done < <(build_walset_args "$mode" "$kind" "$value" "$scheme")
+
+  exec walset "${args[@]}"
+}
+
+main "$@"

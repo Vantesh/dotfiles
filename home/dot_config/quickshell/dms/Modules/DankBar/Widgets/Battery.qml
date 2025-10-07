@@ -40,7 +40,7 @@ Rectangle {
 
         DankIcon {
             name: BatteryService.getBatteryIcon()
-            size: Theme.iconSize - 8
+            size: Theme.barIconSize(barThickness)
             color: {
                 if (!BatteryService.batteryAvailable) {
                     return Theme.surfaceText
@@ -61,7 +61,7 @@ Rectangle {
 
         StyledText {
             text: BatteryService.batteryLevel.toString()
-            font.pixelSize: Theme.fontSizeSmall
+            font.pixelSize: Theme.barTextSize(barThickness)
             font.weight: Font.Medium
             color: Theme.surfaceText
             anchors.horizontalCenter: parent.horizontalCenter
@@ -77,7 +77,7 @@ Rectangle {
 
         DankIcon {
             name: BatteryService.getBatteryIcon()
-            size: Theme.iconSize - 6
+            size: Theme.barIconSize(barThickness, -4)
             color: {
                 if (!BatteryService.batteryAvailable) {
                     return Theme.surfaceText;
@@ -98,7 +98,7 @@ Rectangle {
 
         StyledText {
             text: `${BatteryService.batteryLevel}%`
-            font.pixelSize: Theme.fontSizeSmall
+            font.pixelSize: Theme.barTextSize(barThickness)
             font.weight: Font.Medium
             color: Theme.surfaceText
             anchors.verticalCenter: parent.verticalCenter

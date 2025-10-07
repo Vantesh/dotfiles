@@ -42,7 +42,7 @@ Rectangle {
 
         DankIcon {
             name: WeatherService.getWeatherIcon(WeatherService.weather.wCode)
-            size: Theme.iconSize - 4
+            size: Theme.barIconSize(barThickness, -6)
             color: Theme.primary
             anchors.horizontalCenter: parent.horizontalCenter
         }
@@ -55,7 +55,7 @@ Rectangle {
                 }
                 return temp;
             }
-            font.pixelSize: Theme.fontSizeSmall
+            font.pixelSize: Theme.barTextSize(barThickness)
             color: Theme.surfaceText
             anchors.horizontalCenter: parent.horizontalCenter
         }
@@ -70,7 +70,7 @@ Rectangle {
 
         DankIcon {
             name: WeatherService.getWeatherIcon(WeatherService.weather.wCode)
-            size: Theme.iconSize - 4
+            size: Theme.barIconSize(barThickness, -6)
             color: Theme.primary
             anchors.verticalCenter: parent.verticalCenter
         }
@@ -84,7 +84,7 @@ Rectangle {
 
                 return temp + "°" + (SettingsData.useFahrenheit ? "F" : "C");
             }
-            font.pixelSize: Theme.fontSizeSmall
+            font.pixelSize: Theme.barTextSize(barThickness)
             color: Theme.surfaceText
             anchors.verticalCenter: parent.verticalCenter
         }

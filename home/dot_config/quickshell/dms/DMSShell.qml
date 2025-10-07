@@ -32,16 +32,21 @@ import qs.Services
 ShellRoot {
   id: root
 
+  property bool servicesReady: false
+
   Component.onCompleted: {
     PortalService.init()
     DisplayService.nightModeEnabled
     WallpaperCyclingService.cyclingActive
     PluginService.pluginDirectory
+    Qt.callLater(() => {
+      servicesReady = true
+    })
   }
 
   Instantiator {
       id: daemonPluginInstantiator
-      model: Object.keys(PluginService.pluginDaemonComponents)
+      model: servicesReady ? Object.keys(PluginService.pluginDaemonComponents) : []
 
       delegate: Loader {
           id: daemonLoader
@@ -74,17 +79,22 @@ ShellRoot {
       asynchronous: false
 
       property var currentPosition: SettingsData.dankBarPosition
+      property bool initialized: false
 
       sourceComponent: DankBar {
           onColorPickerRequested: colorPickerModal.show()
       }
 
+      Component.onCompleted: {
+          initialized = true
+      }
+
       onCurrentPositionChanged: {
+          if (!initialized) return
+
           const component = sourceComponent
           sourceComponent = null
-          Qt.callLater(() => {
-              sourceComponent = component
-          })
+          sourceComponent = component
       }
   }
 
@@ -94,6 +104,7 @@ ShellRoot {
       asynchronous: false
 
       property var currentPosition: SettingsData.dockPosition
+      property bool initialized: false
 
       sourceComponent: Dock {
           contextMenu: dockContextMenuLoader.item ? dockContextMenuLoader.item : null
@@ -105,13 +116,17 @@ ShellRoot {
           }
       }
 
+      Component.onCompleted: {
+          initialized = true
+      }
+
       onCurrentPositionChanged: {
+          if (!initialized) return
+
           console.log("DEBUG: Dock position changed to:", currentPosition, "- recreating dock")
           const comp = sourceComponent
           sourceComponent = null
-          Qt.callLater(() => {
-              sourceComponent = comp
-          })
+          sourceComponent = comp
       }
   }
 
@@ -349,7 +364,7 @@ ShellRoot {
       }
   }
 
-  ColorPickerModal {
+  DankColorPickerModal {
       id: colorPickerModal
 
       Component.onCompleted: {

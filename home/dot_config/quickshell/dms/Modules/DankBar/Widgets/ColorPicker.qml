@@ -34,7 +34,7 @@ Rectangle {
 
         anchors.centerIn: parent
         name: "palette"
-        size: Theme.iconSize - 6
+        size: Theme.barIconSize(barThickness, -4)
         color: colorPickerArea.containsMouse || root.isActive ? Theme.primary : Theme.surfaceText
     }
 

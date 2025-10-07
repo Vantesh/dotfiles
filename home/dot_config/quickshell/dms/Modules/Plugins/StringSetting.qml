@@ -15,19 +15,20 @@ Column {
     width: parent.width
     spacing: Theme.spacingS
 
+    property bool isInitialized: false
+
     function loadValue() {
         const settings = findSettings()
         if (settings && settings.pluginService) {
-            value = settings.loadValue(settingKey, defaultValue)
-            textField.text = value
+            const loadedValue = settings.loadValue(settingKey, defaultValue)
+            value = loadedValue
+            textField.text = loadedValue
+            isInitialized = true
         }
     }
 
-    Component.onCompleted: {
-        loadValue()
-    }
-
     onValueChanged: {
+        if (!isInitialized) return
         const settings = findSettings()
         if (settings) {
             settings.saveValue(settingKey, value)

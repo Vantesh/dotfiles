@@ -227,8 +227,10 @@ Item {
 
                 readonly property int barThickness: px(barWindow.effectiveBarThickness + SettingsData.dankBarSpacing)
 
-                readonly property bool showing: SettingsData.dankBarVisible && (topBarCore.reveal
-                                         || (CompositorService.isNiri && NiriService.inOverview && SettingsData.dankBarOpenOnOverview)
+                readonly property bool inOverviewWithShow: CompositorService.isNiri && NiriService.inOverview && SettingsData.dankBarOpenOnOverview
+                readonly property bool effectiveVisible: SettingsData.dankBarVisible || inOverviewWithShow
+                readonly property bool showing: effectiveVisible && (topBarCore.reveal
+                                         || inOverviewWithShow
                                          || !topBarCore.autoHide)
 
                 readonly property int maskThickness: showing ? barThickness : 1
@@ -827,6 +829,7 @@ Item {
                                     return processListPopoutLoader.item
                                 }
                                 parentScreen: barWindow.screen
+                                widgetData: parent.widgetData
                                 toggleProcessList: () => {
                                                        processListPopoutLoader.active = true
                                                        return processListPopoutLoader.item?.toggle()
@@ -846,6 +849,7 @@ Item {
                                     return processListPopoutLoader.item
                                 }
                                 parentScreen: barWindow.screen
+                                widgetData: parent.widgetData
                                 toggleProcessList: () => {
                                                        processListPopoutLoader.active = true
                                                        return processListPopoutLoader.item?.toggle()
@@ -875,6 +879,7 @@ Item {
                                     return processListPopoutLoader.item
                                 }
                                 parentScreen: barWindow.screen
+                                widgetData: parent.widgetData
                                 toggleProcessList: () => {
                                                        processListPopoutLoader.active = true
                                                        return processListPopoutLoader.item?.toggle()

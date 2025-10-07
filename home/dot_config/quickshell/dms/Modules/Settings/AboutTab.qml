@@ -248,7 +248,7 @@ Item {
                         }
 
                         StyledText {
-                            text: "About"
+                            text: qsTr("About")
                             font.pixelSize: Theme.fontSizeLarge
                             font.weight: Font.Medium
                             color: Theme.surfaceText
@@ -307,7 +307,7 @@ Item {
                         }
 
                         StyledText {
-                            text: "Technical Details"
+                            text: qsTr("Technical Details")
                             font.pixelSize: Theme.fontSizeLarge
                             font.weight: Font.Medium
                             color: Theme.surfaceText
@@ -322,7 +322,7 @@ Item {
                         rowSpacing: Theme.spacingS
 
                         StyledText {
-                            text: "Framework:"
+                            text: qsTr("Framework:")
                             font.pixelSize: Theme.fontSizeMedium
                             font.weight: Font.Medium
                             color: Theme.surfaceText
@@ -345,20 +345,20 @@ Item {
                         }
 
                         StyledText {
-                            text: "Language:"
+                            text: qsTr("Language:")
                             font.pixelSize: Theme.fontSizeMedium
                             font.weight: Font.Medium
                             color: Theme.surfaceText
                         }
 
                         StyledText {
-                            text: "QML (Qt Modeling Language)"
+                            text: qsTr("QML (Qt Modeling Language)")
                             font.pixelSize: Theme.fontSizeMedium
                             color: Theme.surfaceVariantText
                         }
 
                         StyledText {
-                            text: "Compositor:"
+                            text: qsTr("Compositor:")
                             font.pixelSize: Theme.fontSizeMedium
                             font.weight: Font.Medium
                             color: Theme.surfaceText
@@ -410,7 +410,7 @@ Item {
                         }
 
                         StyledText {
-                            text: "Github:"
+                            text: qsTr("Github:")
                             font.pixelSize: Theme.fontSizeMedium
                             font.weight: Font.Medium
                             color: Theme.surfaceText
@@ -437,7 +437,7 @@ Item {
                             }
                             
                             StyledText {
-                                text: "- Support Us With a Star ⭐"
+                                text: qsTr("- Support Us With a Star ⭐")
                                 font.pixelSize: Theme.fontSizeMedium
                                 color: Theme.surfaceVariantText
                                 anchors.verticalCenter: parent.verticalCenter
@@ -445,7 +445,7 @@ Item {
                         }
 
                         StyledText {
-                            text: "System Monitoring:"
+                            text: qsTr("System Monitoring:")
                             font.pixelSize: Theme.fontSizeMedium
                             font.weight: Font.Medium
                             color: Theme.surfaceText
@@ -472,7 +472,7 @@ Item {
                             }
                             
                             StyledText {
-                                text: "- Stateless System Monitoring"
+                                text: qsTr("- Stateless System Monitoring")
                                 font.pixelSize: Theme.fontSizeMedium
                                 color: Theme.surfaceVariantText
                                 anchors.verticalCenter: parent.verticalCenter
@@ -480,7 +480,7 @@ Item {
                         }
 
                         StyledText {
-                            text: "Dank Suite:"
+                            text: qsTr("Dank Suite:")
                             font.pixelSize: Theme.fontSizeMedium
                             font.weight: Font.Medium
                             color: Theme.surfaceText

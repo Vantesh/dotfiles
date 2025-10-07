@@ -487,7 +487,7 @@ PanelWindow {
                 StyledText {
                     id: clearText
 
-                    text: "Clear"
+                    text: qsTr("Clear")
                     color: clearButton.isHovered ? Theme.primary : Theme.surfaceVariantText
                     font.pixelSize: Theme.fontSizeSmall
                     font.weight: Font.Medium

@@ -18,6 +18,7 @@ Singleton {
     property bool inhibitorAvailable: true
     property bool idleInhibited: false
     property string inhibitReason: "Keep system awake"
+    property bool hasPrimeRun: false
 
     readonly property bool nativeInhibitorAvailable: {
         try {
@@ -30,6 +31,7 @@ Singleton {
     Component.onCompleted: {
         detectElogindProcess.running = true
         detectHibernateProcess.running = true
+        detectPrimeRunProcess.running = true
         console.log("SessionService: Native inhibitor available:", nativeInhibitorAvailable)
     }
 
@@ -66,6 +68,16 @@ Singleton {
     }
 
     Process {
+        id: detectPrimeRunProcess
+        running: false
+        command: ["which", "prime-run"]
+
+        onExited: function (exitCode) {
+            hasPrimeRun = (exitCode === 0)
+        }
+    }
+
+    Process {
         id: uwsmLogout
         command: ["uwsm", "stop"]
         running: false
@@ -88,8 +100,11 @@ Singleton {
     }
 
     // * Apps
-    function launchDesktopEntry(desktopEntry) {
+    function launchDesktopEntry(desktopEntry, usePrimeRun) {
         let cmd = desktopEntry.command
+        if (usePrimeRun && hasPrimeRun) {
+            cmd = ["prime-run"].concat(cmd)
+        }
         if (SessionData.launchPrefix && SessionData.launchPrefix.length > 0) {
             const launchPrefix = SessionData.launchPrefix.trim().split(" ")
             cmd = launchPrefix.concat(cmd)
@@ -97,7 +112,23 @@ Singleton {
 
         Quickshell.execDetached({
             command: cmd,
-            workingDirectory: desktopEntry.workingDirectory,
+            workingDirectory: desktopEntry.workingDirectory || Quickshell.env("HOME"),
+        });
+    }
+
+    function launchDesktopAction(desktopEntry, action, usePrimeRun) {
+        let cmd = action.command
+        if (usePrimeRun && hasPrimeRun) {
+            cmd = ["prime-run"].concat(cmd)
+        }
+        if (SessionData.launchPrefix && SessionData.launchPrefix.length > 0) {
+            const launchPrefix = SessionData.launchPrefix.trim().split(" ")
+            cmd = launchPrefix.concat(cmd)
+        }
+
+        Quickshell.execDetached({
+            command: cmd,
+            workingDirectory: desktopEntry.workingDirectory || Quickshell.env("HOME"),
         });
     }
 

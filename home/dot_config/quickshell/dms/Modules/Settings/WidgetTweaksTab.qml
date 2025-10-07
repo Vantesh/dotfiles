@@ -19,161 +19,6 @@ Item {
             width: parent.width
             spacing: Theme.spacingXL
 
-            // Launcher Button Section
-            StyledRect {
-                width: parent.width
-                height: launcherButtonSection.implicitHeight + Theme.spacingL * 2
-                radius: Theme.cornerRadius
-                color: Theme.surfaceContainerHigh
-                border.color: Qt.rgba(Theme.outline.r, Theme.outline.g,
-                                      Theme.outline.b, 0.2)
-                border.width: 0
-
-                Column {
-                    id: launcherButtonSection
-
-                    anchors.fill: parent
-                    anchors.margins: Theme.spacingL
-                    spacing: Theme.spacingM
-
-                    Row {
-                        width: parent.width
-                        spacing: Theme.spacingM
-
-                        DankIcon {
-                            name: "apps"
-                            size: Theme.iconSize
-                            color: Theme.primary
-                            anchors.verticalCenter: parent.verticalCenter
-                        }
-
-                        StyledText {
-                            text: "Launcher Button"
-                            font.pixelSize: Theme.fontSizeLarge
-                            font.weight: Font.Medium
-                            color: Theme.surfaceText
-                            anchors.verticalCenter: parent.verticalCenter
-                        }
-                    }
-
-                    DankToggle {
-                        width: parent.width
-                        text: "Use OS Logo"
-                        description: "Display operating system logo instead of apps icon"
-                        checked: SettingsData.useOSLogo
-                        onToggled: checked => {
-                                       return SettingsData.setUseOSLogo(checked)
-                                   }
-                    }
-
-                    Row {
-                        width: parent.width - Theme.spacingL
-                        spacing: Theme.spacingL
-                        visible: SettingsData.useOSLogo
-                        opacity: visible ? 1 : 0
-                        anchors.left: parent.left
-                        anchors.leftMargin: Theme.spacingL
-
-                        Column {
-                            width: 120
-                            spacing: Theme.spacingS
-
-                            StyledText {
-                                text: "Color Override"
-                                font.pixelSize: Theme.fontSizeSmall
-                                color: Theme.surfaceText
-                                font.weight: Font.Medium
-                            }
-
-                            DankTextField {
-                                width: 100
-                                height: 28
-                                placeholderText: "#ffffff"
-                                text: SettingsData.osLogoColorOverride
-                                maximumLength: 7
-                                font.pixelSize: Theme.fontSizeSmall
-                                topPadding: Theme.spacingXS
-                                bottomPadding: Theme.spacingXS
-                                onEditingFinished: {
-                                    var color = text.trim()
-                                    if (color === ""
-                                            || /^#[0-9A-Fa-f]{6}$/.test(color))
-                                        SettingsData.setOSLogoColorOverride(
-                                                    color)
-                                    else
-                                        text = SettingsData.osLogoColorOverride
-                                }
-                            }
-                        }
-
-                        Column {
-                            width: 120
-                            spacing: Theme.spacingS
-
-                            StyledText {
-                                text: "Brightness"
-                                font.pixelSize: Theme.fontSizeSmall
-                                color: Theme.surfaceText
-                                font.weight: Font.Medium
-                            }
-
-                            DankSlider {
-                                width: 100
-                                height: 20
-                                minimum: 0
-                                maximum: 100
-                                value: Math.round(
-                                           SettingsData.osLogoBrightness * 100)
-                                unit: "%"
-                                showValue: true
-                                wheelEnabled: false
-                                thumbOutlineColor: Theme.surfaceContainerHigh
-                                onSliderValueChanged: newValue => {
-                                                          SettingsData.setOSLogoBrightness(
-                                                              newValue / 100)
-                                                      }
-                            }
-                        }
-
-                        Column {
-                            width: 120
-                            spacing: Theme.spacingS
-
-                            StyledText {
-                                text: "Contrast"
-                                font.pixelSize: Theme.fontSizeSmall
-                                color: Theme.surfaceText
-                                font.weight: Font.Medium
-                            }
-
-                            DankSlider {
-                                width: 100
-                                height: 20
-                                minimum: 0
-                                maximum: 200
-                                value: Math.round(
-                                           SettingsData.osLogoContrast * 100)
-                                unit: "%"
-                                showValue: true
-                                wheelEnabled: false
-                                thumbOutlineColor: Theme.surfaceContainerHigh
-                                onSliderValueChanged: newValue => {
-                                                          SettingsData.setOSLogoContrast(
-                                                              newValue / 100)
-                                                      }
-                            }
-                        }
-
-                        Behavior on opacity {
-                            NumberAnimation {
-                                duration: Theme.mediumDuration
-                                easing.type: Theme.emphasizedEasing
-                            }
-                        }
-                    }
-                }
-            }
-
             StyledRect {
                 width: parent.width
                 height: workspaceSection.implicitHeight + Theme.spacingL * 2
@@ -202,7 +47,7 @@ Item {
                         }
 
                         StyledText {
-                            text: "Workspace Settings"
+                            text: qsTr("Workspace Settings")
                             font.pixelSize: Theme.fontSizeLarge
                             font.weight: Font.Medium
                             color: Theme.surfaceText
@@ -212,7 +57,7 @@ Item {
 
                     DankToggle {
                         width: parent.width
-                        text: "Workspace Index Numbers"
+                        text: qsTr("Workspace Index Numbers")
                         description: "Show workspace index numbers in the top bar workspace switcher"
                         checked: SettingsData.showWorkspaceIndex
                         onToggled: checked => {
@@ -223,7 +68,7 @@ Item {
 
                     DankToggle {
                         width: parent.width
-                        text: "Workspace Padding"
+                        text: qsTr("Workspace Padding")
                         description: "Always show a minimum of 3 workspaces, even if fewer are available"
                         checked: SettingsData.showWorkspacePadding
                         onToggled: checked => {
@@ -234,7 +79,7 @@ Item {
 
                     DankToggle {
                         width: parent.width
-                        text: "Show Workspace Apps"
+                        text: qsTr("Show Workspace Apps")
                         description: "Display application icons in workspace indicators"
                         checked: SettingsData.showWorkspaceApps
                         onToggled: checked => {
@@ -256,7 +101,7 @@ Item {
                             spacing: Theme.spacingS
 
                             StyledText {
-                                text: "Max apps to show"
+                                text: qsTr("Max apps to show")
                                 font.pixelSize: Theme.fontSizeSmall
                                 color: Theme.surfaceText
                                 font.weight: Font.Medium
@@ -287,7 +132,7 @@ Item {
 
                     DankToggle {
                         width: parent.width
-                        text: "Per-Monitor Workspaces"
+                        text: qsTr("Per-Monitor Workspaces")
                         description: "Show only workspaces belonging to each specific monitor."
                         checked: SettingsData.workspacesPerMonitor
                         onToggled: checked => {
@@ -325,7 +170,7 @@ Item {
                         }
 
                         StyledText {
-                            text: "Media Player Settings"
+                            text: qsTr("Media Player Settings")
                             font.pixelSize: Theme.fontSizeLarge
                             font.weight: Font.Medium
                             color: Theme.surfaceText
@@ -335,7 +180,7 @@ Item {
 
                     DankToggle {
                         width: parent.width
-                        text: "Wave Progress Bars"
+                        text: qsTr("Wave Progress Bars")
                         description: "Use animated wave progress bars for media playback"
                         checked: SettingsData.waveProgressEnabled
                         onToggled: checked => {
@@ -373,7 +218,7 @@ Item {
                         }
 
                         StyledText {
-                            text: "Running Apps Settings"
+                            text: qsTr("Running Apps Settings")
                             font.pixelSize: Theme.fontSizeLarge
                             font.weight: Font.Medium
                             color: Theme.surfaceText
@@ -383,7 +228,7 @@ Item {
 
                     DankToggle {
                         width: parent.width
-                        text: "Running Apps Only In Current Workspace"
+                        text: qsTr("Running Apps Only In Current Workspace")
                         description: "Show only apps running in current workspace"
                         checked: SettingsData.runningAppsCurrentWorkspace
                         onToggled: checked => {
@@ -423,7 +268,7 @@ Item {
                         }
 
                         StyledText {
-                            text: "Named Workspace Icons"
+                            text: qsTr("Named Workspace Icons")
                             font.pixelSize: Theme.fontSizeLarge
                             font.weight: Font.Medium
                             color: Theme.surfaceText
@@ -433,7 +278,7 @@ Item {
 
                     StyledText {
                         width: parent.width
-                        text: "Configure icons for named workspaces. Icons take priority over numbers when both are enabled."
+                        text: qsTr("Configure icons for named workspaces. Icons take priority over numbers when both are enabled.")
                         font.pixelSize: Theme.fontSizeSmall
                         color: Theme.outline
                         wrapMode: Text.WordWrap

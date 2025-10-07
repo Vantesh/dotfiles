@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Effects
 import Quickshell
 import Quickshell.Wayland
 import qs.Common
@@ -118,19 +117,7 @@ PanelWindow {
         height: alignedHeight
         active: root.visible
         asynchronous: false
-        opacity: Quickshell.env("DMS_DISABLE_LAYER") === "true" ? (shouldBeVisible ? 1 : 0) : 1
-        layer.enabled: Quickshell.env("DMS_DISABLE_LAYER") !== "true"
-        layer.effect: MultiEffect {
-            source: contentLoader
-            opacity: shouldBeVisible ? 1 : 0
-
-            Behavior on opacity {
-                NumberAnimation {
-                    duration: animationDuration
-                    easing.type: animationEasing
-                }
-            }
-        }
+        opacity: shouldBeVisible ? 1 : 0
 
         Behavior on opacity {
             NumberAnimation {

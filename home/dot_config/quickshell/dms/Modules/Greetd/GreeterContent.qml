@@ -549,7 +549,7 @@ Item {
                         }
 
                         StyledText {
-                            text: "Switch User"
+                            text: qsTr("Switch User")
                             font.pixelSize: Theme.fontSizeMedium
                             color: Theme.surfaceText
                             anchors.verticalCenter: parent.verticalCenter
@@ -1325,7 +1325,7 @@ Item {
 
                         StyledText {
                             anchors.centerIn: parent
-                            text: "Cancel"
+                            text: qsTr("Cancel")
                             color: Theme.surfaceText
                             font.pixelSize: Theme.fontSizeMedium
                         }

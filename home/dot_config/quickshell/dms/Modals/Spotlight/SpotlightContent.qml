@@ -13,8 +13,13 @@ Item {
     property alias searchField: searchField
     property var parentModal: null
 
+    function resetScroll() {
+        resultsView.resetScroll()
+    }
+
     anchors.fill: parent
     focus: true
+    clip: false
     Keys.onPressed: event => {
                         if (event.key === Qt.Key_Escape) {
                             if (parentModal)
@@ -101,27 +106,7 @@ Item {
         anchors.fill: parent
         anchors.margins: Theme.spacingM
         spacing: Theme.spacingM
-
-        Rectangle {
-            width: parent.width
-            height: categorySelector.height + Theme.spacingS * 2
-            radius: Theme.cornerRadius
-            color: "transparent"
-            visible: appLauncher.categories.length > 1 || appLauncher.model.count > 0
-
-            CategorySelector {
-                id: categorySelector
-
-                anchors.centerIn: parent
-                width: parent.width - Theme.spacingS * 2
-                categories: appLauncher.categories
-                selectedCategory: appLauncher.selectedCategory
-                compact: false
-                onCategorySelected: category => {
-                                        appLauncher.setCategory(category)
-                                    }
-            }
-        }
+        clip: false
 
         Row {
             width: parent.width
@@ -228,6 +213,7 @@ Item {
         }
 
         SpotlightResults {
+            id: resultsView
             appLauncher: spotlightKeyHandler.appLauncher
             contextMenu: contextMenu
         }
@@ -245,7 +231,7 @@ Item {
         visible: contextMenu.visible
         z: 999
         onClicked: () => {
-                       contextMenu.close()
+                       contextMenu.hide()
                    }
 
         MouseArea {

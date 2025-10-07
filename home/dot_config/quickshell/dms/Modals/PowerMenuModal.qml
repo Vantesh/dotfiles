@@ -32,24 +32,24 @@ DankModal {
         close();
         const actions = {
             "logout": {
-                "title": "Log Out",
-                "message": "Are you sure you want to log out?"
+                "title": qsTr("Log Out"),
+                "message": qsTr("Are you sure you want to log out?")
             },
             "suspend": {
-                "title": "Suspend",
-                "message": "Are you sure you want to suspend the system?"
+                "title": qsTr("Suspend"),
+                "message": qsTr("Are you sure you want to suspend the system?")
             },
             "hibernate": {
-                "title": "Hibernate",
-                "message": "Are you sure you want to hibernate the system?"
+                "title": qsTr("Hibernate"),
+                "message": qsTr("Are you sure you want to hibernate the system?")
             },
             "reboot": {
-                "title": "Reboot",
-                "message": "Are you sure you want to reboot the system?"
+                "title": qsTr("Reboot"),
+                "message": qsTr("Are you sure you want to reboot the system?")
             },
             "poweroff": {
-                "title": "Power Off",
-                "message": "Are you sure you want to power off the system?"
+                "title": qsTr("Power Off"),
+                "message": qsTr("Are you sure you want to power off the system?")
             }
         }
         const selected = actions[action]
@@ -144,7 +144,7 @@ DankModal {
                     width: parent.width
 
                     StyledText {
-                        text: "Power Options"
+                        text: qsTr("Power Options")
                         font.pixelSize: Theme.fontSizeLarge
                         color: Theme.surfaceText
                         font.weight: Font.Medium
@@ -201,7 +201,7 @@ DankModal {
                             }
 
                             StyledText {
-                                text: "Log Out"
+                                text: qsTr("Log Out")
                                 font.pixelSize: Theme.fontSizeMedium
                                 color: Theme.surfaceText
                                 font.weight: Font.Medium
@@ -254,7 +254,7 @@ DankModal {
                             }
 
                             StyledText {
-                                text: "Suspend"
+                                text: qsTr("Suspend")
                                 font.pixelSize: Theme.fontSizeMedium
                                 color: Theme.surfaceText
                                 font.weight: Font.Medium
@@ -308,7 +308,7 @@ DankModal {
                             }
 
                             StyledText {
-                                text: "Hibernate"
+                                text: qsTr("Hibernate")
                                 font.pixelSize: Theme.fontSizeMedium
                                 color: Theme.surfaceText
                                 font.weight: Font.Medium
@@ -362,7 +362,7 @@ DankModal {
                             }
 
                             StyledText {
-                                text: "Reboot"
+                                text: qsTr("Reboot")
                                 font.pixelSize: Theme.fontSizeMedium
                                 color: rebootArea.containsMouse ? Theme.warning : Theme.surfaceText
                                 font.weight: Font.Medium
@@ -416,7 +416,7 @@ DankModal {
                             }
 
                             StyledText {
-                                text: "Power Off"
+                                text: qsTr("Power Off")
                                 font.pixelSize: Theme.fontSizeMedium
                                 color: powerOffArea.containsMouse ? Theme.error : Theme.surfaceText
                                 font.weight: Font.Medium

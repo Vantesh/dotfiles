@@ -76,7 +76,7 @@ Column {
         }
 
         StyledText {
-            text: "No items added yet"
+            text: qsTr("No items added yet")
             font.pixelSize: Theme.fontSizeSmall
             color: Theme.surfaceVariantText
             visible: root.items.length === 0
@@ -111,7 +111,7 @@ Column {
 
                 StyledText {
                     anchors.centerIn: parent
-                    text: "Remove"
+                    text: qsTr("Remove")
                     color: Theme.errorText
                     font.pixelSize: Theme.fontSizeSmall
                     font.weight: Font.Medium

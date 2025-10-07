@@ -127,7 +127,7 @@ DankFlickable {
                                 }
 
                                 StyledText {
-                                    text: "System"
+                                    text: qsTr("System")
                                     font.pixelSize: Theme.fontSizeSmall
                                     font.family: SettingsData.monoFontFamily
                                     font.weight: Font.Bold
@@ -411,7 +411,7 @@ DankFlickable {
                     }
 
                     StyledText {
-                        text: "Storage & Disks"
+                        text: qsTr("Storage & Disks")
                         font.pixelSize: Theme.fontSizeLarge
                         font.family: SettingsData.monoFontFamily
                         font.weight: Font.Bold
@@ -431,7 +431,7 @@ DankFlickable {
                         spacing: Theme.spacingS
 
                         StyledText {
-                            text: "Device"
+                            text: qsTr("Device")
                             font.pixelSize: Theme.fontSizeSmall
                             font.family: SettingsData.monoFontFamily
                             font.weight: Font.Bold
@@ -442,7 +442,7 @@ DankFlickable {
                         }
 
                         StyledText {
-                            text: "Mount"
+                            text: qsTr("Mount")
                             font.pixelSize: Theme.fontSizeSmall
                             font.family: SettingsData.monoFontFamily
                             font.weight: Font.Bold
@@ -453,7 +453,7 @@ DankFlickable {
                         }
 
                         StyledText {
-                            text: "Size"
+                            text: qsTr("Size")
                             font.pixelSize: Theme.fontSizeSmall
                             font.family: SettingsData.monoFontFamily
                             font.weight: Font.Bold
@@ -464,7 +464,7 @@ DankFlickable {
                         }
 
                         StyledText {
-                            text: "Used"
+                            text: qsTr("Used")
                             font.pixelSize: Theme.fontSizeSmall
                             font.family: SettingsData.monoFontFamily
                             font.weight: Font.Bold
@@ -475,7 +475,7 @@ DankFlickable {
                         }
 
                         StyledText {
-                            text: "Available"
+                            text: qsTr("Available")
                             font.pixelSize: Theme.fontSizeSmall
                             font.family: SettingsData.monoFontFamily
                             font.weight: Font.Bold
@@ -486,7 +486,7 @@ DankFlickable {
                         }
 
                         StyledText {
-                            text: "Use%"
+                            text: qsTr("Use%")
                             font.pixelSize: Theme.fontSizeSmall
                             font.family: SettingsData.monoFontFamily
                             font.weight: Font.Bold

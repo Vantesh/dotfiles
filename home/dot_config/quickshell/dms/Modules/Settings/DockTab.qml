@@ -50,7 +50,7 @@ Item {
 
                         StyledText {
                             id: positionText
-                            text: "Dock Position"
+                            text: qsTr("Dock Position")
                             font.pixelSize: Theme.fontSizeLarge
                             font.weight: Font.Medium
                             color: Theme.surfaceText
@@ -125,14 +125,14 @@ Item {
                             anchors.verticalCenter: parent.verticalCenter
 
                             StyledText {
-                                text: "Auto-hide Dock"
+                                text: qsTr("Auto-hide Dock")
                                 font.pixelSize: Theme.fontSizeLarge
                                 font.weight: Font.Medium
                                 color: Theme.surfaceText
                             }
 
                             StyledText {
-                                text: "Hide the dock when not in use and reveal it when hovering near the dock area"
+                                text: qsTr("Hide the dock when not in use and reveal it when hovering near the dock area")
                                 font.pixelSize: Theme.fontSizeSmall
                                 color: Theme.surfaceVariantText
                                 wrapMode: Text.WordWrap
@@ -176,14 +176,14 @@ Item {
                             anchors.verticalCenter: parent.verticalCenter
 
                             StyledText {
-                                text: "Show Dock"
+                                text: qsTr("Show Dock")
                                 font.pixelSize: Theme.fontSizeLarge
                                 font.weight: Font.Medium
                                 color: Theme.surfaceText
                             }
 
                             StyledText {
-                                text: "Display a dock with pinned and running applications that can be positioned at the top, bottom, left, or right edge of the screen"
+                                text: qsTr("Display a dock with pinned and running applications that can be positioned at the top, bottom, left, or right edge of the screen")
                                 font.pixelSize: Theme.fontSizeSmall
                                 color: Theme.surfaceVariantText
                                 wrapMode: Text.WordWrap
@@ -229,7 +229,7 @@ Item {
                             anchors.verticalCenter: parent.verticalCenter
 
                             StyledText {
-                                text: "Show on Overview"
+                                text: qsTr("Show on Overview")
                                 font.pixelSize: Theme.fontSizeLarge
                                 font.weight: Font.Medium
                                 color: Theme.surfaceText
@@ -294,14 +294,14 @@ Item {
                             anchors.verticalCenter: parent.verticalCenter
 
                             StyledText {
-                                text: "Group by App"
+                                text: qsTr("Group by App")
                                 font.pixelSize: Theme.fontSizeLarge
                                 font.weight: Font.Medium
                                 color: Theme.surfaceText
                             }
 
                             StyledText {
-                                text: "Group multiple windows of the same app together with a window count indicator"
+                                text: qsTr("Group multiple windows of the same app together with a window count indicator")
                                 font.pixelSize: Theme.fontSizeSmall
                                 color: Theme.surfaceVariantText
                                 wrapMode: Text.WordWrap
@@ -360,7 +360,7 @@ Item {
                         }
 
                         StyledText {
-                            text: "Spacing"
+                            text: qsTr("Spacing")
                             font.pixelSize: Theme.fontSizeLarge
                             font.weight: Font.Medium
                             color: Theme.surfaceText
@@ -373,7 +373,7 @@ Item {
                         spacing: Theme.spacingS
 
                         StyledText {
-                            text: "Padding"
+                            text: qsTr("Padding")
                             font.pixelSize: Theme.fontSizeSmall
                             color: Theme.surfaceText
                             font.weight: Font.Medium
@@ -401,7 +401,7 @@ Item {
                         spacing: Theme.spacingS
 
                         StyledText {
-                            text: "Height to Edge Gap (Exclusive Zone)"
+                            text: qsTr("Height to Edge Gap (Exclusive Zone)")
                             font.pixelSize: Theme.fontSizeSmall
                             color: Theme.surfaceText
                             font.weight: Font.Medium
@@ -464,7 +464,7 @@ Item {
                         }
 
                         StyledText {
-                            text: "Dock Transparency"
+                            text: qsTr("Dock Transparency")
                             font.pixelSize: Theme.fontSizeLarge
                             font.weight: Font.Medium
                             color: Theme.surfaceText

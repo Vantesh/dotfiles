@@ -18,10 +18,23 @@ Item {
     property Component verticalBarPill: null
     property Component popoutContent: null
     property real popoutWidth: 400
-    property real popoutHeight: 400
+    property real popoutHeight: 0
     property var pillClickAction: null
 
+    property Component controlCenterWidget: null
+    property string ccWidgetIcon: ""
+    property string ccWidgetPrimaryText: ""
+    property string ccWidgetSecondaryText: ""
+    property bool ccWidgetIsActive: false
+    property bool ccWidgetIsToggle: true
+    property Component ccDetailContent: null
+    property real ccDetailHeight: 250
+
+    signal ccWidgetToggled()
+    signal ccWidgetExpanded()
+
     property var pluginData: ({})
+    property var variants: []
 
     readonly property bool isVertical: axis?.isVertical ?? false
     readonly property bool hasHorizontalPill: horizontalBarPill !== null
@@ -52,9 +65,32 @@ Item {
     function loadPluginData() {
         if (!pluginService || !pluginId) {
             pluginData = {}
+            variants = []
             return
         }
         pluginData = SettingsData.getPluginSettingsForPlugin(pluginId)
+        variants = pluginService.getPluginVariants(pluginId)
+    }
+
+    function createVariant(variantName, variantConfig) {
+        if (!pluginService || !pluginId) {
+            return null
+        }
+        return pluginService.createPluginVariant(pluginId, variantName, variantConfig)
+    }
+
+    function removeVariant(variantId) {
+        if (!pluginService || !pluginId) {
+            return
+        }
+        pluginService.removePluginVariant(pluginId, variantId)
+    }
+
+    function updateVariant(variantId, variantConfig) {
+        if (!pluginService || !pluginId) {
+            return
+        }
+        pluginService.updatePluginVariant(pluginId, variantId, variantConfig)
     }
 
     width: isVertical ? (hasVerticalPill ? verticalPill.width : 0) : (hasHorizontalPill ? horizontalPill.width : 0)

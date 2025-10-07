@@ -17,6 +17,7 @@ Item {
     property bool isDragging: false
     property bool wheelEnabled: true
     property real valueOverride: -1
+    property bool alwaysShowValue: false
     readonly property bool containsMouse: sliderMouseArea.containsMouse
 
     property color thumbOutlineColor: Theme.surfaceContainer
@@ -239,7 +240,7 @@ Item {
                 anchors.bottom: parent.top
                 anchors.bottomMargin: Theme.spacingM
                 x: Math.max(0, Math.min(parent.width - width, sliderHandle.x + sliderHandle.width/2 - width/2))
-                visible: (sliderMouseArea.containsMouse && slider.showValue) || (slider.isDragging && slider.showValue)
+                visible: slider.alwaysShowValue ? slider.showValue : ((sliderMouseArea.containsMouse && slider.showValue) || (slider.isDragging && slider.showValue))
                 opacity: visible ? 1 : 0
 
                 StyledText {

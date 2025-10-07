@@ -13,6 +13,7 @@ Rectangle {
     property var popupTarget: null
     property var parentScreen: null
     property real widgetThickness: 30
+    property real barThickness: 48
     readonly property real horizontalPadding: SettingsData.dankBarNoBackground ? 2 : Theme.spacingS
     readonly property bool hasActivePrivacy: PrivacyService.anyPrivacyActive
     readonly property int activeCount: PrivacyService.microphoneActive + PrivacyService.cameraActive + PrivacyService.screensharingActive
@@ -198,7 +199,7 @@ Rectangle {
 
             anchors.centerIn: parent
             text: PrivacyService.getPrivacySummary()
-            font.pixelSize: Theme.fontSizeSmall
+            font.pixelSize: Theme.barTextSize(barThickness)
             color: Theme.surfaceText
         }
 

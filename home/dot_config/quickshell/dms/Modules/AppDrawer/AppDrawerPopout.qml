@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Controls
 import QtQuick.Effects
 import Quickshell
 import Quickshell.Io
@@ -186,7 +187,7 @@ DankPopout {
 
                         StyledText {
                             anchors.verticalCenter: parent.verticalCenter
-                            text: "Applications"
+                            text: qsTr("Applications")
                             font.pixelSize: Theme.fontSizeLarge + 4
                             font.weight: Font.Bold
                             color: Theme.surfaceText
@@ -488,7 +489,8 @@ DankPopout {
                                                    if (mouse.button === Qt.LeftButton) {
                                                        appList.itemClicked(index, model)
                                                    } else if (mouse.button === Qt.RightButton) {
-                                                       var panelPos = mapToItem(contextMenu.parent, mouse.x, mouse.y)
+                                                       var globalPos = mapToItem(null, mouse.x, mouse.y)
+                                                       var panelPos = contextMenu.parent.mapFromItem(null, globalPos.x, globalPos.y)
                                                        appList.itemRightClicked(index, model, panelPos.x, panelPos.y)
                                                    }
                                                }
@@ -649,7 +651,8 @@ DankPopout {
                                                    if (mouse.button === Qt.LeftButton) {
                                                        appGrid.itemClicked(index, model)
                                                    } else if (mouse.button === Qt.RightButton) {
-                                                       var panelPos = mapToItem(contextMenu.parent, mouse.x, mouse.y)
+                                                       var globalPos = mapToItem(null, mouse.x, mouse.y)
+                                                       var panelPos = contextMenu.parent.mapFromItem(null, globalPos.x, globalPos.y)
                                                        appGrid.itemRightClicked(index, model, panelPos.x, panelPos.y)
                                                    }
                                                }
@@ -662,68 +665,68 @@ DankPopout {
         }
     }
 
-    Rectangle {
+    Popup {
         id: contextMenu
 
         property var currentApp: null
-        property bool menuVisible: false
 
         readonly property string appId: (currentApp && currentApp.desktopEntry) ? (currentApp.desktopEntry.id || currentApp.desktopEntry.execString || "") : ""
         readonly property bool isPinned: appId && SessionData.isPinnedApp(appId)
 
         function show(x, y, app) {
             currentApp = app
-
-            const menuWidth = 180
-            const menuHeight = menuColumn.implicitHeight + Theme.spacingS * 2
-
-            let finalX = x + 8
-            let finalY = y + 8
-
-            if (finalX + menuWidth > appDrawerPopout.popupWidth) {
-                finalX = x - menuWidth - 8
-            }
-
-            if (finalY + menuHeight > appDrawerPopout.popupHeight) {
-                finalY = y - menuHeight - 8
-            }
-
-            finalX = Math.max(8, Math.min(finalX, appDrawerPopout.popupWidth - menuWidth - 8))
-            finalY = Math.max(8, Math.min(finalY, appDrawerPopout.popupHeight - menuHeight - 8))
-
-            contextMenu.x = finalX
-            contextMenu.y = finalY
-            contextMenu.visible = true
-            contextMenu.menuVisible = true
+            contextMenu.x = x + 4
+            contextMenu.y = y + 4
+            contextMenu.open()
         }
 
-        function close() {
-            contextMenu.menuVisible = false
-            Qt.callLater(() => {
-                             contextMenu.visible = false
-                         })
+        function hide() {
+            contextMenu.close()
         }
 
-        visible: false
         width: 180
         height: menuColumn.implicitHeight + Theme.spacingS * 2
-        radius: Theme.cornerRadius
-        color: Theme.popupBackground()
-        border.color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.08)
-        border.width: 0
-        z: 1000
-        opacity: menuVisible ? 1 : 0
-        scale: menuVisible ? 1 : 0.85
+        padding: 0
+        closePolicy: Popup.CloseOnPressOutside
+        modal: false
+        dim: false
 
-        Rectangle {
-            anchors.fill: parent
-            anchors.topMargin: 4
-            anchors.leftMargin: 2
-            anchors.rightMargin: -2
-            anchors.bottomMargin: -4
-            radius: parent.radius
-            color: Qt.rgba(0, 0, 0, 0.15)
-            z: parent.z - 1
+        background: Rectangle {
+            radius: Theme.cornerRadius
+            color: Theme.popupBackground()
+            border.color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.08)
+            border.width: 1
+
+            Rectangle {
+                anchors.fill: parent
+                anchors.topMargin: 4
+                anchors.leftMargin: 2
+                anchors.rightMargin: -2
+                anchors.bottomMargin: -4
+                radius: parent.radius
+                color: Qt.rgba(0, 0, 0, 0.15)
+                z: -1
+            }
+        }
+
+        enter: Transition {
+            NumberAnimation {
+                property: "opacity"
+                from: 0
+                to: 1
+                duration: Theme.shortDuration
+                easing.type: Theme.emphasizedEasing
+            }
+        }
+
+        exit: Transition {
+            NumberAnimation {
+                property: "opacity"
+                from: 1
+                to: 0
+                duration: Theme.shortDuration
+                easing.type: Theme.emphasizedEasing
+            }
         }
 
         Column {
@@ -778,12 +781,82 @@ DankPopout {
                         } else {
                             SessionData.addPinnedApp(contextMenu.appId)
                         }
-                        contextMenu.close()
+                        contextMenu.hide()
                     }
                 }
             }
 
             Rectangle {
+                width: parent.width - Theme.spacingS * 2
+                height: 5
+                anchors.horizontalCenter: parent.horizontalCenter
+                color: "transparent"
+
+                Rectangle {
+                    anchors.centerIn: parent
+                    width: parent.width
+                    height: 1
+                    color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.2)
+                }
+            }
+
+            Repeater {
+                model: contextMenu.currentApp && contextMenu.currentApp.desktopEntry && contextMenu.currentApp.desktopEntry.actions ? contextMenu.currentApp.desktopEntry.actions : []
+
+                Rectangle {
+                    width: parent.width
+                    height: 32
+                    radius: Theme.cornerRadius
+                    color: actionMouseArea.containsMouse ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.12) : "transparent"
+
+                    Row {
+                        anchors.left: parent.left
+                        anchors.leftMargin: Theme.spacingS
+                        anchors.verticalCenter: parent.verticalCenter
+                        spacing: Theme.spacingS
+
+                        Item {
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: Theme.iconSize - 2
+                            height: Theme.iconSize - 2
+                            visible: modelData.icon && modelData.icon !== ""
+
+                            IconImage {
+                                anchors.fill: parent
+                                source: modelData.icon ? Quickshell.iconPath(modelData.icon, true) : ""
+                                smooth: true
+                                asynchronous: true
+                                visible: status === Image.Ready
+                            }
+                        }
+
+                        StyledText {
+                            text: modelData.name || ""
+                            font.pixelSize: Theme.fontSizeSmall
+                            color: Theme.surfaceText
+                            font.weight: Font.Normal
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+                    }
+
+                    MouseArea {
+                        id: actionMouseArea
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            if (modelData && contextMenu.currentApp && contextMenu.currentApp.desktopEntry) {
+                                SessionService.launchDesktopAction(contextMenu.currentApp.desktopEntry, modelData)
+                                appLauncher.appLaunched(contextMenu.currentApp)
+                            }
+                            contextMenu.hide()
+                        }
+                    }
+                }
+            }
+
+            Rectangle {
+                visible: contextMenu.currentApp && contextMenu.currentApp.desktopEntry && contextMenu.currentApp.desktopEntry.actions && contextMenu.currentApp.desktopEntry.actions.length > 0
                 width: parent.width - Theme.spacingS * 2
                 height: 5
                 anchors.horizontalCenter: parent.horizontalCenter
@@ -818,7 +891,7 @@ DankPopout {
                     }
 
                     StyledText {
-                        text: "Launch"
+                        text: qsTr("Launch")
                         font.pixelSize: Theme.fontSizeSmall
                         color: Theme.surfaceText
                         font.weight: Font.Normal
@@ -836,23 +909,70 @@ DankPopout {
                         if (contextMenu.currentApp)
                             appLauncher.launchApp(contextMenu.currentApp)
 
-                        contextMenu.close()
+                        contextMenu.hide()
                     }
                 }
             }
-        }
 
-        Behavior on opacity {
-            NumberAnimation {
-                duration: Theme.mediumDuration
-                easing.type: Theme.emphasizedEasing
+            Rectangle {
+                visible: SessionService.hasPrimeRun
+                width: parent.width - Theme.spacingS * 2
+                height: 5
+                anchors.horizontalCenter: parent.horizontalCenter
+                color: "transparent"
+
+                Rectangle {
+                    anchors.centerIn: parent
+                    width: parent.width
+                    height: 1
+                    color: Qt.rgba(Theme.outline.r, Theme.outline.g, Theme.outline.b, 0.2)
+                }
             }
-        }
 
-        Behavior on scale {
-            NumberAnimation {
-                duration: Theme.mediumDuration
-                easing.type: Theme.emphasizedEasing
+            Rectangle {
+                visible: SessionService.hasPrimeRun
+                width: parent.width
+                height: 32
+                radius: Theme.cornerRadius
+                color: primeRunMouseArea.containsMouse ? Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.12) : "transparent"
+
+                Row {
+                    anchors.left: parent.left
+                    anchors.leftMargin: Theme.spacingS
+                    anchors.verticalCenter: parent.verticalCenter
+                    spacing: Theme.spacingS
+
+                    DankIcon {
+                        name: "memory"
+                        size: Theme.iconSize - 2
+                        color: Theme.surfaceText
+                        opacity: 0.7
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
+
+                    StyledText {
+                        text: qsTr("Launch on dGPU")
+                        font.pixelSize: Theme.fontSizeSmall
+                        color: Theme.surfaceText
+                        font.weight: Font.Normal
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
+                }
+
+                MouseArea {
+                    id: primeRunMouseArea
+
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: {
+                        if (contextMenu.currentApp && contextMenu.currentApp.desktopEntry) {
+                            SessionService.launchDesktopEntry(contextMenu.currentApp.desktopEntry, true)
+                            appLauncher.appLaunched(contextMenu.currentApp)
+                        }
+                        contextMenu.hide()
+                    }
+                }
             }
         }
     }
@@ -862,7 +982,7 @@ DankPopout {
         visible: contextMenu.visible
         z: 999
         onClicked: {
-            contextMenu.close()
+            contextMenu.hide()
         }
 
         MouseArea {

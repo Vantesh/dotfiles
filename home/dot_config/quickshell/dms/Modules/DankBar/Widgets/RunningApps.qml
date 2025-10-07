@@ -17,6 +17,7 @@ Rectangle {
     property var hoveredItem: null
     property var topBar: null
     property real widgetThickness: 30
+    property real barThickness: 48
     readonly property real horizontalPadding: SettingsData.dankBarNoBackground ? 2 : Theme.spacingS
     property Item windowRoot: (Window.window ? Window.window.contentItem : null)
     readonly property var sortedToplevels: {
@@ -272,7 +273,7 @@ Rectangle {
                     anchors.verticalCenter: parent.verticalCenter
                     visible: !SettingsData.runningAppsCompactMode
                     text: windowTitle
-                    font.pixelSize: Theme.fontSizeMedium - 1
+                    font.pixelSize: Theme.barTextSize(barThickness)
                     color: Theme.surfaceText
                     font.weight: Font.Medium
                     elide: Text.ElideRight
@@ -463,7 +464,7 @@ Rectangle {
                     anchors.verticalCenter: parent.verticalCenter
                     visible: !SettingsData.runningAppsCompactMode
                     text: windowTitle
-                    font.pixelSize: Theme.fontSizeMedium - 1
+                    font.pixelSize: Theme.barTextSize(barThickness)
                     color: Theme.surfaceText
                     font.weight: Font.Medium
                     elide: Text.ElideRight
@@ -610,7 +611,7 @@ Rectangle {
                 
                 StyledText {
                     anchors.centerIn: parent
-                    text: "Close"
+                    text: qsTr("Close")
                     font.pixelSize: Theme.fontSizeSmall
                     color: Theme.surfaceText
                     font.weight: Font.Normal

@@ -78,7 +78,7 @@ DankModal {
                         spacing: Theme.spacingXS
 
                         StyledText {
-                            text: "Connect to Wi-Fi"
+                            text: qsTr("Connect to Wi-Fi")
                             font.pixelSize: Theme.fontSizeLarge
                             color: Theme.surfaceText
                             font.weight: Font.Medium
@@ -201,7 +201,7 @@ DankModal {
                     }
 
                     StyledText {
-                        text: "Show password"
+                        text: qsTr("Show password")
                         font.pixelSize: Theme.fontSizeMedium
                         color: Theme.surfaceText
                         anchors.verticalCenter: parent.verticalCenter
@@ -229,7 +229,7 @@ DankModal {
                                 id: cancelText
 
                                 anchors.centerIn: parent
-                                text: "Cancel"
+                                text: qsTr("Cancel")
                                 font.pixelSize: Theme.fontSizeMedium
                                 color: Theme.surfaceText
                                 font.weight: Font.Medium
@@ -260,7 +260,7 @@ DankModal {
                                 id: connectText
 
                                 anchors.centerIn: parent
-                                text: "Connect"
+                                text: qsTr("Connect")
                                 font.pixelSize: Theme.fontSizeMedium
                                 color: Theme.background
                                 font.weight: Font.Medium

@@ -116,7 +116,7 @@ Item {
                 }
                 
                 StyledText {
-                    text: "No clipboard entries found"
+                    text: qsTr("No clipboard entries found")
                     anchors.centerIn: parent
                     font.pixelSize: Theme.fontSizeMedium
                     color: Theme.surfaceVariantText

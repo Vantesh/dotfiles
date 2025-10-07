@@ -134,7 +134,7 @@ Rectangle {
             }
 
             StyledText {
-                text: "File Information"
+                text: qsTr("File Information")
                 font.pixelSize: Theme.fontSizeMedium
                 color: Theme.surfaceText
                 font.weight: Font.Medium

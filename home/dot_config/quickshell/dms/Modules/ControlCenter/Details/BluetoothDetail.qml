@@ -39,7 +39,7 @@ Rectangle {
         
         StyledText {
             id: headerText
-            text: "Bluetooth Settings"
+            text: qsTr("Bluetooth Settings")
             font.pixelSize: Theme.fontSizeLarge
             color: Theme.surfaceText
             font.weight: Font.Medium
@@ -422,7 +422,7 @@ Rectangle {
                 
                 StyledText {
                     anchors.centerIn: parent
-                    text: "No Bluetooth adapter found"
+                    text: qsTr("No Bluetooth adapter found")
                     font.pixelSize: Theme.fontSizeMedium
                     color: Theme.surfaceVariantText
                 }
@@ -473,7 +473,7 @@ Rectangle {
         }
         
         MenuItem {
-            text: "Audio Codec"
+            text: qsTr("Audio Codec")
             height: bluetoothContextMenu.currentDevice && BluetoothService.isAudioDevice(bluetoothContextMenu.currentDevice) && bluetoothContextMenu.currentDevice.connected ? 32 : 0
             visible: bluetoothContextMenu.currentDevice && BluetoothService.isAudioDevice(bluetoothContextMenu.currentDevice) && bluetoothContextMenu.currentDevice.connected
             
@@ -498,7 +498,7 @@ Rectangle {
         }
         
         MenuItem {
-            text: "Forget Device"
+            text: qsTr("Forget Device")
             height: 32
             
             contentItem: StyledText {

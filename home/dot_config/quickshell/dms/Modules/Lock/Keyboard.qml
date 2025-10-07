@@ -169,7 +169,7 @@ Rectangle {
         ],
         "row_4": [
             {
-                text: '123',
+                text: "123",
                 symbol: 'ABC',
                 width: 1.5
             },

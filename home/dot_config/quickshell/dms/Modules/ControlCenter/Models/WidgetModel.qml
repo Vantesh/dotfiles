@@ -1,13 +1,15 @@
 import QtQuick
 import qs.Common
 import qs.Services
+import qs.Modules.ControlCenter.BuiltinPlugins
 import "../utils/widgets.js" as WidgetUtils
 
 QtObject {
     id: root
 
-    readonly property var baseWidgetDefinitions: [
-        {
+    property var vpnBuiltinInstance: VpnWidget {}
+
+    readonly property var coreWidgetDefinitions: [{
             "id": "nightMode",
             "text": "Night Mode",
             "description": "Blue light filter",
@@ -15,32 +17,28 @@ QtObject {
             "type": "toggle",
             "enabled": DisplayService.automationAvailable,
             "warning": !DisplayService.automationAvailable ? "Requires night mode support" : undefined
-        },
-        {
+        }, {
             "id": "darkMode",
             "text": "Dark Mode",
             "description": "System theme toggle",
             "icon": "contrast",
             "type": "toggle",
             "enabled": true
-        },
-        {
+        }, {
             "id": "doNotDisturb",
             "text": "Do Not Disturb",
             "description": "Block notifications",
             "icon": "do_not_disturb_on",
             "type": "toggle",
             "enabled": true
-        },
-        {
+        }, {
             "id": "idleInhibitor",
             "text": "Keep Awake",
             "description": "Prevent screen timeout",
             "icon": "motion_sensor_active",
             "type": "toggle",
             "enabled": true
-        },
-        {
+        }, {
             "id": "wifi",
             "text": "Network",
             "description": "Wi-Fi and Ethernet connection",
@@ -48,8 +46,7 @@ QtObject {
             "type": "connection",
             "enabled": NetworkService.wifiAvailable,
             "warning": !NetworkService.wifiAvailable ? "Wi-Fi not available" : undefined
-        },
-        {
+        }, {
             "id": "bluetooth",
             "text": "Bluetooth",
             "description": "Device connections",
@@ -57,32 +54,28 @@ QtObject {
             "type": "connection",
             "enabled": BluetoothService.available,
             "warning": !BluetoothService.available ? "Bluetooth not available" : undefined
-        },
-        {
+        }, {
             "id": "audioOutput",
             "text": "Audio Output",
             "description": "Speaker settings",
             "icon": "volume_up",
             "type": "connection",
             "enabled": true
-        },
-        {
+        }, {
             "id": "audioInput",
             "text": "Audio Input",
             "description": "Microphone settings",
             "icon": "mic",
             "type": "connection",
             "enabled": true
-        },
-        {
+        }, {
             "id": "volumeSlider",
             "text": "Volume Slider",
             "description": "Audio volume control",
             "icon": "volume_up",
             "type": "slider",
             "enabled": true
-        },
-        {
+        }, {
             "id": "brightnessSlider",
             "text": "Brightness Slider",
             "description": "Display brightness control",
@@ -90,24 +83,21 @@ QtObject {
             "type": "slider",
             "enabled": DisplayService.brightnessAvailable,
             "warning": !DisplayService.brightnessAvailable ? "Brightness control not available" : undefined
-        },
-        {
+        }, {
             "id": "inputVolumeSlider",
             "text": "Input Volume Slider",
             "description": "Microphone volume control",
             "icon": "mic",
             "type": "slider",
             "enabled": true
-        },
-        {
+        }, {
             "id": "battery",
             "text": "Battery",
             "description": "Battery and power management",
             "icon": "battery_std",
             "type": "action",
             "enabled": true
-        },
-        {
+        }, {
             "id": "diskUsage",
             "text": "Disk Usage",
             "description": "Filesystem usage monitoring",
@@ -116,16 +106,68 @@ QtObject {
             "enabled": DgopService.dgopAvailable,
             "warning": !DgopService.dgopAvailable ? "Requires 'dgop' tool" : undefined,
             "allowMultiple": true
-        },
-        {
+        }, {
             "id": "colorPicker",
             "text": "Color Picker",
             "description": "Choose colors from palette",
             "icon": "palette",
             "type": "action",
             "enabled": true
+        }, {
+            "id": "builtin_vpn",
+            "text": "VPN",
+            "description": "VPN connections",
+            "icon": "vpn_key",
+            "type": "builtin_plugin",
+            "enabled": VpnService.available,
+            "warning": !VpnService.available ? "VPN not available" : undefined,
+            "isBuiltinPlugin": true
+        }]
+
+    function getPluginWidgets() {
+        const plugins = []
+        const loadedPlugins = PluginService.getLoadedPlugins()
+
+        for (var i = 0; i < loadedPlugins.length; i++) {
+            const plugin = loadedPlugins[i]
+
+            if (plugin.type === "daemon") {
+                continue
+            }
+
+            const pluginComponent = PluginService.pluginWidgetComponents[plugin.id]
+            if (!pluginComponent) {
+                continue
+            }
+
+            const tempInstance = pluginComponent.createObject(null)
+            if (!tempInstance) {
+                continue
+            }
+
+            const hasCCWidget = tempInstance.ccWidgetIcon && tempInstance.ccWidgetIcon.length > 0
+            tempInstance.destroy()
+
+            if (!hasCCWidget) {
+                continue
+            }
+
+            plugins.push({
+                             "id": "plugin_" + plugin.id,
+                             "pluginId": plugin.id,
+                             "text": plugin.name || "Plugin",
+                             "description": plugin.description || "",
+                             "icon": plugin.icon || "extension",
+                             "type": "plugin",
+                             "enabled": true,
+                             "isPlugin": true
+                         })
         }
-    ]
+
+        return plugins
+    }
+
+    readonly property var baseWidgetDefinitions: coreWidgetDefinitions
 
     function getWidgetForId(widgetId) {
         return WidgetUtils.getWidgetForId(baseWidgetDefinitions, widgetId)

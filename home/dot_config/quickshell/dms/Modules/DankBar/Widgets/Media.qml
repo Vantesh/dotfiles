@@ -267,7 +267,7 @@ Rectangle {
 
                     anchors.verticalCenter: parent.verticalCenter
                     text: textContainer.displayText
-                    font.pixelSize: Theme.fontSizeSmall
+                    font.pixelSize: Theme.barTextSize(barThickness)
                     color: Theme.surfaceText
                     font.weight: Font.Medium
                     wrapMode: Text.NoWrap

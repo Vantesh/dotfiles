@@ -54,7 +54,7 @@ Item {
                             anchors.verticalCenter: parent.verticalCenter
 
                             StyledText {
-                                text: "24-Hour Format"
+                                text: qsTr("24-Hour Format")
                                 font.pixelSize: Theme.fontSizeLarge
                                 font.weight: Font.Medium
                                 color: Theme.surfaceText
@@ -112,7 +112,7 @@ Item {
                         }
 
                         StyledText {
-                            text: "Date Format"
+                            text: qsTr("Date Format")
                             font.pixelSize: Theme.fontSizeLarge
                             font.weight: Font.Medium
                             color: Theme.surfaceText
@@ -122,7 +122,7 @@ Item {
 
                     DankDropdown {
                         height: 50
-                        text: "Top Bar Format"
+                        text: qsTr("Top Bar Format")
                         description: "Preview: " + (SettingsData.clockDateFormat ? new Date().toLocaleDateString(Qt.locale(), SettingsData.clockDateFormat) : new Date().toLocaleDateString(Qt.locale(), "ddd d"))
                         currentValue: {
                             if (!SettingsData.clockDateFormat || SettingsData.clockDateFormat.length === 0) {
@@ -158,7 +158,7 @@ Item {
                                                            return p.format
                                                            === SettingsData.clockDateFormat
                                                        })
-                            return match ? match.label : "Custom: " + SettingsData.clockDateFormat
+                            return match ? match.label: qsTr("Custom: ") + SettingsData.clockDateFormat
                         }
                         options: ["System Default", "Day Date", "Day Month Date", "Month Date", "Numeric (M/D)", "Numeric (D/M)", "Full with Year", "ISO Date", "Full Day & Month", "Custom..."]
                         onValueChanged: value => {
@@ -185,7 +185,7 @@ Item {
 
                     DankDropdown {
                         height: 50
-                        text: "Lock Screen Format"
+                        text: qsTr("Lock Screen Format")
                         description: "Preview: " + (SettingsData.lockDateFormat ? new Date().toLocaleDateString(Qt.locale(), SettingsData.lockDateFormat) : new Date().toLocaleDateString(Qt.locale(), Locale.LongFormat))
                         currentValue: {
                             if (!SettingsData.lockDateFormat || SettingsData.lockDateFormat.length === 0) {
@@ -221,7 +221,7 @@ Item {
                                                            return p.format
                                                            === SettingsData.lockDateFormat
                                                        })
-                            return match ? match.label : "Custom: " + SettingsData.lockDateFormat
+                            return match ? match.label: qsTr("Custom: ") + SettingsData.lockDateFormat
                         }
                         options: ["System Default", "Day Date", "Day Month Date", "Month Date", "Numeric (M/D)", "Numeric (D/M)", "Full with Year", "ISO Date", "Full Day & Month", "Custom..."]
                         onValueChanged: value => {
@@ -251,7 +251,7 @@ Item {
 
                         width: parent.width
                         visible: false
-                        placeholderText: "Enter custom top bar format (e.g., ddd MMM d)"
+                        placeholderText: qsTr("Enter custom top bar format (e.g., ddd MMM d)")
                         text: SettingsData.clockDateFormat
                         onTextChanged: {
                             if (visible && text)
@@ -264,7 +264,7 @@ Item {
 
                         width: parent.width
                         visible: false
-                        placeholderText: "Enter custom lock screen format (e.g., dddd, MMMM d)"
+                        placeholderText: qsTr("Enter custom lock screen format (e.g., dddd, MMMM d)")
                         text: SettingsData.lockDateFormat
                         onTextChanged: {
                             if (visible && text)
@@ -289,7 +289,7 @@ Item {
                             spacing: Theme.spacingXS
 
                             StyledText {
-                                text: "Format Legend"
+                                text: qsTr("Format Legend")
                                 font.pixelSize: Theme.fontSizeSmall
                                 color: Theme.primary
                                 font.weight: Font.Medium
@@ -304,31 +304,31 @@ Item {
                                     spacing: 2
 
                                     StyledText {
-                                        text: "• d - Day (1-31)"
+                                        text: qsTr("• d - Day (1-31)")
                                         font.pixelSize: Theme.fontSizeSmall
                                         color: Theme.surfaceVariantText
                                     }
 
                                     StyledText {
-                                        text: "• dd - Day (01-31)"
+                                        text: qsTr("• dd - Day (01-31)")
                                         font.pixelSize: Theme.fontSizeSmall
                                         color: Theme.surfaceVariantText
                                     }
 
                                     StyledText {
-                                        text: "• ddd - Day name (Mon)"
+                                        text: qsTr("• ddd - Day name (Mon)")
                                         font.pixelSize: Theme.fontSizeSmall
                                         color: Theme.surfaceVariantText
                                     }
 
                                     StyledText {
-                                        text: "• dddd - Day name (Monday)"
+                                        text: qsTr("• dddd - Day name (Monday)")
                                         font.pixelSize: Theme.fontSizeSmall
                                         color: Theme.surfaceVariantText
                                     }
 
                                     StyledText {
-                                        text: "• M - Month (1-12)"
+                                        text: qsTr("• M - Month (1-12)")
                                         font.pixelSize: Theme.fontSizeSmall
                                         color: Theme.surfaceVariantText
                                     }
@@ -339,31 +339,31 @@ Item {
                                     spacing: 2
 
                                     StyledText {
-                                        text: "• MM - Month (01-12)"
+                                        text: qsTr("• MM - Month (01-12)")
                                         font.pixelSize: Theme.fontSizeSmall
                                         color: Theme.surfaceVariantText
                                     }
 
                                     StyledText {
-                                        text: "• MMM - Month (Jan)"
+                                        text: qsTr("• MMM - Month (Jan)")
                                         font.pixelSize: Theme.fontSizeSmall
                                         color: Theme.surfaceVariantText
                                     }
 
                                     StyledText {
-                                        text: "• MMMM - Month (January)"
+                                        text: qsTr("• MMMM - Month (January)")
                                         font.pixelSize: Theme.fontSizeSmall
                                         color: Theme.surfaceVariantText
                                     }
 
                                     StyledText {
-                                        text: "• yy - Year (24)"
+                                        text: qsTr("• yy - Year (24)")
                                         font.pixelSize: Theme.fontSizeSmall
                                         color: Theme.surfaceVariantText
                                     }
 
                                     StyledText {
-                                        text: "• yyyy - Year (2024)"
+                                        text: qsTr("• yyyy - Year (2024)")
                                         font.pixelSize: Theme.fontSizeSmall
                                         color: Theme.surfaceVariantText
                                     }
