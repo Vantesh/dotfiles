@@ -32,6 +32,8 @@ fi
 
 trap 'printf "%b" "$COLOR_RESET"' EXIT ERR INT TERM
 
+export NOCONFIRM="${NOCONFIRM:-0}"
+
 # Outputs formatted log messages to stderr.
 #
 # Supports color-coded output for different log levels. STEP level adds
@@ -125,6 +127,10 @@ print_box() {
 confirm() {
   local prompt="${1:-Continue?}"
   local default="${2:-y}"
+
+  if [[ "${NOCONFIRM:-0}" == "1" ]]; then
+    return 0
+  fi
 
   local options
 
