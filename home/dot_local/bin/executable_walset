@@ -1,26 +1,29 @@
 #!/usr/bin/env bash
+# walset - Apply colorscheme and update system theme from wallpaper or color
+# Exit codes: 0 (success), 1 (failure), 2 (usage error), 127 (dependency missing)
 
 set -euo pipefail
-IFS=$'\n\t'
+shopt -s nullglob globstar
 
 readonly EXIT_USAGE=2
-readonly EXIT_DEPENDENCY=3
-
-readonly PROG_NAME=${0##*/}
+readonly EXIT_DEPENDENCY=127
+readonly PROG_NAME="${0##*/}"
 readonly CACHE_DIR="$HOME/.cache/walset"
 readonly CURRENT_FILE="$CACHE_DIR/walset.current"
-readonly MATUGEN_SCRIPTS_DIR="$HOME/.config/matugen/scripts"
+readonly MATUGEN_SCRIPTS_DIR="$HOME/.config/scripts/matugen"
 readonly MATUGEN_HELPER_DEFAULT="$MATUGEN_SCRIPTS_DIR/helper.sh"
 
+# initialize_helper sources the matugen helper script
+# Returns: exits on failure
 initialize_helper() {
-  local candidate=${MATUGEN_HELPER_SH:-$MATUGEN_HELPER_DEFAULT}
+  local candidate="${MATUGEN_HELPER_SH:-$MATUGEN_HELPER_DEFAULT}"
 
   if [[ ! -f "$candidate" ]]; then
     printf '[ERROR] Shared helper not found: %s\n' "$candidate" >&2
     exit "$EXIT_DEPENDENCY"
   fi
 
-  # shellcheck source=helper.sh
+  # shellcheck source=/dev/null
   source "$candidate"
 
   export MATUGEN_HELPER_SH="$candidate"
@@ -35,18 +38,30 @@ MODE=""
 INPUT_KIND=""
 INPUT_VALUE=""
 
+# cleanup removes temporary files and kills background processes
+# Returns: 0 (always)
+cleanup() {
+  local exit_code=$?
+
+  jobs -p | xargs -r kill 2>/dev/null || true
+
+  if [[ $exit_code -ne 0 && -f "$CURRENT_FILE" ]]; then
+    rm -f "$CURRENT_FILE" 2>/dev/null || true
+  fi
+
+  return 0
+}
+
+trap cleanup EXIT INT TERM
+
+# usage_error prints error and usage, then exits
+# Arguments: $1 - error message
+# Returns: exits with EXIT_USAGE
 usage_error() {
-  local message=${1:-"Invalid usage"}
+  local message="${1:-Invalid usage}"
   log ERROR "$message"
   print_usage >&2
   exit "$EXIT_USAGE"
-}
-
-write_current() {
-  ensure_directory "$CACHE_DIR"
-  if ! printf "%s\n%s\n%s\n" "$1" "$2" "$3" >"$CURRENT_FILE"; then
-    log WARN "Unable to update cache file: $CURRENT_FILE"
-  fi
 }
 
 print_usage() {
@@ -54,7 +69,7 @@ print_usage() {
 Description: Apply a new colorscheme and update the system theme from a wallpaper or color.
 
 Usage: ${PROG_NAME} image <path_to_wallpaper> [--scheme <matugen_scheme>] [--mode <dark|light>]
-  ${PROG_NAME} color <hex_color> [--scheme <matugen_scheme>] [--mode <dark|light>]
+       ${PROG_NAME} color <hex_color> [--scheme <matugen_scheme>] [--mode <dark|light>]
 
 Options:
   -s, --scheme   Matugen scheme type (default: scheme-tonal-spot)
@@ -62,69 +77,43 @@ Options:
   -h, --help     Show this help and exit
 
 Examples:
-  ${PROG_NAME} image ~/Pictures/wallpaper.jpg --mode light/dark
-  ${PROG_NAME} image ~/Pictures/wallpaper.jpg --scheme scheme-content --mode dark/light
+  ${PROG_NAME} image ~/Pictures/wallpaper.jpg --mode light
+  ${PROG_NAME} image ~/Pictures/wallpaper.jpg --scheme scheme-content --mode dark
   ${PROG_NAME} color "#ff5733"
   ${PROG_NAME} color "#ff5733" --mode light
 EOF
 }
 
-validate_image() {
-  local file="$1"
-  require_command file || die "$EXIT_DEPENDENCY" "Required command 'file' is not available"
-  [[ -f "$file" ]] || die "$EXIT_USAGE" "Wallpaper not found: $file"
-  if ! file --mime-type -b "$file" | grep -q '^image/'; then
-    die "$EXIT_USAGE" "File is not a valid image: $file"
-  fi
-}
-
-validate_color() {
-  local color="$1"
-  [[ "$color" =~ ^#?([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$ ]] || die "$EXIT_USAGE" "Invalid hex color format: $color (expected #RRGGBB or #RGB)"
-}
-
-normalize_color() {
-  local color="$1"
-  [[ "$color" =~ ^# ]] && echo "$color" || echo "#$color"
-}
-
+# run_update_script executes matugen update script
+# Arguments: $1 - script name
+# Returns: 0 (always succeeds, logs warnings)
 run_update_script() {
   local name="$1"
   local script="$MATUGEN_SCRIPTS_DIR/update_${name}.sh"
 
-  if [[ -f "$script" ]]; then
-    if [[ ! -x "$script" ]]; then
-      chmod +x "$script"
-      log INFO "Made $script executable"
-    fi
-    if ! "$script"; then
-      log WARN "Update script failed: $script"
-    fi
-  else
+  if [[ ! -f "$script" ]]; then
     log WARN "Update script missing: $script"
+    return 0
   fi
-}
 
-run_matugen() {
-  local input="$1" scheme="$2" mode="$3" is_color="$4"
-  require_command matugen || return 1
-  local -a cmd
-  if [[ "$is_color" == true ]]; then
-    cmd=(matugen color hex "$input" --type "$scheme" --mode "$mode")
-  else
-    cmd=(matugen image "$input" --type "$scheme" --mode "$mode")
+  if [[ ! -x "$script" ]]; then
+    if ! chmod +x "$script" 2>/dev/null; then
+      log WARN "Cannot make $script executable"
+      return 0
+    fi
+    log INFO "Made $script executable"
   fi
-  "${cmd[@]}" >/dev/null
+
+  if ! "$script"; then
+    log WARN "Update script failed: $script"
+  fi
+
+  return 0
 }
 
-is_selection_unchanged() {
-  local in="$1" scheme="$2" mode="$3"
-  [[ -f "$CURRENT_FILE" ]] || return 1
-  local -a cached=()
-  mapfile -t cached <"$CURRENT_FILE" || return 1
-  [[ "${cached[0]:-}" == "$in" && "${cached[1]:-}" == "$scheme" && "${cached[2]:-}" == "$mode" ]]
-}
-
+# parse_args parses command line arguments
+# Arguments: command line arguments
+# Returns: exits on invalid arguments
 parse_args() {
   MATUGEN_SCHEME="scheme-tonal-spot"
   MODE="dark"
@@ -151,7 +140,7 @@ parse_args() {
       ;;
     -m | --mode)
       [[ -n "${2:-}" ]] || usage_error "'$1' requires a value"
-      MODE=${2,,}
+      MODE="${2,,}"
       shift 2
       ;;
     --)
@@ -172,17 +161,29 @@ main() {
   parse_args "$@"
 
   local input_source=""
-  local is_color_mode=false
+  local is_color_mode="false"
 
   case "$INPUT_KIND" in
   color)
-    validate_color "$INPUT_VALUE"
-    input_source=$(normalize_color "$INPUT_VALUE")
-    is_color_mode=true
+    [[ "$INPUT_VALUE" =~ ^#?([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$ ]] ||
+      die "$EXIT_USAGE" "Invalid hex color format: $INPUT_VALUE (expected #RRGGBB or #RGB)"
+
+    input_source="$INPUT_VALUE"
+    [[ "$input_source" =~ ^# ]] || input_source="#$input_source"
+    is_color_mode="true"
     log INFO "Applying color theme: $input_source"
     ;;
   image)
-    validate_image "$INPUT_VALUE"
+    if ! require_command file; then
+      die "$EXIT_DEPENDENCY" "Required command 'file' is not available: $LAST_ERROR"
+    fi
+
+    [[ -f "$INPUT_VALUE" ]] || die "$EXIT_USAGE" "Wallpaper not found: $INPUT_VALUE"
+
+    if ! file --mime-type -b "$INPUT_VALUE" | grep -q '^image/'; then
+      die "$EXIT_USAGE" "File is not a valid image: $INPUT_VALUE"
+    fi
+
     input_source="$INPUT_VALUE"
     log INFO "Applying wallpaper theme: $input_source"
     ;;
@@ -193,15 +194,26 @@ main() {
     MODE="dark"
   fi
 
-  ensure_directory "$CACHE_DIR"
+  if ! ensure_directory "$CACHE_DIR"; then
+    log ERROR "Failed to create cache directory: $LAST_ERROR"
+    exit 1
+  fi
 
-  if is_selection_unchanged "$input_source" "$MATUGEN_SCHEME" "$MODE"; then
-    log INFO "Selection unchanged; skipping refresh"
-    exit 0
+  if [[ -f "$CURRENT_FILE" ]]; then
+    local -a cached=()
+    if mapfile -t cached <"$CURRENT_FILE" 2>/dev/null; then
+      if [[ "${cached[0]:-}" == "$input_source" && "${cached[1]:-}" == "$MATUGEN_SCHEME" && "${cached[2]:-}" == "$MODE" ]]; then
+        log INFO "Selection unchanged; skipping refresh"
+        exit 0
+      fi
+    fi
   fi
 
   export MODE
-  write_current "$input_source" "$MATUGEN_SCHEME" "$MODE"
+
+  if ! printf "%s\n%s\n%s\n" "$input_source" "$MATUGEN_SCHEME" "$MODE" >"$CURRENT_FILE"; then
+    log WARN "Unable to update cache file: $CURRENT_FILE"
+  fi
 
   for gtk_version in "${GTK_VERSIONS[@]}"; do
     local gtk_css="$HOME/.config/gtk-$gtk_version/gtk.css"
@@ -211,14 +223,24 @@ main() {
     fi
   done
 
-  if ! run_matugen "$input_source" "$MATUGEN_SCHEME" "$MODE" "$is_color_mode"; then
-    log ERROR "Matugen failed"
-    rm -f "$CURRENT_FILE"
+  if ! require_command matugen; then
+    log ERROR "matugen required but not found: $LAST_ERROR"
     exit 1
   fi
 
-  # Run update scripts (gtk first, idk why it doesn't work in background)
-  run_update_script "gtk"
+  local -a cmd=()
+  if [[ "$is_color_mode" == "true" ]]; then
+    cmd=(matugen color hex "$input_source" --type "$MATUGEN_SCHEME" --mode "$MODE")
+  else
+    cmd=(matugen image "$input_source" --type "$MATUGEN_SCHEME" --mode "$MODE")
+  fi
+
+  if ! "${cmd[@]}" >/dev/null 2>&1; then
+    log ERROR "Matugen failed"
+    exit 1
+  fi
+
+  run_update_script "gtk" # doesn't work in background, idk why :(
 
   for target in "${UPDATE_TARGETS[@]}"; do
     run_update_script "$target" &
@@ -226,7 +248,7 @@ main() {
 
   case "${XDG_CURRENT_DESKTOP:-}" in
   Hyprland)
-    hyprctl reload >/dev/null
+    hyprctl reload >/dev/null 2>&1 || true
     ;;
   esac
 
