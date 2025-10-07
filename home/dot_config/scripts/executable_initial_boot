@@ -1,35 +1,51 @@
 #!/usr/bin/env bash
+# initial_boot - First-boot setup: set random wallpaper and reload Hyprland
+# Exit codes: 0 (success), 1 (failure)
 
-# First-boot setup: set a random wallpaper and reload Hyprland once.
-# Sentinel file follows XDG Base Directory spec and lives in XDG_STATE_HOME
+set -euo pipefail
 
-# Determine sentinel location
-STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/${XDG_CURRENT_DESKTOP:-unknown}"
-SENTINEL_NEW="$STATE_DIR/first_setup_done"
+readonly STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/${XDG_CURRENT_DESKTOP:-unknown}"
+readonly SENTINEL_NEW="$STATE_DIR/first_setup_done"
+readonly WALLPAPER_DIR="$HOME/Pictures/Wallpapers"
+readonly PROFILE_IMAGE="$HOME/.cache/wal/icon.png"
 
-# Run only if the sentinel is missing (i.e., first setup not yet done)
-if [[ ! -f "$SENTINEL_NEW" ]]; then
-    sleep 1
-    if command -v qs >/dev/null 2>&1; then
-        WALLPAPER_DIR="$HOME/Pictures/Wallpapers"
-        PROFILE_IMAGE="$HOME/.cache/wal/icon.png"
-
-        if [[ ! -d "$WALLPAPER_DIR" ]] || ! find "$WALLPAPER_DIR" -type f -print -quit | grep -q .; then
-            if command -v notify-send >/dev/null 2>&1; then
-                notify-send --icon=dialog-error "Wallpaper" "Missing or empty: $WALLPAPER_DIR"
-                notify-send --icon=dialog-error "Wallpaper" "Add a wallpaper and restart Hyprland"
-            fi
-            exit 1
-        fi
-
-        RANDOM_WALLPAPER=$(find "$WALLPAPER_DIR" -type f | shuf -n 1)
-        qs -c dms ipc call wallpaper set "$RANDOM_WALLPAPER" >/dev/null 2>&1 &
-        qs -c dms ipc call profile setImage "$PROFILE_IMAGE" >/dev/null 2>&1 &
-        wait
+main() {
+    if [[ -f "$SENTINEL_NEW" ]]; then
+        return 0
     fi
 
-    # Create the new sentinel to mark first-setup completion
-    [[ ! -d "$STATE_DIR" ]] && mkdir -p "$STATE_DIR"
+    sleep 1
+
+    if ! command -v qs >/dev/null 2>&1; then
+        return 0
+    fi
+
+    if [[ ! -d "$WALLPAPER_DIR" ]] || ! find "$WALLPAPER_DIR" -type f -print -quit | grep -q .; then
+        if command -v notify-send >/dev/null 2>&1; then
+            notify-send --icon=dialog-error "Wallpaper" "Missing or empty: $WALLPAPER_DIR"
+            notify-send --icon=dialog-error "Wallpaper" "Add a wallpaper and restart Hyprland"
+        fi
+        return 1
+    fi
+
+    local random_wallpaper
+    random_wallpaper="$(find "$WALLPAPER_DIR" -type f | shuf -n 1)"
+
+    qs -c dms ipc call wallpaper set "$random_wallpaper" >/dev/null 2>&1 &
+    qs -c dms ipc call profile setImage "$PROFILE_IMAGE" >/dev/null 2>&1 &
+    wait
+
+    if [[ ! -d "$STATE_DIR" ]]; then
+        mkdir -p "$STATE_DIR"
+    fi
+
     printf "# DO NOT DELETE THIS FILE\n# This file indicates the first setup has been completed.\n" >"$SENTINEL_NEW"
-    notify-send --icon=nwg-look "Welcome" "First setup completed successfully! Enjoy your Hyprland experience."
-fi
+
+    if command -v notify-send >/dev/null 2>&1; then
+        notify-send --icon=nwg-look "Welcome" "First setup completed successfully! Enjoy your Hyprland experience."
+    fi
+
+    return 0
+}
+
+main "$@"
