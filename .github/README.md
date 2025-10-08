@@ -10,9 +10,12 @@
 </p>
 
 > [!IMPORTANT]
-> Optimized for fresh Arch-based systems, verified on Arch Linux, CachyOS, and Garuda. Expect to make manual adjustments if you run another distribution.
->
-> Fedora Support is in the works.
+> Optimized for Arch and Fedora based distros.
+> **Tested on Arch, CachyOS, Garuda, Manjaro, Fedora and Nobara.**
+> Minimal Arch-based distros recommended for best results.
+
+> [!WARNING]
+> On Manjaro, you may need to uninstall conflicting packages: `qt5ct`, `qt6ct` and `reflector`.
 
 > [!TIP]
 > Hit **SUPER + F2** for the full keybinding cheat-sheet (SUPER = Windows key).
@@ -20,11 +23,11 @@
 > To update an existing install, run:
 >
 > ```
-> NOT_PERSONAL=1 chezmoi update
+> chezmoi update
 > ```
 
 > [!CAUTION]
-> The installer backs up most configs it touches, but you're still responsible for critical data. Make personal backups before continuing—I can't take responsibility for any loss.
+> The installer backs up most configs it touches, but you're still responsible for any critical data. Make personal backups before continuing — I can't take responsibility for any loss.
 
 <a id="screenshots"></a>
 
@@ -34,26 +37,43 @@
 
 https://github.com/user-attachments/assets/bd263e88-f2b6-477a-97dc-e8c1afa23669
 
-<details>
-<summary>Screenshots</summary>
-<img width="1920" height="1080" alt="Image" src="https://github.com/user-attachments/assets/e21a6d4d-f885-4eab-842d-e178f580c2d9" />
+<details close>
+<summary>Distros</summary>
+<p align="center">
+<img aligh="center" width="49%" src="https://github.com/user-attachments/assets/1afa6f23-86c7-4528-bca9-f0fef1956148" />
+<img aligh="center" width="49%" src="https://github.com/user-attachments/assets/074f625a-da26-481d-89ce-059f4097ef81" /> <br>
 
-<img width="1920" height="1080" alt="Image" src="https://github.com/user-attachments/assets/34511907-02ce-461f-a83e-c44478e45d4f" />
+<img aligh="center" width="49%" src="https://github.com/user-attachments/assets/e9bb5d28-6a90-4169-a5d8-6ea30a3a82bf" />
+<img aligh="center" width="49%" src="https://github.com/user-attachments/assets/9d13c1c0-c251-482e-822b-d0d027d79df4" />
 
-<img width="1920" height="1080" alt="Image" src="https://github.com/user-attachments/assets/a15b55ca-2017-403d-9eea-9a87f3b2a654" />
+<img aligh="center" width="49%" src="https://github.com/user-attachments/assets/a224b5bf-642f-4f23-b7d1-353e795af106" />
+<img aligh="center" width="49%" src="https://github.com/user-attachments/assets/286cde9f-05ff-4eec-a8f2-3caac84aa581" />
+</p><br>
+</details>
 
-<img width="1921" height="1080" alt="Image" src="https://github.com/user-attachments/assets/d3be0e12-8798-4ede-949b-e15fe3cf0762" />
+<details close>
+<summary>Overall</summary>
+<p align="center">
+<img aligh="center" width="49%" alt="Image" src="https://github.com/user-attachments/assets/3e8f1692-a216-4f7d-beb1-fa5c12388cf6" />
 
-<img width="1920" height="1080" alt="Image" src="https://github.com/user-attachments/assets/69c53c38-0a6c-45db-9f5b-070f5c7117b3" />
+<img aligh="center" width="49%" alt="Image" src="https://github.com/user-attachments/assets/a15b55ca-2017-403d-9eea-9a87f3b2a654" />
 
-<img width="1920" height="1080" alt="Image" src="https://github.com/user-attachments/assets/17a301e1-1f64-48eb-b053-d7baf2634830" />
+<img aligh="center" width="49%" alt="Image" src="https://github.com/user-attachments/assets/d3be0e12-8798-4ede-949b-e15fe3cf0762" />
 
-<img width="1921" height="1044" alt="Image" src="https://github.com/user-attachments/assets/190724a6-ac40-4e2d-8fb0-6b0349166ea8" />
+<img aligh="center" width="49%" alt="Image" src="https://github.com/user-attachments/assets/69c53c38-0a6c-45db-9f5b-070f5c7117b3" />
 
-<img width="1857" height="1021" alt="Image" src="https://github.com/user-attachments/assets/304c5803-05ec-4036-8fc8-f2cba922f56b" />
+<img aligh="center" width="49%" alt="Image" src="https://github.com/user-attachments/assets/17a301e1-1f64-48eb-b053-d7baf2634830" />
 
-<img width="1921" height="1079" alt="Image" src="https://github.com/user-attachments/assets/a3c36b91-b11d-4b54-9200-3384daee3544" />
+<img aligh="center" width="49%" alt="Image" src="https://github.com/user-attachments/assets/190724a6-ac40-4e2d-8fb0-6b0349166ea8" />
 
+<img aligh="center" width="49%" alt="Image" src="https://github.com/user-attachments/assets/304c5803-05ec-4036-8fc8-f2cba922f56b" />
+
+<img aligh="center" width="49%" alt="Image" src="https://github.com/user-attachments/assets/a3c36b91-b11d-4b54-9200-3384daee3544" />
+
+<img aligh="center" width="49%" alt="Image" src="https://github.com/user-attachments/assets/e21a6d4d-f885-4eab-842d-e178f580c2d9" />
+
+<img aligh="center" width="49%" alt="Image" src="https://github.com/user-attachments/assets/34511907-02ce-461f-a83e-c44478e45d4f" />
+</p><br>
 </details>
 
 <a id="installation"></a>

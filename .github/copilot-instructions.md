@@ -80,17 +80,6 @@ chezmoi/
 2. Dotfiles applied
 3. `run_once_after_*` - Post-setup
 
-**NOT_PERSONAL Environment Variable:**
-
-- When set to `1`: Shows user prompts (shell, compositor, git config) but **skips Bitwarden secrets**
-- When NOT set (default): Scripts may fail for non-owner users (attempts to fetch Bitwarden secrets)
-- Always use `NOT_PERSONAL=1` for CI/testing or installations by non-owners
-
-```bash
-# Apply dotfiles without Bitwarden secrets
-NOT_PERSONAL=1 chezmoi apply --verbose
-```
-
 ---
 
 ## Chezmoi Naming Convention Guidelines
@@ -1350,11 +1339,11 @@ command_exists "git" && echo "Git found"
 ### Running Chezmoi Scripts
 
 ```bash
-# Apply dotfiles without Bitwarden secrets (CI/testing/non-owner)
-NOT_PERSONAL=1 chezmoi apply --verbose
+# Apply dotfiles without Bitwarden secrets (CI/testing)
+NOCONFIRM=1 chezmoi apply --verbose
 
 # Update existing installation
-NOT_PERSONAL=1 chezmoi update
+chezmoi update
 
 # Test single script
 chezmoi execute-template < script.sh.tmpl | bash
