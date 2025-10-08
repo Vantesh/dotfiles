@@ -67,6 +67,7 @@ install_grub_theme() {
 
 configure_limine_theme() {
   local limine_conf="/boot/limine.conf"
+  local temp_file
 
   LAST_ERROR=""
 
@@ -85,7 +86,11 @@ configure_limine_theme() {
     return 1
   fi
 
-  if ! cat <<'EOF' | sudo tee "$limine_conf" >/dev/null 2>&1; then
+  temp_file=$(mktemp)
+  trap 'rm -f "${temp_file:-}"' RETURN
+
+  # Write the Catppuccin theme at the top
+  cat <<'EOF' > "$temp_file"
 # Catppuccin Mocha Theme
 timeout: 1
 default_entry: 2
@@ -98,6 +103,37 @@ term_background_bright: 1e1e2e
 term_foreground_bright: cdd6f4
 
 EOF
+
+  # Define keys that are being set by the theme (to avoid duplicates)
+  local theme_keys=(
+    "timeout:"
+    "default_entry:"
+    "interface_branding:"
+    "term_palette:"
+    "term_palette_bright:"
+    "term_background:"
+    "term_foreground:"
+    "term_background_bright:"
+    "term_foreground_bright:"
+  )
+
+  # Append existing config, filtering out duplicate keys
+  while IFS= read -r line; do
+    local is_duplicate=false
+    
+    for key in "${theme_keys[@]}"; do
+      if [[ "$line" =~ ^[[:space:]]*"$key" ]]; then
+        is_duplicate=true
+        break
+      fi
+    done
+    
+    if [[ "$is_duplicate" == false ]]; then
+      echo "$line" >> "$temp_file"
+    fi
+  done < "$limine_conf"
+
+  if ! sudo mv "$temp_file" "$limine_conf" 2>/dev/null; then
     LAST_ERROR="Failed to write limine theme config"
     return 1
   fi
