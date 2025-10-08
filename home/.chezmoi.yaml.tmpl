@@ -36,6 +36,12 @@ data:
   personal: {{ $personal }}
   distro_family: {{ $distro_family | lower | quote }}
 
+scriptEnv:
+  DISTRO_FAMILY: {{ $distro_family | lower | quote }}
+  PERSONAL: {{ if $personal }}"1"{{ else }}"0"{{ end }}
+  DEFAULT_SHELL: {{ $default_shell | quote }}
+  COMPOSITOR: {{ $compositor | quote }}
+
 edit:
   command: "code"
   args: ["--wait"]
