@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 
 # Chezmoi bootstrap script
-# Do not remove the env "NOT_PERSONAL=1" else some scripts will fail
 
 set -euo pipefail
 IFS=$'\n\t'
@@ -176,7 +175,7 @@ backup_config_if_needed() {
 
 run_chezmoi_init() {
   clear
-  exec env NOT_PERSONAL=1 chezmoi init --apply "$REPO" "$@"
+  exec chezmoi init --apply "$REPO" "$@"
 }
 
 main() {
