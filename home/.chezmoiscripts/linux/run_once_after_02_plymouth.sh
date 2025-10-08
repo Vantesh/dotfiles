@@ -198,7 +198,11 @@ main() {
       if [[ "$LAST_ERROR" == "Could not find 'base systemd' or 'base udev' in HOOKS" ]]; then
         log WARN "$LAST_ERROR, skipping plymouth hook"
       else
-        die "Failed to add plymouth hook: $LAST_ERROR"
+        local error_msg="$LAST_ERROR"
+        if ! restore_backup "$mkinitcpio_conf"; then
+          die "Failed to add plymouth hook: $error_msg (backup restore also failed: $LAST_ERROR)"
+        fi
+        die "Failed to add plymouth hook: $error_msg (backup restored)"
       fi
       ;;
     esac

@@ -31,13 +31,13 @@ get_package_manager() {
     return 0
   fi
 
-  if command -v dnf >/dev/null 2>&1; then
+  if command_exists dnf; then
     __package_manager_cache="dnf"
     printf '%s\n' "$__package_manager_cache"
     return 0
   fi
 
-  if command -v pacman >/dev/null 2>&1; then
+  if command_exists pacman; then
     __package_manager_cache="pacman"
     printf '%s\n' "$__package_manager_cache"
     return 0
@@ -60,9 +60,9 @@ get_package_manager() {
 get_aur_helper() {
   local helper=""
 
-  if command -v paru >/dev/null 2>&1; then
+  if command_exists paru; then
     helper="paru"
-  elif command -v yay >/dev/null 2>&1; then
+  elif command_exists yay; then
     helper="yay"
   else
     LAST_ERROR="No AUR helper found (paru or yay required)"
@@ -82,7 +82,7 @@ get_aur_helper() {
 # Globals:
 #   LAST_ERROR - Set on failure
 # Returns:
-#   0 if installed, 1 if not, 2 on invalid args, 127 if no AUR helper (Arch only)
+#   0 if installed, 1 if not, 2 on invalid args
 package_exists() {
   local package_name="${1:-}"
 
@@ -103,11 +103,7 @@ package_exists() {
     rpm -q "$package_name" >/dev/null 2>&1
     ;;
   pacman)
-    local aur_helper
-    if ! aur_helper="$(get_aur_helper)"; then
-      return 127
-    fi
-    "$aur_helper" -Qi "$package_name" >/dev/null 2>&1
+    pacman -Qi "$package_name" >/dev/null 2>&1
     ;;
   *)
     LAST_ERROR="Unsupported package manager: $manager"

@@ -29,7 +29,7 @@ cleanup() {
   fi
 }
 
-trap cleanup EXIT INT TERM
+trap cleanup EXIT ERR INT TERM
 
 download_wallpapers() {
   LAST_ERROR=""

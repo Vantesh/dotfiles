@@ -11,12 +11,14 @@ readonly LIB_DIR="${CHEZMOI_SOURCE_DIR:-$(chezmoi source-path)}/.chezmoiscripts/
 # shellcheck source=/dev/null
 source "$LIB_DIR/.lib-common.sh"
 
+# shellcheck disable=SC2034
 readonly -a USER_SERVICES=(
   "gnome-keyring-daemon"
   "hypridle"
   "mpris-proxy"
 )
 
+# shellcheck disable=SC2034
 readonly -a SYSTEM_SERVICES=(
   "NetworkManager"
   "bluetooth"
@@ -36,65 +38,54 @@ fi
 
 enable_configured_services() {
   local -a failed_services=()
-  local scope
+  local scope service error_msg
 
   for scope in user system; do
-    local -a scope_services=()
+    local -n scope_services="${scope^^}_SERVICES"
+    ((${#scope_services[@]} == 0)) && continue
 
-    if [[ "$scope" == "user" ]]; then
-      scope_services=("${USER_SERVICES[@]}")
-    else
-      scope_services=("${SYSTEM_SERVICES[@]}")
-    fi
-
-    if ((${#scope_services[@]} == 0)); then
-      continue
-    fi
-
-    local service
     for service in "${scope_services[@]}"; do
-      if ! enable_service "$service" "$scope"; then
-        local error_msg="$LAST_ERROR"
-
-        if [[ "$error_msg" == "Service not found: "* ]]; then
-          log SKIP "$service ($scope) not available"
-        else
-          failed_services+=("$service ($scope): $error_msg")
-          log WARN "Failed to enable $service ($scope): $error_msg"
-        fi
-      else
+      if enable_service "$service" "$scope"; then
         log INFO "${COLOR_GREEN}${service}${COLOR_RESET} enabled (${scope})"
+        continue
       fi
+
+      error_msg="$LAST_ERROR"
+      if [[ "$error_msg" == "Unit not found:"* ]]; then
+        log SKIP "$service ($scope) not available"
+        continue
+      fi
+
+      failed_services+=("$service ($scope): $error_msg")
+      log WARN "Failed to enable $service ($scope): $error_msg"
     done
   done
 
-  if ((${#failed_services[@]} > 0)); then
-    log WARN "Some services failed to enable: ${failed_services[*]}"
-  fi
+  ((${#failed_services[@]} > 0)) && log WARN "Some services failed to enable"
 
-  if command_exists pacman; then
-    local pacman_service
-    for pacman_service in "${PACMAN_SERVICES[@]}"; do
-      if ! enable_service "$pacman_service" "system"; then
-        local error_msg="$LAST_ERROR"
+  command_exists pacman || return 0
 
-        if [[ "$error_msg" == "Service not found: "* ]]; then
-          log SKIP "$pacman_service (system) not available"
-        else
-          log WARN "Failed to enable $pacman_service (system): $error_msg"
-        fi
-      else
-        log INFO "${COLOR_GREEN}${pacman_service}${COLOR_RESET} enabled (system)"
-      fi
-    done
-  fi
+  for service in "${PACMAN_SERVICES[@]}"; do
+    if enable_service "$service" "system"; then
+      log INFO "${COLOR_GREEN}${service}${COLOR_RESET} enabled"
+      continue
+    fi
+
+    error_msg="$LAST_ERROR"
+    if [[ "$error_msg" == "Unit not found:"* ]]; then
+      log SKIP "$service not available"
+      continue
+    fi
+
+    log WARN "Failed to enable $service: $error_msg"
+  done
 
   return 0
 }
 
 configure_ufw() {
-  if ! command_exists "ufw"; then
-    log SKIP "UFW not installed, skipping firewall configuration"
+  if ! command_exists ufw; then
+    log SKIP "UFW not installed"
     return 0
   fi
 
@@ -130,15 +121,13 @@ configure_ufw() {
   fi
 
   if sudo ufw default deny incoming >/dev/null 2>&1; then
-    log INFO "Set default policy: deny incoming"
+    if sudo ufw default allow outgoing >/dev/null 2>&1; then
+      log INFO "Set default policies"
+    else
+      log WARN "Failed to set outgoing policy"
+    fi
   else
-    log WARN "Failed to set default policy: deny incoming"
-  fi
-
-  if sudo ufw default allow outgoing >/dev/null 2>&1; then
-    log INFO "Set default policy: allow outgoing"
-  else
-    log WARN "Failed to set default policy: allow outgoing"
+    log WARN "Failed to set incoming policy"
   fi
 
   return 0
@@ -147,13 +136,8 @@ configure_ufw() {
 disable_networkd_wait_online() {
   local service="systemd-networkd-wait-online.service"
 
-  if ! command_exists "systemctl"; then
-    log SKIP "systemctl not available, skipping $service adjustments"
-    return 0
-  fi
-
   if ! systemctl list-unit-files "$service" >/dev/null 2>&1; then
-    log SKIP "$service not present"
+    log SKIP "systemd-networkd-wait-online not present"
     return 0
   fi
 
@@ -175,15 +159,15 @@ disable_networkd_wait_online() {
 }
 
 update_locate_database() {
-  if ! command_exists "updatedb"; then
-    log SKIP "updatedb not available, skipping locate database update"
+  if ! command_exists updatedb; then
+    log SKIP "updatedb not available"
     return 0
   fi
 
   log INFO "Updating locate database"
 
   if sudo updatedb >/dev/null 2>&1; then
-    log INFO "updatedb completed successfully"
+    log INFO "Locate database updated"
   else
     log WARN "updatedb encountered issues"
   fi
@@ -199,7 +183,6 @@ main() {
   configure_ufw
   disable_networkd_wait_online
   update_locate_database
-
 }
 
 main "$@"

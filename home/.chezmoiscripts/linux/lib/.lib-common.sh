@@ -32,6 +32,8 @@ fi
 
 trap 'printf "%b" "$COLOR_RESET"' EXIT ERR INT TERM
 
+export NOCONFIRM="${NOCONFIRM:-0}"
+
 # Outputs formatted log messages to stderr.
 #
 # Supports color-coded output for different log levels. STEP level adds
@@ -125,6 +127,10 @@ print_box() {
 confirm() {
   local prompt="${1:-Continue?}"
   local default="${2:-y}"
+
+  if [[ "${NOCONFIRM:-0}" == "1" ]]; then
+    return 0
+  fi
 
   local options
 
@@ -294,6 +300,7 @@ is_laptop() {
 #   _SUDO_KEEPALIVE_PID - Internal: background process PID
 # Returns:
 #   0 on success, 1 on failure
+
 keep_sudo_alive() {
   LAST_ERROR=""
 
@@ -302,29 +309,41 @@ keep_sudo_alive() {
     return 1
   fi
 
+  if [[ -n "${_SUDO_KEEPALIVE_PID:-}" ]] && kill -0 "$_SUDO_KEEPALIVE_PID" 2>/dev/null; then
+    return 0
+  fi
+
   (
     while true; do
       sleep 60
-      sudo -v
+      sudo -n true 2>/dev/null || exit
     done
   ) &
 
-  local sudo_pid=$!
+  export _SUDO_KEEPALIVE_PID=$!
 
-  _SUDO_KEEPALIVE_PID="$sudo_pid"
-
-  trap "_kill_sudo_keepalive" EXIT INT TERM
+  trap '_kill_sudo_keepalive' EXIT INT TERM
 
   return 0
 }
 
 _kill_sudo_keepalive() {
-  if [[ -n "${_SUDO_KEEPALIVE_PID:-}" ]]; then
+  if [[ -n "${_SUDO_KEEPALIVE_PID:-}" ]] && kill -0 "$_SUDO_KEEPALIVE_PID" 2>/dev/null; then
     kill "$_SUDO_KEEPALIVE_PID" 2>/dev/null || true
     unset _SUDO_KEEPALIVE_PID
   fi
 }
 
+# Writes content to system config file with proper permissions.
+#
+# Creates parent directories if needed. Sets ownership to root:root and
+# permissions to 644. Uses sudo for creation and writing.
+# Arguments:
+#   $1 - Config file path
+# Globals:
+#   LAST_ERROR - Set on failure
+# Returns:
+#   0 on success, 1 on failure, 2 on invalid args
 write_system_config() {
   local config_file="$1"
 
@@ -361,19 +380,21 @@ write_system_config() {
   return 0
 }
 
-# Creates .bak backup of file (idempotent).
+# Creates .bak backup of file
 #
-# Only creates backup if .bak file doesn't already exist. Preserves
-# first backup forever. Uses sudo if target directory not writable.
+# Only creates backup if .bak file doesn't already exist unless "force" is specified.
+# Uses atomic copy via temporary file. Uses sudo if target directory not writable.
 #
 # Arguments:
 #   $1 - Target file path
+#   $2 - Optional: "force" to overwrite existing backup
 # Globals:
 #   LAST_ERROR - Set on failure
 # Returns:
 #   0 on success (created or already exists), 1 on failure, 2 on invalid args
 create_backup() {
   local target_path="$1"
+  local force="${2:-}"
   local backup_path="${target_path}.bak"
 
   LAST_ERROR=""
@@ -388,7 +409,7 @@ create_backup() {
     return 2
   fi
 
-  if [[ -e "$backup_path" ]]; then
+  if [[ -e "$backup_path" ]] && [[ "$force" != "force" ]]; then
     return 0
   fi
 
@@ -396,12 +417,82 @@ create_backup() {
   backup_dir="$(dirname "$backup_path")"
 
   local copy_cmd="cp"
+  local move_cmd="mv"
+  local rm_cmd="rm"
   if [[ ! -w "$backup_dir" ]]; then
     copy_cmd="sudo cp"
+    move_cmd="sudo mv"
+    rm_cmd="sudo rm"
   fi
 
-  if ! $copy_cmd -a "$target_path" "$backup_path" 2>/dev/null; then
-    LAST_ERROR="Failed to create backup: $target_path -> $backup_path"
+  local tmp_backup="${backup_path}.tmp.$$"
+
+  if ! $copy_cmd -a "$target_path" "$tmp_backup" 2>/dev/null; then
+    LAST_ERROR="Failed to create temporary backup: $target_path -> $tmp_backup"
+    $rm_cmd -f "$tmp_backup" 2>/dev/null || true
+    return 1
+  fi
+
+  if ! $move_cmd -f "$tmp_backup" "$backup_path" 2>/dev/null; then
+    LAST_ERROR="Failed to move temporary backup to final location: $tmp_backup -> $backup_path"
+    $rm_cmd -f "$tmp_backup" 2>/dev/null || true
+    return 1
+  fi
+
+  return 0
+}
+
+# Restores file from .bak backup
+#
+# Overwrites target file with .bak backup if it exists.
+# Uses sudo if target directory not writable.
+#
+# Arguments:
+#   $1 - Target file path
+# Globals:
+#   LAST_ERROR - Set on failure
+# Returns:
+#   0 on success, 1 on failure, 2 on invalid args
+
+restore_backup() {
+  local target_path="$1"
+  local backup_path="${target_path}.bak"
+
+  LAST_ERROR=""
+
+  if [[ -z "$target_path" ]]; then
+    LAST_ERROR="restore_backup() requires target_path argument"
+    return 2
+  fi
+
+  if [[ ! -e "$backup_path" ]]; then
+    LAST_ERROR="Backup file does not exist: $backup_path"
+    return 2
+  fi
+
+  local restore_dir
+  restore_dir="$(dirname "$target_path")"
+
+  local copy_cmd="cp"
+  local move_cmd="mv"
+  local rm_cmd="rm"
+  if [[ ! -w "$restore_dir" ]]; then
+    copy_cmd="sudo cp"
+    move_cmd="sudo mv"
+    rm_cmd="sudo rm"
+  fi
+
+  local tmp_restore="${target_path}.tmp.$$"
+
+  if ! $copy_cmd -a "$backup_path" "$tmp_restore" 2>/dev/null; then
+    LAST_ERROR="Failed to copy backup to temporary file: $backup_path -> $tmp_restore"
+    $rm_cmd -f "$tmp_restore" 2>/dev/null || true
+    return 1
+  fi
+
+  if ! $move_cmd -f "$tmp_restore" "$target_path" 2>/dev/null; then
+    LAST_ERROR="Failed to restore backup: $tmp_restore -> $target_path"
+    $rm_cmd -f "$tmp_restore" 2>/dev/null || true
     return 1
   fi
 
@@ -602,26 +693,22 @@ update_config() {
   return 0
 }
 
-# Enables systemd service/timer/socket (auto-detects unit type).
-#
-# Automatically tries .service, .timer, and .socket extensions.
-# Idempotent - does nothing if already enabled.
-#
+# Enables systemd service/timer/socket.
 # Arguments:
-#   $1 - Service name (with or without extension)
+#   $1 - Unit name (e.g., 'ly', 'ly.service', 'docker.socket')
 #   $2 - Scope: 'system' or 'user' (default: 'system')
 # Globals:
 #   LAST_ERROR - Set on failure
 # Returns:
 #   0 on success, 1 on failure, 2 on invalid args
 enable_service() {
-  local service="${1:-}"
+  local unit="${1:-}"
   local scope="${2:-system}"
 
   LAST_ERROR=""
 
-  if [[ -z "$service" ]]; then
-    LAST_ERROR="enable_service() requires a service argument"
+  if [[ -z "$unit" ]]; then
+    LAST_ERROR="enable_service() requires a unit argument"
     return 2
   fi
 
@@ -637,35 +724,27 @@ enable_service() {
     systemctl_args=("--user")
   fi
 
-  local base="${service%.service}"
-  base="${base%.timer}"
-  base="${base%.socket}"
-  local candidates=("$service" "${base}.service" "${base}.timer" "${base}.socket")
-  local -A seen=()
-  local resolved=""
+  local status_code=0
+  _run_with_optional_sudo "$use_sudo" systemctl "${systemctl_args[@]}" is-enabled "$unit" >/dev/null 2>&1 || status_code=$?
 
-  for candidate in "${candidates[@]}"; do
-    [[ -n "$candidate" ]] && [[ -z "${seen[$candidate]+x}" ]] || continue
-    seen["$candidate"]=1
-    if _run_with_optional_sudo "$use_sudo" systemctl "${systemctl_args[@]}" list-unit-files "$candidate" >/dev/null 2>&1; then
-      resolved="$candidate"
-      break
-    fi
-  done
-
-  if [[ -z "$resolved" ]]; then
-    LAST_ERROR="Service not found: $service"
-    return 1
-  fi
-
-  if _run_with_optional_sudo "$use_sudo" systemctl "${systemctl_args[@]}" is-enabled "$resolved" >/dev/null 2>&1; then
+  case "$status_code" in
+  0 | 3)
     return 0
-  fi
-
-  if ! _run_with_optional_sudo "$use_sudo" systemctl "${systemctl_args[@]}" enable "$resolved" >/dev/null 2>&1; then
-    LAST_ERROR="Failed to enable $resolved (scope: $scope)"
+    ;;
+  1)
+    if _run_with_optional_sudo "$use_sudo" systemctl "${systemctl_args[@]}" enable "$unit" >/dev/null 2>&1; then
+      return 0
+    fi
+    LAST_ERROR="Failed to enable $unit (scope: $scope)"
     return 1
-  fi
-
-  return 0
+    ;;
+  4)
+    LAST_ERROR="Unit not found: $unit"
+    return 1
+    ;;
+  *)
+    LAST_ERROR="Failed to query state of $unit (scope: $scope)"
+    return 1
+    ;;
+  esac
 }

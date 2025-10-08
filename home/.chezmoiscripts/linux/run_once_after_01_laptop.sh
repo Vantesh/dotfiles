@@ -1,6 +1,14 @@
 #!/usr/bin/env bash
 # 01_laptop.sh - Configure laptop optimizations and hibernation
-# Exit codes: 0 (success), 1 (failure)
+#
+# Configures laptop-specific power management settings and sets up
+# hibernation with btrfs swapfile support. Includes swap creation,
+# initramfs configuration, and bootloader parameter updates.
+#
+# Globals:
+#   LAST_ERROR - Error message from last failed operation
+# Exit codes:
+#   0 (success), 1 (failure)
 
 set -euo pipefail
 
@@ -21,6 +29,15 @@ if ! keep_sudo_alive; then
   die "Failed to keep sudo alive"
 fi
 
+# Calculates optimal swap size based on RAM.
+#
+# Uses formula: swap = sqrt(ram) + ram, minimum 2GB.
+# Formula is based on ubuntu hibernation recommendations.
+#
+# Outputs:
+#   Swap size in format "XG" to stdout
+# Returns:
+#   0 on success
 calculate_swap_size() {
   local ram_gb
   ram_gb=$(get_ram_size)
@@ -35,6 +52,12 @@ calculate_swap_size() {
   printf '%dG\n' "$swap_gb"
 }
 
+# Gets total system RAM in gigabytes.
+#
+# Outputs:
+#   RAM size in GB (rounded up) to stdout
+# Returns:
+#   0 on success
 get_ram_size() {
   awk '/MemTotal/ {printf "%d", ($2 + 1048575) / 1048576}' /proc/meminfo
 }
@@ -43,10 +66,18 @@ get_gpu_info() {
   lspci -nn 2>/dev/null | grep -Ei "VGA compatible controller|3D controller|Display controller" || printf ''
 }
 
+# Gets NVIDIA GPU PCI address.
+#
+# First tries vendor ID lookup, then falls back to string matching.
+#
+# Outputs:
+#   PCI address (e.g., "0000:01:00.0") to stdout, empty if not found
+# Returns:
+#   0 on success
 get_nvidia_pci_address() {
   local nvidia_pci
 
-  nvidia_pci=$(lspci -Dnnd 10de: | awk '{print $1}' | head -n1)
+  nvidia_pci=$(lspci -Dnnd 10de: 2>/dev/null | awk '{print $1}' | head -n1)
 
   if [[ -z "$nvidia_pci" ]]; then
     nvidia_pci=$(lspci -D 2>/dev/null | grep -iE "NVIDIA.*(VGA|3D|Display)" | awk '{print $1}' | head -n1)
@@ -55,6 +86,15 @@ get_nvidia_pci_address() {
   printf '%s\n' "$nvidia_pci"
 }
 
+# Creates btrfs swap subvolume and swapfile.
+#
+# Creates @swap subvolume if missing, mounts it, creates swapfile with
+# optimal size, and updates fstab entries.
+#
+# Globals:
+#   LAST_ERROR - Set on failure
+# Returns:
+#   0 on success, 1 on failure
 create_btrfs_swap() {
   local temp_mount
   local btrfs_root
@@ -70,22 +110,18 @@ create_btrfs_swap() {
 
   if ! sudo btrfs subvolume list / 2>/dev/null | grep -q "$SWAP_SUBVOL"; then
     temp_mount=$(mktemp -d)
+    trap 'mountpoint -q "${temp_mount:-}" 2>/dev/null && sudo umount "${temp_mount}" >/dev/null 2>&1; [[ -d "${temp_mount:-}" ]] && rm -rf "${temp_mount}"' RETURN EXIT ERR
 
     if ! sudo mount "$btrfs_root" "$temp_mount" >/dev/null 2>&1; then
       LAST_ERROR="Failed to mount btrfs root device"
-      rm -rf "$temp_mount"
       return 1
     fi
 
     if ! sudo btrfs subvolume create "$temp_mount/$SWAP_SUBVOL" >/dev/null 2>&1; then
       LAST_ERROR="Failed to create btrfs swap subvolume"
-      sudo umount "$temp_mount" 2>/dev/null || true
-      rm -rf "$temp_mount"
       return 1
     fi
 
-    sudo umount "$temp_mount" 2>/dev/null || true
-    rm -rf "$temp_mount"
     log INFO "Created btrfs swap subvolume"
   fi
 
@@ -148,6 +184,15 @@ get_swap_path() {
   sudo swapon --show=NAME --noheadings 2>/dev/null | awk '$1 !~ /\/dev\/zram/ {print; exit}'
 }
 
+# Sets up hibernation support.
+#
+# Creates swap if needed, configures kernel parameters for resume,
+# updates bootloader configuration, and configures initramfs.
+#
+# Globals:
+#   LAST_ERROR - Set on failure
+# Returns:
+#   0 on success
 setup_hibernation() {
   local swap_path
   local generator
@@ -157,13 +202,17 @@ setup_hibernation() {
   local resume_offset
   local btrfs_root
 
+  LAST_ERROR=""
+
   swap_path=$(get_swap_path)
 
   if [[ -z "$swap_path" ]]; then
     log INFO "No swap found, creating btrfs swapfile"
 
     if ! create_btrfs_swap; then
-      die "Failed to create btrfs swap: $LAST_ERROR"
+      local error_msg="$LAST_ERROR"
+      LAST_ERROR="Failed to create btrfs swap: $error_msg"
+      return 1
     fi
 
     swap_path=$(get_swap_path)
@@ -179,21 +228,26 @@ setup_hibernation() {
   if [[ -n "$swap_path" ]]; then
     if [[ -b "$swap_path" ]]; then
       if ! resume_uuid=$(sudo blkid -s UUID -o value "$swap_path" 2>/dev/null); then
-        die "Failed to get UUID for swap device: $swap_path"
+        LAST_ERROR="Failed to get UUID for swap device: $swap_path"
+        return 1
       fi
 
       hibernation_params+=("resume=UUID=$resume_uuid")
     elif [[ -f "$swap_path" ]]; then
       if ! btrfs_root=$(get_btrfs_root_device); then
-        die "Failed to get btrfs root device: $LAST_ERROR"
+        local error_msg="$LAST_ERROR"
+        LAST_ERROR="Failed to get btrfs root device: $error_msg"
+        return 1
       fi
 
       if ! resume_uuid=$(sudo blkid -s UUID -o value "$btrfs_root" 2>/dev/null); then
-        die "Failed to get UUID for btrfs root device"
+        LAST_ERROR="Failed to get UUID for btrfs root device"
+        return 1
       fi
 
       if ! resume_offset=$(sudo btrfs inspect-internal map-swapfile -r "$swap_path" 2>/dev/null); then
-        die "Failed to get offset for swapfile: $swap_path"
+        LAST_ERROR="Failed to get offset for swapfile: $swap_path"
+        return 1
       fi
 
       hibernation_params+=("resume=UUID=$resume_uuid" "resume_offset=$resume_offset")
@@ -203,22 +257,26 @@ setup_hibernation() {
   fi
 
   if ! generator=$(detect_initramfs_generator); then
-    die "Failed to detect initramfs generator: $LAST_ERROR"
+    local error_msg="$LAST_ERROR"
+    LAST_ERROR="Failed to detect initramfs generator: $error_msg"
+    return 1
   fi
 
   if ! bootloader=$(detect_bootloader); then
-    die "Failed to detect bootloader: $LAST_ERROR"
+    local error_msg="$LAST_ERROR"
+    LAST_ERROR="Failed to detect bootloader: $error_msg"
+    return 1
   fi
 
   case "$bootloader" in
   grub)
     log INFO "Updating GRUB kernel parameters"
     if ! update_grub_cmdline "${hibernation_params[@]}"; then
-      die "Failed to update GRUB kernel command line: $LAST_ERROR"
-    else
-      log INFO "Updated GRUB kernel parameters"
+      local error_msg="$LAST_ERROR"
+      LAST_ERROR="Failed to update GRUB kernel command line: $error_msg"
+      return 1
     fi
-
+    log INFO "Updated GRUB kernel parameters"
     ;;
   limine)
     if [[ ! -f /etc/limine-entry-tool.d/01-default.conf ]]; then
@@ -227,15 +285,20 @@ setup_hibernation() {
         default_params=$(cat /proc/cmdline)
 
         if ! update_limine_cmdline "01-default.conf" "$default_params"; then
-          die "Failed to create default Limine config: $LAST_ERROR"
+          local error_msg="$LAST_ERROR"
+          LAST_ERROR="Failed to create default Limine config: $error_msg"
+          return 1
         fi
       else
-        die "/proc/cmdline not readable; cannot create default Limine drop-in"
+        LAST_ERROR="/proc/cmdline not readable; cannot create default Limine drop-in"
+        return 1
       fi
     fi
 
     if ! update_limine_cmdline "50-hibernation.conf" "${hibernation_params[@]}"; then
-      die "Failed to write Limine hibernation config: $LAST_ERROR"
+      local error_msg="$LAST_ERROR"
+      LAST_ERROR="Failed to write Limine hibernation config: $error_msg"
+      return 1
     fi
     log INFO "Updated Limine kernel parameters"
     ;;
@@ -250,7 +313,8 @@ setup_hibernation() {
     local hooks
 
     if [[ ! -f "$mkinitcpio_conf" ]]; then
-      die "mkinitcpio.conf not found"
+      LAST_ERROR="mkinitcpio.conf not found"
+      return 1
     fi
 
     hooks=$(sed -nE 's/^[[:space:]]*HOOKS=\((.*)\)[[:space:]]*$/\1/p' "$mkinitcpio_conf" 2>/dev/null | head -n1)
@@ -262,13 +326,16 @@ setup_hibernation() {
 
         if [[ "$new_hooks" != "$hooks" ]]; then
           if ! sudo sed -i -E "s|^[[:space:]]*HOOKS=\(.*\)|HOOKS=($new_hooks)|" "$mkinitcpio_conf" 2>/dev/null; then
-            die "Failed to update mkinitcpio HOOKS"
+            LAST_ERROR="Failed to update mkinitcpio HOOKS"
+            return 1
           fi
 
           log INFO "Updated mkinitcpio HOOKS (added resume)"
 
           if ! regenerate_initramfs; then
-            die "Failed to regenerate initramfs: $LAST_ERROR"
+            local error_msg="$LAST_ERROR"
+            LAST_ERROR="Failed to regenerate initramfs: $error_msg"
+            return 1
           fi
           log INFO "Regenerated initramfs"
         fi
@@ -290,14 +357,18 @@ setup_hibernation() {
       log SKIP "Dracut resume module already configured"
       ;;
     *)
-      die "Failed to add dracut resume module: $LAST_ERROR"
+      local error_msg="$LAST_ERROR"
+      LAST_ERROR="Failed to add dracut resume module: $error_msg"
+      return 1
       ;;
     esac
 
     if [[ "$needs_initramfs_regen" = true ]]; then
       log INFO "Regenerating initramfs (this may take a moment)..."
       if ! regenerate_initramfs; then
-        die "Failed to regenerate initramfs: $LAST_ERROR"
+        local error_msg="$LAST_ERROR"
+        LAST_ERROR="Failed to regenerate initramfs: $error_msg"
+        return 1
       fi
       log INFO "Regenerated initramfs"
     else
@@ -376,7 +447,26 @@ main() {
     fi
   fi
 
-  setup_hibernation
+  if ! setup_hibernation; then
+    local error_msg="$LAST_ERROR"
+    local restore_failures=0
+
+    restore_backup "/etc/fstab" >/dev/null 2>&1 || ((restore_failures++))
+
+    if [[ "$generator" = "mkinitcpio" ]] && [[ -f /etc/mkinitcpio.conf ]]; then
+      restore_backup "/etc/mkinitcpio.conf" >/dev/null 2>&1 || ((restore_failures++))
+    fi
+
+    if [[ "$bootloader" = "grub" ]] && [[ -f /etc/default/grub ]]; then
+      restore_backup "/etc/default/grub" >/dev/null 2>&1 || ((restore_failures++))
+    fi
+
+    if [[ $restore_failures -eq 0 ]]; then
+      die "Hibernation setup failed: $error_msg (backups restored)"
+    else
+      die "Hibernation setup failed: $error_msg (warning: some backups may not have been restored)"
+    fi
+  fi
 
   if ! write_system_config "/etc/systemd/sleep.conf.d/hibernation.conf" <<'EOF'; then
 [Sleep]

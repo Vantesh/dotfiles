@@ -1,4 +1,4 @@
-{{- $personal := true -}} {{/* if false skip the secrets steps */}}
+{{- $personal := true -}}
 {{- if eq (env "NOT_PERSONAL") "1" -}}
   {{- $personal = false -}}
 {{- end -}}
@@ -9,13 +9,30 @@
   {{- $distro_family = default $distro_family (or (index $osRelease "idLike") (index $osRelease "id_like") (index $osRelease "id")) -}}
 {{- end -}}
 
+{{- $skipPrompts := eq (env "NOCONFIRM") "1" -}}
+
+{{- $git_username := "" -}}
+{{- $git_email := "" -}}
+{{- $default_shell := "fish" -}}
+{{- $compositor := "hyprland" -}}
+
+{{- if not $personal -}}
+  {{- if not $skipPrompts -}}
+    {{- $git_username = promptString "Enter your Git username" -}}
+    {{- $git_email = promptString "Enter your Git email" -}}
+  {{- end -}}
+{{- end -}}
+
+{{- if not $skipPrompts -}}
+  {{- $default_shell = promptChoice "Preferred shell" (list "fish" "zsh") -}}
+  {{- $compositor = promptChoice "Preferred compositor" (list "hyprland" "niri") -}}
+{{- end -}}
+
 data:
-  {{- if not $personal }}
-  git_username: {{ promptString "Enter your Git username:" | quote }}
-  git_email: {{ promptString "Enter your Git email:" | quote }}
-  {{- end }}
-  default_shell: {{ promptChoice "What's your preferred shell" (list "fish" "zsh") | quote }}
-  compositor: {{ promptChoice "What's your preferred compositor" (list "hyprland" "niri") | quote }}
+  git_username: {{ $git_username | quote }}
+  git_email: {{ $git_email | quote }}
+  default_shell: {{ $default_shell | quote }}
+  compositor: {{ $compositor | quote }}
   personal: {{ $personal }}
   distro_family: {{ $distro_family | lower | quote }}
 
@@ -39,11 +56,5 @@ diff:
   exclude:
     - "scripts"
 
-{{/* bw cli for secrets */}}
-bitwarden:
-  unlock: auto
-  command: "{{ .chezmoi.homeDir }}/.local/bin/bw"
-
-{{/* api refresh */}}
 github:
-  refreshPeriod: 12h
+  refreshPeriod: 24h
