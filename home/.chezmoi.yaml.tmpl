@@ -1,6 +1,13 @@
-{{- $personal := true -}}
-{{- if eq (env "NOT_PERSONAL") "1" -}}
-  {{- $personal = false -}}
+{{- /* Default to non-personal setup */ -}}
+{{- $personal := false -}}
+
+{{- /* Allow skipping prompts entirely (for CI or automated setups) */ -}}
+{{- $skipPrompts := eq (env "NOCONFIRM") "1" -}}
+
+{{- if not $skipPrompts -}}
+  {{- writeToStdout "WARN: Please do no select 'y' or some scripts will fail!\n" -}}
+  {{- writeToStdout "\n" -}}
+  {{- $personal = promptBool "Is this a personal setup (y/N)" false -}}
 {{- end -}}
 
 {{- $osRelease := .chezmoi.osRelease -}}
@@ -9,19 +16,16 @@
   {{- $distro_family = default $distro_family (or (index $osRelease "idLike") (index $osRelease "id_like") (index $osRelease "id")) -}}
 {{- end -}}
 
-{{- $skipPrompts := eq (env "NOCONFIRM") "1" -}}
-
-{{- $git_username := "" -}}
-{{- $git_email := "" -}}
-{{- $default_shell := "fish" -}}
-{{- $compositor := "hyprland" -}}
-
-{{- if not $personal -}}
-  {{- if not $skipPrompts -}}
-    {{- $git_username = promptString "Enter your Git username" -}}
-    {{- $git_email = promptString "Enter your Git email" -}}
+{{- if and (ne $distro_family "") (not (or (contains $distro_family "arch") (contains $distro_family "fedora") (contains $distro_family "rhel"))) -}}
+  {{- if lookPath "pacman" -}}
+    {{- $distro_family = "arch" -}}
+  {{- else if lookPath "dnf" -}}
+    {{- $distro_family = "fedora" -}}
   {{- end -}}
 {{- end -}}
+
+{{- $default_shell := "fish" -}}
+{{- $compositor := "hyprland" -}}
 
 {{- if not $skipPrompts -}}
   {{- $default_shell = promptChoice "Preferred shell" (list "fish" "zsh") -}}
@@ -29,18 +33,17 @@
 {{- end -}}
 
 data:
-  git_username: {{ $git_username | quote }}
-  git_email: {{ $git_email | quote }}
   default_shell: {{ $default_shell | quote }}
   compositor: {{ $compositor | quote }}
   personal: {{ $personal }}
   distro_family: {{ $distro_family | lower | quote }}
 
 scriptEnv:
-  DISTRO_FAMILY: {{ $distro_family | lower | quote }}
-  PERSONAL: {{ if $personal }}"1"{{ else }}"0"{{ end }}
-  DEFAULT_SHELL: {{ $default_shell | quote }}
-  COMPOSITOR: {{ $compositor | quote }}
+  PERSONAL: "{{ if $personal }}1{{ else }}0{{ end }}"
+  DISTRO_FAMILY: "{{ $distro_family | lower }}"
+  DEFAULT_SHELL: "{{ $default_shell }}"
+  COMPOSITOR: "{{ $compositor }}"
+
 
 edit:
   command: "code"
