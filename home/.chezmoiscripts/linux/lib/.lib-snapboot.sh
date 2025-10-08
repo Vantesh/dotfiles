@@ -414,7 +414,6 @@ update_limine_cmdline() {
     return 2
   fi
 
-  # Ensure .conf suffix
   [[ "$dropin_name" != *.conf ]] && dropin_name+=".conf"
 
   local dropin_dir="/etc/limine-entry-tool.d"
@@ -425,11 +424,9 @@ update_limine_cmdline() {
     return 127
   fi
 
-  # Escape double quotes in parameters for safe embedding
   local escaped_params
   escaped_params=$(printf '%s' "$params" | sed 's/"/\\"/g')
 
-  # Create drop-in file
   if ! sudo mkdir -p "$dropin_dir" 2>/dev/null; then
     LAST_ERROR="Failed to create Limine drop-in directory: $dropin_dir"
     return 1
@@ -553,13 +550,13 @@ regenerate_initramfs() {
     fi
 
     if [[ "$bootloader" = "limine" ]]; then
-      if ! command_exists limine-mkinitcpio; then
-        LAST_ERROR="limine-mkinitcpio command not found (install limine-mkinitcpio-hook)"
+      if ! command_exists limine-update; then
+        LAST_ERROR="limine-update command not found"
         return 127
       fi
 
-      if ! sudo limine-mkinitcpio >/dev/null 2>&1; then
-        LAST_ERROR="Failed to regenerate initramfs with limine-mkinitcpio"
+      if ! sudo limine-update >/dev/null 2>&1; then
+        LAST_ERROR="Failed to regenerate initramfs with limine-update"
         return 1
       fi
     else
