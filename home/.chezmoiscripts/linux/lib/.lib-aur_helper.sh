@@ -67,7 +67,7 @@ install_aur_helper() {
     return 1
   }
 
-  trap 'rm -rf "$temp_dir"' EXIT ERR INT TERM
+  trap 'rm -rf "${temp_dir:-}"' EXIT ERR INT TERM
 
   if ! _build_aur_package "$PARU_REPO" "paru-bin" "$temp_dir/paru-bin"; then
     return 1
