@@ -48,15 +48,13 @@ if ! chaotic_repo_configured; then
 fi
 
 if ! command_exists paru && ! command_exists yay; then
-  log STEP "Installing AUR helper"
+  log STEP "AUR helper"
+  log INFO "Installing AUR helper (paru)... this may take a while"
 
   if ! install_aur_helper; then
     die "Failed to install AUR helper: $LAST_ERROR"
   fi
-
-  log INFO "Installed AUR helper: $AUR_HELPER"
 fi
-
 
 print_box "Packages"
 
