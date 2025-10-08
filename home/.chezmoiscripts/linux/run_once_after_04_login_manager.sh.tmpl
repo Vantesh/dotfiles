@@ -22,36 +22,32 @@ disable_conflicting_dms() {
   local skip_service="${1:-}"
 
   local other_dm_services=(
-    gdm.service gdm3.service sddm.service lightdm.service lxdm.service
-    greetd.service emptty.service
+    sddm.service greetd.service gdm.service gdm3.service
+    lightdm.service lxdm.service emptty.service
   )
 
-  local disabled_any=false
   local svc
+  local status
 
   for svc in "${other_dm_services[@]}"; do
     if [[ -n "$skip_service" ]] && [[ "$svc" == "$skip_service" ]]; then
       continue
     fi
 
-    if systemctl list-unit-files --type=service 2>/dev/null | grep -q "^${svc}"; then
-      if sudo systemctl is-enabled --quiet "$svc" 2>/dev/null; then
-        if sudo systemctl disable "$svc" >/dev/null 2>&1; then
-          log INFO "Disabled $svc"
-          disabled_any=true
-        else
-          log WARN "Failed to disable $svc"
-        fi
+    status=$(sudo systemctl is-enabled "$svc" 2>/dev/null || true)
+
+    if [[ "$status" == "enabled" ]]; then
+      if sudo systemctl disable "$svc" >/dev/null 2>&1; then
+        log INFO "Disabled $svc"
+        reload_systemd_daemon
+        return 0
+      else
+        log WARN "Failed to disable $svc"
       fi
     fi
   done
 
-  # Force systemd to reload after disabling services
-  if [[ "$disabled_any" = true ]]; then
-    reload_systemd_daemon
-  else
-    log SKIP "No conflicting display managers found"
-  fi
+  log SKIP "No conflicting display managers found"
 }
 
 configure_ly() {
