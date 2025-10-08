@@ -300,6 +300,7 @@ is_laptop() {
 #   _SUDO_KEEPALIVE_PID - Internal: background process PID
 # Returns:
 #   0 on success, 1 on failure
+
 keep_sudo_alive() {
   LAST_ERROR=""
 
@@ -308,29 +309,40 @@ keep_sudo_alive() {
     return 1
   fi
 
+  if [[ -n "${_SUDO_KEEPALIVE_PID:-}" ]] && kill -0 "$_SUDO_KEEPALIVE_PID" 2>/dev/null; then
+    return 0
+  fi
+
   (
-    while true; do
-      sleep 60
-      sudo -v
+    while sleep 60; do
+      sudo -n true 2>/dev/null || exit
     done
   ) &
 
-  local sudo_pid=$!
+  export _SUDO_KEEPALIVE_PID=$!
 
-  _SUDO_KEEPALIVE_PID="$sudo_pid"
-
-  trap "_kill_sudo_keepalive" EXIT INT TERM
+  trap '_kill_sudo_keepalive' EXIT INT TERM
 
   return 0
 }
 
 _kill_sudo_keepalive() {
-  if [[ -n "${_SUDO_KEEPALIVE_PID:-}" ]]; then
+  if [[ -n "${_SUDO_KEEPALIVE_PID:-}" ]] && kill -0 "$_SUDO_KEEPALIVE_PID" 2>/dev/null; then
     kill "$_SUDO_KEEPALIVE_PID" 2>/dev/null || true
     unset _SUDO_KEEPALIVE_PID
   fi
 }
 
+# Writes content to system config file with proper permissions.
+#
+# Creates parent directories if needed. Sets ownership to root:root and
+# permissions to 644. Uses sudo for creation and writing.
+# Arguments:
+#   $1 - Config file path
+# Globals:
+#   LAST_ERROR - Set on failure
+# Returns:
+#   0 on success, 1 on failure, 2 on invalid args
 write_system_config() {
   local config_file="$1"
 
