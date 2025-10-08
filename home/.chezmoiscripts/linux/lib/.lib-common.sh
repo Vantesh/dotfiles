@@ -314,7 +314,8 @@ keep_sudo_alive() {
   fi
 
   (
-    while sleep 60; do
+    while true; do
+      sleep 60
       sudo -n true 2>/dev/null || exit
     done
   ) &
