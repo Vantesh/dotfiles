@@ -83,6 +83,7 @@ setup_snapper_packages() {
   grub)
     packages+=(
       grub-btrfs
+      snapper-rollback
     )
     ;;
   esac
