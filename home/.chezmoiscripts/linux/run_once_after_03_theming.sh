@@ -48,20 +48,18 @@ install_grub_theme() {
   fi
 
   temp_dir=$(mktemp -d)
+  trap '[[ -d "${temp_dir:-}" ]] && rm -rf "${temp_dir}"' RETURN EXIT ERR
 
   if ! git clone "$GRUB_THEME_URL" "$temp_dir" >/dev/null 2>&1; then
     LAST_ERROR="Failed to clone GRUB theme repository"
-    rm -rf "$temp_dir"
     return 1
   fi
 
   if ! (cd "$temp_dir" && sudo ./install.sh >/dev/null 2>&1); then
     LAST_ERROR="Failed to install GRUB theme"
-    rm -rf "$temp_dir"
     return 1
   fi
 
-  rm -rf "$temp_dir"
   return 0
 }
 
@@ -87,10 +85,10 @@ configure_limine_theme() {
   fi
 
   temp_file=$(mktemp)
-  trap 'rm -f "${temp_file:-}"' RETURN
+  trap '[[ -f "${temp_file:-}" ]] && rm -f "${temp_file}"' RETURN
 
   # Write the Catppuccin theme at the top
-  cat <<'EOF' > "$temp_file"
+  cat <<'EOF' >"$temp_file"
 # Catppuccin Mocha Theme
 timeout: 1
 default_entry: 2
@@ -120,18 +118,18 @@ EOF
   # Append existing config, filtering out duplicate keys
   while IFS= read -r line; do
     local is_duplicate=false
-    
+
     for key in "${theme_keys[@]}"; do
       if [[ "$line" =~ ^[[:space:]]*"$key" ]]; then
         is_duplicate=true
         break
       fi
     done
-    
+
     if [[ "$is_duplicate" == false ]]; then
-      echo "$line" >> "$temp_file"
+      echo "$line" >>"$temp_file"
     fi
-  done < "$limine_conf"
+  done <"$limine_conf"
 
   if ! sudo mv "$temp_file" "$limine_conf" 2>/dev/null; then
     LAST_ERROR="Failed to write limine theme config"
@@ -227,6 +225,7 @@ install_tela_icons() {
 
   local temp_dir
   temp_dir="$(mktemp -d)"
+  trap '[[ -d "${temp_dir:-}" ]] && rm -rf "${temp_dir}"' RETURN EXIT ERR
 
   if [[ ! -d "$temp_dir" ]]; then
     LAST_ERROR="Failed to create temporary directory"
@@ -235,23 +234,19 @@ install_tela_icons() {
 
   if ! command_exists git; then
     LAST_ERROR="git is required to install Tela icons"
-    rm -rf "$temp_dir"
     return 1
   fi
 
   if ! git clone --depth 1 "$TELA_REPO_URL" "$temp_dir" >/dev/null 2>&1; then
     LAST_ERROR="Failed to clone Tela icon theme repository"
-    rm -rf "$temp_dir"
     return 1
   fi
 
   if ! (cd "$temp_dir" && ./install.sh -a >/dev/null 2>&1); then
     LAST_ERROR="Failed to install Tela icons"
-    rm -rf "$temp_dir"
     return 1
   fi
 
-  rm -rf "$temp_dir"
   return 0
 }
 
