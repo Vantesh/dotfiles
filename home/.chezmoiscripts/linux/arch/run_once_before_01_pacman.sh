@@ -121,15 +121,14 @@ setup_pacman() {
     die "Failed to install dependencies: $LAST_ERROR"
   fi
 
-  if create_backup "$PACMAN_CONF"; then
-    log INFO "Created backup: ${PACMAN_CONF}.bak"
-  else
-    die "Failed to create backup: $LAST_ERROR"
+  if ! create_backup "$PACMAN_CONF"; then
+    die "Failed to create backup of $PACMAN_CONF"
   fi
 
-  _configure_pacman_options "$PACMAN_CONF"
-  _add_ilovecandy "$PACMAN_CONF"
-  _configure_paccache
+  if ! { _configure_pacman_options "$PACMAN_CONF" && _add_ilovecandy "$PACMAN_CONF" && _configure_paccache; }; then
+    restore_backup "$PACMAN_CONF" 2>/dev/null || true
+    die "Failed to configure pacman (backup restored)"
+  fi
 
   if ! _create_paccache_hooks; then
     log WARN "Hooks may be incomplete"

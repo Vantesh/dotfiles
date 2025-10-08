@@ -290,13 +290,22 @@ optimize_btrfs_fstab() {
   fi
 
   if ! sudo sed -i -E '/btrfs/ { s/\brelatime\b/noatime/g; s/\bdefaults\b/defaults,noatime/g; s/(,noatime){2,}/,noatime/g; s/,+/,/g; }' /etc/fstab; then
-    LAST_ERROR="Failed to update fstab with noatime"
+    local error_msg="Failed to update fstab with noatime"
+    if ! restore_backup "/etc/fstab"; then
+      LAST_ERROR="$error_msg and restore backup failed: $LAST_ERROR"
+    else
+      LAST_ERROR="$error_msg (backup restored)"
+    fi
     return 1
   fi
 
   if ! reload_systemd_daemon; then
     local error_msg="$LAST_ERROR"
-    LAST_ERROR="Failed to reload systemd daemon: $error_msg"
+    if ! restore_backup "/etc/fstab"; then
+      LAST_ERROR="Failed to reload systemd daemon: $error_msg (backup restore also failed)"
+    else
+      LAST_ERROR="Failed to reload systemd daemon: $error_msg (backup restored)"
+    fi
     return 1
   fi
 

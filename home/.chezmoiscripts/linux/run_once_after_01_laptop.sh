@@ -448,7 +448,24 @@ main() {
   fi
 
   if ! setup_hibernation; then
-    die "Hibernation setup failed: $LAST_ERROR"
+    local error_msg="$LAST_ERROR"
+    local restore_failures=0
+
+    restore_backup "/etc/fstab" >/dev/null 2>&1 || ((restore_failures++))
+
+    if [[ "$generator" = "mkinitcpio" ]] && [[ -f /etc/mkinitcpio.conf ]]; then
+      restore_backup "/etc/mkinitcpio.conf" >/dev/null 2>&1 || ((restore_failures++))
+    fi
+
+    if [[ "$bootloader" = "grub" ]] && [[ -f /etc/default/grub ]]; then
+      restore_backup "/etc/default/grub" >/dev/null 2>&1 || ((restore_failures++))
+    fi
+
+    if [[ $restore_failures -eq 0 ]]; then
+      die "Hibernation setup failed: $error_msg (backups restored)"
+    else
+      die "Hibernation setup failed: $error_msg (warning: some backups may not have been restored)"
+    fi
   fi
 
   if ! write_system_config "/etc/systemd/sleep.conf.d/hibernation.conf" <<'EOF'; then

@@ -379,19 +379,21 @@ write_system_config() {
   return 0
 }
 
-# Creates .bak backup of file (idempotent).
+# Creates .bak backup of file
 #
-# Only creates backup if .bak file doesn't already exist. Preserves
-# first backup forever. Uses sudo if target directory not writable.
+# Only creates backup if .bak file doesn't already exist unless "force" is specified.
+# Uses atomic copy via temporary file. Uses sudo if target directory not writable.
 #
 # Arguments:
 #   $1 - Target file path
+#   $2 - Optional: "force" to overwrite existing backup
 # Globals:
 #   LAST_ERROR - Set on failure
 # Returns:
 #   0 on success (created or already exists), 1 on failure, 2 on invalid args
 create_backup() {
   local target_path="$1"
+  local force="${2:-}"
   local backup_path="${target_path}.bak"
 
   LAST_ERROR=""
@@ -406,7 +408,7 @@ create_backup() {
     return 2
   fi
 
-  if [[ -e "$backup_path" ]]; then
+  if [[ -e "$backup_path" ]] && [[ "$force" != "force" ]]; then
     return 0
   fi
 
@@ -414,12 +416,82 @@ create_backup() {
   backup_dir="$(dirname "$backup_path")"
 
   local copy_cmd="cp"
+  local move_cmd="mv"
+  local rm_cmd="rm"
   if [[ ! -w "$backup_dir" ]]; then
     copy_cmd="sudo cp"
+    move_cmd="sudo mv"
+    rm_cmd="sudo rm"
   fi
 
-  if ! $copy_cmd -a "$target_path" "$backup_path" 2>/dev/null; then
-    LAST_ERROR="Failed to create backup: $target_path -> $backup_path"
+  local tmp_backup="${backup_path}.tmp.$$"
+
+  if ! $copy_cmd -a "$target_path" "$tmp_backup" 2>/dev/null; then
+    LAST_ERROR="Failed to create temporary backup: $target_path -> $tmp_backup"
+    $rm_cmd -f "$tmp_backup" 2>/dev/null || true
+    return 1
+  fi
+
+  if ! $move_cmd -f "$tmp_backup" "$backup_path" 2>/dev/null; then
+    LAST_ERROR="Failed to move temporary backup to final location: $tmp_backup -> $backup_path"
+    $rm_cmd -f "$tmp_backup" 2>/dev/null || true
+    return 1
+  fi
+
+  return 0
+}
+
+# Restores file from .bak backup
+#
+# Overwrites target file with .bak backup if it exists.
+# Uses sudo if target directory not writable.
+#
+# Arguments:
+#   $1 - Target file path
+# Globals:
+#   LAST_ERROR - Set on failure
+# Returns:
+#   0 on success, 1 on failure, 2 on invalid args
+
+restore_backup() {
+  local target_path="$1"
+  local backup_path="${target_path}.bak"
+
+  LAST_ERROR=""
+
+  if [[ -z "$target_path" ]]; then
+    LAST_ERROR="restore_backup() requires target_path argument"
+    return 2
+  fi
+
+  if [[ ! -e "$backup_path" ]]; then
+    LAST_ERROR="Backup file does not exist: $backup_path"
+    return 2
+  fi
+
+  local restore_dir
+  restore_dir="$(dirname "$target_path")"
+
+  local copy_cmd="cp"
+  local move_cmd="mv"
+  local rm_cmd="rm"
+  if [[ ! -w "$restore_dir" ]]; then
+    copy_cmd="sudo cp"
+    move_cmd="sudo mv"
+    rm_cmd="sudo rm"
+  fi
+
+  local tmp_restore="${target_path}.tmp.$$"
+
+  if ! $copy_cmd -a "$backup_path" "$tmp_restore" 2>/dev/null; then
+    LAST_ERROR="Failed to copy backup to temporary file: $backup_path -> $tmp_restore"
+    $rm_cmd -f "$tmp_restore" 2>/dev/null || true
+    return 1
+  fi
+
+  if ! $move_cmd -f "$tmp_restore" "$target_path" 2>/dev/null; then
+    LAST_ERROR="Failed to restore backup: $tmp_restore -> $target_path"
+    $rm_cmd -f "$tmp_restore" 2>/dev/null || true
     return 1
   fi
 

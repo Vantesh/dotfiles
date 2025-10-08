@@ -104,7 +104,12 @@ EOF
   grep -vE "^[[:space:]]*#?[[:space:]]*(timeout|default_entry|interface_branding|term_palette|term_background|term_foreground):" "$limine_conf" 2>/dev/null >>"$temp_file" || true
 
   if ! sudo mv "$temp_file" "$limine_conf" 2>/dev/null; then
-    LAST_ERROR="Failed to write limine theme config"
+    local error_msg="Failed to write limine theme config"
+    if ! restore_backup "$limine_conf"; then
+      LAST_ERROR="$error_msg and restore backup failed: $LAST_ERROR"
+    else
+      LAST_ERROR="$error_msg (backup restored)"
+    fi
     return 1
   fi
 
