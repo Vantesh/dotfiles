@@ -11,7 +11,6 @@ readonly LIB_DIR="${CHEZMOI_SOURCE_DIR:-$(chezmoi source-path)}/.chezmoiscripts/
 # shellcheck source=/dev/null
 source "$LIB_DIR/.lib-common.sh"
 
-readonly PREFERRED_SHELL="{{ .default_shell }}"
 readonly ZSHENV_FILE="/etc/zsh/zshenv"
 
 if ! keep_sudo_alive; then
@@ -38,40 +37,43 @@ set_default_shell() {
   local current_shell
   local preferred_shell_path
   local current_shell_name
+  local preferred_shell="${DEFAULT_SHELL:-fish}"
 
   current_shell=$(getent passwd "$USER" | cut -d: -f7)
 
-  if ! preferred_shell_path=$(command -v "$PREFERRED_SHELL" 2>/dev/null); then
-    LAST_ERROR="Shell binary not found: $PREFERRED_SHELL"
+  if ! preferred_shell_path=$(command -v "$preferred_shell" 2>/dev/null); then
+    LAST_ERROR="Shell binary not found: $preferred_shell"
     return 1
   fi
 
   if [[ "$current_shell" == "$preferred_shell_path" ]]; then
-    log SKIP "$PREFERRED_SHELL is already default shell"
+    log SKIP "$preferred_shell is already default shell"
     return 0
   fi
 
   current_shell_name=$(basename "$current_shell")
 
-  if ! confirm "Set $PREFERRED_SHELL as default shell? (current: $current_shell_name)"; then
+  if ! confirm "Set $preferred_shell as default shell? (current: $current_shell_name)"; then
     log SKIP "Default shell change cancelled by user"
     return 0
   fi
 
   if ! sudo usermod -s "$preferred_shell_path" "$USER" >/dev/null 2>&1; then
-    LAST_ERROR="Failed to set $PREFERRED_SHELL as default shell"
+    LAST_ERROR="Failed to set $preferred_shell as default shell"
     return 1
   fi
 
-  log INFO "Set $PREFERRED_SHELL as default shell"
+  log INFO "Set $preferred_shell as default shell"
   return 0
 }
 
 main() {
+  local preferred_shell="${DEFAULT_SHELL:-fish}"
+
   print_box "Shell"
   log STEP "Shell Setup"
 
-  if [[ "$PREFERRED_SHELL" == "zsh" ]]; then
+  if [[ "$preferred_shell" == "zsh" ]]; then
     if ! setup_zsh_env; then
       die "Failed to setup ZSH environment: $LAST_ERROR"
     fi

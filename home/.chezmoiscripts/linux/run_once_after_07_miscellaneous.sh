@@ -19,9 +19,12 @@ if ! keep_sudo_alive; then
 fi
 
 setup_pkgfile() {
-  if ! command_exists pacman; then
+  case "${DISTRO_FAMILY,,}" in
+  *arch*) ;;
+  *)
     return 0
-  fi
+    ;;
+  esac
 
   if ! command_exists pkgfile; then
     log SKIP "pkgfile not installed"

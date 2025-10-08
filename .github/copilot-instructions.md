@@ -206,21 +206,35 @@ For files with multiple prefixes, strip all chezmoi attributes:
 
 ### Detecting Distribution
 
+Chezmoi sets environment variables via `scriptEnv` in `.chezmoi.yaml.tmpl` for scripts to use:
+
 ```bash
+# in bash scripts - use DISTRO_FAMILY environment variable
+case "${DISTRO_FAMILY,,}" in
+*arch*)
+  # Arch-specific logic
+  ;;
+*fedora* | *rhel*)
+  # Fedora-specific logic
+  ;;
+esac
+
 # in chezmoi templates
 {{- if or (contains .distro_family "arch") (eq .distro_family "arch") -}}
   # Arch-specific config
 {{- else if or (contains .distro_family "fedora") (contains .distro_family "rhel") (eq .distro_family "fedora") (eq .distro_family "rhel") -}}
   # Fedora-specific config
 {{- end -}}
-
-# In bash scripts
-if command_exists pacman; then
-  # Arch
-elif command_exists dnf; then
-  # Fedora
-fi
 ```
+
+**Available scriptEnv variables:**
+
+- `DISTRO_FAMILY` - Distribution family (arch, fedora, rhel, etc.)
+- `PERSONAL` - Whether this is a personal installation ("1" or "0")
+- `DEFAULT_SHELL` - Preferred shell (fish, zsh)
+- `COMPOSITOR` - Preferred compositor (hyprland, niri)
+
+**Note:** The `get_package_manager()` function in `.lib-package_manager.sh` requires `DISTRO_FAMILY` to be set via scriptEnv.
 
 ---
 
@@ -833,14 +847,28 @@ NO_COLOR=1 ./script.sh
 - **Log results, not intentions**: Show what was done, not what will be done
 - **Be concise**: Avoid unnecessary details or explanations
 - **Skip redundant intro messages**: Let the result speak for itself
+- **Exception - Long-running operations**: Use present continuous (progressive) tense for operations that take significant time
+  - "Cloning repository", "Regenerating initramfs", "Building package", "Installing Tela icons (this may take a moment)"
+  - Follow with past tense result: "Cloned repository", "Regenerated initramfs"
 
 ```bash
-# Bad (verbose, future tense)
-log INFO "Creating backup of pacman.conf..."
-log INFO "Backup created: /etc/pacman.conf.bak"
+# Bad (verbose. too much detail)
+log INFO "About to create a backup of /etc/pacman.conf to /etc/pacman.conf.bak"
+log INFO "Creating backup of /etc/pacman.conf"
+log INFO "Backup created successfully: /etc/pacman.conf.bak"
+
 
 # Good (concise, past tense, result first)
 log INFO "Created backup: /etc/pacman.conf.bak"
+
+# Good (long-running operation - present continuous then past tense)
+log INFO "Cloning DankMaterialShell"
+# ... git clone operation ...
+log INFO "Cloned DankMaterialShell"
+
+log INFO "Regenerating initramfs"
+# ... mkinitcpio/dracut operation ...
+log INFO "Regenerated initramfs"
 
 # More examples of correct format
 log INFO "Configured Pacman"

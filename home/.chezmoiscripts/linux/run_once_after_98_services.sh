@@ -63,7 +63,12 @@ enable_configured_services() {
 
   ((${#failed_services[@]} > 0)) && log WARN "Some services failed to enable"
 
-  command_exists pacman || return 0
+  case "${DISTRO_FAMILY,,}" in
+  *arch*) ;;
+  *)
+    return 0
+    ;;
+  esac
 
   for service in "${PACMAN_SERVICES[@]}"; do
     if enable_service "$service" "system"; then

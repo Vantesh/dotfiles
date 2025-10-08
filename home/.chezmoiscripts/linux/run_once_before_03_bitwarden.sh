@@ -2,11 +2,13 @@
 # 03_bitwarden.sh - Install and configure Bitwarden
 # Exit codes: 0 (success), 1 (failure)
 
-{{- if .personal }}
-
 set -euo pipefail
 
 shopt -s nullglob globstar
+
+if [[ "${PERSONAL:-0}" != "1" ]]; then
+  exit 0
+fi
 
 readonly LIB_DIR="${CHEZMOI_SOURCE_DIR:-$(chezmoi source-path)}/.chezmoiscripts/linux/lib"
 
@@ -20,9 +22,11 @@ install_bitwarden_packages() {
     rbw
   )
 
-  if command_exists pacman; then
+  case "${DISTRO_FAMILY,,}" in
+  *arch*)
     packages+=(bitwarden-bin)
-  fi
+    ;;
+  esac
 
   if ! install_package "${packages[@]}"; then
     log ERROR "Failed to install Bitwarden packages: $LAST_ERROR"
@@ -159,5 +163,3 @@ main() {
 }
 
 main "$@"
-
-{{- end }}

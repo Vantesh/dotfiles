@@ -32,16 +32,19 @@ setup_snapper_packages() {
     inotify-tools
   )
 
-  if command_exists pacman; then
+  case "${DISTRO_FAMILY,,}" in
+  *arch*)
     packages+=(
       snap-pac
     )
-  elif command_exists dnf; then
+    ;;
+  *fedora* | *rhel*)
     packages+=(
       python3-dnf-plugin-snapper
       libdnf5-plugin-actions
     )
-  fi
+    ;;
+  esac
 
   local bootloader
   if ! bootloader=$(detect_bootloader); then
@@ -314,9 +317,12 @@ optimize_btrfs_fstab() {
 }
 
 configure_dnf_snapper_plugin() {
-  if ! command_exists dnf; then
+  case "${DISTRO_FAMILY,,}" in
+  *fedora* | *rhel*) ;;
+  *)
     return 0
-  fi
+    ;;
+  esac
 
   local actions_file="/etc/dnf/libdnf5-plugins/actions.d/snapper.actions"
 

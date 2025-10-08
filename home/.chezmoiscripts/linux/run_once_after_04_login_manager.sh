@@ -89,7 +89,6 @@ disable_getty_tty2() {
   fi
 }
 
-{{- if eq .compositor "niri" }}
 setup_niri_session() {
   local session_file="/usr/share/wayland-sessions/niri-uwsm.desktop"
 
@@ -112,25 +111,21 @@ EOF
 
   log INFO "Created niri-uwsm session file"
 }
-{{- end }}
 
 main() {
-  local is_fedora="false"
-  if command_exists dnf; then
-    is_fedora="true"
-  fi
-
-  if [[ "$is_fedora" == "true" ]]; then
+  case "${DISTRO_FAMILY,,}" in
+  *fedora* | *rhel*)
     print_box "Display Manager"
     log STEP "Display Manager Configuration"
 
     log SKIP "Fedora distro detected, skipping Ly configuration"
 
-{{- if eq .compositor "niri" }}
-    setup_niri_session
-{{- end }}
+    if [[ "${COMPOSITOR,,}" == "niri" ]]; then
+      setup_niri_session
+    fi
     return 0
-  fi
+    ;;
+  esac
 
   print_box "LY"
   log STEP "Ly Configuration"
@@ -141,14 +136,14 @@ main() {
   if ! enable_service "ly.service" "system"; then
     die "Failed : $LAST_ERROR"
   else
-  log INFO "${COLOR_GREEN}ly.service${COLOR_RESET} enabled"
+    log INFO "${COLOR_GREEN}ly.service${COLOR_RESET} enabled"
   fi
 
   disable_getty_tty2
 
-{{- if eq .compositor "niri" }}
-  setup_niri_session
-{{- end }}
+  if [[ "${COMPOSITOR,,}" == "niri" ]]; then
+    setup_niri_session
+  fi
 
   log INFO "Ly display manager configuration complete"
 }
