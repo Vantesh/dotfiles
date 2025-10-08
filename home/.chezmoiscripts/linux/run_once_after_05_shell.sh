@@ -1,0 +1,89 @@
+#!/usr/bin/env bash
+# 05_shell.sh - Configure default shell
+# Exit codes: 0 (success), 1 (failure)
+
+set -euo pipefail
+
+shopt -s nullglob globstar
+
+readonly LIB_DIR="${CHEZMOI_SOURCE_DIR:-$(chezmoi source-path)}/.chezmoiscripts/linux/lib"
+
+# shellcheck source=/dev/null
+source "$LIB_DIR/.lib-common.sh"
+
+readonly ZSHENV_FILE="/etc/zsh/zshenv"
+
+if ! keep_sudo_alive; then
+  die "Failed to keep sudo alive"
+fi
+
+setup_zsh_env() {
+  if ! write_system_config "$ZSHENV_FILE" <<'EOF'; then
+export XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
+export XDG_DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
+export XDG_CACHE_HOME="${XDG_CACHE_HOME:-$HOME/.cache}"
+export XDG_STATE_HOME="${XDG_STATE_HOME:-$HOME/.local/state}"
+export ZDOTDIR="$XDG_CONFIG_HOME/zsh"
+EOF
+    LAST_ERROR="Failed to write zshenv: $LAST_ERROR"
+    return 1
+  fi
+
+  log INFO "Configured ZSH environment"
+  return 0
+}
+
+set_default_shell() {
+  local current_shell
+  local preferred_shell_path
+  local current_shell_name
+  local preferred_shell="${DEFAULT_SHELL:-fish}"
+
+  current_shell=$(getent passwd "$USER" | cut -d: -f7)
+
+  if ! preferred_shell_path=$(command -v "$preferred_shell" 2>/dev/null); then
+    LAST_ERROR="Shell binary not found: $preferred_shell"
+    return 1
+  fi
+
+  if [[ "$current_shell" == "$preferred_shell_path" ]]; then
+    log SKIP "$preferred_shell is already default shell"
+    return 0
+  fi
+
+  current_shell_name=$(basename "$current_shell")
+
+  if ! confirm "Set $preferred_shell as default shell? (current: $current_shell_name)"; then
+    log SKIP "Default shell change cancelled by user"
+    return 0
+  fi
+
+  if ! sudo usermod -s "$preferred_shell_path" "$USER" >/dev/null 2>&1; then
+    LAST_ERROR="Failed to set $preferred_shell as default shell"
+    return 1
+  fi
+
+  log INFO "Set $preferred_shell as default shell"
+  return 0
+}
+
+main() {
+  local preferred_shell="${DEFAULT_SHELL:-fish}"
+
+  print_box "Shell"
+  log STEP "Shell Setup"
+
+  if [[ "$preferred_shell" == "zsh" ]]; then
+    if ! setup_zsh_env; then
+      die "Failed to setup ZSH environment: $LAST_ERROR"
+    fi
+  fi
+
+  if ! set_default_shell; then
+    die "Failed to set default shell: $LAST_ERROR"
+  fi
+
+  log INFO "Shell configuration complete"
+}
+
+main "$@"

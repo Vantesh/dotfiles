@@ -366,7 +366,8 @@ main() {
     fi
   done
 
-  if command_exists dnf; then
+  case "${DISTRO_FAMILY,,}" in
+  *fedora* | *rhel*)
     if tela_icons_present; then
       log SKIP "Tela icons already installed"
     else
@@ -379,7 +380,8 @@ main() {
         log INFO "Installed Tela icon theme"
       fi
     fi
-  fi
+    ;;
+  esac
 
   log INFO "System theming complete"
 }

@@ -7,7 +7,6 @@
 #
 # Globals:
 #   LAST_ERROR - Error message from last failed operation
-#   __package_manager_cache - Internal: cached package manager name
 # Exit codes:
 #   0 (success), 1 (failure), 2 (invalid args), 127 (missing dependency)
 
@@ -15,36 +14,35 @@ export LAST_ERROR="${LAST_ERROR:-}"
 
 # Detects system package manager.
 #
-# Caches result for subsequent calls. Checks for dnf (Fedora) then
-# pacman (Arch) in that order.
+# Uses DISTRO_FAMILY environment variable set by chezmoi scriptEnv.
 #
 # Globals:
-#   __package_manager_cache - Set with detected manager
+#   DISTRO_FAMILY - Distro family from chezmoi scriptEnv (required)
 #   LAST_ERROR - Set if no supported manager found
 # Outputs:
 #   Package manager name to stdout: "dnf" or "pacman"
 # Returns:
-#   0 on success, 1 if no supported manager found
+#   0 on success, 1 if no supported manager found or DISTRO_FAMILY not set
 get_package_manager() {
-  if [[ -n "${__package_manager_cache:-}" ]]; then
-    printf '%s\n' "$__package_manager_cache"
-    return 0
+  if [[ -z "${DISTRO_FAMILY:-}" ]]; then
+    LAST_ERROR="DISTRO_FAMILY environment variable not set (chezmoi scriptEnv required)"
+    return 1
   fi
 
-  if command_exists dnf; then
-    __package_manager_cache="dnf"
-    printf '%s\n' "$__package_manager_cache"
-    return 0
-  fi
+  case "${DISTRO_FAMILY,,}" in
+  *fedora* | *rhel*)
+    printf 'dnf\n'
+    ;;
+  *arch*)
+    printf 'pacman\n'
+    ;;
+  *)
+    LAST_ERROR="Unsupported distro family: $DISTRO_FAMILY"
+    return 1
+    ;;
+  esac
 
-  if command_exists pacman; then
-    __package_manager_cache="pacman"
-    printf '%s\n' "$__package_manager_cache"
-    return 0
-  fi
-
-  LAST_ERROR="No supported package manager detected (dnf or pacman required)"
-  return 1
+  return 0
 }
 
 # Detects available AUR helper.

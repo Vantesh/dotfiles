@@ -19,5 +19,14 @@
   refreshPeriod: "168h"
   path: "dgop-linux-{{ $arch }}"
 
+{{/* dms - AvengeMedia/dms */}}
+{{- $arch := .chezmoi.arch }}
+{{- $tag := (gitHubLatestRelease "AvengeMedia/danklinux").TagName }}
+".local/bin/dms":
+  type: file
+  executable: true
+  url: "https://github.com/AvengeMedia/danklinux/releases/download/{{ $tag }}/dms-{{ $arch }}.gz"
+  decompress: gzip
+
 {{- end }}
 {{ end }}
