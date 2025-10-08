@@ -64,7 +64,7 @@
 	plain = blue
 
 [include]
-  path = ~/.config/git/.gitconfig.local
+  path = ~/.config/git/git-credentials
 
 
 [init]
