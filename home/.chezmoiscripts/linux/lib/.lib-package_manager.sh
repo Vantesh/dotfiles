@@ -30,7 +30,7 @@ get_package_manager() {
   fi
 
   case "${DISTRO_FAMILY,,}" in
-  *fedora* | *rhel*)
+  *fedora*)
     printf 'dnf\n'
     ;;
   *arch*)

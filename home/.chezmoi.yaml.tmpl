@@ -11,17 +11,18 @@
   {{- $personal = promptBool "Is this a personal setup (y/N)" false -}}
 {{- end -}}
 
-{{- $osRelease := .chezmoi.osRelease -}}
-{{- $distro_family := .chezmoi.os -}}
-{{- if $osRelease -}}
-  {{- $distro_family = default $distro_family (or (index $osRelease "idLike") (index $osRelease "id_like") (index $osRelease "id")) -}}
-{{- end -}}
-
-{{- if and (ne $distro_family "") (not (or (contains $distro_family "arch") (contains $distro_family "fedora") (contains $distro_family "rhel"))) -}}
-  {{- if lookPath "pacman" -}}
-    {{- $distro_family = "arch" -}}
-  {{- else if lookPath "dnf" -}}
-    {{- $distro_family = "fedora" -}}
+{{- $distroFamily := "" -}}
+{{- if .chezmoi.osRelease -}}
+  {{- $distroFamily = default .chezmoi.osRelease.id (index .chezmoi.osRelease "idLike") -}}
+  {{- if not (or (contains $distroFamily "arch") (contains $distroFamily "fedora") (contains $distroFamily "rhel")) -}}
+    {{- if lookPath "pacman" -}}
+      {{- $distroFamily = "arch" -}}
+    {{- else if lookPath "dnf" -}}
+      {{- $distroFamily = "fedora" -}}
+    {{- end -}}
+  {{- end -}}
+  {{- if contains $distroFamily "rhel" -}}
+    {{- $distroFamily = "fedora" -}}
   {{- end -}}
 {{- end -}}
 

@@ -62,7 +62,7 @@ core_pkgs=(
 {{- range .arch.core }}
   "{{ . }}"
 {{- end }}
-  "{{ .default_shell }}"
+  "{{ .defaultShell }}"
 )
 
 {{- if eq .compositor "hyprland" }}

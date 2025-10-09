@@ -29,7 +29,7 @@ core_pkgs=(
 {{- range .fedora.core }}
   "{{ . }}"
 {{- end }}
-  "{{ .default_shell }}"
+  "{{ .defaultShell }}"
 )
 
 {{- if eq .compositor "hyprland" }}

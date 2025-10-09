@@ -114,7 +114,7 @@ EOF
 
 main() {
   case "${DISTRO_FAMILY,,}" in
-  *fedora* | *rhel*)
+  *fedora*)
     print_box "Display Manager"
     log STEP "Display Manager Configuration"
 

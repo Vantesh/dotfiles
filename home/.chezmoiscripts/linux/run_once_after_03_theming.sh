@@ -365,7 +365,7 @@ main() {
   done
 
   case "${DISTRO_FAMILY,,}" in
-  *fedora* | *rhel*)
+  *fedora*)
     if tela_icons_present; then
       log SKIP "Tela icons already installed"
     else

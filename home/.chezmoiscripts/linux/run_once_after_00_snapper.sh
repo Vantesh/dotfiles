@@ -38,7 +38,7 @@ setup_snapper_packages() {
       snap-pac
     )
     ;;
-  *fedora* | *rhel*)
+  *fedora*)
     packages+=(
       python3-dnf-plugin-snapper
       libdnf5-plugin-actions
@@ -319,7 +319,7 @@ optimize_btrfs_fstab() {
 
 configure_dnf_snapper_plugin() {
   case "${DISTRO_FAMILY,,}" in
-  *fedora* | *rhel*) ;;
+  *fedora*) ;;
   *)
     return 0
     ;;

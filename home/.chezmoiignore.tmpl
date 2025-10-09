@@ -86,8 +86,8 @@ Documents/*
 {{- end }}
 
 # distro-specific
-{{- if (.distro_family | contains "arch") }}
+{{- if (.distroFamily | contains "arch") }}
 .chezmoiscripts/linux/fedora/**
-{{- else if (.distro_family | contains "fedora") }}
+{{- else if (.distroFamily | contains "fedora") }}
 .chezmoiscripts/linux/arch/**
 {{- end }}
