@@ -148,7 +148,7 @@ binds {
     Mod+V hotkey-overlay-title="Open a clipboard Manager" { spawn "uwsm-exec" "clipse-gui"; }
     Mod+N hotkey-overlay-title="Open a Note Taking App" { spawn "dmsctl" "notepad"; }
     Mod+K hotkey-overlay-title="Open a Password Manager" { spawn "uwsm-exec" "bitwarden.desktop"; }
-    mod+W hotkey-overlay-title="Open a Wallpaper picker" { spawn-sh "uwsm-exec qs -c dms ipc call file browse wallpaper"; }
+    mod+W hotkey-overlay-title="Open a Wallpaper picker" { spawn "uwsm-exec" "dms" "ipc" "call" "file" "browse" "wallpaper"; }
     Mod+Comma hotkey-overlay-title="Open emoji Picker" { spawn "uwsm-exec" "rofimoji"; }
     Mod+L hotkey-overlay-title="Lock the Screen" { spawn "dmsctl" "lock"; }
     Mod+Shift+Return { spawn-sh "$HOME/.config/scripts/floating terminal"; }
@@ -297,7 +297,7 @@ binds {
     Mod+Escape allow-inhibiting=false { toggle-keyboard-shortcuts-inhibit; }
     Mod+Alt+Delete hotkey-overlay-title="Exit Niri" { spawn "dmsctl" "logout"; }
     Mod+Shift+P { power-off-monitors; }
-    Mod+Shift+S hotkey-overlay-title="Toggle Dark/Light Style" { spawn "qs" "-c" "dms" "ipc" "call" "theme" "toggle"; }
+    Mod+Shift+S hotkey-overlay-title="Toggle Dark/Light Style" { spawn  "dms" "ipc" "call" "theme" "toggle"; }
 }
 
 cursor {
@@ -314,7 +314,7 @@ config-notification {
     disable-failed
 }
 
-spawn-at-startup "qs" "-c" "dms"
+spawn-at-startup "dms" "run" "-d"
 spawn-at-startup "clipse -listen"
 spawn-sh-at-startup "uwsm-exec ~/.config/scripts/polkit-agent"
 spawn-sh-at-startup "uwsm-exec ~/.config/scripts/initial_boot"
