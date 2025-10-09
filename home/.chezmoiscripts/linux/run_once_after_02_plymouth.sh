@@ -154,17 +154,13 @@ update_bootloader_params() {
 }
 
 main() {
-  local os_id
-  local os_name
 
-  if os_id=$(get_os_id) && os_name=$(get_os_name); then
-    case "$os_id" in
-    fedora | cachyos)
-      log SKIP "$os_name already has plymouth pre-configured"
-      return 0
-      ;;
-    esac
-  fi
+  case "${DISTRO,,}" in
+  fedora | cachyos)
+    log SKIP "${DISTRO} already has plymouth pre-configured"
+    return 0
+    ;;
+  esac
 
   local generator
   local needs_initramfs_regen=false

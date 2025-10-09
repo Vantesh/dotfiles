@@ -305,20 +305,18 @@ main() {
     fi
     ;;
   limine)
-    local os_id
-    if os_id=$(get_os_id); then
-      if [[ "$os_id" = "cachyos" ]]; then
-        log SKIP "CachyOS has pre-configured Limine theme"
-      else
-        if ! configure_limine_theme; then
-          if grep -q "Catppuccin Mocha Theme" /boot/limine.conf 2>/dev/null; then
-            log SKIP "Limine theme already configured"
-          else
-            log WARN "Failed to configure Limine theme: $LAST_ERROR"
-          fi
+
+    if [[ "${DISTRO,,}" = "cachyos" ]]; then
+      log SKIP "CachyOS has pre-configured Limine theme"
+    else
+      if ! configure_limine_theme; then
+        if grep -q "Catppuccin Mocha Theme" /boot/limine.conf 2>/dev/null; then
+          log SKIP "Limine theme already configured"
         else
-          log INFO "Configured Limine theme"
+          log WARN "Failed to configure Limine theme: $LAST_ERROR"
         fi
+      else
+        log INFO "Configured Limine theme"
       fi
     fi
     ;;
