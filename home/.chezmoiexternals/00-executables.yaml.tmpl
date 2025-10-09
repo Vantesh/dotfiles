@@ -25,6 +25,7 @@
   executable: true
   url: "https://github.com/AvengeMedia/danklinux/releases/download/{{ $tag }}/dms-{{ .chezmoi.arch }}.gz"
   decompress: gzip
+  refreshPeriod: "168h"
 
 {{- end }}
 {{ end }}
