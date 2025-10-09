@@ -203,16 +203,16 @@ case "${DISTRO_FAMILY,,}" in
 *arch*)
   # Arch-specific logic
   ;;
-*fedora* | *rhel*)
+*fedora*)
   # Fedora-specific logic
   ;;
 esac
 
 # in chezmoi templates
-{{- if or (contains .distro_family "arch") (eq .distro_family "arch") -}}
-  # Arch-specific config
-{{- else if or (contains .distro_family "fedora") (contains .distro_family "rhel") (eq .distro_family "fedora") (eq .distro_family "rhel") -}}
-  # Fedora-specific config
+{{- if contains ".distroFamily" "arch" -}}
+# Arch-specific template logic
+{{- else if or (contains ".distroFamily" "fedora") (contains ".distroFamily" "rhel") -}}
+# Fedora-specific template logic
 {{- end -}}
 ```
 

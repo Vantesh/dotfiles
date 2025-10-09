@@ -76,12 +76,12 @@ Documents/*
 {{- end }}
 
 # shell-specific
-{{- if eq .default_shell "fish" }}
+{{- if eq .defaultShell "fish" }}
 .config/zsh
 .config/fsh
 {{- end }}
 
-{{- if eq .default_shell "zsh" }}
+{{- if eq .defaultShell "zsh" }}
 .config/fish
 {{- end }}
 
