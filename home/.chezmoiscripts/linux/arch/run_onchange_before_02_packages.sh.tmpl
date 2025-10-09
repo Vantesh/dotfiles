@@ -38,6 +38,8 @@ fi
 
 if ! chaotic_repo_configured; then
   if confirm "Set up Chaotic-AUR repository?"; then
+    log STEP "Chaotic-AUR"
+    log INFO "Setting up Chaotic-AUR repository"
     if ! setup_chaotic_aur; then
       die "Failed to set up Chaotic-AUR repo: $LAST_ERROR"
     fi
