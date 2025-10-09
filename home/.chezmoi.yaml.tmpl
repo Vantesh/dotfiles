@@ -41,6 +41,7 @@ data:
 scriptEnv:
   PERSONAL: "{{ if $personal }}1{{ else }}0{{ end }}"
   DISTRO_FAMILY: "{{ $distro_family | lower }}"
+  DISTRO: "{{ .chezmoi.osRelease.id }}"
   DEFAULT_SHELL: "{{ $default_shell }}"
   COMPOSITOR: "{{ $compositor }}"
 
