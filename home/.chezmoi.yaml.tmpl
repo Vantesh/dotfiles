@@ -5,6 +5,7 @@
 {{- $skipPrompts := eq (env "NOCONFIRM") "1" -}}
 
 {{- if not $skipPrompts -}}
+  {{- writeToStdout "\n" -}}
   {{- writeToStdout "WARN: Please do no select 'y' or some scripts will fail!\n" -}}
   {{- writeToStdout "\n" -}}
   {{- $personal = promptBool "Is this a personal setup (y/N)" false -}}
