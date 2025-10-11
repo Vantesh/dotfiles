@@ -184,6 +184,11 @@ get_swap_path() {
   sudo swapon --show=NAME --noheadings 2>/dev/null | awk '$1 !~ /\/dev\/zram/ {print; exit}'
 }
 
+# Remove both hibernation and quiet boot parameters from a command line string
+remove_managed_params() {
+  sed -E 's/\b(hibernate\.compressor=[a-z0-9]+|resume=UUID=[a-zA-Z0-9-]+|resume_offset=[0-9]+|quiet|splash|loglevel=[0-9]+|systemd\.show_status=[a-z]+|rd\.udev\.log_level=[0-9]+|vt\.global_cursor_default=[0-9]+)\b//g; s/[[:space:]]+/ /g; s/^[[:space:]]+//; s/[[:space:]]+$//' <<<"$1"
+}
+
 # Sets up hibernation support.
 #
 # Creates swap if needed, configures kernel parameters for resume,
@@ -281,13 +286,15 @@ setup_hibernation() {
   limine)
     if [[ ! -f /etc/limine-entry-tool.d/01-default.conf ]]; then
       if [[ -r /proc/cmdline ]]; then
-        local default_params
-        default_params=$(cat /proc/cmdline)
+        local cleaned_params
+        cleaned_params=$(remove_managed_params "$(cat /proc/cmdline)")
 
-        if ! update_limine_cmdline "01-default.conf" "$default_params"; then
-          local error_msg="$LAST_ERROR"
-          LAST_ERROR="Failed to create default Limine config: $error_msg"
-          return 1
+        if [[ -n "$cleaned_params" ]]; then
+          if ! update_limine_cmdline "01-default.conf" "$cleaned_params"; then
+            local error_msg="$LAST_ERROR"
+            LAST_ERROR="Failed to create default Limine config: $error_msg"
+            return 1
+          fi
         fi
       else
         LAST_ERROR="/proc/cmdline not readable; cannot create default Limine drop-in"
@@ -295,7 +302,7 @@ setup_hibernation() {
       fi
     fi
 
-    if ! update_limine_cmdline "50-hibernation.conf" "${hibernation_params[@]}"; then
+    if ! update_limine_cmdline "50-hibernation.conf" --append "${hibernation_params[@]}"; then
       local error_msg="$LAST_ERROR"
       LAST_ERROR="Failed to write Limine hibernation config: $error_msg"
       return 1

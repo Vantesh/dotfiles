@@ -107,6 +107,11 @@ mask_plymouth_quit_wait() {
   return 0
 }
 
+# Remove quiet boot parameters from a command line string
+remove_quiet_boot_params() {
+  sed -E 's/\b(quiet|splash|loglevel=[0-9]+|systemd\.show_status=[a-z]+|rd\.udev\.log_level=[0-9]+|vt\.global_cursor_default=[0-9]+)\b//g; s/[[:space:]]+/ /g; s/^[[:space:]]+//; s/[[:space:]]+$//' <<<"$1"
+}
+
 update_bootloader_params() {
   local bootloader
   local generator
@@ -131,18 +136,20 @@ update_bootloader_params() {
   limine)
     if [[ ! -f /etc/limine-entry-tool.d/01-default.conf ]]; then
       if [[ -r /proc/cmdline ]]; then
-        local default_params
-        default_params=$(cat /proc/cmdline)
+        local cleaned_params
+        cleaned_params=$(remove_quiet_boot_params "$(cat /proc/cmdline)")
 
-        if ! update_limine_cmdline "01-default.conf" "$default_params"; then
-          die "Failed to create default Limine config: $LAST_ERROR"
+        if [[ -n "$cleaned_params" ]]; then
+          if ! update_limine_cmdline "01-default.conf" "$cleaned_params"; then
+            die "Failed to create default Limine config: $LAST_ERROR"
+          fi
         fi
       else
         log WARN "/proc/cmdline not readable; cannot create default Limine drop-in"
       fi
     fi
 
-    if ! update_limine_cmdline "20-quiet-boot.conf" "$QUIET_BOOT_PARAMS"; then
+    if ! update_limine_cmdline "20-quiet-boot.conf" --append "$QUIET_BOOT_PARAMS"; then
       die "Failed to write Limine quiet boot config: $LAST_ERROR"
     fi
     log INFO "Updated Limine kernel parameters"
