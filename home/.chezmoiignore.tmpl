@@ -87,7 +87,7 @@ Documents/*
 
 # distro-specific
 {{- if (.distroFamily | contains "arch") }}
-.chezmoiscripts/linux/fedora/**
+.chezmoiscripts/linux/01-fedora/**
 {{- else if (.distroFamily | contains "fedora") }}
-.chezmoiscripts/linux/arch/**
+.chezmoiscripts/linux/01-arch/**
 {{- end }}
