@@ -15,7 +15,7 @@
   type: archive-file
   executable: true
   url: "https://github.com/AvengeMedia/dgop/releases/download/{{ $tag }}/dgop-linux-{{ .chezmoi.arch }}.tar.gz"
-  refreshPeriod: "168h"
+  refreshPeriod: "36h"
   path: "dgop-linux-{{ .chezmoi.arch }}"
 
 {{/* dms - AvengeMedia/dms */}}
@@ -25,7 +25,7 @@
   executable: true
   url: "https://github.com/AvengeMedia/danklinux/releases/download/{{ $tag }}/dms-{{ .chezmoi.arch }}.gz"
   decompress: gzip
-  refreshPeriod: "168h"
+  refreshPeriod: "36h"
 
 {{- end }}
 {{ end }}
