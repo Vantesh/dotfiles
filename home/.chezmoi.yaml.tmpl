@@ -1,69 +1,57 @@
-{{- /* Default to non-personal setup */ -}}
+{{- $skipPrompts := or (eq (env "NOCONFIRM") "1") (env "CI") (env "GITHUB_ACTIONS") (env "GITLAB_CI") (env "CODESPACES") -}}
 {{- $personal := false -}}
-
-{{- /* Allow skipping prompts entirely (for CI or automated setups) */ -}}
-{{- $skipPrompts := eq (env "NOCONFIRM") "1" -}}
-
-{{- if not $skipPrompts -}}
-  {{- writeToStdout "WARN: Please do no select 'y' or some scripts will fail!\n" -}}
-  {{- writeToStdout "\n" -}}
-  {{- $personal = promptBool "Is this a personal setup (y/N)" false -}}
-{{- end -}}
-
-{{- $osRelease := .chezmoi.osRelease -}}
-{{- $distro_family := .chezmoi.os -}}
-{{- if $osRelease -}}
-  {{- $distro_family = default $distro_family (or (index $osRelease "idLike") (index $osRelease "id_like") (index $osRelease "id")) -}}
-{{- end -}}
-
-{{- if and (ne $distro_family "") (not (or (contains $distro_family "arch") (contains $distro_family "fedora") (contains $distro_family "rhel"))) -}}
-  {{- if lookPath "pacman" -}}
-    {{- $distro_family = "arch" -}}
-  {{- else if lookPath "dnf" -}}
-    {{- $distro_family = "fedora" -}}
-  {{- end -}}
-{{- end -}}
-
-{{- $default_shell := "fish" -}}
+{{- $defaultShell := "fish" -}}
 {{- $compositor := "hyprland" -}}
 
 {{- if not $skipPrompts -}}
-  {{- $default_shell = promptChoice "Preferred shell" (list "fish" "zsh") -}}
+  {{- writeToStdout "\n" -}}
+  {{- warnf "\033[1;31mPlease do not select 'Y/y' or the setup will fail!\033[0m\n" -}}
+  {{- $personal = promptBool "Is this a personal setup (y/N)" false -}}
+  {{- $defaultShell = promptChoice "Preferred shell" (list "fish" "zsh") -}}
   {{- $compositor = promptChoice "Preferred compositor" (list "hyprland" "niri") -}}
 {{- end -}}
 
+{{- $distroFamily := "" -}}
+{{- if .chezmoi.osRelease -}}
+  {{- $distroFamily = default .chezmoi.osRelease.id (index .chezmoi.osRelease "idLike") -}}
+  {{- if not (or (contains $distroFamily "arch") (contains $distroFamily "fedora") (contains $distroFamily "rhel")) -}}
+    {{- if lookPath "pacman" -}}
+      {{- $distroFamily = "arch" -}}
+    {{- else if lookPath "dnf" -}}
+      {{- $distroFamily = "fedora" -}}
+    {{- end -}}
+  {{- end -}}
+  {{- if contains $distroFamily "rhel" -}}
+    {{- $distroFamily = "fedora" -}}
+  {{- end -}}
+{{- end -}}
+
 data:
-  default_shell: {{ $default_shell | quote }}
+  defaultShell: {{ $defaultShell | quote }}
   compositor: {{ $compositor | quote }}
   personal: {{ $personal }}
-  distro_family: {{ $distro_family | lower | quote }}
+  distroFamily: {{ $distroFamily | lower | quote }}
 
 scriptEnv:
-  PERSONAL: "{{ if $personal }}1{{ else }}0{{ end }}"
-  DISTRO_FAMILY: "{{ $distro_family | lower }}"
-  DEFAULT_SHELL: "{{ $default_shell }}"
-  COMPOSITOR: "{{ $compositor }}"
-
+  PERSONAL: {{ ternary "1" "0" $personal | quote }}
+  DISTRO_FAMILY: {{ $distroFamily | lower | quote }}
+  DISTRO: {{ .chezmoi.osRelease.id | quote }}
+  DEFAULT_SHELL: {{ $defaultShell | quote }}
+  COMPOSITOR: {{ $compositor | quote }}
 
 edit:
-  command: "code"
-  args: ["--wait"]
+  command: code
+  args: [--wait]
 
 merge:
-  command: "bash"
-  args:
-    - "-c"
-    - "cp {{ "{{" }} .Target {{ "}}" }} {{ "{{" }} .Target {{ "}}" }}.base && code --new-window --wait --merge {{ "{{" }} .Destination {{ "}}" }} {{ "{{" }} .Target {{ "}}" }} {{ "{{" }} .Target {{ "}}" }}.base {{ "{{" }} .Source {{ "}}" }}"
+  command: bash
+  args: [-c, "cp {{ "{{" }} .Target {{ "}}" }} {{ "{{" }} .Target {{ "}}" }}.base && code --new-window --wait --merge {{ "{{" }} .Destination {{ "}}" }} {{ "{{" }} .Target {{ "}}" }} {{ "{{" }} .Target {{ "}}" }}.base {{ "{{" }} .Source {{ "}}" }}"]
 
 diff:
-  command: "delta"
-  args:
-    - "--paging=never"
-    - "{{ "{{ .Destination }}" }}"
-    - "{{ "{{ .Target }}" }}"
-  pager: "delta"
-  exclude:
-    - "scripts"
+  command: delta
+  args: [--paging=never, "{{ "{{ .Destination }}" }}", "{{ "{{ .Target }}" }}"]
+  pager: delta
+  exclude: [scripts]
 
 github:
   refreshPeriod: 24h

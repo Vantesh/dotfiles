@@ -3,7 +3,6 @@
 # Exit codes: 0 (success), 1 (failure)
 
 set -euo pipefail
-
 shopt -s nullglob globstar
 
 readonly LIB_DIR="${CHEZMOI_SOURCE_DIR:-$(chezmoi source-path)}/.chezmoiscripts/linux/lib"
@@ -19,31 +18,22 @@ if ! keep_sudo_alive; then
 fi
 
 disable_conflicting_dms() {
-  local skip_service="${1:-}"
+  local -r skip_service="${1:-}"
+  local -r other_dms=(sddm greetd gdm gdm3 lightdm lxdm emptty)
 
-  local other_dm_services=(
-    sddm.service greetd.service gdm.service gdm3.service
-    lightdm.service lxdm.service emptty.service
-  )
+  local svc status
+  for svc in "${other_dms[@]}"; do
+    [[ -n "$skip_service" && "${svc}.service" == "$skip_service" ]] && continue
 
-  local svc
-  local status
-
-  for svc in "${other_dm_services[@]}"; do
-    if [[ -n "$skip_service" ]] && [[ "$svc" == "$skip_service" ]]; then
-      continue
-    fi
-
-    status=$(sudo systemctl is-enabled "$svc" 2>/dev/null || true)
+    status=$(sudo systemctl is-enabled "${svc}.service" 2>/dev/null || true)
 
     if [[ "$status" == "enabled" ]]; then
-      if sudo systemctl disable "$svc" >/dev/null 2>&1; then
-        log INFO "Disabled $svc"
+      if sudo systemctl disable "${svc}.service" >/dev/null 2>&1; then
+        log INFO "Disabled ${svc}.service"
         reload_systemd_daemon
         return 0
-      else
-        log WARN "Failed to disable $svc"
       fi
+      log WARN "Failed to disable ${svc}.service"
     fi
   done
 
@@ -71,12 +61,10 @@ configure_ly() {
     fi
   done
 
-  if ! write_system_config "$LY_SAVE_FILE" <<EOF; then
+  write_system_config "$LY_SAVE_FILE" <<EOF || die "Failed to write ly save file: $LAST_ERROR"
 user=${USER}
 session_index=2
 EOF
-    die "Failed to write ly save file: $LAST_ERROR"
-  fi
 
   log INFO "Configured ly display manager"
 }
@@ -90,14 +78,14 @@ disable_getty_tty2() {
 }
 
 setup_niri_session() {
-  local session_file="/usr/share/wayland-sessions/niri-uwsm.desktop"
+  local -r session_file="/usr/share/wayland-sessions/niri-uwsm.desktop"
 
   if [[ -f "$session_file" ]]; then
     log SKIP "niri-uwsm session already configured"
     return 0
   fi
 
-  if ! write_system_config "$session_file" <<'EOF'; then
+  write_system_config "$session_file" <<'EOF' || die "Failed to create niri session file: $LAST_ERROR"
 [Desktop Entry]
 Name=Niri (uwsm-managed)
 Comment=A scrollable-tiling Wayland compositor
@@ -106,26 +94,21 @@ TryExec=uwsm
 Type=Application
 DesktopNames=niri
 EOF
-    die "Failed to create niri session file: $LAST_ERROR"
-  fi
 
   log INFO "Created niri-uwsm session file"
 }
 
 main() {
-  case "${DISTRO_FAMILY,,}" in
-  *fedora* | *rhel*)
+  if [[ "${DISTRO_FAMILY,,}" == *fedora* ]]; then
     print_box "Display Manager"
     log STEP "Display Manager Configuration"
-
     log SKIP "Fedora distro detected, skipping Ly configuration"
 
     if [[ "${COMPOSITOR,,}" == "niri" ]]; then
       setup_niri_session
     fi
     return 0
-    ;;
-  esac
+  fi
 
   print_box "LY"
   log STEP "Ly Configuration"

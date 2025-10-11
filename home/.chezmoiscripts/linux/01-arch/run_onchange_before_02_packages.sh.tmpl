@@ -38,6 +38,8 @@ fi
 
 if ! chaotic_repo_configured; then
   if confirm "Set up Chaotic-AUR repository?"; then
+    log STEP "Chaotic-AUR"
+    log INFO "Setting up Chaotic-AUR repository"
     if ! setup_chaotic_aur; then
       die "Failed to set up Chaotic-AUR repo: $LAST_ERROR"
     fi
@@ -62,7 +64,7 @@ core_pkgs=(
 {{- range .arch.core }}
   "{{ . }}"
 {{- end }}
-  "{{ .default_shell }}"
+  "{{ .defaultShell }}"
 )
 
 {{- if eq .compositor "hyprland" }}
@@ -139,18 +141,14 @@ if [[ $gpu_info == *"NVIDIA"* ]]; then
     nvidia_variant="nvidia-dkms"
   fi
 
-  if os_id=$(get_os_id); then
-    case "$os_id" in
+  case "${DISTRO,,}" in
       cachyos|garuda)
-        log SKIP "Skipping NVIDIA variant selection on $os_id"
+        log SKIP "Skipping NVIDIA variant selection on "${DISTRO}" "
         ;;
       *)
         drivers+=("${nvidia_variant}")
         ;;
-    esac
-  else
-    drivers+=("${nvidia_variant}")
-  fi
+  esac
 
 fi
 

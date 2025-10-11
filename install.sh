@@ -3,7 +3,6 @@
 # Chezmoi bootstrap script
 
 set -euo pipefail
-IFS=$'\n\t'
 
 readonly REPO="https://github.com/vantesh/dotfiles"
 
@@ -24,8 +23,6 @@ else
 fi
 
 trap 'printf "%b" "$COLOR_RESET"' EXIT ERR INT TERM
-
-readonly -a REQUIRED_PACKAGES=(base-devel git chezmoi figlet)
 
 logo() {
   printf '%b' "$COLOR_CYAN"
@@ -48,7 +45,7 @@ log() {
   local message="$*"
 
   if [[ -z "$level" ]] || [[ -z "$message" ]]; then
-    printf '[ERROR] log() requires a level and a message\n' >&2
+    printf 'ERROR: log() requires a level and a message\n' >&2
     return 1
   fi
 
@@ -62,7 +59,7 @@ log() {
     return 0
     ;;
   *)
-    printf '[ERROR] Invalid log level: %s\n' "$level" >&2
+    printf 'ERROR: Invalid log level: %s\n' "$level" >&2
     return 1
     ;;
   esac
@@ -75,64 +72,47 @@ die() {
   exit "${2:-1}"
 }
 
-command_exists() { command -v "$1" >/dev/null 2>&1; }
-
-install_with_dnf() {
-  local -a packages=("$@")
-
-  log STEP "Using dnf to install required packages"
-
-  if sudo dnf install -y "${packages[@]}"; then
-    log INFO "Required packages installed successfully"
-    return 0
-  fi
-
-  return 1
-}
-
-install_with_pacman() {
-  local -a packages=("$@")
-
-  log INFO "Using pacman to install required packages"
-
-  if sudo pacman -S --needed --noconfirm "${packages[@]}"; then
-    log INFO "Required packages installed successfully"
-    return 0
-  fi
-
-  return 1
-}
-
 ensure_dependencies_installed() {
-  local missing_packages=()
+  local -a pm_query_cmd pm_install_cmd
+  local -a base_packages core_dev_package=()
 
+  base_packages=(git chezmoi figlet)
+
+  if command -v dnf >/dev/null 2>&1; then
+    pm_query_cmd=(rpm -q)
+    pm_install_cmd=(sudo dnf install -y)
+
+  elif command -v pacman >/dev/null 2>&1; then
+    pm_query_cmd=(pacman -Q)
+    pm_install_cmd=(sudo pacman -S --needed --noconfirm)
+    core_dev_package=("base-devel")
+
+  else
+    die "Unsupported distribution - neither dnf nor pacman found"
+  fi
+
+  local -a required_packages=("${base_packages[@]}" "${core_dev_package[@]}")
+  local -a to_install=()
   local pkg
-  for pkg in "${REQUIRED_PACKAGES[@]}"; do
-    if ! command_exists "$pkg"; then
-      missing_packages+=("$pkg")
+
+  log STEP "Checking for required packages..."
+  for pkg in "${required_packages[@]}"; do
+    if ! "${pm_query_cmd[@]}" "$pkg" &>/dev/null; then
+      to_install+=("$pkg")
     fi
   done
 
-  if [[ "${#missing_packages[@]}" -eq 0 ]]; then
-    log INFO "Required commands already installed. Skipping dependency installation"
-    return
+  if [[ "${#to_install[@]}" -eq 0 ]]; then
+    log INFO "All required packages already installed"
+    return 0
   fi
 
-  if command_exists dnf; then
-    if install_with_dnf "${missing_packages[@]}"; then
-      return
-    fi
-    die "Failed to install required packages with dnf"
+  log STEP "Installing missing packages: ${to_install[*]}"
+  if "${pm_install_cmd[@]}" "${to_install[@]}"; then
+    log INFO "Required packages installed successfully"
+  else
+    die "Failed to install required packages"
   fi
-
-  if command_exists pacman; then
-    if install_with_pacman "${missing_packages[@]}"; then
-      return
-    fi
-    die "Failed to install required packages with pacman"
-  fi
-
-  die "Unsupported distribution"
 }
 
 backup_config_if_needed() {
@@ -158,7 +138,7 @@ backup_config_if_needed() {
       timestamp=$(date -u +%Y%m%d%H%M%S)
       backup_dir="${HOME}/.config.backup.${timestamp}"
 
-      if mv -n "${HOME}/.config" "$backup_dir"; then
+      if mv -n -- "${HOME}/.config" "$backup_dir"; then
         log INFO "Backed up existing ~/.config to ${backup_dir}"
         return
       else
@@ -173,11 +153,6 @@ backup_config_if_needed() {
   done
 }
 
-run_chezmoi_init() {
-  clear
-  exec chezmoi init --apply "$REPO" "$@"
-}
-
 main() {
   if [[ "$(id -u)" -eq 0 ]]; then
     die "This script must not be run as root"
@@ -187,18 +162,21 @@ main() {
     die "This script only supports Linux"
   fi
 
-  ARCH="$(uname -m)"
-  case "$ARCH" in
+  local arch
+  arch="$(uname -m)"
+  case "$arch" in
   x86_64 | amd64 | aarch64 | arm64) ;;
   *)
-    die "Unsupported architecture: $ARCH"
+    die "Unsupported architecture: $arch"
     ;;
   esac
 
   logo
   ensure_dependencies_installed
   backup_config_if_needed
-  run_chezmoi_init "$@"
+
+  clear
+  exec chezmoi init --apply "$REPO" "$@"
 }
 
 main "$@"

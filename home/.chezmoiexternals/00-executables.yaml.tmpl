@@ -10,23 +10,22 @@
   path: "app2unit-{{ trimPrefix "v" $tag }}/app2unit"
 
 {{/* dgop - AvengeMedia/dgop */}}
-{{- $arch := .chezmoi.arch }}
 {{- $tag := (gitHubLatestRelease "AvengeMedia/dgop").TagName }}
 ".local/bin/dgop":
   type: archive-file
   executable: true
-  url: "https://github.com/AvengeMedia/dgop/releases/download/{{ $tag }}/dgop-linux-{{ $arch }}.tar.gz"
+  url: "https://github.com/AvengeMedia/dgop/releases/download/{{ $tag }}/dgop-linux-{{ .chezmoi.arch }}.tar.gz"
   refreshPeriod: "168h"
-  path: "dgop-linux-{{ $arch }}"
+  path: "dgop-linux-{{ .chezmoi.arch }}"
 
 {{/* dms - AvengeMedia/dms */}}
-{{- $arch := .chezmoi.arch }}
 {{- $tag := (gitHubLatestRelease "AvengeMedia/danklinux").TagName }}
 ".local/bin/dms":
   type: file
   executable: true
-  url: "https://github.com/AvengeMedia/danklinux/releases/download/{{ $tag }}/dms-{{ $arch }}.gz"
+  url: "https://github.com/AvengeMedia/danklinux/releases/download/{{ $tag }}/dms-{{ .chezmoi.arch }}.gz"
   decompress: gzip
+  refreshPeriod: "168h"
 
 {{- end }}
 {{ end }}

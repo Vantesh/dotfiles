@@ -76,18 +76,18 @@ Documents/*
 {{- end }}
 
 # shell-specific
-{{- if eq .default_shell "fish" }}
+{{- if eq .defaultShell "fish" }}
 .config/zsh
 .config/fsh
 {{- end }}
 
-{{- if eq .default_shell "zsh" }}
+{{- if eq .defaultShell "zsh" }}
 .config/fish
 {{- end }}
 
 # distro-specific
-{{- if (.distro_family | contains "arch") }}
-.chezmoiscripts/linux/fedora/**
-{{- else if (.distro_family | contains "fedora") }}
-.chezmoiscripts/linux/arch/**
+{{- if (.distroFamily | contains "arch") }}
+.chezmoiscripts/linux/01-fedora/**
+{{- else if (.distroFamily | contains "fedora") }}
+.chezmoiscripts/linux/01-arch/**
 {{- end }}

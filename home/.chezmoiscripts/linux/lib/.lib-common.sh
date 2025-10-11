@@ -192,62 +192,6 @@ command_exists() {
   command -v "$1" >/dev/null 2>&1
 }
 
-# Gets the OS ID from /etc/os-release.
-#
-# Outputs:
-#   OS ID to stdout (e.g., "arch", "fedora", "cachyos")
-# Returns:
-#   0 on success, 1 if os-release not found
-get_os_id() {
-  if [[ ! -f /etc/os-release ]]; then
-    return 1
-  fi
-
-  # shellcheck source=/dev/null
-  source /etc/os-release
-  printf '%s\n' "${ID:-}"
-  return 0
-}
-
-# Gets the OS NAME from /etc/os-release.
-#
-# Outputs:
-#   OS NAME to stdout (e.g., "Arch Linux", "Fedora Linux")
-# Returns:
-#   0 on success, 1 if os-release not found
-get_os_name() {
-  if [[ ! -f /etc/os-release ]]; then
-    return 1
-  fi
-
-  # shellcheck source=/dev/null
-  source /etc/os-release
-  printf '%s\n' "${NAME:-}"
-  return 0
-}
-
-# Reloads and triggers udev rules.
-#
-# Globals:
-#   LAST_ERROR - Set on failure
-# Returns:
-#   0 on success, 1 on failure
-reload_udev_rules() {
-  LAST_ERROR=""
-
-  if ! sudo udevadm control --reload-rules >/dev/null 2>&1; then
-    LAST_ERROR="Failed to reload udev rules"
-    return 1
-  fi
-
-  if ! sudo udevadm trigger >/dev/null 2>&1; then
-    LAST_ERROR="Failed to trigger udev"
-    return 1
-  fi
-
-  return 0
-}
-
 # Reloads systemd daemon configuration.
 #
 # Globals:

@@ -30,7 +30,7 @@ get_package_manager() {
   fi
 
   case "${DISTRO_FAMILY,,}" in
-  *fedora* | *rhel*)
+  *fedora*)
     printf 'dnf\n'
     ;;
   *arch*)
@@ -201,7 +201,6 @@ install_group() {
   log STEP "Installing $group_name packages"
 
   if ! install_package "$@"; then
-    local error_msg="$LAST_ERROR"
-    die "Failed to install $group_name packages: $error_msg"
+    die "$LAST_ERROR"
   fi
 }

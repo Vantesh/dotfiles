@@ -387,11 +387,13 @@ update_grub_cmdline() {
 # Updates Limine kernel command line via drop-in file.
 #
 # Creates configuration file in /etc/limine-entry-tool.d/ with
-# KERNEL_CMDLINE[default]+= directive. Escapes quotes in parameters.
+# KERNEL_CMDLINE[default] directive. Use --append for += operator.
+# Escapes quotes in parameters.
 #
 # Arguments:
 #   $1 - Drop-in filename (e.g., "50-hibernation" or "50-hibernation.conf")
-#   $@ - Kernel parameters to add (from $2 onwards)
+#   --append - Optional flag to use += operator instead of = (must be $2 if present)
+#   $@ - Kernel parameters to add (from $2 or $3 onwards)
 # Globals:
 #   LAST_ERROR - Set on failure
 # Returns:
@@ -407,6 +409,13 @@ update_limine_cmdline() {
   fi
 
   shift
+
+  local operator="="
+  if [[ "${1:-}" == "--append" ]]; then
+    operator="+="
+    shift
+  fi
+
   local params="$*"
 
   if [[ -z "$params" ]]; then
@@ -432,8 +441,7 @@ update_limine_cmdline() {
     return 1
   fi
 
-  # Note: KERNEL_CMDLINE[default]+= appends to existing parameters
-  if ! printf 'KERNEL_CMDLINE[default]+= "%s"\n' "$escaped_params" | sudo tee "$dropin_file" >/dev/null 2>&1; then
+  if ! printf 'KERNEL_CMDLINE[default]%s "%s"\n' "$operator" "$escaped_params" | sudo tee "$dropin_file" >/dev/null 2>&1; then
     LAST_ERROR="Failed to write Limine drop-in file: $dropin_file"
     return 1
   fi

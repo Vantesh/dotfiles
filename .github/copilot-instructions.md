@@ -1,6 +1,6 @@
 # Agent Guidelines
 
-**Instructions for AI Agent**: When reviewing,refactoring, or writing bash scripts in this repository, strictly adhere to these guidelines. Prioritize idempotency, error handling, logging, security, modern bash best practices and maintainability.
+**Instructions for AI Agent**: When reviewing, refactoring, or writing bash scripts in this repository, strictly adhere to these guidelines. Prioritize idempotency, error handling, logging, security, modern bash best practices and maintainability.
 
 ---
 
@@ -53,21 +53,21 @@ chezmoi/
     ├── .chezmoitemplates/
     ├── .chezmoiscripts/
     │   └── linux/
-    │       ├── lib/                   # Shared libraries
+    │       ├── lib/                      # Shared libraries
     │       │   ├── .lib-common.sh
     │       │   ├── .lib-aur_helper.sh
     │       │   ├── .lib-chaotic_aur.sh
     │       │   ├── .lib-fedora_repos.sh
     │       │   ├── .lib-package_manager.sh
     │       │   └── .lib-*.sh
-    │       ├── arch/                  # Arch-specific scripts
-    │       │   ├── run_once_before_01_*.sh
-    │       │   └── run_once_after_01_*.sh
-    │       ├── fedora/                # Fedora-specific scripts
-    │       │   ├── run_once_before_01_*.sh
-    │       │   └── run_once_after_01_*.sh
-    │       ├── run_once_before_*.sh   # Cross-distro pre-setup
-    │       └── run_once_after_*.sh    # Cross-distro post-setup
+    │       ├── arch/                     # Arch-specific scripts
+    │       │   ├── run_onchange_before_01_*.sh
+    │       │   └── run_onchange_after_01_*.sh
+    │       ├── fedora/                   # Fedora-specific scripts
+    │       │   ├── run_onchange_before_01_*.sh
+    │       │   └── run_onchange_after_01_*.sh
+    │       ├── run_onchange_before_*.sh  # Cross-distro pre-setup
+    │       └── run_onchange_after_*.sh   # Cross-distro post-setup
     ├── dot_config/
     ├── dot_local/
     ├── dot_ssh/
@@ -76,9 +76,37 @@ chezmoi/
 
 **Execution Order:**
 
-1. `run_once_before_*` - System setup before dotfiles
+1. `run_onchange_before_*` - System setup before dotfiles (runs when script changes)
 2. Dotfiles applied
-3. `run_once_after_*` - Post-setup
+3. `run_onchange_after_*` - Post-setup (runs when script changes)
+
+**Script Execution Behavior:**
+
+This repository uses `run_onchange_*` exclusively for setup scripts. Here's why:
+
+- **`run_onchange_*`** (PREFERRED): Scripts execute whenever their content changes. Chezmoi maintains a hash of each script and re-runs it when the hash differs.
+
+  - Enables iterative development - script improvements are automatically applied
+  - Natural fit for idempotent scripts (all scripts in this repo are idempotent)
+  - Maintains declarative approach - system state follows script content
+  - Perfect for configuration management where changes should be applied
+
+- **`run_once_*`** (AVAILABLE BUT NOT USED): Scripts execute only on first `chezmoi apply`.
+  - Useful for one-time initialization tasks that should never repeat
+  - Can be used for destructive operations that aren't idempotent
+  - Requires manual state deletion to re-run
+  - We don't use this because our scripts are designed to be idempotent
+
+**Force re-execution of specific script:**
+
+```bash
+# Method 1: Modify script content (add/change comment)
+# Method 2: Remove chezmoi state for that script
+chezmoi state delete-bucket --bucket=scriptState # for run_once_ scripts
+chezmoi state delete-bucket --bucket=entryState  # for run_onchange_ scripts
+chezmoi apply
+
+```
 
 ---
 
@@ -99,20 +127,22 @@ When working with files in a chezmoi repository, the AI agent must:
 
 #### Chezmoi Prefix Mapping
 
-| Chezmoi Prefix/Attribute | Purpose                      | Example                           | Should Reference As     |
-| ------------------------ | ---------------------------- | --------------------------------- | ----------------------- |
-| `dot_`                   | Creates dotfile (`.` prefix) | `dot_bashrc`                      | `.bashrc`               |
-| `private_`               | Sets 0600 permissions        | `private_dot_ssh`                 | `.ssh`                  |
-| `readonly_`              | Sets 0400 permissions        | `readonly_dot_netrc`              | `.netrc`                |
-| `empty_`                 | Creates empty file           | `empty_dot_gitkeep`               | `.gitkeep`              |
-| `executable_`            | Makes file executable        | `executable_install.sh`           | `install.sh`            |
-| `run_once_`              | Run script once              | `run_once_setup.sh`               | `setup.sh`              |
-| `run_onchange_`          | Run on file change           | `run_onchange_config.sh`          | `config.sh`             |
-| `run_once_before_`       | Run before applying          | `run_once_before_01_deps.sh`      | `01_deps.sh`            |
-| `run_once_after_`        | Run after applying           | `run_once_after_08_wallpapers.sh` | `08_wallpapers.sh`      |
-| `modify_`                | Modify existing file         | `modify_bashrc`                   | `bashrc` (modification) |
-| `create_`                | Create file if missing       | `create_config.toml`              | `config.toml`           |
-| `symlink_`               | Create symlink               | `symlink_dot_config`              | `.config` (symlink)     |
+| Chezmoi Prefix/Attribute | Purpose                      | Example                               | Should Reference As     |
+| ------------------------ | ---------------------------- | ------------------------------------- | ----------------------- |
+| `dot_`                   | Creates dotfile (`.` prefix) | `dot_bashrc`                          | `.bashrc`               |
+| `private_`               | Sets 0600 permissions        | `private_dot_ssh`                     | `.ssh`                  |
+| `readonly_`              | Sets 0400 permissions        | `readonly_dot_netrc`                  | `.netrc`                |
+| `empty_`                 | Creates empty file           | `empty_dot_gitkeep`                   | `.gitkeep`              |
+| `executable_`            | Makes file executable        | `executable_install.sh`               | `install.sh`            |
+| `run_once_`              | Run script once (not used)   | `run_once_setup.sh`                   | `setup.sh`              |
+| `run_onchange_`          | Run on content change        | `run_onchange_config.sh`              | `config.sh`             |
+| `run_onchange_before_`   | Run before applying          | `run_onchange_before_01_deps.sh`      | `01_deps.sh`            |
+| `run_onchange_after_`    | Run after applying           | `run_onchange_after_08_wallpapers.sh` | `08_wallpapers.sh`      |
+| `modify_`                | Modify existing file         | `modify_bashrc`                       | `bashrc` (modification) |
+| `create_`                | Create file if missing       | `create_config.toml`                  | `config.toml`           |
+| `symlink_`               | Create symlink               | `symlink_dot_config`                  | `.config` (symlink)     |
+
+**Note:** When referring to files, always strip all prefixes and attributes to get the final intended path.
 
 #### Practical Examples
 
@@ -121,14 +151,14 @@ When working with files in a chezmoi repository, the AI agent must:
 ```bash
 #!/usr/bin/env bash
 # 08_wallpapers.sh - Configure desktop wallpapers
-# NOT: run_once_after_08_wallpapers.sh - Configure desktop wallpapers
+# NOT: run_onchange_after_08_wallpapers.sh - Configure desktop wallpapers
 ```
 
 **When creating function documentation:**
 
 ```bash
 # setup_wallpapers configures the desktop wallpaper settings
-# NOT: run_once_after_08_wallpapers configures the desktop wallpaper settings
+# NOT: run_onchange_after_08_wallpapers configures the desktop wallpaper settings
 ```
 
 #### Complex Prefix Combinations
@@ -138,8 +168,8 @@ For files with multiple prefixes, strip all chezmoi attributes:
 | Full Chezmoi Name                            | Reference As              |
 | -------------------------------------------- | ------------------------- |
 | `private_readonly_dot_ssh/private_id_rsa`    | `.ssh/id_rsa`             |
-| `executable_run_once_install.sh`             | `install.sh`              |
-| `run_once_before_01_dot_config.sh.tmpl`      | `01_config.sh`            |
+| `executable_run_onchange_install.sh`         | `install.sh`              |
+| `run_onchange_before_01_dot_config.sh.tmpl`  | `01_config.sh`            |
 | `private_dot_config/private_app/secret.conf` | `.config/app/secret.conf` |
 
 #### Template Files
@@ -161,9 +191,9 @@ For files with multiple prefixes, strip all chezmoi attributes:
 
 ```bash
 #!/usr/bin/env bash
-# run_once_after_08_wallpapers.sh - Configure wallpapers after dotfiles are applied
+# run_onchange_after_08_wallpapers.sh - Configure wallpapers after dotfiles are applied
 #
-# This script (run_once_after_08_wallpapers.sh) sets up desktop wallpapers
+# This script (run_onchange_after_08_wallpapers.sh) sets up desktop wallpapers
 ```
 
 **Correct:**
@@ -203,22 +233,22 @@ case "${DISTRO_FAMILY,,}" in
 *arch*)
   # Arch-specific logic
   ;;
-*fedora* | *rhel*)
+*fedora*)
   # Fedora-specific logic
   ;;
 esac
 
 # in chezmoi templates
-{{- if or (contains .distro_family "arch") (eq .distro_family "arch") -}}
-  # Arch-specific config
-{{- else if or (contains .distro_family "fedora") (contains .distro_family "rhel") (eq .distro_family "fedora") (eq .distro_family "rhel") -}}
-  # Fedora-specific config
+{{- if contains .distroFamily "arch" -}}
+# Arch-specific template logic
+{{- else if contains .distroFamily "fedora" -}}
+# Fedora-specific template logic
 {{- end -}}
 ```
 
 **Available scriptEnv variables:**
 
-- `DISTRO_FAMILY` - Distribution family (arch, fedora, rhel, etc.)
+- `DISTRO_FAMILY` - Distribution family (arch, fedora)
 - `PERSONAL` - Whether this is a personal installation ("1" or "0")
 - `DEFAULT_SHELL` - Preferred shell (fish, zsh)
 - `COMPOSITOR` - Preferred compositor (hyprland, niri)
@@ -452,8 +482,7 @@ Use private functions when:
 
 ```bash
 #!/usr/bin/env bash
-  set -euo pipefail
-
+set -euo pipefail
 ```
 
 **What each option does:**
@@ -841,11 +870,10 @@ NO_COLOR=1 ./script.sh
   - Follow with past tense result: "Cloned repository", "Regenerated initramfs"
 
 ```bash
-# Bad (verbose. too much detail)
+# Bad (verbose, too much detail)
 log INFO "About to create a backup of /etc/pacman.conf to /etc/pacman.conf.bak"
 log INFO "Creating backup of /etc/pacman.conf"
 log INFO "Backup created successfully: /etc/pacman.conf.bak"
-
 
 # Good (concise, past tense, result first)
 log INFO "Created backup: /etc/pacman.conf.bak"
@@ -1022,9 +1050,6 @@ bats test/
 
 ### Script Documentation
 
-````bash
-### Script Documentation
-
 ```bash
 #!/usr/bin/env bash
 # script_name.sh - Brief description
@@ -1046,7 +1071,7 @@ readonly LIB_DIR="${CHEZMOI_SOURCE_DIR:-$(chezmoi source-path)}/.chezmoiscripts/
 
 # shellcheck source=/dev/null
 source "$LIB_DIR/.lib-common.sh"
-````
+```
 
 **Required Elements:**
 
@@ -1153,15 +1178,6 @@ readonly EXAMPLE_CONSTANT="value"
 export LAST_ERROR="${LAST_ERROR:-}"
 ```
 
-**Required Elements:**
-
-- Shebang: `#!/usr/bin/env bash`
-- Brief description in header comment (use simple name without chezmoi prefixes)
-- Exit codes documented
-- Strict mode: `set -euo pipefail`
-- Safer globbing options: `shopt -s nullglob globstar`
-- Source helpers with standard pattern
-
 ---
 
 ## Common Patterns
@@ -1254,7 +1270,7 @@ done < <(printf '%s%s' "$string" "$sep")
 
 # For NUL separator, hardcode it:
 array=()
-while read -rd \0' i; do
+while read -rd '' i; do
   array+=("$i")
 done < <(printf '%s\0' "$string")
 
@@ -1262,7 +1278,7 @@ done < <(printf '%s\0' "$string")
 readarray -td "$sep" array < <(printf '%s%s' "$string" "$sep")
 
 # With NUL separator and find
-readarray -td \0' array < <(find . -print0)
+readarray -td '' array < <(find . -print0)
 ```
 
 **Note:** Appending the separator ensures proper handling of empty trailing fields.
@@ -1339,7 +1355,7 @@ command_exists "git" && echo "Git found"
 ### Running Chezmoi Scripts
 
 ```bash
-# Apply dotfiles without Bitwarden secrets (CI/testing)
+# Apply dotfiles without prompts (CI/testing)
 NOCONFIRM=1 chezmoi apply --verbose
 
 # Update existing installation

@@ -53,14 +53,30 @@ validate_email() {
 get_bitwarden_email() {
   local email
 
+  LAST_ERROR=""
+
   while true; do
-    read -r -p "Enter your Bitwarden email: " email
+    printf '%b%s%b ' "$COLOR_CYAN" "Enter your Bitwarden email:" "$COLOR_RESET" >&2
+
+    if [[ -t 0 ]]; then
+      if ! read -r email; then
+        email=""
+      fi
+    elif [[ -r /dev/tty ]]; then
+      if ! read -r email </dev/tty; then
+        email=""
+      fi
+    else
+      LAST_ERROR="No interactive terminal available to read Bitwarden email"
+      return 1
+    fi
+
     if validate_email "$email"; then
       printf '%s' "$email"
       return 0
-    else
-      log WARN "Invalid email format, try again"
     fi
+
+    log WARN "Invalid email format, try again"
   done
 }
 

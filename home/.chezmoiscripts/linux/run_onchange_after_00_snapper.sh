@@ -38,7 +38,7 @@ setup_snapper_packages() {
       snap-pac
     )
     ;;
-  *fedora* | *rhel*)
+  *fedora*)
     packages+=(
       python3-dnf-plugin-snapper
       libdnf5-plugin-actions
@@ -319,7 +319,7 @@ optimize_btrfs_fstab() {
 
 configure_dnf_snapper_plugin() {
   case "${DISTRO_FAMILY,,}" in
-  *fedora* | *rhel*) ;;
+  *fedora*) ;;
   *)
     return 0
     ;;
@@ -351,17 +351,12 @@ EOF
 }
 
 main() {
-  local os_id
-  local os_name
-
-  if os_id=$(get_os_id) && os_name=$(get_os_name); then
-    case "$os_id" in
-    garuda | cachyos)
-      log SKIP "$os_name already has snapper pre-configured"
-      return 0
-      ;;
-    esac
-  fi
+  case "${DISTRO,,}" in
+  garuda | cachyos)
+    log SKIP "${DISTRO} already has snapper pre-configured"
+    return 0
+    ;;
+  esac
 
   if ! check_btrfs; then
     log WARN "Root filesystem is not btrfs, skipping snapper setup"
