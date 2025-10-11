@@ -7,6 +7,7 @@
 #
 # Globals:
 #   LAST_ERROR - Error message from last failed operation
+#   DISTRO_FAMILY - Distribution family from chezmoi scriptEnv (required)
 # Exit codes:
 #   0 (success), 1 (failure), 2 (invalid args), 127 (missing dependency)
 
@@ -56,7 +57,7 @@ get_package_manager() {
 # Returns:
 #   0 on success, 127 if not found
 get_aur_helper() {
-  local helper=""
+  local helper
 
   if command_exists paru; then
     helper="paru"
@@ -83,6 +84,7 @@ get_aur_helper() {
 #   0 if installed, 1 if not, 2 on invalid args
 package_exists() {
   local package_name="${1:-}"
+  local manager
 
   LAST_ERROR=""
 
@@ -91,7 +93,6 @@ package_exists() {
     return 2
   fi
 
-  local manager
   if ! manager="$(get_package_manager)"; then
     return 1
   fi
@@ -113,7 +114,8 @@ package_exists() {
 # Installs packages using detected package manager.
 #
 # Skips already-installed packages with SKIP log message. Uses dnf or
-# pacman+AUR helper based on distribution.
+# pacman+AUR helper based on distribution. For pacman, queries all installed
+# packages once to avoid repeated subprocess calls.
 #
 # Arguments:
 #   $@ - Package names
@@ -124,6 +126,10 @@ package_exists() {
 # Returns:
 #   0 on success, 1 on failure, 2 on invalid args, 127 if no AUR helper (Arch only)
 install_package() {
+  local manager
+  local -a packages_to_install=()
+  local package_name
+
   LAST_ERROR=""
 
   if [[ $# -eq 0 ]]; then
@@ -131,21 +137,37 @@ install_package() {
     return 2
   fi
 
-  local manager
   if ! manager="$(get_package_manager)"; then
     return 1
   fi
 
-  local -a packages_to_install=()
-  local package_name
+  if [[ "$manager" = "pacman" ]]; then
+    declare -A _installed_lookup=()
+    local _pkg
+    local installed_pkgs
 
-  for package_name in "$@"; do
-    if package_exists "$package_name"; then
-      log SKIP "${COLOR_GREEN}${package_name}${COLOR_RESET} exists"
-    else
-      packages_to_install+=("$package_name")
+    if installed_pkgs="$({ pacman -Qq 2>/dev/null || true; })"; then
+      while IFS= read -r _pkg; do
+        _installed_lookup["$_pkg"]=1
+      done <<<"$installed_pkgs"
     fi
-  done
+
+    for package_name in "$@"; do
+      if [[ -n "${_installed_lookup[$package_name]:-}" ]]; then
+        log SKIP "${COLOR_GREEN}${package_name}${COLOR_RESET} exists"
+      else
+        packages_to_install+=("$package_name")
+      fi
+    done
+  else
+    for package_name in "$@"; do
+      if package_exists "$package_name"; then
+        log SKIP "${COLOR_GREEN}${package_name}${COLOR_RESET} exists"
+      else
+        packages_to_install+=("$package_name")
+      fi
+    done
+  fi
 
   if [[ ${#packages_to_install[@]} -eq 0 ]]; then
     return 0
@@ -160,6 +182,7 @@ install_package() {
     ;;
   pacman)
     local aur_helper
+
     if ! aur_helper="$(get_aur_helper)"; then
       return 127
     fi
@@ -189,7 +212,6 @@ install_package() {
 #   STEP messages to stderr via log()
 # Returns:
 #   0 on success, 1 on failure, 2 on invalid args, 127 if no AUR helper (Arch only)
-
 install_group() {
   local group_name="$1"
   shift
