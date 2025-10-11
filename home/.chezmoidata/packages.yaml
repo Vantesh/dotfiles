@@ -21,7 +21,7 @@ arch:
     - wget
     - man-db
     - pkgfile
-    - locate
+    - plocate
     - usbutils
     - ufw
     - rofi
