@@ -2,14 +2,11 @@
 {{- $personal := false -}}
 {{- $defaultShell := "fish" -}}
 {{- $compositor := "hyprland" -}}
-
-{{- if not $skipPrompts -}}
-  {{- writeToStdout "\n" -}}
-  {{- warnf "\033[1;31mPlease do not select 'Y/y' or the setup will fail!\033[0m\n" -}}
-  {{- $personal = promptBool "Is this a personal setup (y/N)" false -}}
-  {{- $defaultShell = promptChoice "Preferred shell" (list "fish" "zsh") -}}
-  {{- $compositor = promptChoice "Preferred compositor" (list "hyprland" "niri") -}}
-{{- end -}}
+{{- $setupSnapper := true -}}
+{{- $setupHibernation := true -}}
+{{- $installOptionalPackages := true -}}
+{{- $installChaoticAUR := true -}}
+{{- $installDrivers := true -}}
 
 {{- $distroFamily := "" -}}
 {{- if .chezmoi.osRelease -}}
@@ -26,11 +23,31 @@
   {{- end -}}
 {{- end -}}
 
+{{- if not $skipPrompts -}}
+  {{- writeToStdout "\n" -}}
+  {{- warnf "\033[1;31mPlease do not select 'Y/y' or the setup will fail!\033[0m\n" -}}
+  {{- $personal = promptBool "Is this a personal setup (y/N)" false -}}
+  {{- $defaultShell = promptChoice "Preferred shell" (list "fish" "zsh") -}}
+  {{- $compositor = promptChoice "Preferred compositor" (list "hyprland" "niri") -}}
+  {{- $setupSnapper = promptBool "Setup Snapper snapshots (Y/n)" true -}}
+  {{- $setupHibernation = promptBool "Setup hibernation (Y/n)" true -}}
+  {{- $installOptionalPackages = promptBool "Install optional packages (Y/n)" true -}}
+  {{- if contains $distroFamily "arch" -}}
+    {{- $installChaoticAUR = promptBool "Install Chaotic AUR (Y/n)" true -}}
+    {{- $installDrivers = promptBool "Install drivers (Y/n)" true -}}
+  {{- end -}}
+{{- end -}}
+
 data:
   defaultShell: {{ $defaultShell | quote }}
   compositor: {{ $compositor | quote }}
   personal: {{ $personal }}
   distroFamily: {{ $distroFamily | lower | quote }}
+  setupSnapper: {{ $setupSnapper }}
+  setupHibernation: {{ $setupHibernation }}
+  installOptionalPackages: {{ $installOptionalPackages }}
+  installChaoticAUR: {{ $installChaoticAUR }}
+  installDrivers: {{ $installDrivers }}
 
 scriptEnv:
   PERSONAL: {{ ternary "1" "0" $personal | quote }}
@@ -38,6 +55,11 @@ scriptEnv:
   DISTRO: {{ .chezmoi.osRelease.id | quote }}
   DEFAULT_SHELL: {{ $defaultShell | quote }}
   COMPOSITOR: {{ $compositor | quote }}
+  SETUP_SNAPPER: {{ ternary "1" "0" $setupSnapper | quote }}
+  SETUP_HIBERNATION: {{ ternary "1" "0" $setupHibernation | quote }}
+  INSTALL_OPTIONAL_PACKAGES: {{ ternary "1" "0" $installOptionalPackages | quote }}
+  INSTALL_CHAOTIC_AUR: {{ ternary "1" "0" $installChaoticAUR | quote }}
+  INSTALL_DRIVERS: {{ ternary "1" "0" $installDrivers | quote }}
 
 edit:
   command: code

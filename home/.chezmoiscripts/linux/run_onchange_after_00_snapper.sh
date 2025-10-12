@@ -24,81 +24,6 @@ if ! keep_sudo_alive; then
   die "Failed to keep sudo alive"
 fi
 
-setup_snapper_packages() {
-  local -a packages=(
-    snapper
-    btrfs-assistant
-    btrfs-progs
-    inotify-tools
-  )
-
-  case "${DISTRO_FAMILY,,}" in
-  *arch*)
-    packages+=(
-      snap-pac
-    )
-    ;;
-  *fedora*)
-    packages+=(
-      python3-dnf-plugin-snapper
-      libdnf5-plugin-actions
-    )
-    ;;
-  esac
-
-  local bootloader
-  if ! bootloader=$(detect_bootloader); then
-    log ERROR "Failed to detect bootloader: $LAST_ERROR"
-    return 1
-  fi
-
-  local generator
-  if ! generator=$(detect_initramfs_generator); then
-    log ERROR "Failed to detect initramfs generator: $LAST_ERROR"
-    return 1
-  fi
-
-  case "$bootloader" in
-  limine)
-    case "$generator" in
-    mkinitcpio)
-      packages+=(
-        limine-mkinitcpio-hook
-      )
-      ;;
-    dracut)
-      packages+=(
-        limine-dracut-support
-      )
-      ;;
-    *)
-      log WARN "Unknown initramfs generator ($generator) for Limine"
-      ;;
-    esac
-
-    packages+=(
-      limine-snapper-sync
-    )
-    ;;
-  grub)
-    packages+=(
-      grub-btrfs
-      snapper-rollback
-    )
-    ;;
-  esac
-
-  local package
-  for package in "${packages[@]}"; do
-    if ! install_package "$package"; then
-      log ERROR "Failed to install $package: $LAST_ERROR"
-      return 1
-    fi
-  done
-
-  return 0
-}
-
 enable_snapper_services() {
   local -a services=(
     snapper-cleanup.timer
@@ -351,6 +276,11 @@ EOF
 }
 
 main() {
+  if [[ "${SETUP_SNAPPER:-1}" != "1" ]]; then
+    log INFO "Skipping snapper setup (SETUP_SNAPPER != 1)"
+    return 0
+  fi
+
   case "${DISTRO,,}" in
   garuda | cachyos)
     log SKIP "${DISTRO} already has snapper pre-configured"
@@ -365,16 +295,7 @@ main() {
 
   print_box "Snapper"
 
-  if ! confirm "Set up Snapper for btrfs snapshots?"; then
-    log SKIP "Snapper setup cancelled by user"
-    return 0
-  fi
-
   log STEP "Configuring Snapper"
-
-  if ! setup_snapper_packages; then
-    die "Failed to install snapper packages"
-  fi
 
   if ! configure_dnf_snapper_plugin; then
     log WARN "Failed to configure DNF snapper plugin: $LAST_ERROR"
