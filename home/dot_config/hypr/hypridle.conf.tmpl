@@ -1,10 +1,10 @@
 
 general {
-    lock_cmd = dmsctl lock
-    before_sleep_cmd = loginctl lock-session    # lock before suspend.
+    lock_cmd = loginctl lock-session  $XDG_SESSION_ID
+    before_sleep_cmd = loginctl lock-session
     after_sleep_cmd = hyprctl dispatch dpms on  # to avoid having to press a key twice to turn on the display.
-    ignore_dbus_inhibit = false             # Ignore dbus idle-inhibit requests (false = respect them)
-    ignore_systemd_inhibit = false          # Ignore systemd-inhibit --what=idle (false = respect them)
+    ignore_dbus_inhibit = false
+    ignore_systemd_inhibit = false
 }
 
 listener {
@@ -17,9 +17,8 @@ listener {
 # use brightnessctl --list to find the correct device name.
 listener {
     timeout = 480                                       # 8min.
-
-    on-timeout = brightnessctl -sd dell::kbd_backlight set 0 # turn off keyboard backlight.
-    on-resume = brightnessctl -rd dell::kbd_backlight        # turn on keyboard backlight.
+    on-timeout = brightnessctl -sd dell::kbd_backlight set 0
+    on-resume = brightnessctl -rd dell::kbd_backlight
 }
 
 listener {
@@ -29,11 +28,11 @@ listener {
 
 listener {
     timeout = 660                                                     # 11min
-    on-timeout = hyprctl dispatch dpms off                            # screen off when timeout has passed
-    on-resume = hyprctl dispatch dpms on && brightnessctl -r          # screen on when activity is detected after timeout has fired.
+    on-timeout = hyprctl dispatch dpms off
+    on-resume = hyprctl dispatch dpms on && brightnessctl -r
 }
 
 listener {
     timeout = 900                              # 15min
-    on-timeout = systemctl suspend-then-hibernate
+    on-timeout = {{- if .setupHibernation }} systemctl suspend-then-hibernate {{- else }} systemctl suspend {{- end }}
 }
