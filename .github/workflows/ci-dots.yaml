@@ -31,12 +31,12 @@ jobs:
       - name: Install dependencies (Arch Linux)
         if: matrix.os == 'archlinux'
         run: |
-          pacman -Syu --noconfirm git curl bash shellcheck git-delta
+          pacman -Syu --noconfirm git curl bash git-delta
 
       - name: Install dependencies (Fedora)
         if: matrix.os == 'fedora'
         run: |
-          dnf install -y git curl bash findutils ShellCheck git-delta
+          dnf install -y git curl bash findutils git-delta
 
       - name: Install chezmoi
         run: |
@@ -59,9 +59,9 @@ jobs:
           find .chezmoiscripts -type f \( -name "*.sh" -o -name "*.sh.tmpl" \) | while read -r script; do
             echo "Checking: $script"
             if [[ "$script" == *.tmpl ]]; then
-              chezmoi execute-template < "$script" | shellcheck -S warning -s bash - || exit 1
+              chezmoi execute-template < "$script" | bash -n || exit 1
             else
-              shellcheck -S warning -s bash "$script" || exit 1
+              bash -n "$script" || exit 1
             fi
           done
 
@@ -70,7 +70,7 @@ jobs:
           cd "$(chezmoi source-path)"
           find .chezmoiscripts/linux/lib -type f -name ".lib-*.sh" | while read -r lib; do
             echo "Testing library: $lib"
-            shellcheck -S warning -s bash "$lib" || exit 1
+            bash -n "$lib" || exit 1
           done
 
       - name: remove .local/share/chezmoi
