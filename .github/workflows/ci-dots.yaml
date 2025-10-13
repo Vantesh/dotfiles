@@ -32,17 +32,20 @@ jobs:
       - name: Install dependencies (Arch Linux)
         if: matrix.os == 'archlinux'
         run: |
-          pacman -Syu --noconfirm git curl bash git-delta
+          pacman -Syu --noconfirm git curl bash shellcheck git-delta
 
       - name: Install dependencies (Fedora)
         if: matrix.os == 'fedora'
         run: |
-          dnf install -y git curl bash findutils git-delta
+          dnf install -y git curl bash findutils ShellCheck git-delta
 
       - name: Install chezmoi
         run: |
           sh -c "$(curl -fsLS get.chezmoi.io)" -- -b /usr/local/bin
           chezmoi --version
+
+      - name: Check ShellCheck version
+        run: shellcheck --version
 
       - name: Initialize chezmoi from repository
         timeout-minutes: 5
@@ -60,9 +63,9 @@ jobs:
           find .chezmoiscripts -type f \( -name "*.sh" -o -name "*.sh.tmpl" \) | while read -r script; do
             echo "Checking: $script"
             if [[ "$script" == *.tmpl ]]; then
-              chezmoi execute-template < "$script" | bash -n || exit 1
+              chezmoi execute-template < "$script" | shellcheck -s bash -e SC2027 -e SC2086 - || exit 1
             else
-              bash -n "$script" || exit 1
+              shellcheck -s bash -e SC2027 -e SC2086 "$script" || exit 1
             fi
           done
 
@@ -71,9 +74,5 @@ jobs:
           cd "$(chezmoi source-path)"
           find .chezmoiscripts/linux/lib -type f -name ".lib-*.sh" | while read -r lib; do
             echo "Testing library: $lib"
-            bash -n "$lib" || exit 1
+            shellcheck -s bash -e SC2027 -e SC2086 "$lib" || exit 1
           done
-
-      - name: remove .local/share/chezmoi
-        run: |
-          rm -rf ~/.local/share/chezmoi
