@@ -55,8 +55,8 @@ jobs:
 
       - name: Run ShellCheck on scripts
         run: |
-          chezmoi cd
-          find home/.chezmoiscripts -type f \( -name "*.sh" -o -name "*.sh.tmpl" \) | while read -r script; do
+          cd "$(chezmoi source-path)"
+          find .chezmoiscripts -type f \( -name "*.sh" -o -name "*.sh.tmpl" \) | while read -r script; do
             echo "Checking: $script"
             if [[ "$script" == *.tmpl ]]; then
               chezmoi execute-template < "$script" | shellcheck -s bash - || exit 1
@@ -67,8 +67,8 @@ jobs:
 
       - name: Run ShellCheck on library files
         run: |
-          chezmoi cd
-          find home/.chezmoiscripts/linux/lib -type f -name ".lib-*.sh" | while read -r lib; do
+          cd "$(chezmoi source-path)"
+          find .chezmoiscripts/linux/lib -type f -name ".lib-*.sh" | while read -r lib; do
             echo "Testing library: $lib"
             shellcheck -s bash "$lib" || exit 1
           done
