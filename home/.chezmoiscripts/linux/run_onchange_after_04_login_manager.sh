@@ -17,7 +17,6 @@ if ! keep_sudo_alive; then
   die "Failed to keep sudo alive"
 fi
 
-# shellcheck disable=SC2120,SC2119
 disable_conflicting_dms() {
   local -r other_dms=(sddm greetd gdm gdm3 lightdm lxdm emptty)
 

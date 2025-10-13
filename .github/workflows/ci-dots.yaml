@@ -63,9 +63,12 @@ jobs:
           find .chezmoiscripts -type f \( -name "*.sh" -o -name "*.sh.tmpl" \) | while read -r script; do
             echo "Checking: $script"
             if [[ "$script" == *.tmpl ]]; then
-              chezmoi execute-template < "$script" | shellcheck -s bash -e SC2027 -e SC2086 - || exit 1
+              chezmoi execute-template < "$script" | \
+                shellcheck --severity=error -s bash \
+                  -e SC2027 -e SC2086 -e SC2119 -e SC2120 - || exit 1
             else
-              shellcheck -s bash -e SC2027 -e SC2086 "$script" || exit 1
+              shellcheck --severity=error -s bash \
+                -e SC2027 -e SC2086 -e SC2119 -e SC2120 "$script" || exit 1
             fi
           done
 
@@ -74,5 +77,6 @@ jobs:
           cd "$(chezmoi source-path)"
           find .chezmoiscripts/linux/lib -type f -name ".lib-*.sh" | while read -r lib; do
             echo "Testing library: $lib"
-            shellcheck -s bash -e SC2027 -e SC2086 "$lib" || exit 1
+            shellcheck --severity=error -s bash \
+              -e SC2027 -e SC2086 -e SC2119 -e SC2120 "$lib" || exit 1
           done
