@@ -1,0 +1,82 @@
+name: dotfiles CI
+
+env:
+  NOCONFIRM: "1"
+  SKIP_PACKAGES: "1"
+  GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test-dotfiles:
+    name: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            os: archlinux
+            container: archlinux:latest
+          - runner: ubuntu-latest
+            os: fedora
+            container: fedora:latest
+
+    runs-on: ${{ matrix.runner }}
+    container: ${{ matrix.container }}
+
+    steps:
+      - name: Install dependencies (Arch Linux)
+        if: matrix.os == 'archlinux'
+        run: |
+          pacman -Syu --noconfirm git curl bash shellcheck git-delta
+
+      - name: Install dependencies (Fedora)
+        if: matrix.os == 'fedora'
+        run: |
+          dnf install -y git curl bash findutils ShellCheck git-delta
+
+      - name: Install chezmoi
+        run: |
+          sh -c "$(curl -fsLS get.chezmoi.io)" -- -b /usr/local/bin
+          chezmoi --version
+
+      - name: Check ShellCheck version
+        run: shellcheck --version
+
+      - name: Initialize chezmoi from repository
+        timeout-minutes: 5
+        run: |
+          chezmoi init --verbose "${{ github.repository }}"
+
+      - name: Apply dotfiles (dry-run)
+        timeout-minutes: 5
+        run: |
+          chezmoi apply --dry-run --verbose
+
+      - name: Run ShellCheck on scripts
+        run: |
+          cd "$(chezmoi source-path)"
+          find .chezmoiscripts -type f \( -name "*.sh" -o -name "*.sh.tmpl" \) | while read -r script; do
+            echo "Checking: $script"
+            if [[ "$script" == *.tmpl ]]; then
+              chezmoi execute-template < "$script" | \
+                shellcheck --severity=error -s bash \
+                  -e SC2027 -e SC2086 -e SC2119 -e SC2120 - || exit 1
+            else
+              shellcheck --severity=error -s bash \
+                -e SC2027 -e SC2086 -e SC2119 -e SC2120 "$script" || exit 1
+            fi
+          done
+
+      - name: Run ShellCheck on library files
+        run: |
+          cd "$(chezmoi source-path)"
+          find .chezmoiscripts/linux/lib -type f -name ".lib-*.sh" | while read -r lib; do
+            echo "Testing library: $lib"
+            shellcheck --severity=error -s bash \
+              -e SC2027 -e SC2086 -e SC2119 -e SC2120 "$lib" || exit 1
+          done

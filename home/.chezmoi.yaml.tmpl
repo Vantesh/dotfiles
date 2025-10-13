@@ -1,47 +1,74 @@
-{{- $skipPrompts := or (eq (env "NOCONFIRM") "1") (env "CI") (env "GITHUB_ACTIONS") (env "GITLAB_CI") (env "CODESPACES") -}}
+{{- $interactive := not (or (eq (env "NOCONFIRM") "1") (env "CI") (env "GITHUB_ACTIONS") (env "GITLAB_CI") (env "CODESPACES")) -}}
+{{- $skipPackages := eq (env "SKIP_PACKAGES") "1" -}}
+
+{{- /* Defaults */ -}}
 {{- $personal := false -}}
 {{- $defaultShell := "fish" -}}
 {{- $compositor := "hyprland" -}}
+{{- $setupSnapper :=  not $skipPackages -}}
+{{- $setupHibernation := not $skipPackages -}}
+{{- $installOptionalPackages := not $skipPackages -}}
+{{- $installChaoticAUR := not $skipPackages -}}
+{{- $installDrivers := not $skipPackages -}}
 
-{{- if not $skipPrompts -}}
-  {{- writeToStdout "\n" -}}
-  {{- warnf "\033[1;31mPlease do not select 'Y/y' or the setup will fail!\033[0m\n" -}}
-  {{- $personal = promptBool "Is this a personal setup (y/N)" false -}}
-  {{- $defaultShell = promptChoice "Preferred shell" (list "fish" "zsh") -}}
-  {{- $compositor = promptChoice "Preferred compositor" (list "hyprland" "niri") -}}
-{{- end -}}
-
-{{- $distroFamily := "" -}}
+{{- /* Detect distro family */ -}}
+{{- $distroFamily := "unknown" -}}
 {{- if .chezmoi.osRelease -}}
-  {{- $distroFamily = default .chezmoi.osRelease.id (index .chezmoi.osRelease "idLike") -}}
-  {{- if not (or (contains $distroFamily "arch") (contains $distroFamily "fedora") (contains $distroFamily "rhel")) -}}
+  {{- $distroFamily = default .chezmoi.osRelease.id (index .chezmoi.osRelease "idLike") | lower -}}
+  {{- if not (or (contains $distroFamily "arch") (contains $distroFamily "fedora")) -}}
     {{- if lookPath "pacman" -}}
       {{- $distroFamily = "arch" -}}
     {{- else if lookPath "dnf" -}}
       {{- $distroFamily = "fedora" -}}
     {{- end -}}
-  {{- end -}}
-  {{- if contains $distroFamily "rhel" -}}
+  {{- else if contains $distroFamily "rhel" -}}
     {{- $distroFamily = "fedora" -}}
   {{- end -}}
+{{- end -}}
+
+{{- /* Interactive prompts */ -}}
+{{- if $interactive -}}
+  {{- writeToStdout "\n\033[1;33mWARN:\033[0m Personal setup requires bitwarden secrets.\n\n" -}}
+
+  {{- $personal = promptBool "Is this a personal setup (y/N)" false -}}
+  {{- $defaultShell = promptChoice "Preferred shell" (list "fish" "zsh") "fish" -}}
+  {{- $compositor = promptChoice "Preferred compositor" (list "hyprland" "niri") "hyprland" -}}
+  {{- $setupSnapper = promptBool "Setup Snapper snapshots (Y/n)" true -}}
+  {{- $setupHibernation = promptBool "Setup hibernation (Y/n)" true -}}
+
+  {{- if not $skipPackages -}}
+    {{- $installOptionalPackages = promptBool "Install optional packages (Y/n)" true -}}
+    {{- if eq $distroFamily "arch" -}}
+      {{- $installChaoticAUR = promptBool "Install Chaotic AUR (Y/n)" true -}}
+      {{- $installDrivers = promptBool "Install drivers (Y/n)" true -}}
+    {{- end -}}
+  {{- end -}}
+
+  {{- writeToStdout "\n\033[1;32mTIP:\033[0m You can always make chezmoi ask this again by running \033[1mchezmoi init\033[0m\n\n" -}}
 {{- end -}}
 
 data:
   defaultShell: {{ $defaultShell | quote }}
   compositor: {{ $compositor | quote }}
   personal: {{ $personal }}
-  distroFamily: {{ $distroFamily | lower | quote }}
+  distroFamily: {{ $distroFamily | quote }}
+  setupSnapper: {{ $setupSnapper }}
+  setupHibernation: {{ $setupHibernation }}
+  installOptionalPackages: {{ $installOptionalPackages }}
+  installChaoticAUR: {{ $installChaoticAUR }}
+  installDrivers: {{ $installDrivers }}
 
 scriptEnv:
   PERSONAL: {{ ternary "1" "0" $personal | quote }}
-  DISTRO_FAMILY: {{ $distroFamily | lower | quote }}
+  DISTRO_FAMILY: {{ $distroFamily | quote }}
   DISTRO: {{ .chezmoi.osRelease.id | quote }}
   DEFAULT_SHELL: {{ $defaultShell | quote }}
   COMPOSITOR: {{ $compositor | quote }}
-
-edit:
-  command: code
-  args: [--wait]
+  SETUP_SNAPPER: {{ ternary "1" "0" $setupSnapper | quote }}
+  SETUP_HIBERNATION: {{ ternary "1" "0" $setupHibernation | quote }}
+  INSTALL_OPTIONAL_PACKAGES: {{ ternary "1" "0" $installOptionalPackages | quote }}
+  INSTALL_CHAOTIC_AUR: {{ ternary "1" "0" $installChaoticAUR | quote }}
+  INSTALL_DRIVERS: {{ ternary "1" "0" $installDrivers | quote }}
 
 merge:
   command: bash
@@ -52,6 +79,3 @@ diff:
   args: [--paging=never, "{{ "{{ .Destination }}" }}", "{{ "{{ .Target }}" }}"]
   pager: delta
   exclude: [scripts]
-
-github:
-  refreshPeriod: 24h
