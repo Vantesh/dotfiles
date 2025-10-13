@@ -50,18 +50,17 @@ jobs:
       - name: Initialize chezmoi
         timeout-minutes: 5
         run: |
-          # Use an isolated HOME directory to prevent pollution
           export HOME=/tmp/chezmoi_home
           mkdir -p "$HOME"
           echo "Initializing chezmoi..."
-          "$HOME/bin/chezmoi" init --source="${GITHUB_WORKSPACE}" --verbose
+          chezmoi init --source="${GITHUB_WORKSPACE}" --verbose
 
       - name: Apply dotfiles (dry-run)
         timeout-minutes: 5
         run: |
           export HOME=/tmp/chezmoi_home
-          echo "Performing chezmoi dry-run apply..."
-          "$HOME/bin/chezmoi" apply --dry-run --verbose
+          echo "Running chezmoi apply dry-run..."
+          chezmoi apply --dry-run --verbose
 
       - name: Run ShellCheck on scripts
         run: |
@@ -70,7 +69,7 @@ jobs:
           find home/.chezmoiscripts -type f \( -name "*.sh" -o -name "*.sh.tmpl" \) | while read -r script; do
             echo "Checking: $script"
             if [[ "$script" == *.tmpl ]]; then
-              "$HOME/bin/chezmoi" execute-template < "$script" | shellcheck -s bash - || exit 1
+              chezmoi execute-template < "$script" | shellcheck -s bash - || exit 1
             else
               shellcheck -s bash "$script" || exit 1
             fi
