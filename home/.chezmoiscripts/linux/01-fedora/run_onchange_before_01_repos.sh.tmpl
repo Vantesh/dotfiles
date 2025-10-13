@@ -24,9 +24,10 @@ main() {
   log INFO "RPM Fusion configured"
 
   local copr_repos=(
-{{- range .fedora.copr_repos }}
+{{- range .repos.copr }}
     "{{ . }}"
 {{- end }}
+
 {{- if eq .compositor "niri" }}
     "yalter/niri"
 {{- end }}

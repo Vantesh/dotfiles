@@ -175,7 +175,7 @@ install_package() {
 
   case "$manager" in
   dnf)
-    if ! sudo dnf install -y "${packages_to_install[@]}"; then
+    if ! sudo dnf install -y --skip-broken "${packages_to_install[@]}"; then
       LAST_ERROR="Failed to install packages with dnf: ${packages_to_install[*]}"
       return 1
     fi

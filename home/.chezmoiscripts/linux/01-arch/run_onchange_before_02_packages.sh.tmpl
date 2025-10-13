@@ -84,7 +84,7 @@ core_pkgs+=(
 )
 {{- else if eq .compositor "niri" }}
 core_pkgs+=(
-{{- range .compositor.niri }}
+{{- range .arch.compositor.niri }}
   "{{ . }}"
 {{- end }}
 )

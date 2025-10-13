@@ -1,5 +1,5 @@
-fedora:
-  copr_repos:
+repos:
+  copr:
     - solopasha/hyprland
     - errornointernet/quickshell
     - tofik/nwg-shell
@@ -13,6 +13,7 @@ fedora:
     - atim/starship
     - kylegospo/grub-btrfs
 
+fedora:
   core:
     - hypridle
     - hyprpicker
@@ -120,6 +121,8 @@ fedora:
   laptop:
     - upower
     - powertop
+    - power-profiles-daemon
+
   snapper:
     - snapper
     - btrfs-assistant

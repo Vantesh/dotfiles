@@ -39,28 +39,6 @@ log INFO "Configured XDG directories"
 print_box "Packages"
 
 # ============================================================================
-# COPR Repositories
-# ============================================================================
-log STEP "COPR Repositories"
-
-copr_repos=(
-{{- range .fedora.copr_repos }}
-  "{{ . }}"
-{{- end }}
-)
-
-for repo in "${copr_repos[@]}"; do
-  if ! sudo dnf copr list --enabled 2>/dev/null | grep -q "^copr:copr.fedorainfracloud.org:$repo"; then
-    log INFO "Enabling COPR repo: $repo"
-    if ! sudo dnf copr enable -y "$repo" >/dev/null 2>&1; then
-      log WARN "Failed to enable COPR repo: $repo"
-    fi
-  else
-    log SKIP "COPR repo already enabled: $repo"
-  fi
-done
-
-# ============================================================================
 # Core Packages
 # ============================================================================
 core_pkgs=(
