@@ -173,7 +173,7 @@ if [[ "${INSTALL_DRIVERS:-1}" == "1" ]]; then
     # Skip variant selection on certain distros
     case "${DISTRO,,}" in
       cachyos|garuda)
-        log SKIP "Skipping NVIDIA variant selection on ${DISTRO}"
+        log SKIP "Skipping NVIDIA variant selection"
         ;;
       *)
         drivers+=("${nvidia_variant}")
