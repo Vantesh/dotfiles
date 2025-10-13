@@ -1,0 +1,78 @@
+name: dotfiles CI
+env:
+  GITHUB_USERNAME: "${{ github.actor }}"
+  NOCONFIRM: "1"
+  SKIP_PACKAGES: "1"
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test-dotfiles:
+    name: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            os: archlinux
+            container: archlinux:latest
+          - runner: ubuntu-latest
+            os: fedora
+            container: fedora:latest
+
+    runs-on: ${{ matrix.runner }}
+    container: ${{ matrix.container }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install dependencies (Arch Linux)
+        if: matrix.os == 'archlinux'
+        run: |
+          pacman -Syu --noconfirm git curl shellcheck
+
+      - name: Install dependencies (Fedora)
+        if: matrix.os == 'fedora'
+        run: |
+          dnf install -y git curl findutils ShellCheck
+
+      - name: Install chezmoi
+        run: |
+          sh -c "$(curl -fsLS get.chezmoi.io)" -- -b "$HOME/bin"
+          echo "$HOME/bin" >> $GITHUB_PATH
+
+      - name: Initialize chezmoi (dry-run)
+        timeout-minutes: 5
+        run: |
+          "$HOME/bin/chezmoi" init --source="${GITHUB_WORKSPACE}" --dry-run --verbose
+
+      - name: Apply dotfiles (dry-run)
+        timeout-minutes: 5
+        run: |
+          "$HOME/bin/chezmoi" apply --dry-run --verbose
+
+      - name: Run ShellCheck on scripts
+        run: |
+          echo "🔍 Running ShellCheck on all scripts..."
+          find home/.chezmoiscripts -type f \( -name "*.sh" -o -name "*.sh.tmpl" \) | while read -r script; do
+            echo "Checking: $script"
+            if [[ "$script" == *.tmpl ]]; then
+              # Render the template, then pipe to shellcheck
+              "$HOME/bin/chezmoi" execute-template < "$script" | shellcheck -s bash - || exit 1
+            else
+              shellcheck -s bash "$script" || exit 1
+            fi
+          done
+
+      - name: Run ShellCheck on library files
+        run: |
+          echo "🔍 Running ShellCheck on library files..."
+          find home/.chezmoiscripts/linux/lib -type f -name ".lib-*.sh" | while read -r lib; do
+            echo "Testing library: $lib"
+            shellcheck -s bash "$lib" || exit 1
+          done
