@@ -36,7 +36,6 @@ EOF
 set_default_shell() {
   local current_shell
   local preferred_shell_path
-  local current_shell_name
   local preferred_shell="${DEFAULT_SHELL:-fish}"
 
   current_shell=$(getent passwd "$USER" | cut -d: -f7)
@@ -48,13 +47,6 @@ set_default_shell() {
 
   if [[ "$current_shell" == "$preferred_shell_path" ]]; then
     log SKIP "$preferred_shell is already default shell"
-    return 0
-  fi
-
-  current_shell_name=$(basename "$current_shell")
-
-  if ! confirm "Set $preferred_shell as default shell? (current: $current_shell_name)"; then
-    log SKIP "Default shell change cancelled by user"
     return 0
   fi
 

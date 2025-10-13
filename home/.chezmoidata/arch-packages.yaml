@@ -153,126 +153,23 @@ arch:
     - upower
     - powertop
 
-fedora:
-  copr_repos:
-    - solopasha/hyprland
-    - errornointernet/quickshell
-    - tofik/nwg-shell
-    - lilay/topgrade
-    - lihaohong/yazi
-    - alternateved/eza
-    - heus-sueh/packages
-    - azandure/clipse
-    - deltacopy/darkly
-    - brycensranch/gpu-screen-recorder-git
-    - atim/starship
-    - kylegospo/grub-btrfs
+  snapper:
+    common:
+      - snapper
+      - btrfs-assistant
+      - btrfs-progs
+      - inotify-tools
+      - snap-pac
 
-  core:
-    - hypridle
-    - hyprpicker
-    - hyprshot
-    - hyprlock
-    - uwsm
-    - accountsservice
-    - mate-polkit
-    - xdg-desktop-portal-gtk
-    - gnome-keyring
-    - NetworkManager
-    - udiskie
-    - ntfs-3g
-    - exfatprogs
-    - dosfstools
-    - mtools
-    - f2fs-tools
-    - wget2-wget
-    - man-db
-    - plocate
-    - usbutils
-    - ufw
-    - rofi
-    - rofimoji
-    - kitty
-    - imv
-    - mpv
-    - evince
-    - nautilus
-    - gvfs-mtp
-    - wmctrl
-    - khal
-    - playerctl
-    - libcanberra
-    - gammastep
-    - geoclue2
-    - zig
-    - pam-devel
-    - libxcb-devel
-    - kernel-devel
-    - kdialog
-    - gparted
-    - xhost
-    - brightnessctl
-    - ddcutil
-    - clipse
-    - xdg-terminal-exec
-    - quickshell-git
-    - gpu-screen-recorder
+    limine:
+      mkinitcpio:
+        - limine-mkinitcpio-hook
+        - limine-snapper-sync
 
-  compositor:
-    hyprland:
-      - hyprland
-      - xdg-desktop-portal-hyprland
-      - socat
-      - yad # keybinds popup
-    niri:
-      - niri
-      - xdg-desktop-portal-gnome
-      - xwayland-satellite
+      dracut:
+        - limine-dracut-support
+        - limine-snapper-sync
 
-  cli:
-    - fastfetch
-    - btop
-    - starship
-    - zoxide
-    - fd-find
-    - duf
-    - eza
-    - fzf
-    - bat
-    - ripgrep
-    - shfmt
-    - ImageMagick
-    - chafa
-    - topgrade
-    - yazi
-    - unzip
-    - neovim
-    - git-delta
-
-  theming:
-    - nwg-look
-    - qt6ct
-    - qt5ct
-    - plymouth
-    - layer-shell-qt
-    - qt6-qtmultimedia
-    - qt6-qtpositioning
-    - qt6-qt5compat
-    - darkly
-    - matugen
-
-  fonts:
-    - liberation-sans-fonts
-    - rsms-inter-fonts
-    - google-noto-sans-cjk-fonts
-
-  optional:
-    - rust
-    - go
-    - code
-    - qbittorrent
-
-  laptop:
-    - power-profiles-daemon
-    - upower
-    - powertop
+    grub:
+      - grub-btrfs
+      - snapper-rollback

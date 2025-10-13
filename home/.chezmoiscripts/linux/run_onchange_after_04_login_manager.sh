@@ -18,13 +18,10 @@ if ! keep_sudo_alive; then
 fi
 
 disable_conflicting_dms() {
-  local -r skip_service="${1:-}"
   local -r other_dms=(sddm greetd gdm gdm3 lightdm lxdm emptty)
 
   local svc status
   for svc in "${other_dms[@]}"; do
-    [[ -n "$skip_service" && "${svc}.service" == "$skip_service" ]] && continue
-
     status=$(sudo systemctl is-enabled "${svc}.service" 2>/dev/null || true)
 
     if [[ "$status" == "enabled" ]]; then

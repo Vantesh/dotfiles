@@ -18,6 +18,8 @@ source "$LIB_DIR/.lib-chaotic_aur.sh"
 source "$LIB_DIR/.lib-aur_helper.sh"
 # shellcheck source=/dev/null
 source "$LIB_DIR/.lib-package_manager.sh"
+# shellcheck source=/dev/null
+source "$LIB_DIR/.lib-snapboot.sh"
 
 if [[ "$(id -u)" -eq 0 ]]; then
   die "Do not run this script as root."
@@ -36,19 +38,23 @@ if ! setup_xdg; then
   die "XDG setup failed: $LAST_ERROR"
 fi
 
-if ! chaotic_repo_configured; then
-  if confirm "Set up Chaotic-AUR repository?"; then
+# Chaotic-AUR setup
+if [[ "${INSTALL_CHAOTIC_AUR:-0}" == "1" ]]; then
+  if ! chaotic_repo_configured; then
     log STEP "Chaotic-AUR"
     log INFO "Setting up Chaotic-AUR repository"
+
     if ! setup_chaotic_aur; then
       die "Failed to set up Chaotic-AUR repo: $LAST_ERROR"
     fi
+
     log INFO "Configured Chaotic-AUR repository"
-  else
-    log WARN "Skipping Chaotic-AUR setup"
   fi
+else
+  log INFO "Skipping Chaotic-AUR setup"
 fi
 
+# AUR helper installation
 if ! command_exists paru && ! command_exists yay; then
   log STEP "AUR helper"
   log INFO "Installing AUR helper (paru)... this may take a while"
@@ -60,6 +66,9 @@ fi
 
 print_box "Packages"
 
+# ============================================================================
+# Core Packages
+# ============================================================================
 core_pkgs=(
 {{- range .arch.core }}
   "{{ . }}"
@@ -83,6 +92,9 @@ core_pkgs+=(
 
 install_group "Core" "${core_pkgs[@]}"
 
+# ============================================================================
+# CLI Tools
+# ============================================================================
 cli_pkgs=(
 {{- range .arch.cli }}
   "{{ . }}"
@@ -90,6 +102,9 @@ cli_pkgs=(
 )
 install_group "CLI Tools" "${cli_pkgs[@]}"
 
+# ============================================================================
+# Theming
+# ============================================================================
 theme_pkgs=(
 {{- range .arch.theming }}
   "{{ . }}"
@@ -97,6 +112,9 @@ theme_pkgs=(
 )
 install_group "Theming" "${theme_pkgs[@]}"
 
+# ============================================================================
+# Fonts
+# ============================================================================
 font_pkgs=(
 {{- range .arch.fonts }}
   "{{ . }}"
@@ -104,6 +122,9 @@ font_pkgs=(
 )
 install_group "Fonts" "${font_pkgs[@]}"
 
+# ============================================================================
+# AUR Packages
+# ============================================================================
 aur_pkgs=(
 {{- range .arch.aur }}
   "{{ . }}"
@@ -111,69 +132,81 @@ aur_pkgs=(
 )
 install_group "AUR" "${aur_pkgs[@]}"
 
-drivers=(
+# ============================================================================
+# Drivers
+# ============================================================================
+if [[ "${INSTALL_DRIVERS:-1}" == "1" ]]; then
+  drivers=(
 {{- range .arch.drivers.base }}
-  "{{ . }}"
-{{- end }}
-)
-
-kernel_version=$(uname -r)
-case "$kernel_version" in
-  *-zen*)     drivers+=("{{ .arch.drivers.kernelHeaders.zen }}") ;;
-  *-lts*)     drivers+=("{{ .arch.drivers.kernelHeaders.lts }}") ;;
-  *-cachyos*) drivers+=("{{ .arch.drivers.kernelHeaders.cachyos }}") ;;
-  *)          drivers+=("{{ .arch.drivers.kernelHeaders.default }}") ;;
-esac
-
-gpu_info=$(lspci -nn | grep -Ei "VGA|3D|Display")
-
-if [[ $gpu_info == *"NVIDIA"* ]]; then
-  drivers+=(
-{{- range .arch.drivers.nvidia }}
     "{{ . }}"
 {{- end }}
   )
 
-  nvidia_variant=""
-  if echo "$gpu_info" | grep -q -E "RTX [2-9][0-9]|GTX 16"; then
-    nvidia_variant="nvidia-open-dkms"
-  else
-    nvidia_variant="nvidia-dkms"
-  fi
+  # Kernel headers
+  kernel_version=$(uname -r)
+  case "$kernel_version" in
+    *-zen*)     drivers+=("{{ .arch.drivers.kernelHeaders.zen }}") ;;
+    *-lts*)     drivers+=("{{ .arch.drivers.kernelHeaders.lts }}") ;;
+    *-cachyos*) drivers+=("{{ .arch.drivers.kernelHeaders.cachyos }}") ;;
+    *)          drivers+=("{{ .arch.drivers.kernelHeaders.default }}") ;;
+  esac
 
-  case "${DISTRO,,}" in
+  # GPU-specific drivers
+  gpu_info=$(lspci -nn | grep -Ei "VGA|3D|Display")
+
+  # NVIDIA drivers
+  if [[ $gpu_info == *"NVIDIA"* ]]; then
+    drivers+=(
+{{- range .arch.drivers.nvidia }}
+      "{{ . }}"
+{{- end }}
+    )
+
+    # Select NVIDIA variant based on GPU generation
+    nvidia_variant=""
+    if echo "$gpu_info" | grep -q -E "RTX [2-9][0-9]|GTX 16"; then
+      nvidia_variant="nvidia-open-dkms"
+    else
+      nvidia_variant="nvidia-dkms"
+    fi
+
+    # Skip variant selection on certain distros
+    case "${DISTRO,,}" in
       cachyos|garuda)
-        log SKIP "Skipping NVIDIA variant selection on "${DISTRO}" "
+        log SKIP "Skipping NVIDIA variant selection"
         ;;
       *)
         drivers+=("${nvidia_variant}")
         ;;
-  esac
+    esac
+  fi
 
-fi
-
-if [[ $gpu_info == *"AMD/ATI"* ]]; then
-  drivers+=(
+  # AMD drivers
+  if [[ $gpu_info == *"AMD/ATI"* ]]; then
+    drivers+=(
 {{- range .arch.drivers.amd }}
-    "{{ . }}"
+      "{{ . }}"
 {{- end }}
-  )
-fi
+    )
+  fi
 
-if [[ $gpu_info == *"Intel"* ]]; then
-  drivers+=(
+  # Intel drivers
+  if [[ $gpu_info == *"Intel"* ]]; then
+    drivers+=(
 {{- range .arch.drivers.intel }}
-    "{{ . }}"
+      "{{ . }}"
 {{- end }}
-  )
-fi
+    )
+  fi
 
-if confirm "Install driver packages (${#drivers[@]} packages)?"; then
   install_group "Drivers" "${drivers[@]}"
 else
-  log INFO "Skipped driver installation"
+  log INFO "Skipping driver installation"
 fi
 
+# ============================================================================
+# Laptop Packages
+# ============================================================================
 if is_laptop; then
   laptop_pkgs=(
 {{- range .arch.laptop }}
@@ -183,14 +216,69 @@ if is_laptop; then
   install_group "Laptop" "${laptop_pkgs[@]}"
 fi
 
-opt_pkgs=(
+# ============================================================================
+# Optional Packages
+# ============================================================================
+if [[ "${INSTALL_OPTIONAL_PACKAGES:-1}" == "1" ]]; then
+  opt_pkgs=(
 {{- range .arch.optional }}
-  "{{ . }}"
+    "{{ . }}"
 {{- end }}
-)
-
-if confirm "Install optional packages (${#opt_pkgs[@]} packages)?"; then
+  )
   install_group "Optional" "${opt_pkgs[@]}"
 else
-  log INFO "Skipped optional packages"
+  log INFO "Skipping optional packages"
+fi
+
+# ============================================================================
+# Snapper Packages
+# ============================================================================
+if [[ "${SETUP_SNAPPER:-1}" == "1" ]]; then
+  snapper_pkgs=(
+{{- range .arch.snapper.common }}
+    "{{ . }}"
+{{- end }}
+  )
+
+  # Detect bootloader and initramfs generator
+  bootloader=$(detect_bootloader) || {
+    log ERROR "Failed to detect bootloader: $LAST_ERROR"
+    bootloader=""
+  }
+
+  generator=$(detect_initramfs_generator) || {
+    log ERROR "Failed to detect initramfs generator: $LAST_ERROR"
+    generator=""
+  }
+
+  # Add bootloader-specific packages
+  if [[ "$bootloader" == "limine" ]]; then
+    if [[ "$generator" == "mkinitcpio" ]]; then
+      snapper_pkgs+=(
+{{- range .arch.snapper.limine.mkinitcpio }}
+        "{{ . }}"
+{{- end }}
+      )
+    elif [[ "$generator" == "dracut" ]]; then
+      snapper_pkgs+=(
+{{- range .arch.snapper.limine.dracut }}
+        "{{ . }}"
+{{- end }}
+      )
+    else
+      log WARN "Unknown initramfs generator: $generator"
+    fi
+  elif [[ "$bootloader" == "grub" ]]; then
+    snapper_pkgs+=(
+{{- range .arch.snapper.grub }}
+      "{{ . }}"
+{{- end }}
+    )
+  else
+    log WARN "Unknown or unsupported bootloader: $bootloader"
+  fi
+
+  install_group "Snapper" "${snapper_pkgs[@]}"
+else
+  log INFO "Skipping Snapper installation"
 fi

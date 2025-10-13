@@ -397,6 +397,7 @@ main() {
   local gpu_info
   local ram_size
 
+  # Laptop optimizations (always run if on a laptop)
   if is_laptop; then
     print_box "Laptop"
     log STEP "Laptop Optimizations"
@@ -410,19 +411,20 @@ main() {
     fi
   fi
 
+  # Exit early if hibernation setup is disabled
+  if [[ "${SETUP_HIBERNATION:-1}" != "1" ]]; then
+    log INFO "Skipping hibernation setup (disabled in configuration)"
+    return 0
+  fi
+
   if ! check_btrfs; then
     log SKIP "Root filesystem is not btrfs, skipping hibernation setup"
-    exit 0
+    return 0
   fi
 
   if ! is_laptop; then
     log SKIP "Not a laptop, skipping hibernation setup"
-    exit 0
-  fi
-
-  if ! confirm "Set up hibernation?"; then
-    log SKIP "Hibernation setup declined"
-    exit 0
+    return 0
   fi
 
   log STEP "Hibernation Setup"
@@ -542,16 +544,15 @@ EOF
     nvidia_pci=$(get_nvidia_pci_address)
 
     if [[ -n "$nvidia_pci" ]]; then
-      if ! write_system_config "/etc/tmpfiles.d/nvidia_pm.conf" <<EOF; then
+      write_system_config "/etc/tmpfiles.d/nvidia_pm.conf" <<EOF || die "Failed to write NVIDIA power management config: $LAST_ERROR"
 # NVIDIA power management
 w /sys/bus/pci/devices/${nvidia_pci}/power/control - - - - auto
 EOF
-        die "Failed to write NVIDIA power management config: $LAST_ERROR"
-      fi
-      log INFO "Configured NVIDIA power management for $nvidia_pci"
+      log INFO "Configured NVIDIA power management for PCI $nvidia_pci"
     else
       log WARN "Failed to detect NVIDIA GPU PCI address"
     fi
+
   fi
 
   log INFO "Hibernation setup completed"

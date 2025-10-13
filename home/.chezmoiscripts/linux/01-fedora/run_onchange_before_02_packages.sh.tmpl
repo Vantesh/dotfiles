@@ -17,7 +17,18 @@ source "$LIB_DIR/.lib-fedora_repos.sh"
 # shellcheck source=/dev/null
 source "$LIB_DIR/.lib-xdg_setup.sh"
 
-print_box "Packages"
+if [[ "$(id -u)" -eq 0 ]]; then
+  die "Do not run this script as root."
+fi
+
+if ! keep_sudo_alive; then
+  die "Failed to keep sudo alive"
+fi
+
+if [[ "${SKIP_PACKAGES:-0}" == "1" ]]; then
+  log INFO "Skipping package installation"
+  exit 0
+fi
 
 if ! setup_xdg; then
   die "XDG setup failed: $LAST_ERROR"
@@ -25,6 +36,11 @@ fi
 
 log INFO "Configured XDG directories"
 
+print_box "Packages"
+
+# ============================================================================
+# Core Packages
+# ============================================================================
 core_pkgs=(
 {{- range .fedora.core }}
   "{{ . }}"
@@ -48,38 +64,47 @@ core_pkgs+=(
 
 install_group "Core" "${core_pkgs[@]}"
 
+# ============================================================================
+# CLI Tools
+# ============================================================================
 cli_pkgs=(
 {{- range .fedora.cli }}
   "{{ . }}"
 {{- end }}
 )
-
 install_group "CLI Tools" "${cli_pkgs[@]}"
 
+# ============================================================================
+# Theming
+# ============================================================================
 theme_pkgs=(
 {{- range .fedora.theming }}
   "{{ . }}"
 {{- end }}
 )
-
 install_group "Theming" "${theme_pkgs[@]}"
 
+# ============================================================================
+# Fonts
+# ============================================================================
 font_pkgs=(
 {{- range .fedora.fonts }}
   "{{ . }}"
 {{- end }}
 )
-
 install_group "Fonts" "${font_pkgs[@]}"
 
-opt_pkgs=(
+# ============================================================================
+# Optional Packages
+# ============================================================================
+if [[ "${INSTALL_OPTIONAL_PACKAGES:-1}" == "1" ]]; then
+  opt_pkgs=(
 {{- range .fedora.optional }}
-  "{{ . }}"
+    "{{ . }}"
 {{- end }}
-)
+  )
 
-if [[ ${#opt_pkgs[@]} -gt 0 ]]; then
-  if confirm "Install optional packages (${#opt_pkgs[@]} packages)?"; then
+  if [[ ${#opt_pkgs[@]} -gt 0 ]]; then
     needs_vscode_repo=0
 
     for package in "${opt_pkgs[@]}"; do
@@ -93,23 +118,37 @@ if [[ ${#opt_pkgs[@]} -gt 0 ]]; then
       if ! setup_vscode_repo; then
         die "Visual Studio Code repo setup failed: $LAST_ERROR"
       fi
-
       log INFO "Visual Studio Code repo configured"
     fi
 
     install_group "Optional" "${opt_pkgs[@]}"
-  else
-    log INFO "Skipped optional packages"
   fi
+else
+  log INFO "Skipping optional packages"
 fi
 
+# ============================================================================
+# Laptop Packages
+# ============================================================================
 if is_laptop; then
   laptop_pkgs=(
 {{- range .fedora.laptop }}
     "{{ . }}"
 {{- end }}
   )
-
   install_group "Laptop" "${laptop_pkgs[@]}"
 fi
 
+# ============================================================================
+# Snapper Packages
+# ============================================================================
+if [[ "${SETUP_SNAPPER:-1}" == "1" ]]; then
+  snapper_pkgs=(
+{{- range .fedora.snapper }}
+    "{{ . }}"
+{{- end }}
+  )
+  install_group "Snapper" "${snapper_pkgs[@]}"
+else
+  log INFO "Skipping Snapper installation"
+fi
