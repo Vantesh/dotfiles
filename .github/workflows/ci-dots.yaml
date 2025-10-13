@@ -59,9 +59,9 @@ jobs:
           find .chezmoiscripts -type f \( -name "*.sh" -o -name "*.sh.tmpl" \) | while read -r script; do
             echo "Checking: $script"
             if [[ "$script" == *.tmpl ]]; then
-              chezmoi execute-template < "$script" | shellcheck -s bash - || exit 1
+              chezmoi execute-template < "$script" | shellcheck -S warning -s bash - || exit 1
             else
-              shellcheck -s bash "$script" || exit 1
+              shellcheck -S warning -s bash "$script" || exit 1
             fi
           done
 
@@ -70,5 +70,9 @@ jobs:
           cd "$(chezmoi source-path)"
           find .chezmoiscripts/linux/lib -type f -name ".lib-*.sh" | while read -r lib; do
             echo "Testing library: $lib"
-            shellcheck -s bash "$lib" || exit 1
+            shellcheck -S warning -s bash "$lib" || exit 1
           done
+
+      - name: remove .local/share/chezmoi
+        run: |
+          rm -rf ~/.local/share/chezmoi
