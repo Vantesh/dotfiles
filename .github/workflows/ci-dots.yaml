@@ -31,12 +31,12 @@ jobs:
       - name: Install dependencies (Arch Linux)
         if: matrix.os == 'archlinux'
         run: |
-          pacman -Syu --noconfirm git curl bash shellcheck
+          pacman -Syu --noconfirm git curl bash shellcheck git-delta
 
       - name: Install dependencies (Fedora)
         if: matrix.os == 'fedora'
         run: |
-          dnf install -y git curl bash findutils ShellCheck
+          dnf install -y git curl bash findutils ShellCheck git-delta
 
       - name: Install chezmoi
         run: |
