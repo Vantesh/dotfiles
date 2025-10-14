@@ -42,7 +42,7 @@ jobs:
       - name: Apply dotfiles
         timeout-minutes: 5
         run: |
-          chezmoi init --apply --verbose "${{ github.repository }}"
+          chezmoi init --apply --verbose "${{ github.repository }}" --dry-run
 
       - name: Run ShellCheck on scripts
         run: |
