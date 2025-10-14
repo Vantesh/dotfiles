@@ -1,0 +1,11 @@
+{{ if not (env "OFFLINE") }}
+{{- if eq .chezmoi.os "linux" }}
+
+".config/quickshell/dms":
+  type: git-repo
+  clone.args: "--depth=1"
+  url: "https://github.com/vantesh/DankMaterialShell.git"
+  refreshPeriod: "36h"
+
+{{- end }}
+{{ end }}

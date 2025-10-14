@@ -2,6 +2,8 @@
 # 05_shell.sh - Configure default shell
 # Exit codes: 0 (success), 1 (failure)
 
+{{ template "run_onchange_hash" . }}
+
 set -euo pipefail
 
 shopt -s nullglob globstar

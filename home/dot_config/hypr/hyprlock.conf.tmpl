@@ -1,5 +1,7 @@
 source = ~/.config/hypr/hyprland/colors.conf
 $scripts = ~/.config/scripts/hyprlock
+$FONT1 = {{ .font.terminal.name }}
+$FONT2 = {{ .font.ui.name }}
 
 general {
     hide_cursor = true
@@ -17,8 +19,6 @@ animations {
     animation = inputFieldDots, 1, 5, ease
     animation = inputFieldWidth, 1, 5, ease
 }
-
-
 
 background {
     path = $image
@@ -47,7 +47,7 @@ input-field {
     fail_color = $error
     fail_text = $PAMFAIL ($ATTEMPTS)
     fade_on_empty = false
-    font_family = $font1
+    font_family = $FONT1
     placeholder_text = <i>Input Password...</i>
     hide_input = false
     position = 0, 150
@@ -61,7 +61,7 @@ label {
     text = cmd[update:1000] echo -e "$(date +"%A, %d %B")"
     color = $secondary_fixed
     font_size = 40
-    font_family = $font2
+    font_family = $FONT2
     position = 0, 380
 
     halign = center
@@ -74,7 +74,7 @@ label {
     text = cmd[update:1000] echo "<span>$(date +"%H:%M")</span>"
     color = $primary_fixed
     font_size = 150
-    font_family = $font2
+    font_family = $FONT2
     position = 0, 250
     halign = center
     valign = center
@@ -88,7 +88,7 @@ label {
     shadow_passes = 1
     color = $on_surface_variant
     font_size = 16
-    font_family = $font1
+    font_family = $FONT1
     position = 0, -507
     halign = center
     valign = center
@@ -114,7 +114,7 @@ label {
     text = cmd[update:100] $scripts/caps_status
     color = $error
     font_size = 15
-    font_family = $font1
+    font_family = $FONT1
     halign = center
     valign = center
     position = 0, -300
@@ -127,7 +127,7 @@ label {
   text = cmd[update:1000] $scripts/battery_status
   color = $primary_fixed
   font_size = 19
-  font_family = $font2
+  font_family = $FONT2
   position = -10, -10
   halign = right
   valign = top

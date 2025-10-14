@@ -40,10 +40,14 @@ map kitty_mod+e launch --type=background --cwd=current sh -c 'hyprctl dispatch e
 #open current dir with vscode
 map kitty_mod+j launch --type=background --cwd=current sh -c 'uwsm-exec code $(pwd)'
 
-#include matugen theme 
+#include matugen theme
 include colors.conf
 
 #include terminal colors
 include dank16.conf
 
-
+# fonts
+font_size {{ .font.terminal.size }}
+font_family  family='{{ .font.terminal.name }}' features='{{ join " " .font.terminal.features }}'
+bold_font    family='{{ .font.terminal.name }}' style='Medium' features='{{ join " " .font.terminal.features }}'
+italic_font  family='{{ .font.terminal.name }}' style='Italic' features='{{ join " " .font.terminal.features }}'

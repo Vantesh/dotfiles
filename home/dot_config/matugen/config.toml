@@ -1,88 +1,85 @@
+[config]
+
 [templates.kitty]
-  input_path  = '~/.config/matugen/templates/terminal/kitty.conf'
+  input_path  = './templates/terminal/kitty.conf'
   output_path = '~/.config/kitty/colors.conf'
 
 [templates.terminal_colors]
-  input_path  = '~/.config/matugen/templates/terminal/colors.json'
+  input_path  = './templates/terminal/colors.json'
   output_path = '~/.cache/wal/colors.json'
 
 [templates.hyprland]
-  input_path  = '~/.config/matugen/templates/hypr/hyprland.conf'
+  input_path  = './templates/hypr/hyprland.conf'
   output_path = '~/.config/hypr/hyprland/colors.conf'
 
 [templates.hyprlock-icon]
-  input_path  = '~/.config/matugen/templates/hypr/icon.svg'
+  input_path  = './templates/hypr/icon.svg'
   output_path = '~/.cache/wal/icon.svg'
 
 [templates.btop]
-  input_path  = '~/.config/matugen/templates/terminal/btop.theme'
+  input_path  = './templates/terminal/btop.theme'
   output_path = '~/.config/btop/themes/matugen.theme'
 
 [templates.bat]
-  input_path  = '~/.config/matugen/templates/terminal/bat.tmTheme'
+  input_path  = './templates/terminal/bat.tmTheme'
   output_path = '~/.config/bat/themes/Matugen.tmTheme'
 
 [templates.yazi]
-  input_path  = '~/.config/matugen/templates/terminal/yazi.toml'
+  input_path  = './templates/terminal/yazi.toml'
   output_path = '~/.config/yazi/theme.toml'
 
 [templates.fish]
-  input_path  = '~/.config/matugen/templates/terminal/colors.fish'
+  input_path  = './templates/terminal/colors.fish'
   output_path = '~/.config/fish/themes/Matugen.theme'
 
 [templates.fzf-fish]
-  input_path  = '~/.config/matugen/templates/terminal/fzf.fish'
+  input_path  = './templates/terminal/fzf.fish'
   output_path = '~/.cache/wal/fzf.fish'
 
 [templates.rofi]
-  input_path  = '~/.config/matugen/templates/rofi.rasi'
+  input_path  = './templates/rofi.rasi'
   output_path = '~/.config/rofi/colors.rasi'
 
 [templates.qtct]
-  input_path  = '~/.config/matugen/templates/qtct.conf'
+  input_path  = './templates/qtct.conf'
   output_path = '~/.local/share/color-schemes/Matugen.colors'
 
 [templates.fzf]
-  input_path  = '~/.config/matugen/templates/terminal/fzf.sh'
+  input_path  = './templates/terminal/fzf.sh'
   output_path = '~/.cache/zsh/fzf'
 
 [templates.gtk4]
-  input_path  = '~/.config/matugen/templates/gtk/colors.css'
+  input_path  = './templates/gtk/colors.css'
   output_path = '~/.config/gtk-4.0/gtk.css'
 
 [templates.gtk3]
-  input_path  = '~/.config/matugen/templates/gtk/colors.css'
+  input_path  = './templates/gtk/colors.css'
   output_path = '~/.config/gtk-3.0/gtk.css'
 
 [templates.folders-color]
-  input_path  = '~/.config/matugen/templates/folder-color.txt'
+  input_path  = './templates/folder-color.txt'
   output_path = '~/.cache/wal/folder-color.txt'
 
 [templates.spicetify]
-  input_path  = '~/.config/matugen/templates/spotify.ini'
+  input_path  = './templates/spotify.ini'
   output_path = '~/.config/spicetify/Themes/marketplace/color.ini'
 
 [templates.neovim-nvchad]
-  input_path  = '~/.config/matugen/templates/terminal/nvchad.lua'
+  input_path  = './templates/terminal/nvchad.lua'
   output_path = '~/.local/share/nvim/lazy/base46/lua/base46/themes/matugen.lua'
 
 [templates.vesktop]
-  input_path  = "~/.config/matugen/templates/discord.css"
+  input_path  = "./templates/discord.css"
   output_path = "~/.config/vesktop/themes/Matugen.css"
 
 [templates.cava]
-  input_path  = "~/.config/matugen/templates/terminal/cava.config"
+  input_path  = "./templates/terminal/cava.config"
   output_path = "~/.config/cava/config"
 
 [templates.dgop]
-  input_path  = "~/.config/matugen/templates/dgop.json"
+  input_path  = "./templates/dgop.json"
   output_path = "~/.config/dgop/colors.json"
 
 [templates.dank]
-  input_path  = "~/.config/matugen/templates/dank.json"
-  output_path = "~/.cache/quickshell/dankshell/dms-colors.json"
-
-[config.custom_keywords]
-  font_mono = "JetBrainsMono Nerd Font"
-  font_sans = "SF Pro Rounded Semi-Bold"
-  font_size = "15"
+  input_path  = "./templates/dank.json"
+  output_path = "~/.cache/quickshell/DankMaterialShell/dms-colors.json"

@@ -11,6 +11,9 @@
 
 export LAST_ERROR="${LAST_ERROR:-}"
 
+# Track which snapper configs have been created in this session
+declare -gA _SNAPPER_CONFIGS_CREATED=()
+
 # Merges kernel command line parameters.
 #
 # Combines current and new parameters, with new params overriding duplicates.
@@ -226,7 +229,8 @@ add_fstab_entry() {
 # Sets snapper configuration value.
 #
 # Auto-creates config if it doesn't exist (only for "root" and "home").
-# Uses snapper -c command to set configuration.
+# Uses snapper -c command to set configuration. Prevents race condition
+# by waiting for config to be fully initialized after creation.
 #
 # Arguments:
 #   $1 - Config name (e.g., "root", "home")
@@ -234,6 +238,7 @@ add_fstab_entry() {
 #   $3 - Configuration value
 # Globals:
 #   LAST_ERROR - Set on failure
+#   _SNAPPER_CONFIGS_CREATED - Tracks created configs to avoid re-waiting
 # Returns:
 #   0 on success, 1 on failure, 2 on invalid args, 127 if snapper missing
 set_snapper_config_value() {
@@ -253,6 +258,7 @@ set_snapper_config_value() {
     return 127
   fi
 
+  # Check if config exists, create if needed
   if ! sudo snapper list-configs 2>/dev/null | grep -q "^$config_name"; then
     case "$config_name" in
     root)
@@ -272,6 +278,27 @@ set_snapper_config_value() {
       return 1
       ;;
     esac
+
+    # Mark that we just created this config
+    _SNAPPER_CONFIGS_CREATED["$config_name"]=1
+
+    # Allow config to initialize
+    sleep 0.5
+
+    # Verify config is readable
+    local retries=0
+    while [[ $retries -lt 10 ]]; do
+      if sudo snapper -c "$config_name" get-config >/dev/null 2>&1; then
+        break
+      fi
+      sleep 0.1
+      ((retries++))
+    done
+
+    if [[ $retries -eq 10 ]]; then
+      LAST_ERROR="Snapper config '$config_name' created but not readable after waiting"
+      return 1
+    fi
   fi
 
   if ! sudo snapper -c "$config_name" set-config "${key}=${value}" >/dev/null 2>&1; then
