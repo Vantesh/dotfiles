@@ -2,6 +2,8 @@
 # 04_login_manager.sh - Configure Ly display manager
 # Exit codes: 0 (success), 1 (failure)
 
+{{ template "run_onchange_hash" . }}
+
 set -euo pipefail
 shopt -s nullglob globstar
 

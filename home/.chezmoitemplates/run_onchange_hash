@@ -1,0 +1,4 @@
+{{- if stat (joinPath .chezmoi.homeDir ".config" "chezmoi" "chezmoi.yaml") -}}
+# Hash to trigger run_onchange:
+# hash: {{ include (joinPath .chezmoi.homeDir ".config" "chezmoi" "chezmoi.yaml") | sha256sum }}
+{{- end -}}
