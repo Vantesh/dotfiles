@@ -1,9 +1,7 @@
 arch:
   core:
-    - hypridle
     - hyprpicker
     - hyprshot
-    - hyprlock
     - uwsm
     - accountsservice
     - polkit-gnome
@@ -87,7 +85,7 @@ arch:
     - tela-icon-theme
     - plymouth
     - layer-shell-qt
-    - qt6-multimedia-ffmpeg
+    - qt6-multimedia
     - qt6-positioning
     - qt6-5compat
 

@@ -15,10 +15,8 @@ repos:
 
 fedora:
   core:
-    - hypridle
     - hyprpicker
     - hyprshot
-    - hyprlock
     - uwsm
     - accountsservice
     - mate-polkit
