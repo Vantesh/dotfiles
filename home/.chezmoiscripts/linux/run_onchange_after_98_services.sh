@@ -13,7 +13,8 @@ source "$LIB_DIR/.lib-common.sh"
 
 # shellcheck disable=SC2034
 readonly -a USER_SERVICES=(
-  "gnome-keyring-daemon"
+  "gnome-keyring-daemon.socket"
+  "gnome-keyring-daemon.service"
   "hypridle"
   "mpris-proxy"
 )
