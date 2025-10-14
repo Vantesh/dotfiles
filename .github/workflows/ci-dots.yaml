@@ -32,30 +32,17 @@ jobs:
       - name: Install dependencies (Arch Linux)
         if: matrix.os == 'archlinux'
         run: |
-          pacman -Syu --noconfirm git curl bash shellcheck git-delta
+          pacman -Syu --noconfirm git curl bash shellcheck git-delta chezmoi
 
       - name: Install dependencies (Fedora)
         if: matrix.os == 'fedora'
         run: |
-          dnf install -y git curl bash findutils ShellCheck git-delta
+          dnf install -y git curl bash findutils ShellCheck git-delta chezmoi
 
-      - name: Install chezmoi
-        run: |
-          sh -c "$(curl -fsLS get.chezmoi.io)" -- -b /usr/local/bin
-          chezmoi --version
-
-      - name: Check ShellCheck version
-        run: shellcheck --version
-
-      - name: Initialize chezmoi from repository
+      - name: Apply dotfiles
         timeout-minutes: 5
         run: |
-          chezmoi init --verbose "${{ github.repository }}"
-
-      - name: Apply dotfiles (dry-run)
-        timeout-minutes: 5
-        run: |
-          chezmoi apply --dry-run --verbose
+          chezmoi init --apply --verbose "${{ github.repository }}"
 
       - name: Run ShellCheck on scripts
         run: |
