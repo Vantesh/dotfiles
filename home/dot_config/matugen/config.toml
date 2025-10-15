@@ -82,4 +82,4 @@
 
 [templates.dank]
   input_path  = "./templates/dank.json"
-  output_path = "~/.cache/quickshell/DankMaterialShell/dms-colors.json"
+  output_path = "~/.cache/DankMaterialShell/dms-colors.json"
