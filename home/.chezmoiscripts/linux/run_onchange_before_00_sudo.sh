@@ -42,6 +42,18 @@ EOF
   return 0
 }
 
+_configure_sudo_keep_variables() {
+  if ! write_system_config "$SUDOERS_DIR/keep_env" <<'EOF'; then
+Defaults env_keep += "EDITOR VISUAL"
+EOF
+    log ERROR "Failed to configure sudo keep variables: $LAST_ERROR"
+    return 1
+  fi
+
+  log INFO "Configured sudo to keep EDITOR and VISUAL variables"
+  return 0
+}
+
 _configure_faillock() {
 
   local -A faillock_settings=(
