@@ -92,9 +92,9 @@
 	"workspaceNameIcons": {},
 	"waveProgressEnabled": true,
 	"clockCompactMode": false,
-	"focusedWindowCompactMode": true,
+	"focusedWindowCompactMode": false,
 	"runningAppsCompactMode": true,
-	"runningAppsCurrentWorkspace": true,
+	"runningAppsCurrentWorkspace": false,
 	"clockDateFormat": "",
 	"lockDateFormat": "ddd dd, MMM yyyy",
 	"mediaSize": 1,
@@ -162,6 +162,7 @@
 	"notepadTransparencyOverride": -1,
 	"notepadLastCustomTransparency": 0.8,
 	"soundsEnabled": true,
+	"useSystemSoundTheme": true,
 	"soundNewNotification": true,
 	"soundVolumeChanged": true,
 	"soundPluggedIn": true,
@@ -217,7 +218,8 @@
 	"batteryLockTimeout": 300,
 	"batterySuspendTimeout": 1200,
 	"batteryHibernateTimeout": 1800,
-	"lockBeforeSuspend": false,
+	"lockBeforeSuspend": true,
 	"loginctlLockIntegration": true,
-	"launchPrefix": "uwsm-exec"
+	"launchPrefix": "uwsm-exec",
+	"configVersion": 1
 }
