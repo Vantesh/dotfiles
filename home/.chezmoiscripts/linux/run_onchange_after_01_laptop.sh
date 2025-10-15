@@ -318,6 +318,7 @@ setup_hibernation() {
   mkinitcpio)
     local mkinitcpio_conf="/etc/mkinitcpio.conf"
     local hooks
+    local needs_regen=false
 
     if [[ ! -f "$mkinitcpio_conf" ]]; then
       LAST_ERROR="mkinitcpio.conf not found"
@@ -338,15 +339,51 @@ setup_hibernation() {
           fi
 
           log INFO "Updated mkinitcpio HOOKS (added resume)"
-
-          if ! regenerate_initramfs; then
-            local error_msg="$LAST_ERROR"
-            LAST_ERROR="Failed to regenerate initramfs: $error_msg"
-            return 1
-          fi
-          log INFO "Regenerated initramfs"
+          needs_regen=true
         fi
       fi
+    fi
+
+    local gpu_info
+    gpu_info=$(get_gpu_info)
+    if [[ "$gpu_info" = *"NVIDIA Corporation"* ]]; then
+      local modules
+      modules=$(sed -nE 's/^[[:space:]]*MODULES=\((.*)\)[[:space:]]*$/\1/p' "$mkinitcpio_conf" 2>/dev/null | head -n1)
+
+      local nvidia_modules=("nvidia" "nvidia_modeset" "nvidia_uvm" "nvidia_drm")
+      local missing_modules=()
+
+      for mod in "${nvidia_modules[@]}"; do
+        if [[ "$modules" != *" $mod "* ]] && [[ "$modules" != "$mod "* ]] && [[ "$modules" != *" $mod" ]]; then
+          missing_modules+=("$mod")
+        fi
+      done
+
+      if [[ ${#missing_modules[@]} -gt 0 ]]; then
+        local new_modules="$modules"
+        for mod in "${missing_modules[@]}"; do
+          new_modules="$new_modules $mod"
+        done
+        new_modules=$(xargs <<<"$new_modules")
+
+        if ! sudo sed -i -E "s|^[[:space:]]*MODULES=\(.*\)|MODULES=($new_modules)|" "$mkinitcpio_conf" 2>/dev/null; then
+          LAST_ERROR="Failed to update mkinitcpio MODULES"
+          return 1
+        fi
+
+        log INFO "Updated mkinitcpio MODULES (added ${missing_modules[*]})"
+        needs_regen=true
+      fi
+    fi
+
+    if [[ "$needs_regen" = true ]]; then
+      log INFO "Regenerating initramfs (this may take a moment)..."
+      if ! regenerate_initramfs; then
+        local error_msg="$LAST_ERROR"
+        LAST_ERROR="Failed to regenerate initramfs: $error_msg"
+        return 1
+      fi
+      log INFO "Regenerated initramfs"
     fi
     ;;
   dracut)
@@ -484,7 +521,6 @@ AllowHibernation=yes
 AllowSuspendThenHibernate=yes
 AllowHybridSleep=yes
 HibernateMode=shutdown
-HibernateDelaySec=50min
 EOF
     die "Failed to write systemd sleep config: $LAST_ERROR"
   fi
