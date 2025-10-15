@@ -11,7 +11,9 @@ tmp*
 .local/bin/bw
 
 # App state/cache
-.config/{BraveSoftware,google-chrome,Authy*,Bitwarden*,fcitx5/conf/cached_layouts,lazygit/state.yml,rbw,wakatime}
+.config/{BraveSoftware/*,google-chrome/*,Authy*,Bitwarden*,fcitx5/conf/cached_layouts,lazygit/state.yml,rbw,wakatime}
+!.config/google-chrome/NativeMessagingHosts/**
+!.config/BraveSoftware/NativeMessagingHosts/**
 .config/clipse/{clipboard_history.json,tmp_files}
 .config/nvim/lazy-lock.json
 .config/zsh/.{history,zcompdump}

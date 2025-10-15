@@ -80,62 +80,6 @@ get_bitwarden_email() {
   done
 }
 
-create_browser_manifest() {
-  local target_dir="${1:-}"
-  local manifest
-
-  if [[ -z "$target_dir" ]]; then
-    LAST_ERROR="create_browser_manifest() requires a directory argument"
-    return 2
-  fi
-
-  manifest="$target_dir/com.8bit.bitwarden.json"
-
-  if [[ -f "$manifest" ]]; then
-    return 0
-  fi
-
-  if ! mkdir -p "$target_dir"; then
-    LAST_ERROR="Failed to create directory: $target_dir"
-    return 1
-  fi
-
-  if ! cat >"$manifest" <<'EOF'; then
-{
-  "name": "com.8bit.bitwarden",
-  "description": "Bitwarden desktop <-> browser bridge",
-  "path": "/usr/lib/bitwarden/desktop_proxy",
-  "type": "stdio",
-  "allowed_origins": [
-    "chrome-extension://nngceckbapebfimnlniiiahkandclblb/",
-    "chrome-extension://hccnnhgbibccigepcmlgppchkpfdophk/",
-    "chrome-extension://jbkfoedolllekgbhcbcoahefnbanhhlh/",
-    "chrome-extension://ccnckbpmaceehanjmeomladnmlffdjgn/"
-  ]
-}
-EOF
-    LAST_ERROR="Failed to write manifest: $manifest"
-    return 1
-  fi
-
-  log INFO "Created manifest: $manifest"
-  return 0
-}
-
-setup_browser_integration() {
-  local -a browser_dirs=(
-    "$HOME/.config/BraveSoftware/Brave-Browser/NativeMessagingHosts"
-    "$HOME/.config/google-chrome/NativeMessagingHosts"
-  )
-
-  local dir
-  for dir in "${browser_dirs[@]}"; do
-    if ! create_browser_manifest "$dir"; then
-      log WARN "Failed to create browser manifest in $dir: $LAST_ERROR"
-    fi
-  done
-}
-
 login_bitwarden() {
   local email
 
@@ -169,8 +113,6 @@ main() {
   if ! install_bitwarden_packages; then
     die "Failed to install Bitwarden packages"
   fi
-
-  setup_browser_integration
 
   if ! login_bitwarden; then
     die "Failed to login to Bitwarden: $LAST_ERROR"
