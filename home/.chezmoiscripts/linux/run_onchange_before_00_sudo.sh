@@ -88,6 +88,10 @@ setup_sudo() {
     die "Failed to configure sudo retries"
   fi
 
+  if ! _configure_sudo_keep_variables; then
+    die "Failed to configure sudo keep variables"
+  fi
+
   if ! _configure_faillock; then
     die "Failed to configure faillock"
   fi
