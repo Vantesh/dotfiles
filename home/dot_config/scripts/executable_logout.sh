@@ -11,7 +11,7 @@ Hyprland)
   pid=$(hyprctl clients -j | jq -r --arg app "$EDITOR_CLASS" '.[] | select(.class==$app) | .pid' | head -n1)
   ;;
 niri)
-  pid=$(niri clients -j | jq -r --arg app "$EDITOR_CLASS" '.[] | select(.class==$app) | .pid' | head -n1)
+  pid=$(niri msg --json windows | jq -r --arg app "$EDITOR_CLASS" '.[] | select(.app_id==$app) | .pid' | head -n1)
   ;;
 *)
   pid=$(pgrep -x "$EDITOR_CLASS" | head -n1 || true)
