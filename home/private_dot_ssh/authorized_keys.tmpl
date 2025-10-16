@@ -1,5 +1,7 @@
 {{- if .personal }}
+{{ if not (env "OFFLINE") }}
 {{- range gitHubKeys .git.username }}
 {{ .Key }}
+{{- end }}
 {{- end }}
 {{- end }}

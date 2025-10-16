@@ -82,4 +82,16 @@
 
 [templates.dank]
   input_path  = "./templates/dank.json"
-  output_path = "~/.cache/quickshell/DankMaterialShell/dms-colors.json"
+  output_path = "~/.cache/DankMaterialShell/dms-colors.json"
+
+[config.custom_colors.warning]
+  color = "#f9e2af"
+  blend = true
+
+[config.custom_colors.info]
+  color = "#89b4fa"
+  blend = true
+
+[config.custom_colors.success]
+  color = "#a6e3a1"
+  blend = true

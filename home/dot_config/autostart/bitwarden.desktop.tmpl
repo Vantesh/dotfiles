@@ -1,10 +1,12 @@
-{{- if .personal }}
+{{- $hasBitwardenBin := lookPath "/opt/Bitwarden/bitwarden-app" -}}
+{{- $hasBitwardenDesktop := lookPath "bitwarden-desktop" -}}
+{{- if and .personal (or $hasBitwardenBin $hasBitwardenDesktop) }}
 {{- $pkg := "bitwarden-bin" -}}
 {{- $exec := "/opt/Bitwarden/bitwarden-app" -}}
-{{- if lookPath "bitwarden-desktop" -}}
+{{- if $hasBitwardenDesktop -}}
 {{- $pkg = "bitwarden" -}}
 {{- $exec = "bitwarden-desktop" -}}
-{{- end -}}
+{{- end }}
 
 [Desktop Entry]
 Type=Application

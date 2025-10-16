@@ -15,7 +15,6 @@ source "$LIB_DIR/.lib-common.sh"
 readonly -a USER_SERVICES=(
   "gnome-keyring-daemon.socket"
   "gnome-keyring-daemon.service"
-  "hypridle"
   "mpris-proxy"
 )
 
@@ -24,6 +23,7 @@ readonly -a SYSTEM_SERVICES=(
   "NetworkManager"
   "bluetooth"
   "udisks2"
+  "fstrim.timer"
   "ufw"
 )
 
