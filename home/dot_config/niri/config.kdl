@@ -153,22 +153,27 @@ binds {
     mod+W hotkey-overlay-title="Open a Wallpaper picker" { spawn "dms" "ipc" "call" "file" "browse" "wallpaper"; }
     Mod+Comma hotkey-overlay-title="Open emoji Picker" { spawn "rofimoji"; }
     Mod+L hotkey-overlay-title="Lock the Screen" { spawn-sh "loginctl lock-session $XDG_SESSION_ID"; }
-    Mod+Shift+Return { spawn-sh "xdg-terminal-exec --app-id=FloatingTerm"; }
-    Mod+U { spawn-sh "xdg-terminal-exec --app-id=FloatingTerm ~/.config/scripts/updater.sh"; }
-    Mod+Y { spawn-sh "xdg-terminal-exec --app-id=FloatingTerm yazi"; }
-
-
-    XF86AudioRaiseVolume allow-when-locked=true { spawn "dms" "ipc" "call" "audio" "increment" "5"; }
-    XF86AudioLowerVolume allow-when-locked=true { spawn "dms" "ipc" "call" "audio" "decrement" "5"; }
-    XF86AudioMute        allow-when-locked=true { spawn "dms" "ipc" "call" "audio" "mute"; }
-    XF86AudioMicMute     allow-when-locked=true { spawn "dms" "ipc" "call" "audio" "micmute"; }
-    XF86AudioNext       allow-when-locked=true { spawn "dms" "ipc" "call" "mpris" "next"; }
-    XF86AudioPrev       allow-when-locked=true { spawn "dms" "ipc" "call" "mpris" "previous"; }
-    XF86AudioPlay       allow-when-locked=true { spawn "dms" "ipc" "call" "mpris" "play-pause"; }
+    Mod+Shift+Return hotkey-overlay-title="Open Floating Terminal" { spawn-sh "xdg-terminal-exec --app-id=FloatingTerm"; }
+    Mod+U hotkey-overlay-title="Update System" { spawn-sh "xdg-terminal-exec --app-id=FloatingTerm ~/.config/scripts/updater.sh"; }
+    Mod+Y hotkey-overlay-title="Open Yazi" { spawn-sh "xdg-terminal-exec --app-id=FloatingTerm yazi"; }
 
     // Brightness
     XF86MonBrightnessUp allow-when-locked=true { spawn "dms" "ipc" "call" "brightness" "increment" "5"; }
     XF86MonBrightnessDown allow-when-locked=true { spawn "dms" "ipc" "call" "brightness" "decrement" "5"; }
+
+    // Volume
+    XF86AudioRaiseVolume allow-when-locked=true { spawn "dms" "ipc" "call" "audio" "increment" "5"; }
+    XF86AudioLowerVolume allow-when-locked=true { spawn "dms" "ipc" "call" "audio" "decrement" "5"; }
+    XF86AudioMute allow-when-locked=true { spawn "dms" "ipc" "call" "audio" "mute"; }
+    XF86AudioMicMute allow-when-locked=true { spawn "dms" "ipc" "call" "audio" "micmute"; }
+
+    // Media
+    XF86AudioPlay { spawn "dms" "ipc" "call" "mpris" "playPause"; }
+    XF86AudioNext { spawn "dms" "ipc" "call" "mpris" "next"; }
+    XF86AudioPrev { spawn "dms" "ipc" "call" "mpris" "previous"; }
+
+    //power button
+    XF86PowerOff hotkey-overlay-title="Lock Screen" { spawn-sh "~/.config/scripts/rofi/powermenu"; }
 
     Mod+O repeat=false { toggle-overview; }
     Mod+Q repeat=false { close-window; }
@@ -296,8 +301,8 @@ binds {
     Mod+Shift+W { toggle-column-tabbed-display; }
 
 
-    Print { screenshot; }
-    Shift+Print { screenshot-screen; }
+    Print hotkey-overlay-title="Take a Screenshot/Screen Recording" {spawn-sh "$HOME/.config/scripts/rofi/screenshot"; }
+    Shift+Print { screenshot; }
     Alt+Print { screenshot-window; }
     Mod+Escape allow-inhibiting=false { toggle-keyboard-shortcuts-inhibit; }
     Mod+Alt+Delete hotkey-overlay-title="Exit Niri" { spawn-sh "$HOME/.config/scripts/logout.sh"; }
@@ -324,6 +329,7 @@ spawn-at-startup "clipse -listen"
 spawn-sh-at-startup "uwsm-exec ~/.config/scripts/polkit-agent"
 spawn-sh-at-startup "uwsm-exec ~/.config/scripts/initial_boot"
 spawn-at-startup "xwayland-satellite"
+
 
 
 window-rule {
