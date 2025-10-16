@@ -48,12 +48,12 @@ run_cmd() {
       systemctl reboot
     elif [[ $1 == '--suspend' ]]; then
       mpc -q pause
-      dmsctl lock
+      loginctl lock-sessions "$XDG_SESSION_ID"
       systemctl suspend
     elif [[ $1 == '--logout' ]]; then
-      dmsctl logout
+      ~/.config/scripts/logout.sh
     elif [[ $1 == '--lock' ]]; then
-      dmsctl lock
+      loginctl lock-sessions "$XDG_SESSION_ID"
     fi
   else
     exit 0
