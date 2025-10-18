@@ -156,6 +156,21 @@ set_time_locale() {
   return 0
 }
 
+setup_nvim() {
+  if ! command_exists nvim; then
+    log SKIP "Neovim not installed"
+    return 0
+  fi
+
+  if ! nvim --headless "+Lazy! sync" +qa >/dev/null 2>&1; then
+    LAST_ERROR="Failed to synchronize Neovim plugins"
+    return 1
+  fi
+
+  log INFO "Synchronized Neovim plugins"
+  return 0
+}
+
 main() {
   print_box "Miscellaneous"
   log STEP "Miscellaneous Configuration"
@@ -184,6 +199,13 @@ main() {
 
   if ! set_time_locale; then
     log WARN "Time locale configuration failed: $LAST_ERROR"
+  fi
+
+  if [[ ! -d "${HOME}/.local/share/nvim/lazy" ]]; then
+    log INFO "Setting Up Nvim (This may take a while)..."
+    if ! setup_nvim; then
+      log WARN "Neovim setup failed: $LAST_ERROR"
+    fi
   fi
 
   log INFO "Miscellaneous configuration complete"
