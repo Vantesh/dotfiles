@@ -327,25 +327,107 @@ setup_hibernation() {
 
     hooks=$(sed -nE 's/^[[:space:]]*HOOKS=\((.*)\)[[:space:]]*$/\1/p' "$mkinitcpio_conf" 2>/dev/null | head -n1)
 
-    if [[ -n "$hooks" ]] && [[ "$hooks" != *" systemd "* ]]; then
-      if [[ "$hooks" != *" resume "* ]]; then
-        local new_hooks
-        new_hooks=$(sed -E 's/(^| )filesystems( |$)/\1filesystems resume\2/' <<<"$hooks" | xargs)
+    # Convert to systemd-based initramfs hooks for better hibernation support
+    if [[ -n "$hooks" ]]; then
+      local new_hooks="$hooks"
+      local hooks_changed=false
 
-        if [[ "$new_hooks" != "$hooks" ]]; then
-          if ! sudo sed -i -E "s|^[[:space:]]*HOOKS=\(.*\)|HOOKS=($new_hooks)|" "$mkinitcpio_conf" 2>/dev/null; then
-            LAST_ERROR="Failed to update mkinitcpio HOOKS"
-            return 1
+      # Define hook replacements: "old_hook:new_hook" (empty new_hook means remove)
+      local -a hook_replacements=(
+        "udev:systemd"
+        "usr:systemd"
+        "keymap:sd-vconsole"
+        "consolefont:sd-vconsole"
+        "btrfs-overlayfs:sd-btrfs-overlayfs"
+        "resume:"
+        "shutdown:sd-shutdown"
+        "encrypt:sd-encrypt"
+      )
+
+      local old_hook new_hook replacement
+      for replacement in "${hook_replacements[@]}"; do
+        old_hook="${replacement%%:*}"
+        new_hook="${replacement#*:}"
+
+        if [[ "$new_hooks" =~ (^|[[:space:]])${old_hook}([[:space:]]|$) ]]; then
+          if [[ -n "$new_hook" ]]; then
+            new_hooks=$(echo "$new_hooks" | sed -E "s/(^|[[:space:]])${old_hook}([[:space:]]|$)/\1${new_hook}\2/")
+            log INFO "Replaced '${old_hook}' with '${new_hook}' hook"
+          else
+            new_hooks=$(echo "$new_hooks" | sed -E "s/(^|[[:space:]])${old_hook}([[:space:]]|$)/\1\2/")
+            log INFO "Removed '${old_hook}' hook (handled by systemd)"
           fi
-
-          log INFO "Updated mkinitcpio HOOKS (added resume)"
-          needs_regen=true
+          hooks_changed=true
         fi
+      done
+
+      # Clean up extra spaces and remove duplicates while preserving order
+      new_hooks=$(echo "$new_hooks" | tr -s ' ' | sed 's/^ //; s/ $//')
+
+      # Remove duplicate hooks while preserving order
+      if [[ "$hooks_changed" == true ]]; then
+        local -a hook_array seen_hooks final_hooks
+        read -ra hook_array <<<"$new_hooks"
+
+        for hook in "${hook_array[@]}"; do
+          local found=false
+          for seen in "${seen_hooks[@]}"; do
+            if [[ "$hook" == "$seen" ]]; then
+              found=true
+              break
+            fi
+          done
+          if [[ "$found" == false ]]; then
+            seen_hooks+=("$hook")
+            final_hooks+=("$hook")
+          fi
+        done
+
+        new_hooks="${final_hooks[*]}"
+      fi
+
+      if [[ "$hooks_changed" == true ]]; then
+        if ! sudo sed -i -E "s|^[[:space:]]*HOOKS=\(.*\)|HOOKS=($new_hooks)|" "$mkinitcpio_conf" 2>/dev/null; then
+          LAST_ERROR="Failed to update mkinitcpio HOOKS"
+          return 1
+        fi
+        log INFO "Converted to systemd-based initramfs hooks"
+        needs_regen=true
       fi
     fi
 
     local gpu_info
     gpu_info=$(get_gpu_info)
+
+    # Add hibernation compression modules
+    local modules
+    modules=$(sed -nE 's/^[[:space:]]*MODULES=\((.*)\)[[:space:]]*$/\1/p' "$mkinitcpio_conf" 2>/dev/null | head -n1)
+
+    local compression_modules=("lz4" "lz4_compress")
+    local missing_compression=()
+
+    for mod in "${compression_modules[@]}"; do
+      if [[ "$modules" != *" $mod "* ]] && [[ "$modules" != "$mod "* ]] && [[ "$modules" != *" $mod" ]] && [[ "$modules" != "$mod" ]]; then
+        missing_compression+=("$mod")
+      fi
+    done
+
+    if [[ ${#missing_compression[@]} -gt 0 ]]; then
+      local new_modules="$modules"
+      for mod in "${missing_compression[@]}"; do
+        new_modules="$new_modules $mod"
+      done
+      new_modules=$(xargs <<<"$new_modules")
+
+      if ! sudo sed -i -E "s|^[[:space:]]*MODULES=\(.*\)|MODULES=($new_modules)|" "$mkinitcpio_conf" 2>/dev/null; then
+        LAST_ERROR="Failed to update mkinitcpio MODULES for compression"
+        return 1
+      fi
+
+      log INFO "Updated mkinitcpio MODULES (added ${missing_compression[*]} for hibernation compression)"
+      needs_regen=true
+    fi
+
     if [[ "$gpu_info" = *"NVIDIA Corporation"* ]]; then
       local modules
       modules=$(sed -nE 's/^[[:space:]]*MODULES=\((.*)\)[[:space:]]*$/\1/p' "$mkinitcpio_conf" 2>/dev/null | head -n1)
