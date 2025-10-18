@@ -118,6 +118,14 @@ main() {
     die "Failed to login to Bitwarden: $LAST_ERROR"
   fi
 
+  if ! rbw config set pinentry pinentry-qt; then
+    log WARN "Failed to set rbw pinentry configuration"
+  fi
+
+  if ! rbw config set lock_timeout 10800; then
+    log WARN "Failed to set rbw lock_timeout configuration"
+  fi
+
 }
 
 main "$@"
