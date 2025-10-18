@@ -150,7 +150,7 @@ create_btrfs_swap() {
 
     log INFO "Created btrfs swapfile: $SWAP_FILE_PATH ($swap_size)"
 
-    if ! uuid=$(sudo blkid -s UUID -o value "$btrfs_root" 2>/dev/null); then
+    if ! uuid=$(blkid -s UUID -o value "$btrfs_root" 2>/dev/null); then
       LAST_ERROR="Failed to get UUID of btrfs root device"
       return 1
     fi
@@ -162,7 +162,7 @@ create_btrfs_swap() {
     fi
   fi
 
-  if ! sudo swapon --show 2>/dev/null | grep -q "$SWAP_FILE_PATH"; then
+  if ! swapon --show 2>/dev/null | grep -q "$SWAP_FILE_PATH"; then
     if ! sudo swapon "$SWAP_FILE_PATH" >/dev/null 2>&1; then
       LAST_ERROR="Failed to activate swapfile"
       return 1
@@ -181,7 +181,7 @@ create_btrfs_swap() {
 }
 
 get_swap_path() {
-  sudo swapon --show=NAME --noheadings 2>/dev/null | awk '$1 !~ /\/dev\/zram/ {print; exit}'
+  swapon --show=NAME --noheadings 2>/dev/null | awk '$1 !~ /\/dev\/zram/ {print; exit}'
 }
 
 # Remove both hibernation and quiet boot parameters from a command line string
@@ -232,7 +232,7 @@ setup_hibernation() {
 
   if [[ -n "$swap_path" ]]; then
     if [[ -b "$swap_path" ]]; then
-      if ! resume_uuid=$(sudo blkid -s UUID -o value "$swap_path" 2>/dev/null); then
+      if ! resume_uuid=$(blkid -s UUID -o value "$swap_path" 2>/dev/null); then
         LAST_ERROR="Failed to get UUID for swap device: $swap_path"
         return 1
       fi
@@ -245,7 +245,7 @@ setup_hibernation() {
         return 1
       fi
 
-      if ! resume_uuid=$(sudo blkid -s UUID -o value "$btrfs_root" 2>/dev/null); then
+      if ! resume_uuid=$(blkid -s UUID -o value "$btrfs_root" 2>/dev/null); then
         LAST_ERROR="Failed to get UUID for btrfs root device"
         return 1
       fi
@@ -569,7 +569,7 @@ EOF
 
     local svc
     for svc in "${services[@]}"; do
-      if ! sudo systemctl --quiet is-enabled "$svc" 2>/dev/null; then
+      if ! systemctl --quiet is-enabled "$svc" 2>/dev/null; then
         if ! enable_service "$svc" "system"; then
           log WARN "Failed to enable $svc: $LAST_ERROR"
         fi
