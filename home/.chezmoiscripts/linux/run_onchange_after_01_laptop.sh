@@ -396,64 +396,171 @@ setup_hibernation() {
       fi
     fi
 
+    # Get GPU info early to determine module order
     local gpu_info
     gpu_info=$(get_gpu_info)
 
-    # Add hibernation compression modules
     local modules
     modules=$(sed -nE 's/^[[:space:]]*MODULES=\((.*)\)[[:space:]]*$/\1/p' "$mkinitcpio_conf" 2>/dev/null | head -n1)
 
+    # Build ordered list of modules ensuring correct order
+    # CRITICAL: NVIDIA modules MUST come before compression modules for hibernation to work
+    local -a current_modules
+    local nvidia_modules=("nvidia" "nvidia_modeset" "nvidia_uvm" "nvidia_drm")
     local compression_modules=("lz4" "lz4_compress")
-    local missing_compression=()
+    local needs_reorder=false
+    local has_nvidia=false
 
-    for mod in "${compression_modules[@]}"; do
-      if [[ "$modules" != *" $mod "* ]] && [[ "$modules" != "$mod "* ]] && [[ "$modules" != *" $mod" ]] && [[ "$modules" != "$mod" ]]; then
-        missing_compression+=("$mod")
-      fi
-    done
-
-    if [[ ${#missing_compression[@]} -gt 0 ]]; then
-      local new_modules="$modules"
-      for mod in "${missing_compression[@]}"; do
-        new_modules="$new_modules $mod"
-      done
-      new_modules=$(xargs <<<"$new_modules")
-
-      if ! sudo sed -i -E "s|^[[:space:]]*MODULES=\(.*\)|MODULES=($new_modules)|" "$mkinitcpio_conf" 2>/dev/null; then
-        LAST_ERROR="Failed to update mkinitcpio MODULES for compression"
-        return 1
-      fi
-
-      log INFO "Updated mkinitcpio MODULES (added ${missing_compression[*]} for hibernation compression)"
-      needs_regen=true
-    fi
+    read -ra current_modules <<<"$modules"
 
     if [[ "$gpu_info" = *"NVIDIA Corporation"* ]]; then
-      local modules
-      modules=$(sed -nE 's/^[[:space:]]*MODULES=\((.*)\)[[:space:]]*$/\1/p' "$mkinitcpio_conf" 2>/dev/null | head -n1)
+      has_nvidia=true
+    fi
 
-      local nvidia_modules=("nvidia" "nvidia_modeset" "nvidia_uvm" "nvidia_drm")
-      local missing_modules=()
+    # Check if we have both NVIDIA and compression modules, and if compression comes first
+    if [[ "$has_nvidia" = true ]]; then
+      local first_nvidia_idx=-1
+      local first_compression_idx=-1
 
-      for mod in "${nvidia_modules[@]}"; do
-        if [[ "$modules" != *" $mod "* ]] && [[ "$modules" != "$mod "* ]] && [[ "$modules" != *" $mod" ]]; then
-          missing_modules+=("$mod")
+      for i in "${!current_modules[@]}"; do
+        local mod="${current_modules[$i]}"
+
+        # Find first NVIDIA module index
+        if [[ $first_nvidia_idx -eq -1 ]]; then
+          for nvidia_mod in "${nvidia_modules[@]}"; do
+            if [[ "$mod" = "$nvidia_mod" ]]; then
+              first_nvidia_idx=$i
+              break
+            fi
+          done
+        fi
+
+        # Find first compression module index
+        if [[ $first_compression_idx -eq -1 ]]; then
+          for comp_mod in "${compression_modules[@]}"; do
+            if [[ "$mod" = "$comp_mod" ]]; then
+              first_compression_idx=$i
+              break
+            fi
+          done
         fi
       done
 
-      if [[ ${#missing_modules[@]} -gt 0 ]]; then
-        local new_modules="$modules"
-        for mod in "${missing_modules[@]}"; do
-          new_modules="$new_modules $mod"
-        done
-        new_modules=$(xargs <<<"$new_modules")
+      # If compression modules exist and come before NVIDIA modules (or NVIDIA doesn't exist yet), reorder
+      if [[ $first_compression_idx -ne -1 ]] && { [[ $first_nvidia_idx -eq -1 ]] || [[ $first_compression_idx -lt $first_nvidia_idx ]]; }; then
+        needs_reorder=true
+      fi
+    fi
 
-        if ! sudo sed -i -E "s|^[[:space:]]*MODULES=\(.*\)|MODULES=($new_modules)|" "$mkinitcpio_conf" 2>/dev/null; then
+    # Rebuild module list with correct order
+    if [[ "$needs_reorder" = true ]] || [[ "$has_nvidia" = true ]]; then
+      local -a final_modules=()
+      local -a other_modules=()
+      local -a nvidia_to_add=()
+      local -a compression_to_add=()
+
+      # Separate modules into categories
+      for mod in "${current_modules[@]}"; do
+        local is_nvidia=false
+        local is_compression=false
+
+        for nvidia_mod in "${nvidia_modules[@]}"; do
+          if [[ "$mod" = "$nvidia_mod" ]]; then
+            is_nvidia=true
+            break
+          fi
+        done
+
+        if [[ "$is_nvidia" = false ]]; then
+          for comp_mod in "${compression_modules[@]}"; do
+            if [[ "$mod" = "$comp_mod" ]]; then
+              is_compression=true
+              break
+            fi
+          done
+        fi
+
+        if [[ "$is_nvidia" = false ]] && [[ "$is_compression" = false ]]; then
+          other_modules+=("$mod")
+        fi
+      done
+
+      # Determine which modules to add
+      if [[ "$has_nvidia" = true ]]; then
+        for nvidia_mod in "${nvidia_modules[@]}"; do
+          local found=false
+          for mod in "${current_modules[@]}"; do
+            if [[ "$mod" = "$nvidia_mod" ]]; then
+              found=true
+              break
+            fi
+          done
+          if [[ "$found" = false ]]; then
+            nvidia_to_add+=("$nvidia_mod")
+          fi
+        done
+      fi
+
+      for comp_mod in "${compression_modules[@]}"; do
+        local found=false
+        for mod in "${current_modules[@]}"; do
+          if [[ "$mod" = "$comp_mod" ]]; then
+            found=true
+            break
+          fi
+        done
+        if [[ "$found" = false ]]; then
+          compression_to_add+=("$comp_mod")
+        fi
+      done
+
+      # Build final module list: other modules + NVIDIA modules + compression modules
+      final_modules=("${other_modules[@]}")
+
+      if [[ "$has_nvidia" = true ]]; then
+        # Add existing NVIDIA modules first
+        for nvidia_mod in "${nvidia_modules[@]}"; do
+          for mod in "${current_modules[@]}"; do
+            if [[ "$mod" = "$nvidia_mod" ]]; then
+              final_modules+=("$mod")
+              break
+            fi
+          done
+        done
+        # Then add any missing NVIDIA modules
+        final_modules+=("${nvidia_to_add[@]}")
+      fi
+
+      # Add existing compression modules
+      for comp_mod in "${compression_modules[@]}"; do
+        for mod in "${current_modules[@]}"; do
+          if [[ "$mod" = "$comp_mod" ]]; then
+            final_modules+=("$mod")
+            break
+          fi
+        done
+      done
+      # Then add any missing compression modules
+      final_modules+=("${compression_to_add[@]}")
+
+      # Only update if something changed
+      if [[ "${final_modules[*]}" != "${current_modules[*]}" ]]; then
+        local new_modules_str="${final_modules[*]}"
+
+        if ! sudo sed -i -E "s|^[[:space:]]*MODULES=\(.*\)|MODULES=($new_modules_str)|" "$mkinitcpio_conf" 2>/dev/null; then
           LAST_ERROR="Failed to update mkinitcpio MODULES"
           return 1
         fi
 
-        log INFO "Updated mkinitcpio MODULES (added ${missing_modules[*]})"
+        if [[ "$needs_reorder" = true ]]; then
+          log INFO "Reordered mkinitcpio MODULES (NVIDIA before compression)"
+        fi
+
+        if [[ ${#nvidia_to_add[@]} -gt 0 ]] || [[ ${#compression_to_add[@]} -gt 0 ]]; then
+          local -a added=("${nvidia_to_add[@]}" "${compression_to_add[@]}")
+          log INFO "Updated mkinitcpio MODULES (added ${added[*]})"
+        fi
+
         needs_regen=true
       fi
     fi
