@@ -99,6 +99,9 @@ create_btrfs_swap() {
   local temp_mount
   local btrfs_root
   local uuid
+  local swap_size
+  local needs_mount_fstab=false
+  local needs_swap_fstab=false
 
   LAST_ERROR=""
 
@@ -108,7 +111,7 @@ create_btrfs_swap() {
     return 1
   fi
 
-  if ! sudo btrfs subvolume list / 2>/dev/null | grep -q "$SWAP_SUBVOL"; then
+  if ! sudo btrfs subvolume list / 2>/dev/null | grep -qE "(^|[[:space:]])${SWAP_SUBVOL}([[:space:]]|$)"; then
     temp_mount=$(mktemp -d)
     trap 'mountpoint -q "${temp_mount:-}" 2>/dev/null && sudo umount "${temp_mount}" >/dev/null 2>&1; [[ -d "${temp_mount:-}" ]] && rm -rf "${temp_mount}"' RETURN EXIT ERR
 
@@ -121,8 +124,6 @@ create_btrfs_swap() {
       LAST_ERROR="Failed to create btrfs swap subvolume"
       return 1
     fi
-
-    log INFO "Created btrfs swap subvolume"
   fi
 
   if ! mountpoint -q "$SWAP_MOUNT_POINT"; then
@@ -136,11 +137,11 @@ create_btrfs_swap() {
       return 1
     fi
 
-    log INFO "Mounted btrfs swap subvolume"
+    needs_mount_fstab=true
   fi
 
+  # Create swapfile if it doesn't exist
   if [[ ! -f "$SWAP_FILE_PATH" ]]; then
-    local swap_size
     swap_size=$(calculate_swap_size)
 
     if ! sudo btrfs filesystem mkswapfile --size "$swap_size" --uuid clear "$SWAP_FILE_PATH" >/dev/null 2>&1; then
@@ -148,10 +149,22 @@ create_btrfs_swap() {
       return 1
     fi
 
-    log INFO "Created btrfs swapfile: $SWAP_FILE_PATH ($swap_size)"
+    log INFO "Created btrfs swapfile ($swap_size)"
+  fi
 
-    if ! uuid=$(blkid -s UUID -o value "$btrfs_root" 2>/dev/null); then
-      LAST_ERROR="Failed to get UUID of btrfs root device"
+  # Activate swapfile if not already active
+  if ! swapon --show 2>/dev/null | grep -qF "$SWAP_FILE_PATH"; then
+    if ! sudo swapon "$SWAP_FILE_PATH" >/dev/null 2>&1; then
+      LAST_ERROR="Failed to activate swapfile"
+      return 1
+    fi
+
+    needs_swap_fstab=true
+  fi
+
+  if [[ "$needs_mount_fstab" == true ]]; then
+    if ! uuid=$(lsblk -fno UUID "$btrfs_root" 2>/dev/null); then
+      LAST_ERROR="Failed to get UUID of btrfs root device: $btrfs_root"
       return 1
     fi
 
@@ -162,19 +175,14 @@ create_btrfs_swap() {
     fi
   fi
 
-  if ! swapon --show 2>/dev/null | grep -q "$SWAP_FILE_PATH"; then
-    if ! sudo swapon "$SWAP_FILE_PATH" >/dev/null 2>&1; then
-      LAST_ERROR="Failed to activate swapfile"
-      return 1
-    fi
-
-    log INFO "Activated btrfs swapfile"
-
+  if [[ "$needs_swap_fstab" == true ]]; then
     if ! add_fstab_entry "$SWAP_FILE_PATH none swap defaults 0 0" "swapfile"; then
       local error_msg="$LAST_ERROR"
       LAST_ERROR="Failed to add swapfile to fstab: $error_msg"
       return 1
     fi
+
+    log INFO "Added swapfile to /etc/fstab"
   fi
 
   return 0
@@ -197,7 +205,9 @@ remove_managed_params() {
 # Globals:
 #   LAST_ERROR - Set on failure
 # Returns:
-#   0 on success
+#   0 on success (hibernation fully configured)
+#   2 on graceful skip (swap creation failed)
+#   1 on error (restore backups)
 setup_hibernation() {
   local swap_path
   local generator
@@ -215,16 +225,16 @@ setup_hibernation() {
     log INFO "No swap found, creating btrfs swapfile"
 
     if ! create_btrfs_swap; then
-      local error_msg="$LAST_ERROR"
-      LAST_ERROR="Failed to create btrfs swap: $error_msg"
-      return 1
+      log WARN "Failed to create btrfs swap: $LAST_ERROR"
+      log WARN "Skipping hibernation setup due to swap creation failure"
+      return 2
     fi
 
     swap_path=$(get_swap_path)
 
     if [[ -z "$swap_path" ]]; then
-      log WARN "Swap still not detected after creation; resume parameters will be skipped"
-      hibernation_params=("hibernate.compressor=lz4")
+      log WARN "Swap still not detected after creation"
+      return 2
     fi
   fi
 
@@ -232,12 +242,13 @@ setup_hibernation() {
 
   if [[ -n "$swap_path" ]]; then
     if [[ -b "$swap_path" ]]; then
-      if ! resume_uuid=$(blkid -s UUID -o value "$swap_path" 2>/dev/null); then
+      if ! resume_uuid=$(lsblk -fno UUID "$swap_path" 2>/dev/null); then
         LAST_ERROR="Failed to get UUID for swap device: $swap_path"
         return 1
       fi
 
       hibernation_params+=("resume=UUID=$resume_uuid")
+
     elif [[ -f "$swap_path" ]]; then
       if ! btrfs_root=$(get_btrfs_root_device); then
         local error_msg="$LAST_ERROR"
@@ -245,7 +256,7 @@ setup_hibernation() {
         return 1
       fi
 
-      if ! resume_uuid=$(blkid -s UUID -o value "$btrfs_root" 2>/dev/null); then
+      if ! resume_uuid=$(lsblk -fno UUID "$btrfs_root" 2>/dev/null); then
         LAST_ERROR="Failed to get UUID for btrfs root device"
         return 1
       fi
@@ -256,6 +267,7 @@ setup_hibernation() {
       fi
 
       hibernation_params+=("resume=UUID=$resume_uuid" "resume_offset=$resume_offset")
+
     else
       log WARN "Swap path $swap_path is neither block device nor file"
     fi
@@ -682,7 +694,22 @@ main() {
     fi
   fi
 
-  if ! setup_hibernation; then
+  # setup_hibernation returns:
+  # 0: success (hibernation fully configured)
+  # 2: graceful skip (swap creation failed, no backups to restore)
+  # 1: error (restore backups)
+  setup_hibernation
+  local setup_result=$?
+
+  case $setup_result in
+  0) ;;
+  2)
+    # Graceful skip due to swap creation failure
+    log SKIP "Hibernation setup skipped due to swap creation failure"
+    return 0
+    ;;
+  1)
+    # Error during setup, restore backups
     local error_msg="$LAST_ERROR"
     local restore_failures=0
 
@@ -701,7 +728,11 @@ main() {
     else
       die "Hibernation setup failed: $error_msg (warning: some backups may not have been restored)"
     fi
-  fi
+    ;;
+  *)
+    die "Unexpected return code from setup_hibernation: $setup_result"
+    ;;
+  esac
 
   if ! write_system_config "/etc/systemd/sleep.conf.d/hibernation.conf" <<'EOF'; then
 [Sleep]
