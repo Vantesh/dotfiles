@@ -49,7 +49,6 @@ alias ln="ln -i"
 [ -x "$(command -v delta)" ] && alias diff="delta"
 
 [ -x "$(command -v curlie)" ] && alias curl="curlie"
-[ -x "$(command -v tldr)" ] && alias help="tldr"
 
 [ -x "$(command -v nvim)" ] && {
     alias vim="nvim"
@@ -57,12 +56,6 @@ alias ln="ln -i"
     alias vimdiff="nvim -d"
     alias view="nvim -R"
     alias v="nvim"
-}
-
-[ -x "$(command -v ouch)" ] && {
-
-    alias zip="ouch -q compress"
-    alias unzip="ouch -q decompress"
 }
 
 # --------------------------------------------------------------------
@@ -73,6 +66,8 @@ alias wget='wget --hsts-file="$XDG_DATA_HOME/wget-hsts" -c'
 alias jtcl="journalctl -p 3 -xb"
 alias h="history"
 alias mkdir="mkdir -p"
+
+{{- if eq .distroFamily "arch" }}
 
 # --------------------------------------------------------------------
 # PACKAGE MANAGEMENT (Arch Linux)
@@ -88,33 +83,4 @@ if [ ! -x "$(command -v yay)" ] && [ -x "$(command -v paru)" ]; then
     alias yayf='paru -Slq | fzf --multi --preview "paru -Sii {1}" --preview-window=down:75% | xargs -ro paru -S'
 fi
 
-# --------------------------------------------------------------------
-# SPECIAL FUNCTIONS
-# --------------------------------------------------------------------
-update() {
-    if command -v topgrade &>/dev/null; then
-        topgrade -k --only system
-    elif command -v yay &>/dev/null; then
-        yay -Syu "$@"
-    else
-        sudo pacman -Syu "$@"
-    fi
-}
-
-update-all() {
-    if command -v topgrade &>/dev/null; then
-        topgrade -k --no-self-update "$@"
-    else
-        echo "topgrade is not installed."
-    fi
-}
-
-clean() {
-    sudo paccache -rk1
-    sudo paccache -ruk0
-    cargo cache -a
-}
-
-safetouch() {
-    mkdir -p "$(dirname "$1")" && touch "$1"
-}
+{{- end }}

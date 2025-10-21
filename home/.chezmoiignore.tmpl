@@ -83,3 +83,9 @@ tmp*
 {{ if not (.distroFamily | contains "fedora") -}}
 .chezmoiscripts/linux/01-fedora/**
 {{ end }}
+
+# personal files
+{{- if not .personal }}
+.config/atuin
+.config/fish/conf.d/atuin.fish
+{{- end }}
