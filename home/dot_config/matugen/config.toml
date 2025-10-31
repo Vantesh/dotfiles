@@ -1,5 +1,7 @@
 [config]
 
+  caching = true
+
 [templates.kitty]
   input_path  = './templates/terminal/kitty.conf'
   output_path = '~/.config/kitty/colors.conf'
