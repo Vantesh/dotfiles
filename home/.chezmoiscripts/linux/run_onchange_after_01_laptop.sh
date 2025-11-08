@@ -739,6 +739,7 @@ main() {
 AllowSuspend=yes
 AllowHibernation=yes
 AllowSuspendThenHibernate=yes
+HibernationDelaySec=30min
 AllowHybridSleep=yes
 HibernateMode=shutdown
 EOF
