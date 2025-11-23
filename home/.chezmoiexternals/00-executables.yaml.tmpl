@@ -19,11 +19,11 @@
   path: "dgop-linux-{{ .chezmoi.arch }}"
 
 {{/* dms - AvengeMedia/dms */}}
-{{- $tag := (gitHubLatestRelease "AvengeMedia/danklinux").TagName }}
+{{- $tag := (gitHubLatestRelease "AvengeMedia/DankMaterialShell").TagName }}
 ".local/bin/dms":
   type: file
   executable: true
-  url: "https://github.com/AvengeMedia/danklinux/releases/download/{{ $tag }}/dms-{{ .chezmoi.arch }}.gz"
+  url: "https://github.com/AvengeMedia/DankMaterialShell/releases/download/{{ $tag }}/dms-cli-{{ .chezmoi.arch }}.gz"
   decompress: gzip
   refreshPeriod: "36h"
 
