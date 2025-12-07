@@ -1,9 +1,10 @@
 #!/bin/bash
 
 get_current_song() {
-  SPOTIFY_ICON="<span color='#a6e3a1'>󰓇 </span>"
-  FIREFOX_ICON="<span color='#f38ba8'> </span>"
-  VLC_ICON="<span color='#FFDB3C > 󰕼 </span>"
+  SPOTIFY_ICON="<span color='#A6E3A1'>󰓇 </span>"
+  FIREFOX_ICON="<span color='#F38BA8'> </span>"
+  VLC_ICON="<span color='#FFDB3C'>󰕼 </span>"
+  YOUTUBE_ICON="<span color='#FF0033'>  </span>"
 
   command -v playerctl &>/dev/null || exit 1
 
@@ -24,7 +25,20 @@ get_current_song() {
     -e 's/\s{2,}/ /g' \
     -e 's/^\s+|\s+$//g')
 
+  escape_pango() {
+    echo "$1" | sed \
+      -e 's/&/\&amp;/g' \
+      -e 's/</\&lt;/g' \
+      -e 's/>/\&gt;/g' \
+      -e 's/"/\&quot;/g' \
+      -e "s/'/\&apos;/g"
+  }
+
+  escape_artist=$(escape_pango "$artist")
+  escape_title=$(escape_pango "$cleaned_title")
+
   case "$current_player" in
+  *YoutubeMusic*) icon="$YOUTUBE_ICON" ;;
   *spotify*) icon="$SPOTIFY_ICON" ;;
   *mpv*) icon="" ;;
   *vlc*) icon="$VLC_ICON" ;;
@@ -34,11 +48,11 @@ get_current_song() {
   *) icon="" ;;
   esac
 
-  if [ -n "$cleaned_title" ]; then
-    if [[ -n "$artist" && "$cleaned_title" != *"$artist"* ]]; then
-      echo "$icon $artist - $cleaned_title"
+  if [ -n "$escape_title" ]; then
+    if [[ -n "$escape_artist" && "$escaped_title" != *"$escape_artist"* ]]; then
+      echo "$icon $escape_artist - $escape_title"
     else
-      echo "$icon $cleaned_title"
+      echo "$icon $escape_title"
     fi
   fi
 }
