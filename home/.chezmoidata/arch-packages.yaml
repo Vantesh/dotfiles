@@ -101,7 +101,7 @@ arch:
     - xdg-terminal-exec-git
     - quickshell-git
     - clipse-gui
-    - matugen-bin
+    - matugen
     - gpu-screen-recorder-git
 
   optional:
