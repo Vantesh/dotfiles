@@ -1,11 +1,11 @@
 [[plugin.deps]]
 use = "ahkohd/eza-preview"
-rev = "a97cf55"
-hash = "cc3aef07a8b1c3fe820f1fbb9a5a2483"
+rev = "7a2d60f"
+hash = "eed8e19469f3dca38fd977eb938dd34e"
 
 [[plugin.deps]]
 use = "yazi-rs/plugins:full-border"
-rev = "8f1d971"
+rev = "88990a6"
 hash = "3996fc74044bc44144b323686f887e1"
 
 [flavor]
