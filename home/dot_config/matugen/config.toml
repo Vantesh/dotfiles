@@ -10,7 +10,7 @@
 
 [templates.hyprland]
   input_path  = './templates/hypr/hyprland.conf'
-  output_path = '~/.config/hypr/hyprland/colors.conf'
+  output_path = '~/.config/hypr/dms/colors.conf'
 
 [templates.hyprlock-icon]
   input_path  = './templates/hypr/icon.svg'
