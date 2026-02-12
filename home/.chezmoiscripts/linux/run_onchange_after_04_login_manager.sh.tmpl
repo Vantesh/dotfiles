@@ -115,7 +115,7 @@ main() {
   disable_conflicting_dms
   configure_ly
 
-  if ! enable_service "ly.service" "system"; then
+  if ! enable_service "ly@tty2.service" "system"; then
     die "Failed : $LAST_ERROR"
   else
     log INFO "${COLOR_GREEN}ly.service${COLOR_RESET} enabled"
