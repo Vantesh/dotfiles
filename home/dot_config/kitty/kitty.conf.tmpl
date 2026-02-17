@@ -43,11 +43,10 @@ map kitty_mod+e launch --type=background --cwd=current sh -c 'hyprctl dispatch e
 #open current dir with vscode
 map kitty_mod+j launch --type=background --cwd=current sh -c 'uwsm-exec code $(pwd)'
 
-#include matugen theme
-include colors.conf
+# Include dank colors
+include ./dank-theme.conf
+include ./dank-tabs.conf
 
-#include terminal colors
-include dank16.conf
 
 # fonts
 font_size {{ .font.terminal.size }}
