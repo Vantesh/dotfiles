@@ -165,9 +165,11 @@ if [[ "${INSTALL_DRIVERS:-1}" == "1" ]]; then
     # Select NVIDIA variant based on GPU generation
     nvidia_variant=""
     if echo "$gpu_info" | grep -q -E "RTX [2-9][0-9]|GTX 16"; then
+      # Turing+ (RTX 20xx, GTX 16xx): Use open kernel modules
       nvidia_variant="nvidia-open-dkms"
     else
-      nvidia_variant="nvidia-dkms"
+      # Pascal/Maxwell/older (GTX 10xx and older): Use legacy 580xx
+      nvidia_variant="nvidia-580xx-dkms"
     fi
 
     # Skip variant selection on certain distros

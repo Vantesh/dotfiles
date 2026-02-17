@@ -126,7 +126,6 @@ arch:
 
     nvidia:
       - libva-nvidia-driver
-      - nvidia-utils
       - nvidia-settings
       - nvidia-prime
       - opencl-nvidia
