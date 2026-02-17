@@ -3,6 +3,7 @@ name: dotfiles CI
 env:
   NOCONFIRM: "1"
   SKIP_PACKAGES: "1"
+  OFFLINE: "1"
   GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
 
 on:
