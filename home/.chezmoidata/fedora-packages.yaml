@@ -11,6 +11,7 @@ repos:
     - brycensranch/gpu-screen-recorder-git
     - atim/starship
     - kylegospo/grub-btrfs
+    - avengemedia/dms
 
 fedora:
   core:
@@ -57,6 +58,7 @@ fedora:
     - xdg-terminal-exec
     - quickshell-git
     - gpu-screen-recorder
+    - dms
 
   compositor:
     hyprland:

@@ -97,6 +97,7 @@ arch:
     - quickshell-git
     - matugen
     - gpu-screen-recorder-git
+    - dms-shell-bin
 
   optional:
     - rust
