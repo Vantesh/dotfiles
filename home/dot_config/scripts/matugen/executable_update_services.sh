@@ -4,6 +4,69 @@
 
 set -euo pipefail
 
+LAST_ERROR=""
+COLOR_RESET="\033[0m"
+COLOR_GREEN="\033[1;32m"
+COLOR_YELLOW="\033[1;33m"
+COLOR_RED="\033[1;31m"
+COLOR_MAGENTA="\033[1;35m"
+COLOR_BLUE="\033[1;34m"
+
+log() {
+  local level="${1:-}"
+  shift || true
+  local message="$*"
+  case "${level^^}" in
+  INFO) printf '  %bINFO%b  %s\n' "$COLOR_GREEN" "$COLOR_RESET" "$message" >&2 ;;
+  WARN) printf '  %bWARN%b  %s\n' "$COLOR_YELLOW" "$COLOR_RESET" "$message" >&2 ;;
+  ERROR) printf '  %bERROR%b %s\n' "$COLOR_RED" "$COLOR_RESET" "$message" >&2 ;;
+  SKIP) printf '  %bSKIP%b  %s\n' "$COLOR_MAGENTA" "$COLOR_RESET" "$message" >&2 ;;
+  STEP) printf '\n%b::%b %s\n\n' "$COLOR_BLUE" "$COLOR_RESET" "$message" >&2 ;;
+  *) printf '%s\n' "$message" >&2 ;;
+  esac
+}
+
+command_exists() { command -v "$1" >/dev/null 2>&1; }
+
+require_command() {
+  LAST_ERROR=""
+  if ! command_exists "$1"; then
+    LAST_ERROR="Required command not found: $1"
+    return 127
+  fi
+  return 0
+}
+
+send_signal_if_running() {
+  LAST_ERROR=""
+  local signal="$1" process_name="$2"
+  if ! pkill -0 -x "$process_name" 2>/dev/null; then
+    return 0
+  fi
+  if ! pkill "-$signal" -x "$process_name" 2>/dev/null; then
+    LAST_ERROR="Unable to send SIG${signal#SIG} to $process_name"
+    return 1
+  fi
+  return 0
+}
+
+restart_user_service() {
+  LAST_ERROR=""
+  local service="$1"
+  if ! command_exists systemctl; then
+    LAST_ERROR="systemctl unavailable"
+    return 1
+  fi
+  if ! systemctl --user is-active --quiet "$service" 2>/dev/null; then
+    return 0
+  fi
+  if ! systemctl --user restart "$service" >/dev/null 2>&1; then
+    LAST_ERROR="Failed to restart user service: $service"
+    return 1
+  fi
+  return 0
+}
+
 readonly -a SERVICES_TO_RESTART=("xdg-desktop-portal-gtk")
 readonly -a POLKIT_AGENTS=(
   "/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1"
@@ -66,10 +129,28 @@ refresh_signals() {
   return 0
 }
 
+# refresh_bat_cache updates bat's syntax cache when available
+refresh_bat_cache() {
+  if ! command_exists bat; then
+    return 0
+  fi
+
+  log INFO "Refreshing bat syntax cache"
+
+  if ! bat cache --build >/dev/null 2>&1; then
+    log WARN "bat cache refresh completed with warnings"
+    return 1
+  fi
+
+  return 0
+}
+
 main() {
   refresh_user_services
   ensure_polkit_agent
   refresh_signals
+  # Bat cache refresh (best-effort)
+  refresh_bat_cache || true
 
   return 0
 }

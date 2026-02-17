@@ -4,6 +4,37 @@
 
 set -euo pipefail
 
+LAST_ERROR=""
+COLOR_RESET="\033[0m"
+COLOR_GREEN="\033[1;32m"
+COLOR_YELLOW="\033[1;33m"
+COLOR_RED="\033[1;31m"
+
+log() {
+  local level="${1:-}"
+  shift || true
+  local message="$*"
+  case "${level^^}" in
+  INFO) printf '  %bINFO%b  %s\n' "$COLOR_GREEN" "$COLOR_RESET" "$message" >&2 ;;
+  WARN) printf '  %bWARN%b  %s\n' "$COLOR_YELLOW" "$COLOR_RESET" "$message" >&2 ;;
+  ERROR) printf '  %bERROR%b %s\n' "$COLOR_RED" "$COLOR_RESET" "$message" >&2 ;;
+  SKIP) printf '  %bSKIP%b  %s\n' "\033[1;35m" "$COLOR_RESET" "$message" >&2 ;;
+  *) printf '%s\n' "$message" >&2 ;;
+  esac
+}
+
+command_exists() { command -v "$1" >/dev/null 2>&1; }
+
+ensure_directory() {
+  LAST_ERROR=""
+  local path="$1"
+  if ! mkdir -p "$path" 2>/dev/null; then
+    LAST_ERROR="Failed to create directory: $path"
+    return 1
+  fi
+  return 0
+}
+
 readonly HYPRLOCK_PNG="$HOME/.cache/wal/icon.png"
 readonly HYPRLOCK_SVG="$HOME/.cache/wal/icon.svg"
 
