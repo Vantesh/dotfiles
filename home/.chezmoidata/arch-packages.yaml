@@ -1,7 +1,5 @@
 arch:
   core:
-    - hyprpicker
-    - hyprshot
     - uwsm
     - accountsservice
     - polkit-gnome
@@ -22,8 +20,6 @@ arch:
     - plocate
     - usbutils
     - ufw
-    - rofi
-    - rofimoji
     - kitty
     - imv
     - mpv
@@ -42,14 +38,13 @@ arch:
     - xorg-xhost
     - brightnessctl
     - ddcutil
-    - clipse
 
   compositor:
     hyprland:
       - hyprland
       - xdg-desktop-portal-hyprland
       - socat
-      - yad # keybinds popup
+      - cpio
     niri:
       - niri
       - xdg-desktop-portal-gnome
@@ -100,13 +95,13 @@ arch:
     - darkly-bin
     - xdg-terminal-exec-git
     - quickshell-git
-    - clipse-gui
     - matugen
     - gpu-screen-recorder-git
 
   optional:
     - rust
     - go
+    - cava
     - brave-bin
     - visual-studio-code-bin
     - qbittorrent

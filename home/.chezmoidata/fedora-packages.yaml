@@ -7,7 +7,6 @@ repos:
     - lihaohong/yazi
     - alternateved/eza
     - heus-sueh/packages
-    - azandure/clipse
     - deltacopy/darkly
     - brycensranch/gpu-screen-recorder-git
     - atim/starship
@@ -15,8 +14,6 @@ repos:
 
 fedora:
   core:
-    - hyprpicker
-    - hyprshot
     - uwsm
     - accountsservice
     - mate-polkit
@@ -57,7 +54,6 @@ fedora:
     - xhost
     - brightnessctl
     - ddcutil
-    - clipse
     - xdg-terminal-exec
     - quickshell-git
     - gpu-screen-recorder
@@ -67,7 +63,7 @@ fedora:
       - hyprland
       - xdg-desktop-portal-hyprland
       - socat
-      - yad # keybinds popup
+      - cpio
     niri:
       - niri
       - xdg-desktop-portal-gnome
