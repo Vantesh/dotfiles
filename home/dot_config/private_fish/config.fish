@@ -4,7 +4,7 @@ end
 
 if not type -q fisher
     echo "Installing Fisher..."
-    curl -sL https://git.io/fisher | source && fisher update
+    curl -sL https://raw.githubusercontent.com/jorgebucaran/fisher/main/functions/fisher.fish | source && fisher install jorgebucaran/fisher
 end
 
 set -U __done_notification_urgency_level low
