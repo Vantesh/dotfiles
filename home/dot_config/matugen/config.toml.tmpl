@@ -1,0 +1,70 @@
+[config]
+
+[templates.terminal_colors]
+  input_path  = '{{ .chezmoi.homeDir }}/.config/matugen/templates/terminal/colors.json'
+  output_path = '{{ .chezmoi.homeDir }}/.cache/wal/colors.json'
+
+[templates.hyprland]
+  input_path  = '{{ .chezmoi.homeDir }}/.config/matugen/templates/hypr/hyprland.conf'
+  output_path = '{{ .chezmoi.homeDir }}/.config/hypr/dms/colors.conf'
+
+[templates.btop]
+  input_path  = '{{ .chezmoi.homeDir }}/.config/matugen/templates/terminal/btop.theme'
+  output_path = '{{ .chezmoi.homeDir }}/.config/btop/themes/matugen.theme'
+
+[templates.bat]
+  input_path  = '{{ .chezmoi.homeDir }}/.config/matugen/templates/terminal/bat.tmTheme'
+  output_path = '{{ .chezmoi.homeDir }}/.config/bat/themes/Matugen.tmTheme'
+
+[templates.yazi]
+  input_path  = '{{ .chezmoi.homeDir }}/.config/matugen/templates/terminal/yazi.toml'
+  output_path = '{{ .chezmoi.homeDir }}/.config/yazi/theme.toml'
+
+[templates.fzf-fish]
+  input_path  = '{{ .chezmoi.homeDir }}/.config/matugen/templates/terminal/fzf.fish'
+  output_path = '{{ .chezmoi.homeDir }}/.cache/wal/fzf.fish'
+
+[templates.fzf]
+  input_path  = '{{ .chezmoi.homeDir }}/.config/matugen/templates/terminal/fzf.sh'
+  output_path = '{{ .chezmoi.homeDir }}/.cache/zsh/fzf'
+
+[templates.cava]
+  input_path  = "{{ .chezmoi.homeDir }}/.config/matugen/templates/terminal/cava.config"
+  output_path = "{{ .chezmoi.homeDir }}/.config/cava/config"
+
+[templates.hyprlock-icon]
+  input_path  = '{{ .chezmoi.homeDir }}/.config/matugen/templates/hypr/icon.svg'
+  output_path = '{{ .chezmoi.homeDir }}/.cache/wal/icon.svg'
+  post_hook   = '~/.config/scripts/matugen/update_hyprlock_icon.sh &'
+
+[templates.fish]
+  input_path  = '{{ .chezmoi.homeDir }}/.config/matugen/templates/terminal/colors.fish'
+  output_path = '{{ .chezmoi.homeDir }}/.config/fish/themes/Matugen.theme'
+  post_hook   = '~/.config/scripts/matugen/update_terminal.sh &'
+
+[templates.folders-color]
+  input_path  = '{{ .chezmoi.homeDir }}/.config/matugen/templates/folder-color.txt'
+  output_path = '{{ .chezmoi.homeDir }}/.cache/wal/folder-color.txt'
+  post_hook   = '~/.config/scripts/matugen/update_folders.sh &'
+
+[templates.spicetify]
+  input_path  = '{{ .chezmoi.homeDir }}/.config/matugen/templates/spotify.ini'
+  output_path = '{{ .chezmoi.homeDir }}/.config/spicetify/Themes/marketplace/color.ini'
+  post_hook   = '~/.config/scripts/matugen/update_spotify.sh &'
+
+[templates.neovim-nvchad]
+  input_path  = '{{ .chezmoi.homeDir }}/.config/matugen/templates/terminal/nvchad.lua'
+  output_path = '{{ .chezmoi.homeDir }}/.local/share/nvim/lazy/base46/lua/base46/themes/matugen.lua'
+  post_hook   = '~/.config/scripts/matugen/update_services.sh &'
+
+[config.custom_colors.warning]
+  color = "#f9e2af"
+  blend = true
+
+[config.custom_colors.info]
+  color = "#89b4fa"
+  blend = true
+
+[config.custom_colors.success]
+  color = "#a6e3a1"
+  blend = true
