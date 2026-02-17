@@ -16,16 +16,12 @@ source "$LIB_DIR/.lib-common.sh"
 source "$LIB_DIR/.lib-package_manager.sh"
 
 login_atuin() {
-  local status
-
   if ! command_exists atuin; then
     LAST_ERROR="atuin command not found"
     return 127
   fi
 
-  status=$(atuin status 2>/dev/null || true)
-
-  if [[ "$status" != *"You are not logged in to a sync server"* ]]; then
+  if atuin status >/dev/null 2>&1; then
     log SKIP "Atuin already logged in"
     return 0
   fi
