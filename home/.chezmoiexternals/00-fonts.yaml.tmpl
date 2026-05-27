@@ -46,7 +46,7 @@
 {{/* Apple Color Emoji for Linux */}}
 "{{ $fontDir }}/emojis/AppleColorEmoji.ttf":
   type: file
-  url: "https://github.com/samuelngs/apple-emoji-linux/releases/latest/download/AppleColorEmoji.ttf"
+  url: {{ gitHubLatestReleaseAssetURL "samuelngs/apple-emoji-ttf" "AppleColorEmoji-Linux.ttf" | quote }}
   refreshPeriod: {{ $refresh | quote }}
 
 {{/* JetBrains Mono Nerd Font */}}
