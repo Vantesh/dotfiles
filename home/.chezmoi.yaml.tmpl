@@ -28,7 +28,7 @@
 
   {{- $personal = promptBool "Is this a personal setup (y/N)" false -}}
   {{- $defaultShell = promptChoice "Preferred shell" (list "fish" "zsh") "fish" -}}
-  {{- $compositor = promptChoice "Preferred compositor" (list "hyprland" "niri") "hyprland" -}}
+
   {{- $setupSnapper = promptBool "Setup Snapper snapshots (Y/n)" true -}}
   {{- $setupHibernation = promptBool "Setup hibernation (Y/n)" true -}}
 

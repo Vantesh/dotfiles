@@ -1,5 +1,5 @@
-<h1 align="center">HyprNiri</h1>
-<p align="center">Hyprland + Niri dotfiles Managed with <a href="https://github.com/twpayne/chezmoi">chezmoi</a></p>
+<h1 align="center">Hyprland Dotfiles</h1>
+<p align="center">Hyprland dotfiles Managed with <a href="https://github.com/twpayne/chezmoi">chezmoi</a></p>
 
 <p align="center">
 	<br><br>
@@ -123,7 +123,7 @@ chmod +x install.sh
 
 - **Caps Lock** → Mapped as Escape by default. Change it in `~/.config/hypr/hyprland/input.conf`.
 - **Terminal** → Kitty is the default; adjust via `~/.config/xdg-terminals.list`.
-- **Niri** → Tweak transparency under Settings → Theme & Colors.
+<!-- Niri support removed -->
 
 > [!NOTE]
 > If hyprland throws config errors on first start, simply change the wallpaper once and they should clear up.
