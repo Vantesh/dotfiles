@@ -242,39 +242,6 @@ optimize_btrfs_fstab() {
   return 0
 }
 
-configure_dnf_snapper_plugin() {
-  case "${DISTRO_FAMILY,,}" in
-  *fedora*) ;;
-  *)
-    return 0
-    ;;
-  esac
-
-  local actions_file="/etc/dnf/libdnf5-plugins/actions.d/snapper.actions"
-
-  if [[ -f "$actions_file" ]]; then
-    log SKIP "DNF snapper actions already configured"
-    return 0
-  fi
-
-  if ! write_system_config "$actions_file" <<'EOF'; then
-# /etc/dnf/libdnf5-plugins/actions.d/snapper.actions
-# Get snapshot description
-pre_transaction::::/usr/bin/sh -c echo\ "tmp.cmd=$(ps\ -o\ command\ --no-headers\ -p\ '${pid}')"
-# Creates pre snapshot before the transaction and stores the snapshot number in the "tmp.snapper_pre_number"  variable.
-pre_transaction::::/usr/bin/sh -c echo\ "tmp.snapper_pre_number=$(snapper\ create\ -c\ number\ -t\ pre\ -p\ -d\ '${tmp.cmd}')"
-
-# If the variable "tmp.snapper_pre_number" exists, it creates post snapshot after the transaction and removes the variable "tmp.snapper_pre_number".
-post_transaction::::/usr/bin/sh -c [\ -n\ "${tmp.snapper_pre_number}"\ ]\ &&\ snapper\ create\ -c\ number\ -t\ post\ --pre-number\ "${tmp.snapper_pre_number}"\ -d\ "${tmp.cmd}"\ ;\ echo\ tmp.snapper_pre_number\ ;\ echo\ tmp.cmd
-EOF
-    log ERROR "Failed to create DNF snapper actions: $LAST_ERROR"
-    return 1
-  fi
-
-  log INFO "Configured DNF snapper plugin"
-  return 0
-}
-
 main() {
   if [[ "${SETUP_SNAPPER:-1}" != "1" ]]; then
     log INFO "Skipping snapper setup (SETUP_SNAPPER != 1)"
@@ -296,10 +263,6 @@ main() {
   print_box "Snapper"
 
   log STEP "Configuring Snapper"
-
-  if ! configure_dnf_snapper_plugin; then
-    log WARN "Failed to configure DNF snapper plugin: $LAST_ERROR"
-  fi
 
   if ! enable_snapper_services; then
     log WARN "Some services failed to enable, continuing anyway"

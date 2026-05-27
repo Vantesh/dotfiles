@@ -35,7 +35,7 @@
 
 - **Repository Type**: Dotfiles managed by [chezmoi](https://www.chezmoi.io/)
 - **Primary Language**: Bash and Python
-- **Operating Systems**: Linux (Arch-based distros, Fedora)
+- **Operating Systems**: Linux (Arch Linux)
 - **Target**: Personal workstation setup
 - **Purpose**: System configuration, dotfile management scripts, and automation tools
 
@@ -57,13 +57,9 @@ chezmoi/
     │       │   ├── .lib-common.sh
     │       │   ├── .lib-aur_helper.sh
     │       │   ├── .lib-chaotic_aur.sh
-    │       │   ├── .lib-fedora_repos.sh
     │       │   ├── .lib-package_manager.sh
     │       │   └── .lib-*.sh
     │       ├── arch/                     # Arch-specific scripts
-    │       │   ├── run_onchange_before_01_*.sh
-    │       │   └── run_onchange_after_01_*.sh
-    │       ├── fedora/                   # Fedora-specific scripts
     │       │   ├── run_onchange_before_01_*.sh
     │       │   └── run_onchange_after_01_*.sh
     │       ├── run_onchange_before_*.sh  # Cross-distro pre-setup
@@ -85,7 +81,6 @@ chezmoi/
 This repository uses `run_onchange_*` exclusively for setup scripts. Here's why:
 
 - **`run_onchange_*`** (PREFERRED): Scripts execute whenever their content changes. Chezmoi maintains a hash of each script and re-runs it when the hash differs.
-
   - Enables iterative development - script improvements are automatically applied
   - Natural fit for idempotent scripts (all scripts in this repo are idempotent)
   - Maintains declarative approach - system state follows script content
@@ -217,11 +212,11 @@ For files with multiple prefixes, strip all chezmoi attributes:
 - AUR helper auto-installed via `.lib-aur_helper.sh`
 - Chaotic-AUR available via `.lib-chaotic_aur.sh`
 
-### Fedora (Secondary Target)
+### Arch (Primary Target)
 
-- Package manager: `dnf`
-- Scripts: `home/.chezmoiscripts/linux/fedora/`
-- Use `.lib-fedora_repos.sh` for RPM Fusion and COPR repos
+- Package manager: `pacman` and AUR helpers
+- Scripts: `home/.chezmoiscripts/linux/arch/`
+- Use `.lib-chaotic_aur.sh` for Chaotic-AUR setup
 
 ### Detecting Distribution
 
@@ -233,22 +228,17 @@ case "${DISTRO_FAMILY,,}" in
 *arch*)
   # Arch-specific logic
   ;;
-*fedora*)
-  # Fedora-specific logic
-  ;;
 esac
 
 # in chezmoi templates
 {{- if contains .distroFamily "arch" -}}
 # Arch-specific template logic
-{{- else if contains .distroFamily "fedora" -}}
-# Fedora-specific template logic
 {{- end -}}
 ```
 
 **Available scriptEnv variables:**
 
-- `DISTRO_FAMILY` - Distribution family (arch, fedora)
+- `DISTRO_FAMILY` - Distribution family (arch)
 - `PERSONAL` - Whether this is a personal installation ("1" or "0")
 - `DEFAULT_SHELL` - Preferred shell (fish, zsh)
 - `COMPOSITOR` - Preferred compositor (hyprland, niri)
@@ -1025,7 +1015,7 @@ chezmoi execute-template < script.sh.tmpl | shellcheck -
 ```bash
 # Install bats-core
 # Arch: sudo pacman -S bats
-# Fedora: sudo dnf install bats
+# Arch: sudo pacman -S bats
 
 # Example test file: test/common.bats
 #!/usr/bin/env bats
@@ -1376,7 +1366,7 @@ ensure_dependencies_installed() {
 }
 ```
 
-Or add to distro-specific package lists in `.chezmoiscripts/linux/{arch,fedora}/`
+Or add to the Arch package list in `.chezmoidata/packages.yaml`
 
 ---
 
@@ -1404,7 +1394,6 @@ Or add to distro-specific package lists in `.chezmoiscripts/linux/{arch,fedora}/
 
 - Cross-distro: `home/.chezmoiscripts/linux/`
 - Arch-specific: `home/.chezmoiscripts/linux/arch/`
-- Fedora-specific: `home/.chezmoiscripts/linux/fedora/`
 - Libraries: `home/.chezmoiscripts/linux/lib/`
 
 **Common mistakes to avoid:**

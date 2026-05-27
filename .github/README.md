@@ -10,12 +10,11 @@
 </p>
 
 > [!IMPORTANT]
-> Optimized for Arch and Fedora based distros.
-> **Tested on Arch, CachyOS, Garuda, Manjaro, Fedora and Nobara.**
-> Minimal Arch-based distros recommended for best results.
+> These dotfiles are for Arch Linux.
+> Arch-based distros may work, but expect manual intervention.
 
 > [!WARNING]
-> On Manjaro, you may need to uninstall conflicting packages: `qt5ct`, `qt6ct` and `reflector`.
+> Arch-based distros may ship conflicting defaults, so you may need to adjust packages or services manually.
 
 > [!TIP]
 > Hit **SUPER + F2** for the full keybinding cheat-sheet (SUPER = Windows key).
@@ -38,9 +37,10 @@
 https://github.com/user-attachments/assets/bd263e88-f2b6-477a-97dc-e8c1afa23669
 
 <details close>
-<summary>Distros</summary>
+<summary>Gallery</summary>
 <p align="center">
 <img aligh="center" width="49%" src="https://github.com/user-attachments/assets/1afa6f23-86c7-4528-bca9-f0fef1956148" />
+
 <img aligh="center" width="49%" src="https://github.com/user-attachments/assets/074f625a-da26-481d-89ce-059f4097ef81" /> <br>
 
 <img aligh="center" width="49%" src="https://github.com/user-attachments/assets/e9bb5d28-6a90-4169-a5d8-6ea30a3a82bf" />
@@ -82,7 +82,7 @@ https://github.com/user-attachments/assets/bd263e88-f2b6-477a-97dc-e8c1afa23669
 
 ### Requirements
 
-- Fresh Arch-based install (tested on Arch, CachyOS, Garuda).
+- Fresh Arch Linux install.
 - `curl` (for grabbing the bootstrap script).
 - Internet access.
 

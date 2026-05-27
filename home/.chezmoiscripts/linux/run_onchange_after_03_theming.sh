@@ -15,28 +15,10 @@ source "$LIB_DIR/.lib-snapboot.sh"
 
 readonly GRUB_THEME_URL="https://github.com/semimqmo/sekiro_grub_theme"
 readonly GRUB_THEME_DIR="/usr/share/grub/themes/Sekiro"
-readonly TELA_REPO_URL="https://github.com/vinceliuice/Tela-icon-theme.git"
-readonly TELA_ICON_DIR="$HOME/.local/share/icons/Tela"
 
 if ! keep_sudo_alive; then
   die "Failed to keep sudo alive"
 fi
-
-tela_icons_present() {
-  LAST_ERROR=""
-
-  if [[ -d "$TELA_ICON_DIR" ]]; then
-    return 0
-  fi
-
-  local system_tela_dir="/usr/share/icons/Tela"
-
-  if [[ -d "$system_tela_dir" ]]; then
-    return 0
-  fi
-
-  return 1
-}
 
 install_grub_theme() {
   local temp_dir
@@ -193,40 +175,6 @@ add_nautilus_bookmarks() {
   return 0
 }
 
-install_tela_icons() {
-  LAST_ERROR=""
-
-  if tela_icons_present; then
-    return 0
-  fi
-
-  local temp_dir
-  temp_dir="$(mktemp -d)"
-  trap '[[ -d "${temp_dir:-}" ]] && rm -rf "${temp_dir}"' RETURN EXIT ERR
-
-  if [[ ! -d "$temp_dir" ]]; then
-    LAST_ERROR="Failed to create temporary directory"
-    return 1
-  fi
-
-  if ! command_exists git; then
-    LAST_ERROR="git is required to install Tela icons"
-    return 1
-  fi
-
-  if ! git clone --depth 1 "$TELA_REPO_URL" "$temp_dir" >/dev/null 2>&1; then
-    LAST_ERROR="Failed to clone Tela icon theme repository"
-    return 1
-  fi
-
-  if ! (cd "$temp_dir" && ./install.sh -a >/dev/null 2>&1); then
-    LAST_ERROR="Failed to install Tela icons"
-    return 1
-  fi
-
-  return 0
-}
-
 configure_qt_theme() {
   local version="$1"
   local config_dir="$HOME/.config/$version"
@@ -363,23 +311,6 @@ main() {
       log INFO "Configured $qt_version theme"
     fi
   done
-
-  case "${DISTRO_FAMILY,,}" in
-  *fedora*)
-    if tela_icons_present; then
-      log SKIP "Tela icons already installed"
-    else
-      log INFO "Installing Tela icons (this may take a moment)"
-
-      if ! install_tela_icons; then
-        local error_msg="$LAST_ERROR"
-        log WARN "Failed to install Tela icons: $error_msg"
-      else
-        log INFO "Installed Tela icon theme"
-      fi
-    fi
-    ;;
-  esac
 
   log INFO "System theming complete"
 }

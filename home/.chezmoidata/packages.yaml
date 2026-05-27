@@ -1,4 +1,4 @@
-arch:
+packages:
   core:
     - uwsm
     - accountsservice

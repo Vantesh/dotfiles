@@ -70,7 +70,7 @@ print_box "Packages"
 # Core Packages
 # ============================================================================
 core_pkgs=(
-{{- range .arch.core }}
+{{- range .packages.core }}
   "{{ . }}"
 {{- end }}
   "{{ .defaultShell }}"
@@ -78,13 +78,13 @@ core_pkgs=(
 
 {{- if eq .compositor "hyprland" }}
 core_pkgs+=(
-{{- range .arch.compositor.hyprland }}
+{{- range .packages.compositor.hyprland }}
   "{{ . }}"
 {{- end }}
 )
 {{- else if eq .compositor "niri" }}
 core_pkgs+=(
-{{- range .arch.compositor.niri }}
+{{- range .packages.compositor.niri }}
   "{{ . }}"
 {{- end }}
 )
@@ -96,7 +96,7 @@ install_group "Core" "${core_pkgs[@]}"
 # CLI Tools
 # ============================================================================
 cli_pkgs=(
-{{- range .arch.cli }}
+{{- range .packages.cli }}
   "{{ . }}"
 {{- end }}
 )
@@ -106,7 +106,7 @@ install_group "CLI Tools" "${cli_pkgs[@]}"
 # Theming
 # ============================================================================
 theme_pkgs=(
-{{- range .arch.theming }}
+{{- range .packages.theming }}
   "{{ . }}"
 {{- end }}
 )
@@ -116,7 +116,7 @@ install_group "Theming" "${theme_pkgs[@]}"
 # Fonts
 # ============================================================================
 font_pkgs=(
-{{- range .arch.fonts }}
+{{- range .packages.fonts }}
   "{{ . }}"
 {{- end }}
 )
@@ -126,7 +126,7 @@ install_group "Fonts" "${font_pkgs[@]}"
 # AUR Packages
 # ============================================================================
 aur_pkgs=(
-{{- range .arch.aur }}
+{{- range .packages.aur }}
   "{{ . }}"
 {{- end }}
 )
@@ -137,7 +137,7 @@ install_group "AUR" "${aur_pkgs[@]}"
 # ============================================================================
 if [[ "${INSTALL_DRIVERS:-1}" == "1" ]]; then
   drivers=(
-{{- range .arch.drivers.base }}
+{{- range .packages.drivers.base }}
     "{{ . }}"
 {{- end }}
   )
@@ -145,10 +145,10 @@ if [[ "${INSTALL_DRIVERS:-1}" == "1" ]]; then
   # Kernel headers
   kernel_version=$(uname -r)
   case "$kernel_version" in
-    *-zen*)     drivers+=("{{ .arch.drivers.kernelHeaders.zen }}") ;;
-    *-lts*)     drivers+=("{{ .arch.drivers.kernelHeaders.lts }}") ;;
-    *-cachyos*) drivers+=("{{ .arch.drivers.kernelHeaders.cachyos }}") ;;
-    *)          drivers+=("{{ .arch.drivers.kernelHeaders.default }}") ;;
+    *-zen*)     drivers+=("{{ .packages.drivers.kernelHeaders.zen }}") ;;
+    *-lts*)     drivers+=("{{ .packages.drivers.kernelHeaders.lts }}") ;;
+    *-cachyos*) drivers+=("{{ .packages.drivers.kernelHeaders.cachyos }}") ;;
+    *)          drivers+=("{{ .packages.drivers.kernelHeaders.default }}") ;;
   esac
 
   # GPU-specific drivers
@@ -157,7 +157,7 @@ if [[ "${INSTALL_DRIVERS:-1}" == "1" ]]; then
   # NVIDIA drivers
   if [[ $gpu_info == *"NVIDIA"* ]]; then
     drivers+=(
-{{- range .arch.drivers.nvidia }}
+{{- range .packages.drivers.nvidia }}
       "{{ . }}"
 {{- end }}
     )
@@ -186,7 +186,7 @@ if [[ "${INSTALL_DRIVERS:-1}" == "1" ]]; then
   # AMD drivers
   if [[ $gpu_info == *"AMD/ATI"* ]]; then
     drivers+=(
-{{- range .arch.drivers.amd }}
+{{- range .packages.drivers.amd }}
       "{{ . }}"
 {{- end }}
     )
@@ -195,7 +195,7 @@ if [[ "${INSTALL_DRIVERS:-1}" == "1" ]]; then
   # Intel drivers
   if [[ $gpu_info == *"Intel"* ]]; then
     drivers+=(
-{{- range .arch.drivers.intel }}
+{{- range .packages.drivers.intel }}
       "{{ . }}"
 {{- end }}
     )
@@ -211,7 +211,7 @@ fi
 # ============================================================================
 if is_laptop; then
   laptop_pkgs=(
-{{- range .arch.laptop }}
+{{- range .packages.laptop }}
     "{{ . }}"
 {{- end }}
   )
@@ -223,7 +223,7 @@ fi
 # ============================================================================
 if [[ "${INSTALL_OPTIONAL_PACKAGES:-1}" == "1" ]]; then
   opt_pkgs=(
-{{- range .arch.optional }}
+{{- range .packages.optional }}
     "{{ . }}"
 {{- end }}
   )
@@ -237,7 +237,7 @@ fi
 # ============================================================================
 if [[ "${SETUP_SNAPPER:-1}" == "1" ]]; then
   snapper_pkgs=(
-{{- range .arch.snapper.common }}
+{{- range .packages.snapper.common }}
     "{{ . }}"
 {{- end }}
   )
@@ -257,13 +257,13 @@ if [[ "${SETUP_SNAPPER:-1}" == "1" ]]; then
   if [[ "$bootloader" == "limine" ]]; then
     if [[ "$generator" == "mkinitcpio" ]]; then
       snapper_pkgs+=(
-{{- range .arch.snapper.limine.mkinitcpio }}
+{{- range .packages.snapper.limine.mkinitcpio }}
         "{{ . }}"
 {{- end }}
       )
     elif [[ "$generator" == "dracut" ]]; then
       snapper_pkgs+=(
-{{- range .arch.snapper.limine.dracut }}
+{{- range .packages.snapper.limine.dracut }}
         "{{ . }}"
 {{- end }}
       )
@@ -272,7 +272,7 @@ if [[ "${SETUP_SNAPPER:-1}" == "1" ]]; then
     fi
   elif [[ "$bootloader" == "grub" ]]; then
     snapper_pkgs+=(
-{{- range .arch.snapper.grub }}
+{{- range .packages.snapper.grub }}
       "{{ . }}"
 {{- end }}
     )

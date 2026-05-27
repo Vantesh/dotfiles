@@ -22,9 +22,6 @@ jobs:
           - runner: ubuntu-latest
             os: archlinux
             container: archlinux:latest
-          - runner: ubuntu-latest
-            os: fedora
-            container: fedora:latest
 
     runs-on: ${{ matrix.runner }}
     container: ${{ matrix.container }}
@@ -34,11 +31,6 @@ jobs:
         if: matrix.os == 'archlinux'
         run: |
           pacman -Syu --noconfirm git curl bash shellcheck git-delta chezmoi
-
-      - name: Install dependencies (Fedora)
-        if: matrix.os == 'fedora'
-        run: |
-          dnf install -y git curl bash findutils ShellCheck git-delta chezmoi
 
       - name: Apply dotfiles
         timeout-minutes: 5

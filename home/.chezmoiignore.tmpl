@@ -76,14 +76,6 @@ tmp*
 .config/fish
 {{ end }}
 
-# Distro-specific
-{{ if not (.distroFamily | contains "arch") -}}
-.chezmoiscripts/linux/01-arch/**
-{{ end -}}
-{{ if not (.distroFamily | contains "fedora") -}}
-.chezmoiscripts/linux/01-fedora/**
-{{ end }}
-
 # personal files
 {{- if not .personal }}
 .config/atuin

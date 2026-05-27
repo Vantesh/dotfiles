@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
 # .lib-package_manager.sh - Package installation and management
 #
-# Provides unified interface for package management across different distributions.
-# Supports dnf (Fedora) and pacman+AUR (Arch). Handles package existence checks
-# and installation with automatic manager detection.
+# Provides a unified interface for Arch package management.
+# Handles package existence checks and installation with pacman and AUR helpers.
 #
 # Globals:
 #   LAST_ERROR - Error message from last failed operation
@@ -13,7 +12,7 @@
 
 export LAST_ERROR="${LAST_ERROR:-}"
 
-# Detects system package manager.
+# Detects the system package manager.
 #
 # Uses DISTRO_FAMILY environment variable set by chezmoi scriptEnv.
 #
@@ -21,9 +20,9 @@ export LAST_ERROR="${LAST_ERROR:-}"
 #   DISTRO_FAMILY - Distro family from chezmoi scriptEnv (required)
 #   LAST_ERROR - Set if no supported manager found
 # Outputs:
-#   Package manager name to stdout: "dnf" or "pacman"
+#   Package manager name to stdout: "pacman"
 # Returns:
-#   0 on success, 1 if no supported manager found or DISTRO_FAMILY not set
+#   0 on success, 1 if DISTRO_FAMILY is not Arch-based
 get_package_manager() {
   if [[ -z "${DISTRO_FAMILY:-}" ]]; then
     LAST_ERROR="DISTRO_FAMILY environment variable not set (chezmoi scriptEnv required)"
@@ -31,9 +30,6 @@ get_package_manager() {
   fi
 
   case "${DISTRO_FAMILY,,}" in
-  *fedora*)
-    printf 'dnf\n'
-    ;;
   *arch*)
     printf 'pacman\n'
     ;;
@@ -74,7 +70,7 @@ get_aur_helper() {
 
 # Checks if package is installed.
 #
-# Uses appropriate command for detected package manager.
+# Uses pacman for installed package checks.
 #
 # Arguments:
 #   $1 - Package name
@@ -98,9 +94,6 @@ package_exists() {
   fi
 
   case "$manager" in
-  dnf)
-    rpm -q "$package_name" >/dev/null 2>&1
-    ;;
   pacman)
     pacman -Qi "$package_name" >/dev/null 2>&1
     ;;
@@ -113,8 +106,7 @@ package_exists() {
 
 # Installs packages using detected package manager.
 #
-# Skips already-installed packages with SKIP log message. Uses dnf or
-# pacman+AUR helper based on distribution. For pacman, queries all installed
+# Skips already-installed packages with SKIP log message. Queries all installed
 # packages once to avoid repeated subprocess calls.
 #
 # Arguments:
@@ -124,7 +116,7 @@ package_exists() {
 # Outputs:
 #   SKIP messages to stderr via log() for already-installed packages
 # Returns:
-#   0 on success, 1 on failure, 2 on invalid args, 127 if no AUR helper (Arch only)
+#   0 on success, 1 on failure, 2 on invalid args, 127 if no AUR helper
 install_package() {
   local manager
   local -a packages_to_install=()
@@ -173,30 +165,16 @@ install_package() {
     return 0
   fi
 
-  case "$manager" in
-  dnf)
-    if ! sudo dnf install -y --skip-broken "${packages_to_install[@]}"; then
-      LAST_ERROR="Failed to install packages with dnf: ${packages_to_install[*]}"
-      return 1
-    fi
-    ;;
-  pacman)
-    local aur_helper
+  local aur_helper
 
-    if ! aur_helper="$(get_aur_helper)"; then
-      return 127
-    fi
+  if ! aur_helper="$(get_aur_helper)"; then
+    return 127
+  fi
 
-    if ! "$aur_helper" -S --needed --noconfirm "${packages_to_install[@]}"; then
-      LAST_ERROR="Failed to install packages with $aur_helper: ${packages_to_install[*]}"
-      return 1
-    fi
-    ;;
-  *)
-    LAST_ERROR="Unsupported package manager: $manager"
+  if ! "$aur_helper" -S --needed --noconfirm "${packages_to_install[@]}"; then
+    LAST_ERROR="Failed to install packages with $aur_helper: ${packages_to_install[*]}"
     return 1
-    ;;
-  esac
+  fi
 
   return 0
 }
@@ -211,7 +189,7 @@ install_package() {
 # Outputs:
 #   STEP messages to stderr via log()
 # Returns:
-#   0 on success, 1 on failure, 2 on invalid args, 127 if no AUR helper (Arch only)
+#   0 on success, 1 on failure, 2 on invalid args, 127 if no AUR helper
 install_group() {
   local group_name="$1"
   shift

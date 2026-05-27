@@ -163,7 +163,7 @@ update_bootloader_params() {
 main() {
 
   case "${DISTRO,,}" in
-  fedora | cachyos)
+  cachyos)
     log SKIP "${DISTRO} already has plymouth pre-configured"
     return 0
     ;;
