@@ -11,20 +11,16 @@
 {{- $installChaoticAUR := not $skipPackages -}}
 {{- $installDrivers := not $skipPackages -}}
 
-{{- /* Detect distro family */ -}}
-{{- $distroFamily := "unknown" -}}
+{{- /* Arch-only setup */ -}}
+{{- $distroFamily := "" -}}
 {{- if .chezmoi.osRelease -}}
   {{- $distroFamily = default .chezmoi.osRelease.id (index .chezmoi.osRelease "idLike") | lower -}}
-  {{- if not (or (contains $distroFamily "arch") (contains $distroFamily "fedora")) -}}
-    {{- if lookPath "pacman" -}}
-      {{- $distroFamily = "arch" -}}
-    {{- else if lookPath "dnf" -}}
-      {{- $distroFamily = "fedora" -}}
-    {{- end -}}
-  {{- else if contains $distroFamily "rhel" -}}
-    {{- $distroFamily = "fedora" -}}
-  {{- end -}}
 {{- end -}}
+{{- if not (contains $distroFamily "arch") -}}
+  {{- writeToStdout "\n\033[1;31mERROR:\033[0m This dotfiles repo only supports Arch Linux and Arch-based distros.\n\n" -}}
+  {{- exit 1 -}}
+{{- end -}}
+{{- $distroFamily = "arch" -}}
 
 {{- /* Interactive prompts */ -}}
 {{- if $interactive -}}
@@ -38,10 +34,8 @@
 
   {{- if not $skipPackages -}}
     {{- $installOptionalPackages = promptBool "Install optional packages (Y/n)" true -}}
-    {{- if eq $distroFamily "arch" -}}
-      {{- $installChaoticAUR = promptBool "Install Chaotic AUR (Y/n)" true -}}
-      {{- $installDrivers = promptBool "Install drivers (Y/n)" true -}}
-    {{- end -}}
+    {{- $installChaoticAUR = promptBool "Install Chaotic AUR (Y/n)" true -}}
+    {{- $installDrivers = promptBool "Install drivers (Y/n)" true -}}
   {{- end -}}
 
   {{- writeToStdout "\n\033[1;32mTIP:\033[0m You can always make chezmoi ask this again by running \033[1mchezmoi init\033[0m\n\n" -}}
