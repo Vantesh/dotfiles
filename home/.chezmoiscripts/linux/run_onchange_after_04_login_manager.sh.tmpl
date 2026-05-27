@@ -76,26 +76,6 @@ disable_getty_tty2() {
   fi
 }
 
-setup_niri_session() {
-  local -r session_file="/usr/share/wayland-sessions/niri-uwsm.desktop"
-
-  if [[ -f "$session_file" ]]; then
-    log SKIP "niri-uwsm session already configured"
-    return 0
-  fi
-
-  write_system_config "$session_file" <<'EOF' || die "Failed to create niri session file: $LAST_ERROR"
-[Desktop Entry]
-Name=Niri (uwsm-managed)
-Comment=A scrollable-tiling Wayland compositor
-Exec=uwsm start -- niri.desktop
-TryExec=uwsm
-Type=Application
-DesktopNames=niri
-EOF
-
-  log INFO "Created niri-uwsm session file"
-}
 
 main() {
   print_box "LY"
@@ -112,9 +92,6 @@ main() {
 
   disable_getty_tty2
 
-  if [[ "${COMPOSITOR,,}" == "niri" ]]; then
-    setup_niri_session
-  fi
 
   log INFO "Ly display manager configuration complete"
 }

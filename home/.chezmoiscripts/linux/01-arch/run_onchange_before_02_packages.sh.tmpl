@@ -82,12 +82,6 @@ core_pkgs+=(
   "{{ . }}"
 {{- end }}
 )
-{{- else if eq .compositor "niri" }}
-core_pkgs+=(
-{{- range .packages.compositor.niri }}
-  "{{ . }}"
-{{- end }}
-)
 {{- end }}
 
 install_group "Core" "${core_pkgs[@]}"

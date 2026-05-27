@@ -33,7 +33,7 @@ tmp*
 **/theme.toml*
 .config/{qt5ct,qt6ct}
 .config/gtk-{3,4}.0/{colors.css,assets,bookmarks}
-.config/{hypr/dms/colors.conf,niri/dank*}
+.config/hypr/dms/colors.conf
 .config/kitty/{dank*,color*,current-theme.conf}
 
 # Yazi plugins/flavors
@@ -42,7 +42,7 @@ tmp*
 # Platform-specific
 {{ if ne .chezmoi.os "linux" -}}
 .chezmoiscripts/linux/**
-.config/{kitty,hypr,rofi,matugen,kvantum,paru,clipse,gtk*,niri,uwsm}
+.config/{kitty,hypr,rofi,matugen,kvantum,paru,clipse,gtk*,uwsm}
 {{ end -}}
 {{ if ne .chezmoi.os "windows" -}}
 .chezmoiscripts/windows/**
@@ -51,14 +51,9 @@ tmp*
 !Documents/*PowerShell/
 {{ end }}
 
-# Compositor-specific
-{{ if ne .compositor "hyprland" -}}
+# Compositor-specific (hyprland)
 .config/hypr/{hyprland*,variables*}
 .config/uwsm/env-hypr*
-{{ end -}}
-{{ if ne .compositor "niri" -}}
-.config/niri/**
-{{ end }}
 
 # Conditional tools
 {{ if not (lookPath "hypridle") -}}

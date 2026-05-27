@@ -13,9 +13,6 @@
 	"controlCenterTileColorMode": "primary",
 	"buttonColorMode": "primary",
 	"cornerRadius": 10,
-	"niriLayoutGapsOverride": -1,
-	"niriLayoutRadiusOverride": -1,
-	"niriLayoutBorderSize": -1,
 	"hyprlandLayoutGapsOverride": -1,
 	"hyprlandLayoutRadiusOverride": -1,
 	"hyprlandLayoutBorderSize": -1,
@@ -206,12 +203,12 @@
 	"filePickerUsageHistory": {},
 	"sortAppsAlphabetically": false,
 	"appLauncherGridColumns": 4,
-	"spotlightCloseNiriOverview": true,
+
 	"spotlightSectionViewModes": {
 		"apps": "list"
 	},
 	"appDrawerSectionViewModes": {},
-	"niriOverviewOverlayEnabled": true,
+
 	"dankLauncherV2Size": "compact",
 	"dankLauncherV2BorderEnabled": false,
 	"dankLauncherV2BorderThickness": 2,
@@ -225,10 +222,7 @@
 	"cursorSettings": {
 		"theme": "macOS-White",
 		"size": 24,
-		"niri": {
-			"hideWhenTyping": false,
-			"hideAfterInactiveMs": 0
-		},
+
 		"hyprland": {
 			"hideOnKeyPress": false,
 			"hideOnTouch": false,
@@ -289,7 +283,7 @@
 	"terminalsAlwaysDark": false,
 	"runDmsMatugenTemplates": true,
 	"matugenTemplateGtk": true,
-	"matugenTemplateNiri": true,
+
 	"matugenTemplateHyprland": false,
 	"matugenTemplateMangowc": true,
 	"matugenTemplateQt5ct": true,
@@ -404,7 +398,7 @@
 	"displayNameMode": "system",
 	"screenPreferences": {},
 	"showOnLastDisplay": {},
-	"niriOutputSettings": {},
+
 	"hyprlandOutputSettings": {
 		"eDP-1": {
 			"bitdepth": 10

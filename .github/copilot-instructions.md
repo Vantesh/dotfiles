@@ -241,7 +241,7 @@ esac
 - `DISTRO_FAMILY` - Distribution family (arch)
 - `PERSONAL` - Whether this is a personal installation ("1" or "0")
 - `DEFAULT_SHELL` - Preferred shell (fish, zsh)
-- `COMPOSITOR` - Preferred compositor (hyprland, niri)
+  -- `COMPOSITOR` - Preferred compositor (hyprland)
 
 **Note:** The `get_package_manager()` function in `.lib-package_manager.sh` requires `DISTRO_FAMILY` to be set via scriptEnv.
 
@@ -285,12 +285,6 @@ source "$LIB_DIR/.lib-package_manager.sh"
 
 **Libraries do NOT use `set -euo pipefail` or source other libraries.**
 
-- `.lib-common.sh` is the only library that sets strict mode (enforces it for all sourcing scripts)
-- All other libraries are passive function definitions only
-- Main scripts are responsible for setting their own shell options
-
-**Commenting Guidelines:**
-
 - Comments describe what function does, arguments, and return codes
 - NO inline comments within function bodies - code should be self-explanatory
 
@@ -311,14 +305,9 @@ public_function() {
 
   LAST_ERROR=""
 
-  if [[ -z "$arg" ]]; then
-    LAST_ERROR="public_function() requires an argument"
-    return 2
-  fi
 
   if _already_done; then
     return 0
-  fi
 
   if ! _do_something "$arg" >/dev/null 2>&1; then
     LAST_ERROR="Failed to do something: $arg"

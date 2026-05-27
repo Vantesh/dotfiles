@@ -36,7 +36,7 @@ logo() {
 ╚═╝  ╚═╝   ╚═╝   ╚═╝     ╚═╝  ╚═╝╚═╝  ╚═══╝╚═╝╚═╝  ╚═╝╚═╝
 EOF
   printf '%b\n' "$COLOR_RESET"
-  printf '%bWelcome to Hyprniri dotfiles installer!%b\n\n' "$COLOR_GREEN" "$COLOR_RESET"
+  printf '%bWelcome to Hyprland dotfiles installer!%b\n\n' "$COLOR_GREEN" "$COLOR_RESET"
 }
 
 log() {

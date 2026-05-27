@@ -45,10 +45,6 @@ packages:
       - xdg-desktop-portal-hyprland
       - socat
       - cpio
-    niri:
-      - niri
-      - xdg-desktop-portal-gnome
-      - xwayland-satellite
 
   cli:
     - fastfetch
@@ -97,7 +93,7 @@ packages:
     - quickshell-git
     - matugen
     - gpu-screen-recorder-git
-    - dms-shell-bin
+    - dms-shell
 
   optional:
     - rust
