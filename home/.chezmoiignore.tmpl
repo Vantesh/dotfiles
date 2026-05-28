@@ -51,10 +51,6 @@ tmp*
 !Documents/*PowerShell/
 {{ end }}
 
-# Compositor-specific (hyprland)
-.config/hypr/{hyprland*,variables*}
-.config/uwsm/env-hypr*
-
 # Conditional tools
 {{ if not (lookPath "hypridle") -}}
 .config/hypr/hypridle.conf
