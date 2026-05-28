@@ -90,7 +90,6 @@ packages:
   aur:
     - darkly-bin
     - xdg-terminal-exec-git
-    - quickshell-git
     - matugen
     - gpu-screen-recorder-git
     - dms-shell
