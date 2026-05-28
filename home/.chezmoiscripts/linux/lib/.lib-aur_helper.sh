@@ -11,14 +11,14 @@
 export LAST_ERROR="${LAST_ERROR:-}"
 
 readonly AUR_BASE_URL="https://aur.archlinux.org"
-readonly PARU_REPO="${AUR_BASE_URL}/paru-bin.git"
+readonly PARU_REPO="${AUR_BASE_URL}/paru.git"
 
 _build_aur_package() {
   local repo_url="$1"
   local package_name="$2"
   local build_dir="$3"
 
-  if ! git clone "$repo_url" "$build_dir" >/dev/null 2>&1; then
+  if ! git clone "$repo_url" "$build_dir"; then
     LAST_ERROR="Failed to clone $package_name"
     return 1
   fi
@@ -26,7 +26,7 @@ _build_aur_package() {
   (
     cd "$build_dir" || exit 1
     makepkg -si --noconfirm
-  ) >/dev/null 2>&1 || {
+  ) || {
     LAST_ERROR="Failed to build $package_name"
     return 1
   }
