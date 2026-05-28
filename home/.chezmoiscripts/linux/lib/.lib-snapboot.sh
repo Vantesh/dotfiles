@@ -411,18 +411,37 @@ update_grub_cmdline() {
   return 0
 }
 
-# Updates Limine kernel command line in /etc/default/limine.
+# Updates Limine kernel command line via drop-in file.
 #
-# Appends KERNEL_CMDLINE[default]+= lines using the Limine config syntax.
+# Creates configuration file in /etc/limine-entry-tool.d/ with
+# KERNEL_CMDLINE[default] directive. Use --append for += operator.
+# Escapes quotes in parameters.
 #
 # Arguments:
-#   $@ - Kernel parameters to append
+#   $1 - Drop-in filename (e.g., "50-hibernation" or "50-hibernation.conf")
+#   --append - Optional flag to use += operator instead of = (must be $2 if present)
+#   $@ - Kernel parameters to add (from $2 or $3 onwards)
 # Globals:
 #   LAST_ERROR - Set on failure
 # Returns:
 #   0 on success, 1 on failure, 2 on invalid args
 update_limine_cmdline() {
+  local dropin_name="${1:-}"
+
   LAST_ERROR=""
+
+  if [[ -z "$dropin_name" ]]; then
+    LAST_ERROR="update_limine_cmdline() requires drop-in filename as first argument"
+    return 2
+  fi
+
+  shift
+
+  local operator="="
+  if [[ "${1:-}" == "--append" ]]; then
+    operator="+="
+    shift
+  fi
 
   local params="$*"
 
@@ -431,25 +450,27 @@ update_limine_cmdline() {
     return 2
   fi
 
-  local limine_file="/etc/default/limine"
-  local limine_line="KERNEL_CMDLINE[default]+=$params"
+  [[ "$dropin_name" != *.conf ]] && dropin_name+=".conf"
 
-  if sudo grep -Fxq -- "$limine_line" "$limine_file" 2>/dev/null; then
-    return 0
-  fi
+  local dropin_dir="/etc/limine-entry-tool.d"
+  local dropin_file="$dropin_dir/$dropin_name"
 
-  if ! sudo mkdir -p "$(dirname "$limine_file")" 2>/dev/null; then
-    LAST_ERROR="Failed to create Limine config directory: $(dirname "$limine_file")"
+  local escaped_params
+  escaped_params=$(printf '%s' "$params" | sed 's/"/\\"/g')
+
+  # If limine-entry-tool didn't create it yet, create it here.
+  if ! sudo mkdir -p "$dropin_dir" 2>/dev/null; then
+    LAST_ERROR="Failed to create Limine drop-in directory: $dropin_dir"
     return 1
   fi
 
-  if ! printf '%s\n' "$limine_line" | sudo tee -a "$limine_file" >/dev/null 2>&1; then
-    LAST_ERROR="Failed to write Limine config: $limine_file"
+  if ! printf 'KERNEL_CMDLINE[default]%s "%s"\n' "$operator" "$escaped_params" | sudo tee "$dropin_file" >/dev/null 2>&1; then
+    LAST_ERROR="Failed to write Limine drop-in file: $dropin_file"
     return 1
   fi
 
-  if ! sudo chmod 0644 "$limine_file" 2>/dev/null; then
-    LAST_ERROR="Failed to set permissions on: $limine_file"
+  if ! sudo chmod 0644 "$dropin_file" 2>/dev/null; then
+    LAST_ERROR="Failed to set permissions on: $dropin_file"
     return 1
   fi
 

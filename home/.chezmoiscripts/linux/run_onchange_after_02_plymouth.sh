@@ -134,20 +134,22 @@ update_bootloader_params() {
     fi
     ;;
   limine)
-    if [[ -r /proc/cmdline ]]; then
-      local cleaned_params
-      cleaned_params=$(remove_quiet_boot_params "$(cat /proc/cmdline)")
+    if [[ ! -f /etc/limine-entry-tool.d/01-default.conf ]]; then
+      if [[ -r /proc/cmdline ]]; then
+        local cleaned_params
+        cleaned_params=$(remove_quiet_boot_params "$(cat /proc/cmdline)")
 
-      if [[ -n "$cleaned_params" ]]; then
-        if ! update_limine_cmdline "$cleaned_params"; then
-          die "Failed to update /etc/default/limine: $LAST_ERROR"
+        if [[ -n "$cleaned_params" ]]; then
+          if ! update_limine_cmdline "01-default.conf" "$cleaned_params"; then
+            die "Failed to create default Limine config: $LAST_ERROR"
+          fi
         fi
+      else
+        log WARN "/proc/cmdline not readable; cannot create default Limine drop-in"
       fi
-    else
-      log WARN "/proc/cmdline not readable; cannot seed /etc/default/limine"
     fi
 
-    if ! update_limine_cmdline "$QUIET_BOOT_PARAMS"; then
+    if ! update_limine_cmdline "20-quiet-boot.conf" --append "$QUIET_BOOT_PARAMS"; then
       die "Failed to write Limine quiet boot config: $LAST_ERROR"
     fi
     log INFO "Updated Limine kernel parameters"
