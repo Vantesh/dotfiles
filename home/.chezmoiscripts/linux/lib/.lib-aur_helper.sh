@@ -18,7 +18,7 @@ _build_aur_package() {
   local package_name="$2"
   local build_dir="$3"
 
-  if ! git clone "$repo_url" "$build_dir"; then
+  if ! git clone "$repo_url" "$build_dir" >/dev/null 2>&1; then
     LAST_ERROR="Failed to clone $package_name"
     return 1
   fi
@@ -26,7 +26,7 @@ _build_aur_package() {
   (
     cd "$build_dir" || exit 1
     makepkg -si --noconfirm
-  ) || {
+  ) >/dev/null 2>&1 || {
     LAST_ERROR="Failed to build $package_name"
     return 1
   }
@@ -36,8 +36,9 @@ _build_aur_package() {
 
 # Installs AUR helper if none exists.
 #
-# Skips if paru or yay already installed. Otherwise builds paru-bin from AUR
-# and generates paru development database.
+# Skips if paru or yay already installed.
+# If Chaotic-AUR is selected, installs paru via pacman.
+# Otherwise builds paru from source AUR package and generates paru development database.
 #
 # Globals:
 #   LAST_ERROR - Set on failure
@@ -51,6 +52,15 @@ install_aur_helper() {
   command_exists paru && return 0
   command_exists yay && return 0
 
+  # When Chaotic-AUR is enabled, prefer repo package over AUR build.
+  if [[ "${INSTALL_CHAOTIC_AUR:-0}" == "1" ]]; then
+    if ! sudo pacman -S --needed --noconfirm paru >/dev/null 2>&1; then
+      LAST_ERROR="Failed to install paru from pacman"
+      return 1
+    fi
+    return 0
+  fi
+
   temp_dir="$(mktemp -d)" || {
     LAST_ERROR="Failed to create temp directory"
     return 1
@@ -58,7 +68,7 @@ install_aur_helper() {
 
   trap '[[ -d "${temp_dir:-}" ]] && rm -rf "${temp_dir}"' RETURN EXIT ERR
 
-  if ! _build_aur_package "$PARU_REPO" "paru-bin" "$temp_dir/paru-bin"; then
+  if ! _build_aur_package "$PARU_REPO" "paru" "$temp_dir/paru"; then
     return 1
   fi
 
