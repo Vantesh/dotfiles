@@ -73,31 +73,22 @@ die() {
 }
 
 ensure_dependencies_installed() {
-  local -a pm_query_cmd pm_install_cmd
   local -a base_packages core_dev_package=()
 
   base_packages=(git chezmoi figlet)
 
-  if command -v dnf >/dev/null 2>&1; then
-    pm_query_cmd=(rpm -q)
-    pm_install_cmd=(sudo dnf install -y)
-
-  elif command -v pacman >/dev/null 2>&1; then
-    pm_query_cmd=(pacman -Q)
-    pm_install_cmd=(sudo pacman -S --needed --noconfirm)
-    core_dev_package=("base-devel")
-
-  else
-    die "Unsupported distribution - neither dnf nor pacman found"
+  if ! command -v pacman >/dev/null 2>&1; then
+    die "Unsupported distribution - pacman not found"
   fi
 
+  core_dev_package=("base-devel")
   local -a required_packages=("${base_packages[@]}" "${core_dev_package[@]}")
   local -a to_install=()
   local pkg
 
   log STEP "Checking for required packages..."
   for pkg in "${required_packages[@]}"; do
-    if ! "${pm_query_cmd[@]}" "$pkg" &>/dev/null; then
+    if ! pacman -Q "$pkg" &>/dev/null; then
       to_install+=("$pkg")
     fi
   done
@@ -108,7 +99,7 @@ ensure_dependencies_installed() {
   fi
 
   log STEP "Installing missing packages: ${to_install[*]}"
-  if "${pm_install_cmd[@]}" "${to_install[@]}"; then
+  if sudo pacman -S --needed --noconfirm "${to_install[@]}"; then
     log INFO "Required packages installed successfully"
   else
     die "Failed to install required packages"
