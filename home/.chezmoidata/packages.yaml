@@ -2,7 +2,6 @@ packages:
   core:
     - uwsm
     - accountsservice
-    - polkit-gnome
     - xdg-desktop-portal-gtk
     - xdg-autostart
     - gnome-keyring
