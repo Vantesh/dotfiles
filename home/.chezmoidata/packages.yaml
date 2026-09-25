@@ -65,7 +65,7 @@ packages:
 
   theming:
     - nwg-look
-    - adw-gtk3
+    - adw-gtk3-theme
     - apple_cursor
     - frameworkintegration
     - qtengine
