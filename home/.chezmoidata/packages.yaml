@@ -25,18 +25,15 @@ packages:
     - evince
     - nautilus
     - gvfs-mtp
-    - wmctrl
-    - khal
-    - playerctl
     - libcanberra
-    - gammastep
-    - geoclue
     - ly
-    - kdialog
     - gparted
     - xorg-xhost
-    - brightnessctl
     - ddcutil
+    - xdg-terminal-exec
+    - gpu-screen-recorder
+    - gpu-screen-recorder-ui
+    - gpu-screen-recorder-notification
 
   compositor:
     hyprland:
@@ -68,30 +65,23 @@ packages:
 
   theming:
     - nwg-look
+    - adw-gtk3
     - apple_cursor
     - frameworkintegration
-    - qt6ct-kde
-    - qt5ct-kde
+    - qtengine
     - tela-icon-theme
-    - plymouth
     - layer-shell-qt
     - qt6-multimedia
     - qt6-positioning
     - qt6-5compat
-
+    - qt6-imageformats
+    - kimageformats # enable video as wallpaper
   fonts:
     - apple-fonts
     - noto-fonts-cjk
     - noto-fonts-extra
     - ttf-liberation
     - inter-font
-
-  aur:
-    - darkly-bin
-    - xdg-terminal-exec-git
-    - matugen
-    - gpu-screen-recorder-git
-    - dms-shell
 
   optional:
     - rust
@@ -152,6 +142,7 @@ packages:
       mkinitcpio:
         - limine-mkinitcpio-hook
         - limine-snapper-sync
+        - limine-entry-tool
 
       dracut:
         - limine-dracut-support
