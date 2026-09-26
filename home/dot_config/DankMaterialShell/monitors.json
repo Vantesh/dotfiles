@@ -5,10 +5,10 @@
       "id": "auto_ea9abafa",
       "name": "",
       "outputs": {
-        "eDP-1": {
-          "mode": "1920x1080@59.999",
+        "Dell Inc. DELL P2425H": {
+          "mode": "1920x1080@100.000",
           "position": {
-            "x": 0,
+            "x": 1920,
             "y": 0
           },
           "scale": 1,
@@ -17,10 +17,10 @@
           "disabled": false,
           "hyprland": {}
         },
-        "DP-1": {
-          "mode": "1920x1080@100.000",
+        "Sharp Corporation 0x149A": {
+          "mode": "1920x1080@59.999",
           "position": {
-            "x": 1920,
+            "x": 0,
             "y": 0
           },
           "scale": 1,
