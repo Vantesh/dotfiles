@@ -348,12 +348,12 @@ create_backup() {
     return 2
   fi
 
-  if [[ ! -e "$target_path" ]]; then
+  if [[ ! -e "$target_path" ]] && ! sudo test -e "$target_path"; then
     LAST_ERROR="Target path does not exist: $target_path"
     return 2
   fi
 
-  if [[ -e "$backup_path" ]] && [[ "$force" != "force" ]]; then
+  if { [[ -e "$backup_path" ]] || sudo test -e "$backup_path"; } && [[ "$force" != "force" ]]; then
     return 0
   fi
 
@@ -409,7 +409,7 @@ restore_backup() {
     return 2
   fi
 
-  if [[ ! -e "$backup_path" ]]; then
+  if [[ ! -e "$backup_path" ]] && ! sudo test -e "$backup_path"; then
     LAST_ERROR="Backup file does not exist: $backup_path"
     return 2
   fi
