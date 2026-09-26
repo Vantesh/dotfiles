@@ -43,14 +43,11 @@ configure_ly() {
   declare -A ly_config=(
     ["allow_empty_password"]="false"
     ["clear_password"]="true"
-    ["bg"]="0"
-    ["fg"]="8"
     ["bigclock"]="en"
     ["hide_key_hints"]="true"
     ["border_fg"]="8"
     ["path"]="null"
-    ["sleep_cmd"]="systemctl suspend"
-    ["session_log"]="/tmp/ly-session.log"
+    ["hide_version_string"]="true"
   )
 
   local key
