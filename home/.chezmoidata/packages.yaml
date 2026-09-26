@@ -30,6 +30,7 @@ packages:
     - gparted
     - xorg-xhost
     - ddcutil
+    - wl-clipboard
     - xdg-terminal-exec
     - gpu-screen-recorder
     - gpu-screen-recorder-ui
@@ -62,10 +63,11 @@ packages:
     - unzip
     - neovim
     - git-delta
+    - tree-sitter-cli
 
   theming:
     - nwg-look
-    - adw-gtk3-theme
+    - adw-gtk-theme
     - apple_cursor
     - frameworkintegration
     - qtengine
