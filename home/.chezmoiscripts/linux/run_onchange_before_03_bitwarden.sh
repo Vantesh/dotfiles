@@ -50,21 +50,26 @@ validate_email() {
   return 1
 }
 
+BITWARDEN_EMAIL=""
+
 get_bitwarden_email() {
   local email
 
   LAST_ERROR=""
+  BITWARDEN_EMAIL=""
 
   while true; do
     printf '%b%s%b ' "$COLOR_CYAN" "Enter your Bitwarden email:" "$COLOR_RESET" >&2
 
     if [[ -t 0 ]]; then
       if ! read -r email; then
-        email=""
+        LAST_ERROR="Failed to read Bitwarden email from standard input"
+        return 1
       fi
     elif [[ -r /dev/tty ]]; then
       if ! read -r email </dev/tty; then
-        email=""
+        LAST_ERROR="Failed to read Bitwarden email from terminal"
+        return 1
       fi
     else
       LAST_ERROR="No interactive terminal available to read Bitwarden email"
@@ -72,7 +77,7 @@ get_bitwarden_email() {
     fi
 
     if validate_email "$email"; then
-      printf '%s' "$email"
+      BITWARDEN_EMAIL="$email"
       return 0
     fi
 
@@ -90,7 +95,11 @@ login_bitwarden() {
 
   log INFO "Logging in to Bitwarden"
 
-  email=$(get_bitwarden_email)
+  if ! get_bitwarden_email; then
+    return 1
+  fi
+
+  email="$BITWARDEN_EMAIL"
 
   if ! rbw config set email "$email" >/dev/null 2>&1; then
     LAST_ERROR="Failed to set rbw email configuration"
@@ -116,10 +125,6 @@ main() {
 
   if ! login_bitwarden; then
     die "Failed to login to Bitwarden: $LAST_ERROR"
-  fi
-
-  if ! rbw config set pinentry pinentry-qt; then
-    log WARN "Failed to set rbw pinentry configuration"
   fi
 
   if ! rbw config set lock_timeout 10800; then
