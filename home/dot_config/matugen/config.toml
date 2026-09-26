@@ -1,0 +1,26 @@
+[config]
+
+[templates.yazi]
+  input_path  = '~/.config/matugen/templates/terminal/yazi.toml'
+  output_path = '~/.config/yazi/theme/toml'
+
+
+[templates.btop]
+  input_path  = '~/.config/matugen/templates/terminal/btop.theme'
+  output_path = '~/.config/btop/themes/matugen.theme'
+  post_hook   = 'pkill -USR2 btop || true'
+
+
+[templates.fzf-fish]
+  input_path  = '~/.config/matugen/templates/terminal/fzf.fish'
+  output_path = '~/.cache/wal/fzf.fish'
+
+[templates.fzf]
+  input_path  = '~/.config/matugen/templates/terminal/fzf.sh'
+  output_path = '~/.cache/zsh/fzf'
+
+
+[templates.fish]
+  input_path  = '~/.config/matugen/templates/terminal/colors.fish'
+  output_path = '~/.config/fish/themes/Matugen.theme'
+  post_hook   = '~/.config/matugen/scripts/update_terminal.sh &'
