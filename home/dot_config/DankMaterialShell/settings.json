@@ -3,9 +3,12 @@
   "currentThemeCategory": "dynamic",
   "matugenScheme": "scheme-smart",
   "popupTransparency": 0.95,
+  "widgetBackgroundColor": "sth",
   "cornerRadius": 12,
+  "m3ElevationCustomColor": "#283593",
   "blurEnabled": true,
   "foregroundLayerTransparency": 0.95,
+  "blurBorderCustomColor": "#1565c0",
   "wallpaperFillMode": "Fit",
   "controlCenterShowMicPercent": true,
   "showWorkspaceIndex": true,
@@ -16,6 +19,7 @@
   "centeringMode": "geometric",
   "dankLauncherV2Size": "micro",
   "dankLauncherV2UnloadOnClose": true,
+  "useAutoLocation": true,
   "networkPreference": "wifi",
   "cursorSettings": {
     "theme": "System Default",
@@ -37,6 +41,13 @@
   "launcherLogoColorOverride": "primary",
   "notificationSummaryFontSize": 12,
   "notificationBodyFontSize": 14,
+  "soundLogin": true,
+  "acLockTimeout": 1800,
+  "acSuspendTimeout": 10800,
+  "acPostLockMonitorTimeout": 60,
+  "batteryLockTimeout": 300,
+  "batterySuspendTimeout": 1800,
+  "batteryPostLockMonitorTimeout": 60,
   "lowerDisplayRefreshRateOnBattery": true,
   "lockBeforeSuspend": true,
   "fadeToLockGracePeriod": 10,
@@ -49,12 +60,52 @@
   "matugenTemplateFirefox": false,
   "matugenTemplatePywalfox": false,
   "matugenTemplateZenBrowser": false,
+  "matugenTemplateNeovim": true,
+  "matugenTemplateNeovimSettings": {
+    "dark": {
+      "baseTheme": "default-dark",
+      "harmony": 0.5
+    },
+    "light": {
+      "baseTheme": "default-light",
+      "harmony": 0.5
+    }
+  },
   "notificationOverlayEnabled": true,
   "lockScreenWallpaperFillMode": "Fit",
   "notificationShowTimeoutBar": true,
   "notificationFocusedMonitor": true,
   "osdPowerProfileEnabled": true,
   "osdAudioOutputEnabled": false,
+  "displayNameMode": "model",
+  "screenPreferences": {
+    "notifications": [
+      "all"
+    ],
+    "dock": [
+      "all"
+    ]
+  },
+  "showOnLastDisplay": {
+    "notifications": true,
+    "dock": true
+  },
+  "displayPreviousRefreshModes": {
+    "hyprland": {
+      "DP-1": {
+        "mode": "1920x1080@100.000"
+      },
+      "Dell Inc. DELL P2425H 2RHZH14": {
+        "mode": "1920x1080@100.000"
+      },
+      "Dell Inc. DELL P2425H": {
+        "mode": "1920x1080@100.000"
+      },
+      "desc:Dell Inc. DELL P2425H 2RHZH14": {
+        "mode": "1920x1080@100.000"
+      }
+    }
+  },
   "displayProfileAutoSelect": true,
   "displayShowDisconnected": true,
   "barConfigs": [
@@ -101,7 +152,11 @@
           "enabled": true,
           "hideWhenIdle": true
         },
-        "systemTray",
+        {
+          "id": "systemTray",
+          "enabled": true,
+          "trayUseInlineExpansion": false
+        },
         {
           "id": "memUsage",
           "enabled": true,
@@ -143,7 +198,7 @@
       "borderOpacity": 1,
       "borderThickness": 1,
       "widgetOutlineEnabled": false,
-      "widgetOutlineColor": "primary",
+      "widgetOutlineColor": "surfaceText",
       "widgetOutlineOpacity": 1,
       "widgetOutlineThickness": 1,
       "fontScale": 1,
