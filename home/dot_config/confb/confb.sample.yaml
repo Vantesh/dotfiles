@@ -1,0 +1,163 @@
+# confb — sample configuration (max coverage)
+# ------------------------------------------
+# Syntax: YAML
+# Version: bump when we change schema (loader enforces `version: 1` for now).
+
+version: 1
+
+# Each entry under `targets` produces exactly one output file.
+# A target pulls from one or more `sources` (files or globs), in order.
+# Depending on `format` and `merge.rules`, sources are concatenated or structurally merged.
+targets:
+
+  # ──────────────────────────────────────────────────────────────────────────────
+  # 1) KDL example (format-aware merge with section controls)
+  # ──────────────────────────────────────────────────────────────────────────────
+  - name: niri
+    # format decides the merge engine.
+    #   auto  → (not used here) would try to infer but we *require explicit* format
+    #   raw   → byte concat with newline normalization (no parsing)
+    #   yaml/json/toml/ini/kdl → parsed + merged according to rules below
+    format: kdl
+
+    # Destination (tilde expands). Will be created atomically.
+    output: ~/.config/niri/config.kdl
+
+    # How to de-duplicate the *file list* after glob expansion:
+    #   by_path (default) → if the same path appears twice (e.g., explicit + glob), keep first
+    #   none              → keep duplicates (rarely useful)
+    dedupe: by_path
+
+    # Newline + encoding for the generated file (MVP: fixed behavior).
+    newline: "\n"        # currently only "\n" is supported
+    encoding: utf8       # currently only utf8
+
+    # Ordered source list. Globs expand, then we sort per-source if `sort: lex` (default) or keep FS order with `sort: none`.
+    sources:
+      # explicit file, default sort=lex (no effect for a single file)
+      - path: ~/.config/niri/colors.kdl
+
+      # glob with explicit lexicographic sort (default). Useful when file names carry ordering.
+      - path: ~/.config/niri/src/*.kdl
+        sort: lex         # lex | none
+
+      # optional file — absence is not an error.
+      - path: ~/.config/niri/local.kdl
+        optional: true
+
+    # Merge behavior for this format.
+    merge:
+      rules:
+        # For KDL: how to handle duplicate *keys* inside the same section:
+        #   last_wins  → later files override earlier values for the same key
+        #   first_wins → keep the first value, ignore later ones
+        #   append     → keep all values for the same key (multiple lines)
+        keys: last_wins
+
+        # Restrict merging to specific section names. Sections *not listed* remain as separate blocks.
+        # This lets you merge `layout {}` but keep multiple `bindings {}` sections distinct.
+        section_keys: ["layout", "output", "theme"]
+
+    # Post-write hook: executed after this target is written (on startup and on changes).
+    # Templated vars: {target}, {output}, {timestamp}. Runs under `/bin/sh -c`.
+    on_change: |
+      # Example: reload compositor + notify
+      niri msg reload || true
+      notify-send "confb" "rebuilt {target} → {output} @ {timestamp}"
+
+  # ──────────────────────────────────────────────────────────────────────────────
+  # 2) YAML example (deep maps + unique array append)
+  # ──────────────────────────────────────────────────────────────────────────────
+  - name: app_yaml
+    format: yaml
+    output: ~/.config/confb/app.yaml
+    dedupe: by_path
+    newline: "\n"
+    encoding: utf8
+    sources:
+      - path: ~/.config/confb/app/base.yaml
+      - path: ~/.config/confb/app/env/*.yaml    # overlay snippets
+        sort: lex
+      - path: ~/.config/confb/app/local.yaml
+        optional: true
+    merge:
+      rules:
+        # For structured formats (yaml/json/toml):
+        # maps:
+        #   deep     → recursive map merge (child maps merged according to same rules)
+        #   replace  → later map replaces earlier map entirely at that node
+        maps: deep
+        # arrays:
+        #   replace        → later array replaces earlier array
+        #   append         → append later items to earlier items
+        #   unique_append  → append, but drop duplicates (encounter order preserved)
+        arrays: unique_append
+    on_change: |
+      # Example: restart a service that reads app.yaml
+      systemctl --user restart myapp || true
+
+  # ──────────────────────────────────────────────────────────────────────────────
+  # 3) TOML example (replace arrays, deep maps)
+  # ──────────────────────────────────────────────────────────────────────────────
+  - name: app_toml
+    format: toml
+    output: ~/.config/confb/app.toml
+    sources:
+      - path: ~/.config/confb/toml/base.toml
+      - path: ~/.config/confb/toml/overlay.toml
+        sort: lex
+    merge:
+      rules:
+        maps: deep
+        arrays: replace
+    on_change: |
+      echo "TOML updated: {output}"
+
+  # ──────────────────────────────────────────────────────────────────────────────
+  # 4) JSON example (replace maps, append arrays)
+  # ──────────────────────────────────────────────────────────────────────────────
+  - name: app_json
+    format: json
+    output: ~/.config/confb/app.json
+    sources:
+      - path: ~/.config/confb/json/base.json
+      - path: ~/.config/confb/json/feature/*.json
+        sort: lex
+    merge:
+      rules:
+        maps: replace
+        arrays: append
+
+  # ──────────────────────────────────────────────────────────────────────────────
+  # 5) INI example (control repeated keys)
+  # ──────────────────────────────────────────────────────────────────────────────
+  - name: sys_ini
+    format: ini
+    output: ~/.config/confb/sys.ini
+    sources:
+      - path: ~/.config/confb/ini/base.ini
+      - path: ~/.config/confb/ini/overlay.ini
+    merge:
+      rules:
+        # For INI, maps/arrays don’t apply. Instead:
+        # repeated_keys:
+        #   last_wins → keep only the last occurrence of the key in a section
+        #   append    → keep all occurrences (multiple lines)
+        repeated_keys: last_wins
+
+  # ──────────────────────────────────────────────────────────────────────────────
+  # 6) RAW example (no parsing, just newline-normalized concatenation)
+  # ──────────────────────────────────────────────────────────────────────────────
+  - name: concat_notes
+    format: raw
+    output: ~/.config/confb/all-notes.txt
+    dedupe: by_path
+    sources:
+      - path: ~/notes/*.txt
+        sort: lex
+      - path: ~/notes.local/*.txt
+        optional: true
+    # `merge:` is ignored for raw. Files are concatenated with:
+    # - All newlines normalized to "\n"
+    # - Exactly one trailing newline at end of output
+    # - A single newline inserted between files if needed

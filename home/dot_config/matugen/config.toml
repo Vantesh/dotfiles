@@ -26,3 +26,8 @@
 [templates.atuin]
   input_path  = "~/.config/matugen/templates/terminal/atuin.toml"
   output_path = "~/.config/atuin/themes/matugen.toml"
+
+
+[templates.starship]
+  input_path  = "~/.config/matugen/templates/terminal/starship.toml"
+  output_path = "~/.cache/starship/starship.toml"

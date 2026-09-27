@@ -1,0 +1,27 @@
+# confb — sample configuration (max coverage)
+# ------------------------------------------
+# Syntax: YAML
+# Version: bump when we change schema (loader enforces `version: 1` for now).
+
+version: 1
+
+# Each entry under `targets` produces exactly one output file.
+# A target pulls from one or more `sources` (files or globs), in order.
+# Depending on `format` and `merge.rules`, sources are concatenated or structurally merged.
+targets:
+  # ──────────────────────────────────────────────────────────────────────────────
+  # 3) Starship
+  # ──────────────────────────────────────────────────────────────────────────────
+  - name: Starship
+    format: toml
+    output: ~/.config/starship/starship.toml
+    sources:
+      - path: ~/.cache/starship/starship.toml
+      - path: ~/.config/starship/starship-base.toml
+        sort: lex
+    merge:
+      rules:
+        maps: deep
+        arrays: unique_append
+    on_change: |
+      echo "TOML updated: {output}"
