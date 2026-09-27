@@ -3,13 +3,17 @@ return {
   install = { colorscheme = { "nvchad" } },
 
   ui = {
+    border = "rounded",
+    backdrop = 100,
+    title = "NvChad",
+
+    wrap = true,
     icons = {
       ft = "",
       lazy = "󰂠 ",
       loaded = "",
       not_loaded = "",
     },
-    border = "single"
   },
 
   performance = {
