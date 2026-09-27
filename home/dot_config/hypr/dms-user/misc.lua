@@ -10,13 +10,4 @@ hl.config({
     middle_click_paste = false,
   },
 
-  dwindle = {
-    preserve_split = true,
-
-  },
-  master = {
-    mfact = 0.5,
-  },
-
-
 })
