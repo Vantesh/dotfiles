@@ -1,4 +1,3 @@
----@diagnostic disable: undefined-global
 vim.g.base46_cache = vim.fn.stdpath "data" .. "/base46/"
 vim.g.mapleader = " "
 
@@ -26,34 +25,12 @@ require("lazy").setup({
   { import = "plugins" },
 }, lazy_config)
 
--- load theme
-do
-  local cache = vim.g.base46_cache or (vim.fn.stdpath "data" .. "/base46/")
+dofile(vim.g.base46_cache .. "defaults")
+local base46 = require "base46"
+base46.merge_tb = base46.merge_tb or base46.load
 
-  local function file_exists(path)
-    local uv = vim.uv or vim.loop
-    return uv and uv.fs_stat and uv.fs_stat(path) ~= nil
-  end
-
-  local ok_defaults = false
-  local ok_statusline = false
-
-  if file_exists(cache .. "defaults") then
-    ok_defaults = pcall(dofile, cache .. "defaults")
-  end
-
-  if file_exists(cache .. "statusline") then
-    ok_statusline = pcall(dofile, cache .. "statusline")
-  end
-
-  -- Fallback: if cache files are missing (first run) try loading via base46 directly
-  if not (ok_defaults and ok_statusline) then
-    local ok, base46 = pcall(require, "base46")
-    if ok and base46 and type(base46.load_all) == "function" then
-      pcall(base46.load_all)
-    end
-  end
-end
+dofile(vim.g.base46_cache .. "statusline")
+vim.cmd.colorscheme("dms")
 
 require "options"
 require "autocmds"
@@ -61,17 +38,3 @@ require "autocmds"
 vim.schedule(function()
   require "mappings"
 end)
-
--- theme reloader
-pcall(function()
-  require('nvchad.utils').reload()
-end)
-local autocmd = vim.api.nvim_create_autocmd
-autocmd("Signal", {
-  pattern = "SIGUSR1",
-  callback = function()
-    pcall(function()
-      require('nvchad.utils').reload()
-    end)
-  end
-})
