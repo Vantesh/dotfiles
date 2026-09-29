@@ -10,4 +10,15 @@ hl.config({
     middle_click_paste = false,
   },
 
+  ecosystem = {
+    no_donation_nag = true,
+    no_update_news = true,
+  },
+
+  binds = {
+    scroll_event_delay = 0,
+    workspace_back_and_forth = true,
+  },
+
+
 })

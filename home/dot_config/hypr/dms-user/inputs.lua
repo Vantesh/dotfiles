@@ -12,4 +12,11 @@ hl.config({
     },
   },
 
+  cursor = {
+    inactive_timeout = 30,
+    zoom_disable_aa = true,
+    no_hardware_cursors = true,
+  },
+
 })
+

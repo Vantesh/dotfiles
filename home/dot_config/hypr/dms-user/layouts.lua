@@ -1,7 +1,20 @@
 hl.config({
   general = {
     layout = "dwindle",
+    gaps_in = 5,
+    gaps_out = 5,
+    border_size = 2,
+    allow_tearing = true,
+    no_focus_fallback = true,
+    resize_on_border = true,
+
+    snap = {
+      enabled = true,
+
+    },
   }
+
+
 })
 
 
