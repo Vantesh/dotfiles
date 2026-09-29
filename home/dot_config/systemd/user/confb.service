@@ -1,0 +1,11 @@
+[Unit]
+Description=confb daemon (config blender)
+
+[Service]
+ExecStart=%h/.local/bin/confb run -c %h/.config/confb/confb.yaml
+Restart=on-failure
+# lower CPU wakeups on heavy file churn
+Environment=CONFB_DEBOUNCE_MS=300
+
+[Install]
+WantedBy=default.target
