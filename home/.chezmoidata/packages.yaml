@@ -35,6 +35,7 @@ packages:
     - gpu-screen-recorder
     - gpu-screen-recorder-ui
     - gpu-screen-recorder-notification
+    - archlinux-xdg-menu
 
   compositor:
     hyprland:
