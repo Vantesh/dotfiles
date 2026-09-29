@@ -17,6 +17,7 @@ readonly -a USER_SERVICES=(
   "gnome-keyring-daemon.service"
   "mpris-proxy"
   "dms"
+  "confb"
 )
 
 # shellcheck disable=SC2034
