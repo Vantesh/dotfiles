@@ -103,6 +103,15 @@ setup_spicetify() {
     return 0
   fi
 
+  if command_exists spotify-launcher; then
+    if ! spicetify config spotify_path "$HOME/.local/share/spotify-launcher/install/usr/share/spotify" >/dev/null 2>&1; then
+      LAST_ERROR="Failed to configure Spicetify Spotify path"
+      return 1
+    fi
+
+    log INFO "Configured Spicetify Spotify path"
+  fi
+
   if [[ ! -f "$SPOTIFY_PREFS" ]]; then
     local spotify_dir
     spotify_dir=$(dirname "$SPOTIFY_PREFS")
