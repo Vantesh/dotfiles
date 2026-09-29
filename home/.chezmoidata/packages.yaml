@@ -148,7 +148,6 @@ packages:
       mkinitcpio:
         - limine-mkinitcpio-hook
         - limine-snapper-sync
-        - limine-entry-tool
 
       dracut:
         - limine-dracut-support
