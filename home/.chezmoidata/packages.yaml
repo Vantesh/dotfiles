@@ -97,7 +97,7 @@ packages:
     - go
     - cava
     - brave-bin
-    - visual-studio-code-bin
+    - zed
     - qbittorrent
     - spotify-launcher
     - spicetify-cli
