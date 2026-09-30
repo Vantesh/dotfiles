@@ -24,9 +24,7 @@
   },
   "format_on_save": "on",
   "tab_size": 2,
-  "minimap": {
-    "show": "auto",
-  },
+
   "relative_line_numbers": "disabled",
   "autosave": "on_focus_change",
   "cursor_shape": "bar",
@@ -86,8 +84,7 @@
 
   "theme_overrides": {
     "DankShell Dark": {
-      "editor.document_highlight.read_background": "#00000000",
-      "border.variant": "#ffffff1a",
+      "border.variant": "#00000000",
       "border": "#00000000",
       "panel.focused_border": "#00000000",
       "pane.focused_border": "#00000000",
@@ -111,11 +108,6 @@
   },
   "tab_bar": {
     "show": false,
-  },
-
-  "toolbar": {
-    "code_actions": false,
-    "quick_actions": false,
   },
 
   "project_panel": {
@@ -142,7 +134,28 @@
   },
 
   "scrollbar": {
-    "show": "never",
+    // When to show the scrollbar in the editor (auto, system, always, never)
+    "show": "auto",
+    "cursors": true, // Show cursor positions in the scrollbar.
+    "git_diff": true, // Show git diff indicators in the scrollbar.
+    "search_results": true, // Show buffer search results in the scrollbar.
+    "selected_text": true, // Show selected text occurrences in the scrollbar.
+    "selected_symbol": true, // Show selected symbol occurrences in the scrollbar.
+    "diagnostics": "all", // Show diagnostics (none, error, warning, information, all)
+    "axes": {
+      "horizontal": false, // Show/hide the horizontal scrollbar
+      "vertical": false, // Show/hide the vertical scrollbar
+    },
+  },
+
+  // Minimap related settings
+  "minimap": {
+    "show": "auto", // When to show (auto, always, never)
+    "display_in": "active_editor", // Where to show (active_editor, all_editors)
+    "thumb": "hover", // When to show thumb (always, hover)
+    "thumb_border": "none", // Thumb border (left_open, right_open, full, none)
+    "max_width_columns": 50, // Maximum width of minimap
+    "current_line_highlight": null, // Highlight current line (null, line, gutter)
   },
 
   "gutter": {
@@ -162,5 +175,29 @@
 
   "file_types": {
     "JSONC": ["*.json", "tsconfig*.json"],
+  },
+
+  // Maximum number of tabs per pane. Unset for unlimited.
+  "max_tabs": null,
+
+  "tabs": {
+    "git_status": true, // Color to show git status
+    "close_position": "right", // Close button position (left, right, hidden)
+    "show_close_button": "hover", // Close button shown (hover, always, hidden)
+    "file_icons": true, // Icon showing file type
+    // Show diagnostics in file icon (off, errors, all). Requires file_icons=true
+    "show_diagnostics": "errors",
+  },
+
+  "lsp": {
+    "lua-language-server": {
+      "settings": {
+        "Lua": {
+          "workspace": {
+            "library": ["/usr/share/hypr/stubs"],
+          },
+        },
+      },
+    },
   },
 }
