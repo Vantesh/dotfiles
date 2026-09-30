@@ -68,7 +68,7 @@ setup_ssh_known_hosts() {
   local added=false
 
   if ! grep -q "github.com" "$SSH_KNOWN_HOSTS"; then
-    if ssh-keyscan github.com >>"$SSH_KNOWN_HOSTS" 2>/dev/null; then
+    if ssh-keyscan -t rsa github.com >>"$SSH_KNOWN_HOSTS" 2>/dev/null; then
       log INFO "Added GitHub to known_hosts"
       added=true
     else
