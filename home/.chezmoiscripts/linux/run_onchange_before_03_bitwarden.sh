@@ -24,7 +24,10 @@ install_bitwarden_packages() {
 
   case "${DISTRO_FAMILY,,}" in
   *arch*)
-    packages+=(bitwarden-bin)
+    packages+=(bitwarden-bin pinentry)
+    ;;
+  *)
+    packages+=(pinentry-curses)
     ;;
   esac
 
@@ -85,6 +88,24 @@ get_bitwarden_email() {
   done
 }
 
+configure_bitwarden_pinentry() {
+  local pinentry
+
+  if [[ -x /usr/bin/pinentry-curses ]]; then
+    pinentry=/usr/bin/pinentry-curses
+  elif command -v pinentry-curses >/dev/null 2>&1; then
+    pinentry=$(command -v pinentry-curses)
+  else
+    LAST_ERROR="Terminal pinentry is not installed"
+    return 1
+  fi
+
+  if ! rbw config set pinentry "$pinentry" >/dev/null 2>&1; then
+    LAST_ERROR="Failed to configure terminal pinentry"
+    return 1
+  fi
+}
+
 login_bitwarden() {
   local email
 
@@ -94,6 +115,10 @@ login_bitwarden() {
   fi
 
   log INFO "Logging in to Bitwarden"
+
+  if ! configure_bitwarden_pinentry; then
+    return 1
+  fi
 
   if ! get_bitwarden_email; then
     return 1

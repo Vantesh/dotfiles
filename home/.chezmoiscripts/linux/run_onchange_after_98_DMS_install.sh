@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # 99_DMS_install.sh - Install DankMaterialShell headlessly
 #
-# Runs the official DankLinux installer without prompts for the local Hyprland
-# and Kitty setup.
+# Runs the official DankLinux installer without prompts for the configured
+# compositor and terminal setup.
 #
 # Exit codes:
 #   0 (success), 1 (failure), 127 (missing dependency)
@@ -30,11 +30,12 @@ main() {
 		die "Failed to obtain sudo access: $LAST_ERROR"
 	fi
 
+	print_box "DMS INSTALL"
 	log STEP "Installing DankMaterialShell"
 
 	if ! curl -fsSL "$DANK_INSTALL_URL" | sh -s -- \
-		--compositor hyprland \
-		--term kitty \
+		--compositor "$COMPOSITOR" \
+		--term "$TERMINAL" \
 		--danksearch \
 		--dankcalendar \
 		--yes; then

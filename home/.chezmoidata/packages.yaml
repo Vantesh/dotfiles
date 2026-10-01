@@ -19,7 +19,6 @@ packages:
     - plocate
     - usbutils
     - ufw
-    - kitty
     - imv
     - mpv
     - evince
@@ -35,6 +34,7 @@ packages:
     - gpu-screen-recorder
     - gpu-screen-recorder-ui
     - gpu-screen-recorder-notification
+    - archlinux-xdg-menu
 
   compositor:
     hyprland:
@@ -42,6 +42,10 @@ packages:
       - xdg-desktop-portal-hyprland
       - socat
       - cpio
+
+  terminal:
+    kitty:
+      - kitty
 
   cli:
     - fastfetch
@@ -67,6 +71,7 @@ packages:
     - neovim
     - git-delta
     - tree-sitter-cli
+    - shellcheck
 
   theming:
     - nwg-look
@@ -93,7 +98,7 @@ packages:
     - go
     - cava
     - brave-bin
-    - visual-studio-code-bin
+    - zed
     - qbittorrent
     - spotify-launcher
     - spicetify-cli
@@ -147,7 +152,6 @@ packages:
       mkinitcpio:
         - limine-mkinitcpio-hook
         - limine-snapper-sync
-        - limine-entry-tool
 
       dracut:
         - limine-dracut-support

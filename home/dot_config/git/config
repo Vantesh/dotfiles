@@ -1,71 +1,101 @@
 [core]
-	editor = code --wait
-	whitespace = error
-	compression = 7
-	preloadindex = true
-	pager = delta
+    whitespace = error
+    compression = 7
+    preloadindex = true
+    pager = delta
+    untrackedCache = true
 
 [interactive]
     diffFilter = delta --color-only
 
 [delta]
-	  true-color = always
-    navigate = true  # use n and N to move between diff sections
-		side-by-side = true
-		line-numbers = true
-		syntax-theme = "Matugen"
-
+    true-color = always
+    navigate = true
+    side-by-side = true
+    line-numbers = true
+    syntax-theme = "Matugen"
 
 [diff]
-	context = 3
-	algorithm = histogram
-	colorMoved = plain
-
-	renames = copies
-	interHunkContext = 10
-
+    context = 3
+    algorithm = histogram
+    colorMoved = plain
+    renames = copies
+    interHunkContext = 10
+    mnemonicPrefix = true
 
 [push]
-	autoSetupRemote = true
-	default = current
-	followTags = true
+    autoSetupRemote = true
+    default = current
+    followTags = true
+
+[fetch]
+    prune = true
+    all = true
 
 [pull]
-	default = current
-	rebase = true
+    rebase = true
 
 [rebase]
-	autostash = true
-	missingCommitsCheck = warn
+    autostash = true
+    autoSquash = true
+    updateRefs = true
+    missingCommitsCheck = warn
+
+[rerere]
+    enabled = true
+    autoupdate = true
+
+[commit]
+    verbose = true
+    gpgsign = true
 
 [log]
-	abbrevCommit = true
-	graphColor = blue,yellow,cyan,magenta,green,red
+    abbrevCommit = true
+    graphColor = blue,yellow,cyan,magenta,green,red
 
 [merge]
-  conflictStyle = zdiff3
+    conflictStyle = zdiff3
+
 [branch]
-  sort = -committerdate
+    sort = -committerdate
 
 [tag]
-  sort = -taggerdate
+    sort = -taggerdate
 
 [color "decorate"]
-	HEAD = red
-	branch = blue
-	tag = yellow
-	remoteBranch = magenta
+    HEAD = red
+    branch = blue
+    tag = yellow
+    remoteBranch = magenta
 
 [color "branch"]
-	current = magenta
-	local = default
-	remote = yellow
-	upstream = green
-	plain = blue
+    current = magenta
+    local = default
+    remote = yellow
+    upstream = green
+    plain = blue
 
-[include]
-  path = ~/.config/git/git-credentials
+[help]
+    autocorrect = prompt
 
+[column]
+    ui = auto
+
+[status]
+    showStash = true
+    submoduleSummary = true
+
+[stash]
+    showPatch = true
+
+[submodule]
+    recurse = true
+
+[transfer]
+    fsckObjects = true
 
 [init]
-	defaultBranch = main
+    defaultBranch = main
+
+[include]
+    path = ~/.config/git/identity

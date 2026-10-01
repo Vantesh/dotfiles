@@ -1,5 +1,7 @@
-function curl --wraps=curl --description 'alias curlie'
-    if type -f curlie &>/dev/null
+function curl --wraps=curlie --description 'alias curlie'
+    if contains -- --help $argv; or contains -- -h $argv
+        command curl $argv
+    else if type -q curlie
         curlie $argv
     else
         command curl $argv

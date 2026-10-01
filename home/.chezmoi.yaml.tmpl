@@ -5,6 +5,7 @@
 {{- $personal := false -}}
 {{- $defaultShell := "fish" -}}
 {{- $compositor := "hyprland" -}}
+{{- $terminal := "kitty" -}}
 {{- $setupSnapper :=  not $skipPackages -}}
 {{- $setupHibernation := not $skipPackages -}}
 {{- $installOptionalPackages := not $skipPackages -}}
@@ -44,6 +45,7 @@
 data:
   defaultShell: {{ $defaultShell | quote }}
   compositor: {{ $compositor | quote }}
+  terminal: {{ $terminal | quote }}
   personal: {{ $personal }}
   distroFamily: {{ $distroFamily | quote }}
   setupSnapper: {{ $setupSnapper }}
@@ -58,6 +60,7 @@ scriptEnv:
   DISTRO: {{ .chezmoi.osRelease.id | quote }}
   DEFAULT_SHELL: {{ $defaultShell | quote }}
   COMPOSITOR: {{ $compositor | quote }}
+  TERMINAL: {{ $terminal | quote }}
   SETUP_SNAPPER: {{ ternary "1" "0" $setupSnapper | quote }}
   SETUP_HIBERNATION: {{ ternary "1" "0" $setupHibernation | quote }}
   INSTALL_OPTIONAL_PACKAGES: {{ ternary "1" "0" $installOptionalPackages | quote }}

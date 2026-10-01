@@ -76,15 +76,23 @@ core_pkgs=(
   "{{ .defaultShell }}"
 )
 
-{{- if eq .compositor "hyprland" }}
 core_pkgs+=(
-{{- range .packages.compositor.hyprland }}
+{{- range (index .packages.compositor .compositor) }}
   "{{ . }}"
 {{- end }}
 )
-{{- end }}
 
 install_group "Core" "${core_pkgs[@]}"
+
+# ============================================================================
+# Terminal
+# ============================================================================
+terminal_pkgs=(
+{{- range (index .packages.terminal .terminal) }}
+  "{{ . }}"
+{{- end }}
+)
+install_group "Terminal" "${terminal_pkgs[@]}"
 
 # ============================================================================
 # CLI Tools
