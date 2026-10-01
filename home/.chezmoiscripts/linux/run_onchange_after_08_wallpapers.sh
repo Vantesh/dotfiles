@@ -67,7 +67,7 @@ download_wallpapers() {
     fi
 
     image_pattern="${WALLPAPER_IMAGE_PATH}[^\" ]+\.(jpg|jpeg|png|webp)"
-    image_url="$(printf '%s' "$page_html" | grep -oE "$image_pattern" | head -n 1)"
+    image_url="$(printf '%s' "$page_html" | grep -oE "$image_pattern" | head -n 1 || true)"
     [[ -z "$image_url" ]] && continue
 
     image_name="$(basename "$image_url")"
