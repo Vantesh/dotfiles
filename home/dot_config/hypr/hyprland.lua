@@ -16,14 +16,37 @@ hl.on("hyprland.start", function()
 	hl.exec_cmd("command -v limine-snapper-restore >/dev/null && sleep 2 && uwsm-exec limine-snapper-restore --notify ")
 
 	-- Prevent the laptop button from shutting down the machine
-	hl.exec_cmd(
-		"uwsm-exec systemd-inhibit --who=\"Hyprland config\" --why=\"dms keybind\" --what=handle-power-key --mode=block sleep infinity & echo $! > /tmp/.hyprland-system-inhibit-pid")
+	-- Record the PID inside the UWSM service, then keep it across exec.
+	hl.exec_cmd([[uwsm-exec sh -c '
+		pid_file="${XDG_RUNTIME_DIR:?}/hyprland-system-inhibit-${HYPRLAND_INSTANCE_SIGNATURE:?}.pid"
+		umask 077
+		printf "%s\n" "$$" > "$pid_file" || exit 1
+		exec systemd-inhibit --who="Hyprland config $HYPRLAND_INSTANCE_SIGNATURE" --why="dms keybind" --what=handle-power-key --mode=block sleep infinity
+	']])
 end)
 
 
 -- Release the power-key inhibitor on shutdown
 hl.on("hyprland.shutdown", function()
-	hl.exec_cmd("kill -9 \"$(cat /tmp/.hyprland-system-inhibit-pid)\"")
+	hl.exec_cmd([[
+		[ -n "$XDG_RUNTIME_DIR" ] && [ -n "$HYPRLAND_INSTANCE_SIGNATURE" ] || exit 0
+		pid_file="$XDG_RUNTIME_DIR/hyprland-system-inhibit-$HYPRLAND_INSTANCE_SIGNATURE.pid"
+		[ -f "$pid_file" ] || exit 0
+		pid=$(cat -- "$pid_file")
+		case "$pid" in
+			""|*[!0-9]*|0*|1) ;;
+			*)
+				case "$(readlink "/proc/$pid/exe" 2>/dev/null)" in
+					*/systemd-inhibit)
+						if tr "\0" "\n" < "/proc/$pid/cmdline" 2>/dev/null | grep -Fxq -- "--who=Hyprland config $HYPRLAND_INSTANCE_SIGNATURE"; then
+							kill -9 "$pid" 2>/dev/null || true
+						fi
+						;;
+				esac
+				;;
+		esac
+		rm -f -- "$pid_file"
+	]])
 end)
 
 

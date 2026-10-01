@@ -40,26 +40,15 @@ require("lazy").setup({
   { import = "plugins" },
 }, lazy_config)
 
+if vim.fn.filereadable(vim.g.base46_cache .. "defaults") == 1 then
+  dofile(vim.g.base46_cache .. "defaults")
+end
 local base46 = require "base46"
 base46.merge_tb = base46.merge_tb or base46.load
 
-local tabufline = require "nvchad.tabufline"
-local close_buffer = tabufline.close_buffer
-tabufline.close_buffer = function(bufnr)
-  vim.t.bufs = vim.tbl_filter(vim.api.nvim_buf_is_valid, vim.t.bufs or {})
-
-  if #vim.t.bufs == 0 then
-    bufnr = bufnr or vim.api.nvim_get_current_buf()
-    vim.cmd "enew"
-    if vim.api.nvim_buf_is_valid(bufnr) then
-      vim.cmd("bw " .. bufnr)
-    end
-    return
-  end
-
-  return close_buffer(bufnr)
+if vim.fn.filereadable(vim.g.base46_cache .. "statusline") == 1 then
+  dofile(vim.g.base46_cache .. "statusline")
 end
-
 vim.cmd.colorscheme("dms")
 
 require "options"

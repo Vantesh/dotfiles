@@ -36,6 +36,17 @@ hl.window_rule({
   tag = "+float-large",
 })
 hl.window_rule({ name = "fx-float-large", match = { tag = "float-large" }, float = true, center = true, size = { "monitor_w*0.7", "monitor_h*0.7" } })
+hl.window_rule({
+  name = "dms-system-update-large",
+  match = {
+    class = "^com\\.danklinux\\.dms$",
+    title = "^DMS — System Update( \\((paru|yay|pacman)\\))?$",
+    initial_title = "^DMS — System Update( \\((paru|yay|pacman)\\))?$",
+  },
+  float = true,
+  center = true,
+  size = { "monitor_w*0.8", "monitor_h*0.8" },
+})
 
 hl.window_rule({
   name = "tag-float-medium",
@@ -122,6 +133,9 @@ hl.window_rule({
 hl.window_rule({ match = { title = "^(.*VLC media player)$", class = "^(vlc)$" }, size = { "monitor_w*0.7", "monitor_h*0.7" } })
 hl.window_rule({ match = { class = "^(org\\.kde\\.kdialog)$", title = "^(mpv playlist|Select Files)$" }, float = true })
 hl.window_rule({ match = { class = "^(org\\.kde\\.kdialog)$", title = "^(Select Files)$" }, size = { "monitor_w*0.5", "monitor_h*0.5" } })
+
+-- float zed settings
+hl.window_rule({ match = { class = "^(dev.zed.Zed)$", title = "^(Zed — Settings)" }, float = true, center = true, size = { "monitor_w*0.7", "monitor_h*0.7" } })
 hl.window_rule({ match = { title = ".*(YouTube).*" }, opacity = "1.0 override" })
 
 -- Auth & security

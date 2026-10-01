@@ -2,7 +2,7 @@
 
 [templates.yazi]
   input_path  = '~/.config/matugen/templates/terminal/yazi.toml'
-  output_path = '~/.config/yazi/theme/toml'
+  output_path = '~/.config/yazi/theme.toml'
 
 
 [templates.btop]
