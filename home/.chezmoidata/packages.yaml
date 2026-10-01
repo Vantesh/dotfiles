@@ -71,6 +71,7 @@ packages:
     - neovim
     - git-delta
     - tree-sitter-cli
+    - shellcheck
 
   theming:
     - nwg-look
