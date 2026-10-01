@@ -60,6 +60,14 @@
     - "README.md"
     - "OFL.txt"
 
+{{/* Maple Mono Nerd Font */}}
+"{{ $fontDir }}/MapleMono":
+  type: archive
+  url: {{ gitHubLatestReleaseAssetURL "subframe7536/maple-font" "MapleMono-NF-unhinted.zip" | quote }}
+  refreshPeriod: {{ $refresh | quote }}
+  include:
+    - "*.ttf"
+
 {{- end -}}
 
 {{/* Windows-specific fonts */}}

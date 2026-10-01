@@ -1,4 +1,11 @@
 vim.g.base46_cache = vim.fn.stdpath "data" .. "/base46/"
+vim.fn.mkdir(vim.g.base46_cache, "p")
+for _, cache_name in ipairs { "tbline", "nvcheatsheet" } do
+  local cache_file = vim.g.base46_cache .. cache_name
+  if vim.fn.filereadable(cache_file) == 0 then
+    vim.fn.writefile({}, cache_file)
+  end
+end
 vim.g.mapleader = " "
 
 -- bootstrap lazy and all plugins
@@ -19,7 +26,15 @@ require("lazy").setup({
     "NvChad/NvChad",
     lazy = false,
     branch = "v2.5",
-    import = "nvchad.plugins",
+  },
+
+  "nvim-lua/plenary.nvim",
+  {
+    "nvchad/ui",
+    lazy = false,
+    config = function()
+      require "nvchad"
+    end,
   },
 
   { import = "plugins" },

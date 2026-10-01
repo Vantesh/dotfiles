@@ -1,0 +1,15 @@
+# Ripgrep config
+# See https://github.com/BurntSushi/ripgrep/blob/master/GUIDE.md#configuration-file
+
+# Don't let ripgrep vomit really long lines
+--max-columns=150
+--max-columns-preview
+
+# Search files that begin with a .
+--hidden
+
+# ...but not inside .git directories
+--glob=!.git/*
+
+# I like smart case
+--smart-case

@@ -1,0 +1,10 @@
+[user]
+    name = "{{ .git.username }}"
+    email = "{{ .git.email }}"
+    signingkey = "{{ .git.signingKey }}"
+
+[gpg]
+    format = ssh
+
+[gpg "ssh"]
+    allowedSignersFile = ~/.config/git/allowed_signers
