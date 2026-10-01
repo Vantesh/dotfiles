@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 03_theming.sh - Configure system theming (bootloader, GTK, Qt)
+# 03_theming.sh - Configure system theming (bootloader, GTK)
 # Exit codes: 0 (success), 1 (failure)
 
 set -euo pipefail
@@ -15,6 +15,15 @@ source "$LIB_DIR/.lib-snapboot.sh"
 
 readonly GRUB_THEME_URL="https://github.com/semimqmo/sekiro_grub_theme"
 readonly GRUB_THEME_DIR="/usr/share/grub/themes/Sekiro"
+readonly -a LIMINE_OPTIONS=(
+  "timeout=0.5"
+  "terse=yes"
+  "quiet=yes"
+  "firmware_logo=yes"
+  "interface_help_hidden=yes"
+  "mouse=no"
+
+)
 
 if ! keep_sudo_alive; then
   die "Failed to keep sudo alive"
@@ -45,19 +54,21 @@ install_grub_theme() {
   return 0
 }
 
-configure_limine_theme() {
+configure_limine_options() {
   local limine_conf="/boot/limine.conf"
   local temp_file
+  local limine_options
 
   LAST_ERROR=""
 
-  if [[ ! -f "$limine_conf" ]]; then
-    LAST_ERROR="Limine config not found: $limine_conf"
-    return 1
+  if ! command_exists limine-entry-tool; then
+    LAST_ERROR="limine-entry-tool is not installed"
+    return 2
   fi
 
-  if grep -q "Catppuccin Mocha Theme" "$limine_conf" 2>/dev/null; then
-    return 0
+  if ! sudo test -f "$limine_conf"; then
+    LAST_ERROR="Limine config not found: $limine_conf"
+    return 2
   fi
 
   if ! create_backup "$limine_conf"; then
@@ -69,24 +80,98 @@ configure_limine_theme() {
   temp_file=$(mktemp)
   trap '[[ -f "${temp_file:-}" ]] && rm -f "${temp_file}"' RETURN
 
-  cat <<'EOF' >"$temp_file"
-# Catppuccin Mocha Theme
-timeout: 1
-default_entry: 2
-interface_branding:
-term_palette: 1e1e2e;f38ba8;a6e3a1;f9e2af;89b4fa;f5c2e7;94e2d5;cdd6f4
-term_palette_bright: 585b70;f38ba8;a6e3a1;f9e2af;89b4fa;f5c2e7;94e2d5;cdd6f4
-term_background: 1e1e2e
-term_foreground: cdd6f4
-term_background_bright: 1e1e2e
-term_foreground_bright: cdd6f4
+  limine_options="$(printf '%s\n' "${LIMINE_OPTIONS[@]}")"
 
-EOF
+  if ! sudo awk -v "limine_options=$limine_options" '
+    function emit_missing_options( option_index, option_parts, option_name) {
+      for (option_index = 1; option_index <= limine_option_count; option_index++) {
+        split(limine_option[option_index], option_parts, "=")
+        option_name = option_parts[1]
+        if (!(option_name in emitted_options)) {
+          print option_name ": " desired_values[option_name]
+          emitted_options[option_name] = 1
+        }
+      }
+    }
 
-  grep -vE "^[[:space:]]*#?[[:space:]]*(timeout|default_entry|interface_branding|term_palette|term_background|term_foreground):" "$limine_conf" 2>/dev/null >>"$temp_file" || true
+    function emit_entry_spacing() {
+      print ""
+      print ""
+      print ""
+    }
+
+    BEGIN {
+      entry_seen = 0
+      trim_entry_padding = 0
+      limine_option_count = split(limine_options, limine_option, "\n")
+      if (limine_option[limine_option_count] == "") {
+        limine_option_count--
+      }
+
+      for (option_index = 1; option_index <= limine_option_count; option_index++) {
+        split(limine_option[option_index], option_parts, "=")
+        desired_options[option_parts[1]] = 1
+        desired_values[option_parts[1]] = substr(limine_option[option_index], length(option_parts[1]) + 2)
+      }
+    }
+
+    {
+      if (trim_entry_padding && $0 ~ /^[[:space:]]*$/) {
+        next
+      }
+      trim_entry_padding = 0
+
+      if (!entry_seen && $0 ~ /^[[:space:]]*$/) {
+        pending_blank_lines++
+        next
+      }
+
+      if (!entry_seen && $0 ~ /^\//) {
+        emit_missing_options()
+        emit_entry_spacing()
+        pending_blank_lines = 0
+        entry_seen = 1
+        trim_entry_padding = 1
+        print
+        next
+      }
+
+      if (pending_blank_lines > 0) {
+        for (blank_index = 0; blank_index < pending_blank_lines; blank_index++) {
+          print ""
+        }
+        pending_blank_lines = 0
+      }
+
+      normalized_line = $0
+      sub(/^[[:space:]]*#?[[:space:]]*/, "", normalized_line)
+      split(normalized_line, fields, ":")
+      option_name = fields[1]
+      sub(/[[:space:]]+$/, "", option_name)
+
+      if (option_name in desired_options) {
+        if (entry_seen || (option_name in emitted_options)) {
+          next
+        }
+
+        print option_name ": " desired_values[option_name]
+        emitted_options[option_name] = 1
+        next
+      }
+
+      print
+    }
+
+    END {
+      emit_missing_options()
+    }
+  ' "$limine_conf" >"$temp_file"; then
+    LAST_ERROR="Failed to transform Limine config"
+    return 1
+  fi
 
   if ! sudo mv "$temp_file" "$limine_conf" 2>/dev/null; then
-    local error_msg="Failed to write limine theme config"
+    local error_msg="Failed to write Limine options"
     if ! restore_backup "$limine_conf"; then
       LAST_ERROR="$error_msg and restore backup failed: $LAST_ERROR"
     else
@@ -175,61 +260,6 @@ add_nautilus_bookmarks() {
   return 0
 }
 
-configure_qt_theme() {
-  local version="$1"
-  local config_dir="$HOME/.config/$version"
-  local config_file="$config_dir/${version}.conf"
-
-  LAST_ERROR=""
-
-  if [[ -z "$version" ]]; then
-    LAST_ERROR="configure_qt_theme() requires version argument"
-    return 2
-  fi
-
-  if [[ -f "$config_file" ]]; then
-    return 0
-  fi
-
-  if ! mkdir -p "$config_dir" 2>/dev/null; then
-    LAST_ERROR="Failed to create Qt config directory: $config_dir"
-    return 1
-  fi
-
-  if ! cat <<EOF >"$config_file" 2>/dev/null; then
-[Appearance]
-color_scheme_path=${HOME}/.local/share/color-schemes/Matugen.colors
-custom_palette=true
-icon_theme=
-standard_dialogs=default
-style=Darkly
-
-[Fonts]
-fixed="JetBrainsMono Nerd Font,12,-1,5,50,0,0,0,0,0,Regular"
-general="SF Pro Text,12,-1,5,50,0,0,0,0,0,Regular"
-
-[Interface]
-activate_item_on_single_click=1
-buttonbox_layout=0
-cursor_flash_time=1000
-dialog_buttons_have_icons=1
-double_click_interval=400
-gui_effects=@Invalid()
-keyboard_scheme=2
-menus_have_icons=true
-show_shortcuts_in_context_menus=true
-stylesheets=@Invalid()
-toolbutton_style=4
-underline_shortcut=1
-wheel_scroll_lines=3
-EOF
-    LAST_ERROR="Failed to write Qt config: $config_file"
-    return 1
-  fi
-
-  return 0
-}
-
 main() {
   local bootloader
 
@@ -253,19 +283,14 @@ main() {
     fi
     ;;
   limine)
-
-    if [[ "${DISTRO,,}" = "cachyos" ]]; then
-      log SKIP "CachyOS has pre-configured Limine theme"
+    local limine_result=0
+    configure_limine_options || limine_result=$?
+    if [[ "$limine_result" -eq 2 ]]; then
+      log SKIP "Limine configuration skipped: $LAST_ERROR"
+    elif [[ "$limine_result" -ne 0 ]]; then
+      log WARN "Failed to configure Limine options: $LAST_ERROR"
     else
-      if ! configure_limine_theme; then
-        if grep -q "Catppuccin Mocha Theme" /boot/limine.conf 2>/dev/null; then
-          log SKIP "Limine theme already configured"
-        else
-          log WARN "Failed to configure Limine theme: $LAST_ERROR"
-        fi
-      else
-        log INFO "Configured Limine theme"
-      fi
+      log INFO "Configured Limine options"
     fi
     ;;
   *)
@@ -298,19 +323,6 @@ main() {
   else
     log SKIP "gsettings not available, skipping Nautilus configuration"
   fi
-
-  local qt_version
-  for qt_version in qt5ct qt6ct; do
-    if ! configure_qt_theme "$qt_version"; then
-      if [[ -f "$HOME/.config/$qt_version/${qt_version}.conf" ]]; then
-        log SKIP "$qt_version already configured"
-      else
-        log WARN "Failed to configure $qt_version: $LAST_ERROR"
-      fi
-    else
-      log INFO "Configured $qt_version theme"
-    fi
-  done
 
   log INFO "System theming complete"
 }

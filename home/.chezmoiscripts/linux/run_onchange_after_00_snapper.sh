@@ -18,7 +18,6 @@ source "$LIB_DIR/.lib-snapboot.sh"
 readonly LIMINE_CONFIG="/etc/default/limine"
 readonly LIMINE_ENTRY_TEMPLATE="/etc/limine-entry-tool.conf"
 readonly LIMINE_SNAPPER_TEMPLATE="/etc/limine-snapper-sync.conf"
-readonly MKINITCPIO_CONF="/etc/mkinitcpio.conf"
 
 if ! keep_sudo_alive; then
   die "Failed to keep sudo alive"
@@ -166,21 +165,32 @@ add_mkinitcpio_overlay_hook() {
     hook="grub-btrfs-overlayfs"
     ;;
   limine)
-    hook="btrfs-overlayfs"
+    local mkinitcpio_conf="/etc/mkinitcpio.conf"
+    local current_hooks
+    current_hooks=$(
+      local config
+      local -a HOOKS=() dropins=()
+      # mkinitcpio reads the main config, then drop-ins in version order.
+      mapfile -d '' -t dropins < <(printf '%s\0' /etc/mkinitcpio.conf.d/*.conf | LC_ALL=C.UTF-8 sort -zV)
+      for config in "$mkinitcpio_conf" "${dropins[@]}"; do
+        [[ -f "$config" && -r "$config" ]] || continue
+        # shellcheck source=/dev/null
+        source "$config" || exit 1
+      done
+      printf '%s\n' "${HOOKS[*]}"
+    )
+
+    if [[ " $current_hooks " = *" systemd "* ]]; then
+      hook="sd-btrfs-overlayfs"
+    else
+      hook="btrfs-overlayfs"
+    fi
     ;;
   *)
     log WARN "No overlay hook needed for bootloader: $bootloader"
     return 0
     ;;
   esac
-
-  local current_hooks
-  current_hooks=$(sed -nE 's/^[[:space:]]*HOOKS=\((.*)\)[[:space:]]*$/\1/p' "$MKINITCPIO_CONF" 2>/dev/null | head -n1)
-
-  if [[ "$current_hooks" == *" systemd "* ]]; then
-    log WARN "systemd hook detected, skipping overlay hook (incompatible)"
-    return 0
-  fi
 
   local hook_exists=false
   if grep -q "^HOOKS=.*$hook" /etc/mkinitcpio.conf; then

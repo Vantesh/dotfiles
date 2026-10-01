@@ -1,0 +1,53 @@
+add_newline  = false
+format       = '$username$hostname$directory$git_branch$git_state$git_status$git_metrics$git_commit$line_break$status$character'
+palette      = 'matugen'
+right_format = '$time$cmd_duration'
+
+[character]
+  error_symbol              = '[➜](bold red)'
+  success_symbol            = '[➜](bold primary)'
+  vimcmd_replace_one_symbol = '[❮](bold purple)'
+  vimcmd_symbol             = '[❮](bold primary)'
+  vimcmd_visual_symbol      = '[❮](bold yellow)'
+
+[cmd_duration]
+  format   = '[󰔟 $duration](bold yellow)'
+  min_time = 5000
+
+[directory]
+  read_only         = ' 󰌾'
+  truncation_length = 3
+
+[git_branch]
+  symbol = ' '
+
+[git_metrics]
+  added_style   = 'primary'
+  deleted_style = 'red'
+  disabled      = false
+
+[git_status]
+  ahead     = '⇡${count} '
+  behind    = '⇣${count} '
+  deleted   = '[-${count}](red) '
+  diverged  = '⇕⇡${ahead_count}⇣${behind_count}'
+  format    = '([\[$all_status$ahead_behind\]]($style) )'
+  modified  = '!${count} '
+  renamed   = '→${count} '
+  staged    = '+${count} '
+  stashed   = '[ $count](cyan) '
+  style     = 'red bold'
+  untracked = '?${count} '
+
+[hostname]
+  disabled = false
+  format   = '[$ssh_symbol$hostname]($style) in '
+
+[status]
+  disabled = false
+  format   = '[$symbol ]($style)'
+  symbol   = ''
+
+[username]
+  format      = '[$user]($style) in '
+  show_always = true
