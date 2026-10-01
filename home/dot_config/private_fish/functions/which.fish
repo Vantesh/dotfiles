@@ -1,4 +1,4 @@
-function which --wrap="which" --description "Display information about command type or abbreviation"
+function which --wraps="which" --description "Display information about command type or abbreviation"
     # If any arg looks like a flag, defer to the real `which` to preserve its flags/behavior
     for arg in $argv
         if string match -q -- '-*' $arg

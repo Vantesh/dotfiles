@@ -474,6 +474,16 @@ update_limine_cmdline() {
     return 1
   fi
 
+  if ! command_exists limine-update; then
+    LAST_ERROR="limine-update is not installed"
+    return 127
+  fi
+
+  if ! sudo limine-update >/dev/null 2>&1; then
+    LAST_ERROR="Failed to regenerate Limine boot entries"
+    return 1
+  fi
+
   return 0
 }
 

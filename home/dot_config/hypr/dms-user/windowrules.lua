@@ -5,7 +5,8 @@ hl.window_rule({ name = "tag-idle-media", match = { class = "^(celluloid|mpv|vlc
 hl.window_rule({
   name = "tag-idle-browser",
   match = { class = "^([Ll]ibre[Ww]olf|floorp|[Bb]rave(-browser)?|firefox|chromium|zen|vivaldi)$" },
-  tag = "+idle-browser"
+  tag =
+  "+idle-browser"
 })
 hl.window_rule({ name = "fx-idle-media", match = { tag = "idle-media" }, idle_inhibit = "focus" })
 hl.window_rule({ name = "fx-idle-browser", match = { tag = "idle-browser" }, idle_inhibit = "fullscreen" })

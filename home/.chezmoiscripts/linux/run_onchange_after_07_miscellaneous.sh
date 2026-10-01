@@ -68,7 +68,7 @@ setup_ssh_known_hosts() {
   local added=false
 
   if ! grep -q "github.com" "$SSH_KNOWN_HOSTS"; then
-    if ssh-keyscan github.com >>"$SSH_KNOWN_HOSTS" 2>/dev/null; then
+    if ssh-keyscan -t rsa github.com >>"$SSH_KNOWN_HOSTS" 2>/dev/null; then
       log INFO "Added GitHub to known_hosts"
       added=true
     else
@@ -103,6 +103,15 @@ setup_spicetify() {
     return 0
   fi
 
+  if command_exists spotify-launcher; then
+    if ! spicetify config spotify_path "$HOME/.local/share/spotify-launcher/install/usr/share/spotify" >/dev/null 2>&1; then
+      LAST_ERROR="Failed to configure Spicetify Spotify path"
+      return 1
+    fi
+
+    log INFO "Configured Spicetify Spotify path"
+  fi
+
   if [[ ! -f "$SPOTIFY_PREFS" ]]; then
     local spotify_dir
     spotify_dir=$(dirname "$SPOTIFY_PREFS")
@@ -135,24 +144,6 @@ install_yazi_plugins() {
   fi
 
   log INFO "Installed Yazi plugins"
-  return 0
-}
-
-set_time_locale() {
-  local current_lc_time
-  current_lc_time=$(localectl status | grep -oP 'LC_TIME=\K[^ ]+' || true)
-
-  if [[ "$current_lc_time" == "en_ZA.UTF-8" ]]; then
-    log SKIP "LC_TIME already set to en_ZA.UTF-8"
-    return 0
-  fi
-
-  if ! sudo localectl set-locale LC_TIME=en_ZA.UTF-8 >/dev/null 2>&1; then
-    LAST_ERROR="Failed to set LC_TIME locale"
-    return 1
-  fi
-
-  log INFO "Set LC_TIME to en_ZA.UTF-8 (24-hour format)"
   return 0
 }
 
@@ -195,10 +186,6 @@ main() {
 
   if ! install_yazi_plugins; then
     log WARN "Yazi plugin installation failed: $LAST_ERROR"
-  fi
-
-  if ! set_time_locale; then
-    log WARN "Time locale configuration failed: $LAST_ERROR"
   fi
 
   if [[ ! -d "${HOME}/.local/share/nvim/lazy" ]]; then
