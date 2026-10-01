@@ -22,8 +22,11 @@ if settings_file == nil then
 	)
 	return
 end
-local settings = vim.json.decode(settings_file:read("*a"))
+local decoded, settings = pcall(vim.json.decode, settings_file:read("*a"))
 settings_file:close()
+if not decoded or type(settings) ~= "table" then
+	settings = {}
+end
 
 local function deepGet(t, k)
 	for _, s in ipairs(k) do
@@ -35,7 +38,10 @@ local function deepGet(t, k)
 	return t
 end
 
-local mode = vim.system({ "dms", "ipc", "call", "theme", "getMode" }, { text = true }):wait().stdout
+local mode
+if vim.fn.executable("dms") == 1 then
+	mode = vim.system({ "dms", "ipc", "call", "theme", "getMode" }, { text = true }):wait().stdout
+end
 if mode ~= nil then
 	if mode:match("light") then
 		vim.o.background = "light"

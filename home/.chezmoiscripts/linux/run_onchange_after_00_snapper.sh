@@ -167,7 +167,18 @@ add_mkinitcpio_overlay_hook() {
   limine)
     local mkinitcpio_conf="/etc/mkinitcpio.conf"
     local current_hooks
-    current_hooks=$(sed -nE 's/^[[:space:]]*HOOKS=\((.*)\)[[:space:]]*$/\1/p' "$mkinitcpio_conf" 2>/dev/null | head -n1)
+    current_hooks=$(
+      local config
+      local -a HOOKS=() dropins=()
+      # mkinitcpio reads the main config, then drop-ins in version order.
+      mapfile -d '' -t dropins < <(printf '%s\0' /etc/mkinitcpio.conf.d/*.conf | LC_ALL=C.UTF-8 sort -zV)
+      for config in "$mkinitcpio_conf" "${dropins[@]}"; do
+        [[ -f "$config" && -r "$config" ]] || continue
+        # shellcheck source=/dev/null
+        source "$config" || exit 1
+      done
+      printf '%s\n' "${HOOKS[*]}"
+    )
 
     if [[ " $current_hooks " = *" systemd "* ]]; then
       hook="sd-btrfs-overlayfs"

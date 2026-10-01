@@ -61,7 +61,8 @@ download_wallpapers() {
     [[ "$downloaded_count" -ge "$WALLPAPER_COUNT" ]] && break
 
     local page_html image_pattern image_url image_name page_url
-    page_url="https://4kwallpapers.com$wallpaper_page"
+    wallpaper_page="${wallpaper_page#"$WALLPAPER_BASE_URL"}"
+    page_url="$WALLPAPER_BASE_URL$wallpaper_page"
     if ! page_html="$(curl -fsSL --max-time 30 "$page_url" 2>/dev/null)"; then
       continue
     fi
