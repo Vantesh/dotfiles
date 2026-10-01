@@ -25,11 +25,15 @@ require("lazy").setup({
   { import = "plugins" },
 }, lazy_config)
 
-dofile(vim.g.base46_cache .. "defaults")
+if vim.fn.filereadable(vim.g.base46_cache .. "defaults") == 1 then
+  dofile(vim.g.base46_cache .. "defaults")
+end
 local base46 = require "base46"
 base46.merge_tb = base46.merge_tb or base46.load
 
-dofile(vim.g.base46_cache .. "statusline")
+if vim.fn.filereadable(vim.g.base46_cache .. "statusline") == 1 then
+  dofile(vim.g.base46_cache .. "statusline")
+end
 vim.cmd.colorscheme("dms")
 
 require "options"
