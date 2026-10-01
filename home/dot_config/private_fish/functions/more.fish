@@ -1,6 +1,5 @@
 function more --wraps='bat' --description 'bat as more with paging'
-    set -l first_arg $argv[1]
-    if string match -qr '^-[RrXx]' -- $first_arg
+    if set -q argv[1]; and string match -qr '^-[RrXx]' -- "$argv[1]"
         command more $argv
     else
         bat --paging=always $argv
