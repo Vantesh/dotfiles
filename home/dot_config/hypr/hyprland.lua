@@ -9,9 +9,6 @@ hl.on("hyprland.start", function()
 	-- Slow app launch fix -- set systemd vars before starting session services.
 	hl.exec_cmd("systemctl --user import-environment")
 
-	-- Select a random wallpaper once after the first Hyprland start.
-	hl.exec_cmd("$HOME/.config/hypr/scripts/initial_boot.sh ")
-
 	-- Limine + Snapper snapshot notifications
 	hl.exec_cmd("command -v limine-snapper-restore >/dev/null && sleep 2 && uwsm-exec limine-snapper-restore --notify ")
 
@@ -54,6 +51,7 @@ require("dms.colors")
 require("dms.layout")
 require("dms.cursor")
 require("dms.binds")
+require("dms.outputs")
 require("dms.binds-user")
 require("dms.windowrules")
 
@@ -66,5 +64,4 @@ require("dms-user.windowrules")
 require("dms-user.layerrules")
 require("dms-user.layouts")
 require("dms-user.animations")
-require("dms-user.monitors")
 require("dms-user.gestures")
