@@ -1,0 +1,13 @@
+[Unit]
+Description=udiskie removable-media automount
+
+PartOf=graphical-session.target
+After=graphical-session.target
+
+[Service]
+ExecStart=/usr/bin/udiskie
+Restart=on-failure
+RestartSec=1
+
+[Install]
+WantedBy=graphical-session.target
