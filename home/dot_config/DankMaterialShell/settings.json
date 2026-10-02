@@ -41,7 +41,7 @@
   "launcherLogoColorOverride": "primary",
   "notificationSummaryFontSize": 12,
   "notificationBodyFontSize": 14,
-  "soundLogin": true,
+  "useSystemSoundTheme": true,
   "acLockTimeout": 1800,
   "acSuspendTimeout": 10800,
   "acPostLockMonitorTimeout": 60,
