@@ -3,4 +3,4 @@ program_options:
   notify: false
   automount: true
   file_manager: xdg-open
-  terminal: "kitty -e"
+  terminal: "xdg-terminal-exec"
