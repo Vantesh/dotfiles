@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# .lib-package_manager.sh - Package installation and management
+# package_manager.sh - Package installation and management
 #
 # Provides a unified interface for Arch package management.
 # Handles package existence checks and installation with pacman and AUR helpers.

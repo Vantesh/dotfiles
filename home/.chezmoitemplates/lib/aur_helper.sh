@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# .lib-aur_helper.sh - AUR helper installation
+# aur_helper.sh - AUR helper installation
 #
 # Installs paru from AUR if no AUR helper exists.
 #

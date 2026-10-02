@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# .lib-chaotic_aur.sh - Chaotic-AUR repository configuration
+# chaotic_aur.sh - Chaotic-AUR repository configuration
 #
 # Configures Chaotic-AUR repository for Arch Linux. Checks if already
 # configured and installs necessary keyring and mirror list packages.

@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+
+# 99_Finalize.sh - Finalize setup after other scripts
+# Exit codes: 0 (success), 1 (failure)
+
+set -euo pipefail
+
+shopt -s nullglob globstar
+
+{{ include ".chezmoitemplates/lib/common.sh" }}
+
+print_box "Setup Complete"
+printf "\n"
+
+# Reboot Prompt
+if [[ "${NOCONFIRM:-0}" != "1" ]] &&
+  [[ -z "${CI:-}" ]] &&
+  confirm "Would you like to reboot now?" "n"; then
+  log INFO "Rebooting system..."
+  systemctl reboot
+else
+  log INFO "Reboot skipped. Please reboot manually later to apply all changes."
+fi

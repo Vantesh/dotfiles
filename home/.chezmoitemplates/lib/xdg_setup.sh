@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# .lib-xdg_setup.sh - XDG user directories configuration
+# xdg_setup.sh - XDG user directories configuration
 #
 # Sets up XDG Base Directory specification environment variables
 #

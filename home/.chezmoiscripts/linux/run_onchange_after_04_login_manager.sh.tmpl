@@ -2,15 +2,11 @@
 # 04_login_manager.sh - Configure Ly display manager
 # Exit codes: 0 (success), 1 (failure)
 
-{{ template "run_onchange_hash" . }}
 
 set -euo pipefail
 shopt -s nullglob globstar
 
-readonly LIB_DIR="${CHEZMOI_SOURCE_DIR:-$(chezmoi source-path)}/.chezmoiscripts/linux/lib"
-
-# shellcheck source=/dev/null
-source "$LIB_DIR/.lib-common.sh"
+{{ include ".chezmoitemplates/lib/common.sh" }}
 
 readonly LY_CONFIG_FILE="/etc/ly/config.ini"
 readonly LY_SAVE_FILE="/etc/ly/save.ini"
