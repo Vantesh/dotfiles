@@ -3,77 +3,197 @@ sync_frequency = "5m"
 search_mode = "daemon-fuzzy"
 filter_mode = "workspace"
 filter_mode_shell_up_key_binding = "session"
+
 workspaces = true
 style = "auto"
 inline_height = 25
 show_preview = true
+
+# Commands that are usually noise, local-only, or may contain sensitive data.
 history_filter = [
-  "^export .*(KEY|TOKEN|SECRET|PASSWORD|CREDENTIAL).*=",
-  "^set .*(KEY|TOKEN|SECRET|PASSWORD|CREDENTIAL).*=",
-  "^ls$",
-  "^cd ",
-  "--password",
+  # Secrets / credentials
+  "^export .*(KEY|TOKEN|SECRET|PASSWORD|PASSWD|CREDENTIAL|API_KEY|AUTH).*=",
+  "^set .*(KEY|TOKEN|SECRET|PASSWORD|PASSWD|CREDENTIAL|API_KEY|AUTH).*=",
+  ".*--password[ =]",
+  ".*--token[ =]",
+  ".*--api-key[ =]",
+  ".*--secret[ =]",
+  ".*Authorization:.*",
+  ".*Bearer .*",
+  ".*Basic .*",
+
+  # SSH / credentials
   "^ssh-add",
+  "^ssh-keygen",
+  ".*sshpass.*",
+
+  # Shell navigation / inspection noise
+  "^cd$",
+  "^cd ",
+  "^pwd$",
+  "^ls$",
+  "^ls ",
+  "^ll$",
+  "^ll ",
+  "^la$",
+  "^la ",
+  "^lt$",
+  "^lt ",
+  "^tree$",
+  "^tree ",
+  "^which ",
+  "^whereis ",
+  "^type ",
+  "^command -v ",
+  "^man ",
+  "^help$",
+  "^history$",
+  "^history ",
   "^clear$",
+  "^reset$",
+
+  # Environment / shell inspection
+  "^env$",
+  "^printenv$",
+  "^printenv ",
+  "^set$",
+  "^set ",
+  "^alias$",
+  "^alias ",
+  "^unalias ",
+  "^source ",
+  "^\\. ",
+  "^umask$",
+  "^umask ",
+
+  # Process/session noise
+  "^jobs$",
+  "^jobs ",
+  "^fg$",
+  "^fg ",
+  "^bg$",
+  "^bg ",
+  "^disown",
+  "^logout$",
   "^exit$",
 
+  # Editors / interactive tools
+  "^code ",
+  "^nvim ",
+  "^vim ",
+  "^vi ",
+  "^nano ",
+  "^emacs ",
 
+  # Common one-off UI/system commands
+  "^echo ",
+  "^printf ",
+  "^true$",
+  "^false$",
+  "^sleep ",
+  "^watch ",
+  "^date$",
+  "^date ",
+  "^time$",
+  "^time ",
+  "^uptime$",
+  "^whoami$",
+  "^hostname$",
+  "^fasfetch$",
+
+  # Reboots / shutdowns
+  "^reboot$",
+  "^shutdown ",
+  "^poweroff$",
+  "^halt$"
 ]
 
 show_help = false
-
 enter_accept = true
 
-## Score tuning for daemon-fuzzy: favor recent commands slightly
+
 [search]
-  filters                    = ["workspace", "directory", "session", "host", "global"]
-  recency_score_multiplier   = 2.0
-  frequency_score_multiplier = 1.0
-  frecency_score_multiplier  = 1.5
+filters = [
+  "workspace",
+  "directory",
+  "session",
+  "host",
+  "global"
+]
+
+recency_score_multiplier = 2.0
+frequency_score_multiplier = 1.0
+frecency_score_multiplier = 1.5
+
 
 [stats]
-  common_subcommands = [
-    "apt",
-    "pacman",
-    "cargo",
-    "composer",
-    "dnf",
-    "docker",
-    "git",
-    "gh",
-    "go",
-    "ip",
-    "kubectl",
-    "npm",
-    "pecl",
-    "pnpm",
-    "podman",
-    "port",
-    "systemctl",
-    "tmux",
-    "yarn",
-  ]
-  ignored_commands = ["dms", "cd", "ls", "reboot", "fasfetch", "vi", "echo"]
+common_subcommands = [
+  "apt",
+  "pacman",
+  "cargo",
+  "composer",
+  "dnf",
+  "docker",
+  "git",
+  "gh",
+  "go",
+  "ip",
+  "kubectl",
+  "npm",
+  "pecl",
+  "pnpm",
+  "podman",
+  "port",
+  "systemctl",
+  "tmux",
+  "yarn"
+]
+
+ignored_commands = [
+  "atuin",
+  "cd",
+  "ls",
+  "ll",
+  "lt",
+  "la",
+  "pwd",
+  "clear",
+  "history",
+  "reboot",
+  "fasfetch",
+  "walset",
+  "vi",
+  "vim",
+  "nvim",
+  "nano",
+  "echo",
+  "printf"
+]
+
 
 [keys]
-  scroll_exits = false
+scroll_exits = false
 
 
 [daemon]
-  enabled        = true
-  autostart      = true
-  systemd_socket = true
+enabled = true
+autostart = true
+
 
 [tmux]
-  enabled = true
+enabled = true
+
 
 [ui]
 
+
 [ai]
-  enabled = true
+enabled = true
+model = "balanced"
+
 
 [logs]
-  enabled   = true
-  dir       = "${XDG_DATA_HOME}/atuin/logs"
-  level     = "info"
-  retention = "2d"
+enabled = true
+dir = "${XDG_DATA_HOME}/atuin/logs"
+level = "info"
+retention = "2d"
