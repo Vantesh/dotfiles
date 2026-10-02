@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+
 # 08_wallpapers.sh - Download and install wallpapers
 #
 # Downloads random wallpapers from 4kwallpapers.com to ~/Pictures/Wallpapers.
@@ -8,6 +9,7 @@
 #   LAST_ERROR - Error message from last failed operation
 #   HOME - User home directory
 #   CHEZMOI_SOURCE_DIR - Chezmoi source directory (set by chezmoi)
+#   TEMP_DIR - Temporary download directory removed on exit
 # Exit codes:
 #   0 (success), 1 (failure), 127 (missing dependency)
 
@@ -28,12 +30,22 @@ readonly WALLPAPER_COUNT=10
 
 cleanup() {
   if [[ -n "${TEMP_DIR:-}" ]] && [[ -d "$TEMP_DIR" ]]; then
-    rm -rf "$TEMP_DIR"
+    rm -rf -- "$TEMP_DIR"
   fi
 }
 
 trap cleanup EXIT ERR INT TERM
 
+# Downloads the collection, installing images only after successful transfers.
+# Stages downloads on the destination filesystem for atomic replacement.
+# Globals:
+#   LAST_ERROR - Set on failure
+#   TEMP_DIR, WALLPAPER_HTML - Temporary download paths
+#   WALLPAPERS_DIR - Destination directory
+#   WALLPAPERS_URL, WALLPAPER_BASE_URL, WALLPAPER_IMAGE_PATH - Download locations
+#   WALLPAPER_COUNT - Required download count
+# Returns:
+#   0 on success, 1 on failure, 127 when curl is unavailable
 download_wallpapers() {
   LAST_ERROR=""
 
@@ -42,13 +54,16 @@ download_wallpapers() {
     return 127
   fi
 
-  TEMP_DIR="$(mktemp -d)"
-  readonly WALLPAPER_HTML="$TEMP_DIR/wallpapers.html"
-
-  if ! mkdir -p "$WALLPAPERS_DIR"; then
+  if ! mkdir -p -- "$WALLPAPERS_DIR"; then
     LAST_ERROR="Failed to create wallpapers directory: $WALLPAPERS_DIR"
     return 1
   fi
+
+  if ! TEMP_DIR="$(mktemp -d "$WALLPAPERS_DIR/.download-XXXXXXXX")"; then
+    LAST_ERROR="Failed to create temporary wallpaper directory"
+    return 1
+  fi
+  readonly WALLPAPER_HTML="$TEMP_DIR/wallpapers.html"
 
   if ! curl -fsSL --max-time 30 -o "$WALLPAPER_HTML" "$WALLPAPERS_URL" 2>/dev/null; then
     LAST_ERROR="Failed to download wallpapers from $WALLPAPERS_URL"
@@ -60,7 +75,7 @@ download_wallpapers() {
   while read -r wallpaper_page; do
     [[ "$downloaded_count" -ge "$WALLPAPER_COUNT" ]] && break
 
-    local page_html image_pattern image_url image_name page_url
+    local page_html image_pattern image_url image_name image_path page_url
     wallpaper_page="${wallpaper_page#"$WALLPAPER_BASE_URL"}"
     page_url="$WALLPAPER_BASE_URL$wallpaper_page"
     if ! page_html="$(curl -fsSL --max-time 30 "$page_url" 2>/dev/null)"; then
@@ -72,10 +87,15 @@ download_wallpapers() {
     [[ -z "$image_url" ]] && continue
 
     image_name="$(basename "$image_url")"
-    if curl -fsSL --max-time 60 -o "$WALLPAPERS_DIR/$image_name" "$WALLPAPER_BASE_URL$image_url" 2>/dev/null; then
+    image_path="$TEMP_DIR/$image_name"
+    if curl -fsSL --max-time 60 -o "$image_path" "$WALLPAPER_BASE_URL$image_url" 2>/dev/null; then
+      if ! mv -T -- "$image_path" "$WALLPAPERS_DIR/$image_name"; then
+        LAST_ERROR="Failed to install wallpaper: $image_name"
+        return 1
+      fi
       downloaded_count=$((downloaded_count + 1))
     else
-      rm -f -- "$WALLPAPERS_DIR/$image_name"
+      rm -f -- "$image_path"
     fi
   done < <(grep -oE '(https://4kwallpapers\.com)?/[^" ]+\.html' "$WALLPAPER_HTML" | sort -u)
 
