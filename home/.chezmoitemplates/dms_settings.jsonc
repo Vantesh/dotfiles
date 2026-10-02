@@ -26,16 +26,16 @@
     "size": 24,
     "niri": {
       "hideWhenTyping": false,
-      "hideAfterInactiveMs": 0
+      "hideAfterInactiveMs": 0,
     },
     "hyprland": {
       "hideOnKeyPress": true,
       "hideOnTouch": true,
-      "inactiveTimeout": 0
+      "inactiveTimeout": 0,
     },
     "mango": {
-      "cursorHideTimeout": 0
-    }
+      "cursorHideTimeout": 0,
+    },
   },
   "launcherLogoMode": "os",
   "launcherLogoColorOverride": "primary",
@@ -64,12 +64,12 @@
   "matugenTemplateNeovimSettings": {
     "dark": {
       "baseTheme": "default-dark",
-      "harmony": 0.5
+      "harmony": 0.5,
     },
     "light": {
       "baseTheme": "default-light",
-      "harmony": 0.5
-    }
+      "harmony": 0.5,
+    },
   },
   "notificationOverlayEnabled": true,
   "lockScreenWallpaperFillMode": "Fit",
@@ -79,33 +79,14 @@
   "osdAudioOutputEnabled": false,
   "displayNameMode": "model",
   "screenPreferences": {
-    "notifications": [
-      "all"
-    ],
-    "dock": [
-      "all"
-    ]
+    "notifications": ["all"],
+    "dock": ["all"],
   },
   "showOnLastDisplay": {
     "notifications": true,
-    "dock": true
+    "dock": true,
   },
-  "displayPreviousRefreshModes": {
-    "hyprland": {
-      "DP-1": {
-        "mode": "1920x1080@100.000"
-      },
-      "Dell Inc. DELL P2425H 2RHZH14": {
-        "mode": "1920x1080@100.000"
-      },
-      "Dell Inc. DELL P2425H": {
-        "mode": "1920x1080@100.000"
-      },
-      "desc:Dell Inc. DELL P2425H 2RHZH14": {
-        "mode": "1920x1080@100.000"
-      }
-    }
-  },
+
   "displayProfileAutoSelect": true,
   "displayShowDisconnected": true,
   "barConfigs": [
@@ -114,9 +95,7 @@
       "name": "Main Bar",
       "enabled": true,
       "position": 0,
-      "screenPreferences": [
-        "all"
-      ],
+      "screenPreferences": ["all"],
       "showOnLastDisplay": true,
       "leftWidgets": [
         "launcherButton",
@@ -126,41 +105,41 @@
           "enabled": true,
           "focusedWindowCompactMode": false,
           "focusedWindowShowIcon": true,
-          "focusedWindowSize": 1
-        }
+          "focusedWindowSize": 1,
+        },
       ],
       "centerWidgets": [
         {
           "id": "music",
           "enabled": true,
-          "mediaSize": 1
+          "mediaSize": 1,
         },
         {
           "id": "clock",
           "enabled": true,
-          "clockDateOrder": "timeFirst"
+          "clockDateOrder": "timeFirst",
         },
-        "weather"
+        "weather",
       ],
       "rightWidgets": [
         {
           "id": "privacyIndicator",
-          "enabled": true
+          "enabled": true,
         },
         {
           "id": "systemUpdate",
           "enabled": true,
-          "hideWhenIdle": true
+          "hideWhenIdle": true,
         },
         {
           "id": "systemTray",
           "enabled": true,
-          "trayUseInlineExpansion": false
+          "trayUseInlineExpansion": false,
         },
         {
           "id": "memUsage",
           "enabled": true,
-          "minimumWidth": false
+          "minimumWidth": false,
         },
         {
           "id": "battery",
@@ -170,10 +149,10 @@
           "showBatteryPowerCharging": false,
           "showBatteryPowerDischarging": false,
           "batteryStyle": "icon",
-          "showBatteryPercent": true
+          "showBatteryPercent": true,
         },
         "controlCenterButton",
-        "notificationButton"
+        "notificationButton",
       ],
       "spacing": 4,
       "innerPadding": 4,
@@ -222,8 +201,8 @@
       "shadowCustomColor": "#000000",
       "clickThrough": false,
       "hoverPopouts": false,
-      "hoverPopoutDelay": 150
-    }
+      "hoverPopoutDelay": 150,
+    },
   ],
   "desktopClockCustomColor": {
     "r": 1,
@@ -236,7 +215,7 @@
     "hslHue": -1,
     "hslSaturation": 0,
     "hslLightness": 1,
-    "valid": true
+    "valid": true,
   },
   "systemMonitorCustomColor": {
     "r": 1,
@@ -249,23 +228,23 @@
     "hslHue": -1,
     "hslSaturation": 0,
     "hslLightness": 1,
-    "valid": true
+    "valid": true,
   },
   "builtInPluginSettings": {
     "dms_settings_search": {
-      "trigger": "?"
+      "trigger": "?",
     },
     "dms_clipboard_search": {
-      "trigger": "cb"
+      "trigger": "cb",
     },
     "dms_power": {
-      "trigger": "pw"
+      "trigger": "pw",
     },
     "dms_qr_generator": {
-      "trigger": "qrg"
-    }
+      "trigger": "qrg",
+    },
   },
   "clipboardClickToPaste": true,
   "clipboardEnterToPaste": true,
-  "configVersion": 18
+  "configVersion": 18,
 }
