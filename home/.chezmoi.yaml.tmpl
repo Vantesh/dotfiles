@@ -73,7 +73,5 @@ merge:
   args: [-c, "cp {{ "{{" }} .Target {{ "}}" }} {{ "{{" }} .Target {{ "}}" }}.base && code --new-window --wait --merge {{ "{{" }} .Destination {{ "}}" }} {{ "{{" }} .Target {{ "}}" }} {{ "{{" }} .Target {{ "}}" }}.base {{ "{{" }} .Source {{ "}}" }}"]
 
 diff:
-  command: delta
-  args: [--paging=never, "{{ "{{ .Destination }}" }}", "{{ "{{ .Target }}" }}"]
   pager: delta
   exclude: [scripts]
