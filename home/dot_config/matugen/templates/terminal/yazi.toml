@@ -64,8 +64,6 @@
   # : Status [[[
 
 [status]
-  sep_left  = { open = "🭁", close = "🭠" }
-  sep_right = { open = "🭁", close = "🭠" }
 
   # Permissions
   perm_type  = { fg = "{{colors.secondary.default.hex | auto_lightness: 30.0}}" }
@@ -184,20 +182,20 @@
 [icon]
   globs = []
   dirs = [
-    { name = ".config", text = "", fg = "{{colors.primary.default.hex}}" },
-    { name = ".git", text = "", fg = "{{colors.primary.default.hex}}" },
-    { name = ".github", text = "", fg = "{{colors.primary.default.hex}}" },
-    { name = ".npm", text = "", fg = "{{colors.primary.default.hex}}" },
-    { name = "Desktop", text = "", fg = "{{colors.primary.default.hex}}" },
-    { name = "Development", text = "", fg = "{{colors.primary.default.hex}}" },
-    { name = "Documents", text = "", fg = "{{colors.primary.default.hex}}" },
-    { name = "Downloads", text = "", fg = "{{colors.primary.default.hex}}" },
-    { name = "Library", text = "", fg = "{{colors.primary.default.hex}}" },
-    { name = "Movies", text = "", fg = "{{colors.primary.default.hex}}" },
-    { name = "Music", text = "", fg = "{{colors.primary.default.hex}}" },
-    { name = "Pictures", text = "", fg = "{{colors.primary.default.hex}}" },
-    { name = "Public", text = "", fg = "{{colors.primary.default.hex}}" },
-    { name = "Videos", text = "", fg = "{{colors.primary.default.hex}}" },
+    { name = ".config", text = "󰉋", fg = "{{colors.primary.default.hex}}" },
+    { name = ".git", text = "󰊢", fg = "{{colors.primary.default.hex}}" },
+    { name = ".github", text = "󰊤", fg = "{{colors.primary.default.hex}}" },
+    { name = ".npm", text = "󰏗", fg = "{{colors.primary.default.hex}}" },
+    { name = "Desktop", text = "󰍹", fg = "{{colors.primary.default.hex}}" },
+    { name = "Development", text = "󰅩", fg = "{{colors.primary.default.hex}}" },
+    { name = "Documents", text = "󰈙", fg = "{{colors.primary.default.hex}}" },
+    { name = "Downloads", text = "󰇚", fg = "{{colors.primary.default.hex}}" },
+    { name = "Library", text = "󰂺", fg = "{{colors.primary.default.hex}}" },
+    { name = "Movies", text = "󰿎", fg = "{{colors.primary.default.hex}}" },
+    { name = "Music", text = "󰝚", fg = "{{colors.primary.default.hex}}" },
+    { name = "Pictures", text = "󰉏", fg = "{{colors.primary.default.hex}}" },
+    { name = "Public", text = "󰉋", fg = "{{colors.primary.default.hex}}" },
+    { name = "Videos", text = "󰿎", fg = "{{colors.primary.default.hex}}" },
   ]
   files = [
     { name = ".babelrc", text = "", fg = "{{colors.primary.default.hex}}" },
@@ -904,18 +902,18 @@
   ]
   conds = [
     # Special files
-    { if = "orphan", text = "", fg = "{{colors.primary.default.hex}}" },
-    { if = "link", text = "", fg = "{{colors.primary.default.hex}}" },
-    { if = "block", text = "", fg = "{{colors.primary.default.hex}}" },
-    { if = "char", text = "", fg = "{{colors.primary.default.hex}}" },
-    { if = "fifo", text = "", fg = "{{colors.primary.default.hex}}" },
-    { if = "sock", text = "", fg = "{{colors.primary.default.hex}}" },
-    { if = "sticky", text = "", fg = "{{colors.primary.default.hex}}" },
-    { if = "dummy", text = "", fg = "{{colors.primary.default.hex}}" },
+    { if = "orphan", text = "󰀦", fg = "{{colors.primary.default.hex}}" },
+    { if = "link", text = "󰌷", fg = "{{colors.primary.default.hex}}" },
+    { if = "block", text = "󰇅", fg = "{{colors.primary.default.hex}}" },
+    { if = "char", text = "󰍹", fg = "{{colors.primary.default.hex}}" },
+    { if = "fifo", text = "󰆍", fg = "{{colors.primary.default.hex}}" },
+    { if = "sock", text = "󰛳", fg = "{{colors.primary.default.hex}}" },
+    { if = "sticky", text = "󰈙", fg = "{{colors.primary.default.hex}}" },
+    { if = "dummy", text = "󰀦", fg = "{{colors.primary.default.hex}}" },
 
     # Fallback
-    { if = "dir", text = "", fg = "{{colors.primary.default.hex}}" },
-    { if = "exec", text = "", fg = "{{colors.primary.default.hex}}" },
-    { if = "!dir", text = "", fg = "{{colors.primary.default.hex}}" },
+    { if = "dir", text = "󰉋", fg = "{{colors.primary.default.hex}}" },
+    { if = "exec", text = "󰆍", fg = "{{colors.primary.default.hex}}" },
+    { if = "!dir", text = "󰈙", fg = "{{colors.primary.default.hex}}" },
   ]
   # : }}}
