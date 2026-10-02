@@ -73,16 +73,13 @@ die() {
 }
 
 ensure_dependencies_installed() {
-  local -a base_packages core_dev_package=()
-
-  base_packages=(git chezmoi figlet)
+  local -a required_packages=(git chezmoi)
 
   if ! command -v pacman >/dev/null 2>&1; then
     die "Unsupported distribution - pacman not found"
   fi
 
-  core_dev_package=("base-devel")
-  local -a required_packages=("${base_packages[@]}" "${core_dev_package[@]}")
+
   local -a to_install=()
   local pkg
 
