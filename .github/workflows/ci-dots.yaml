@@ -71,6 +71,12 @@ jobs:
         timeout-minutes: 5
         run: |
           set -euo pipefail
+          # Diff failures during init can be printed without a nonzero exit status.
+          init_output="$(chezmoi --source "$GITHUB_WORKSPACE" --destination "$HOME" init --data=false --dry-run --verbose --no-tty 2>&1)"
+          printf '%s\n' "$init_output"
+          if [[ "$init_output" = *"git diff: error:"* ]]; then
+            exit 1
+          fi
           chezmoi --source "$GITHUB_WORKSPACE" --destination "$HOME" apply --dry-run --verbose --no-tty
           [[ ! -e "$HOME/.bashrc" ]]
           [[ ! -e "$HOME/.config/hypr/dms/colors.lua" ]]
