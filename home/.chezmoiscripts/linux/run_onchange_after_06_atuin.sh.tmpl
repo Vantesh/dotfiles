@@ -15,7 +15,15 @@ source "$LIB_DIR/.lib-common.sh"
 # shellcheck source=/dev/null
 source "$LIB_DIR/.lib-package_manager.sh"
 
+# Logs in with runtime vault credentials and synchronizes history.
+# Captures fields with a sentinel, removing only rbw's final output newline.
+# Globals: LAST_ERROR - Set on failure.
+# Outputs: Result and error logs to stderr; Atuin sync output.
+# Returns: 0 on success, 1 on failure, 127 on missing dependency.
 login_atuin() {
+  local username password key
+  LAST_ERROR=""
+
   if ! command_exists atuin; then
     LAST_ERROR="atuin command not found"
     return 127
@@ -26,10 +34,29 @@ login_atuin() {
     return 0
   fi
 
+  if ! command_exists rbw; then
+    LAST_ERROR="rbw command not found"
+    return 127
+  fi
+
+  if ! username="$(rbw get --field username Atuin && printf '.')" ||
+    ! password="$(rbw get --field password Atuin && printf '.')" ||
+    ! key="$(rbw get --field atuin_key Atuin && printf '.')"; then
+    LAST_ERROR="Failed to retrieve Atuin credentials from Bitwarden"
+    return 1
+  fi
+
+  username="${username%.}"
+  username="${username%$'\n'}"
+  password="${password%.}"
+  password="${password%$'\n'}"
+  key="${key%.}"
+  key="${key%$'\n'}"
+
   if ! atuin login \
-    --username '{{ (rbw "Atuin").data.username }}' \
-    --password '{{ (rbw "Atuin").data.password }}' \
-    --key '{{ (rbwFields "Atuin").atuin_key.value }}' >/dev/null 2>&1; then
+    --username "$username" \
+    --password "$password" \
+    --key "$key" >/dev/null 2>&1; then
     LAST_ERROR="Failed to login to Atuin"
     return 1
   fi
@@ -53,13 +80,11 @@ main() {
   fi
 
 
-  if ! login_atuin; then
-    local exit_code=$?
-    if [[ $exit_code -eq 127 ]]; then
-      die 127 "Atuin command not found after installation"
-    else
-      die "Failed to login to Atuin: $LAST_ERROR"
-    fi
+  if login_atuin; then
+    :
+  else
+    local exit_code="$?"
+    die "$exit_code" "Failed to login to Atuin: $LAST_ERROR"
   fi
 
   log INFO "Atuin configuration complete"
