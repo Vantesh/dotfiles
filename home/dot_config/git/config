@@ -95,7 +95,11 @@
     fsckObjects = true
 
 [init]
-    defaultBranch = main
+  defaultBranch = main
+
+[url "git@github.com:"]
+    insteadOf = https://github.com/
+
 
 [include]
     path = ~/.config/git/identity
