@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # 00-install-pre-requisites.sh - Install prerequisites for setup and templates
 #
-# Installs figlet and base-devel for all setups. Personal setups also prepare
-# Bitwarden before secret-backed templates render. Runs on every apply because
-# the vault may relock; desktop packages are installed by later setup scripts.
+# Installs figlet and base-devel for all setups. Personal setups also configure
+# Bitwarden and log in before secret-backed templates render. Secret reads
+# unlock the vault on demand; desktop packages are installed by later scripts.
 # Globals:
 #   PERSONAL - Enable vault prerequisites only when set to 1
 #   CHEZMOI_SOURCE_DIR - Source directory containing shared libraries
@@ -86,11 +86,6 @@ main() {
   print_box "Bitwarden"
   log STEP "Bitwarden Setup"
 
-  if rbw unlocked >/dev/null 2>&1; then
-    log SKIP "Bitwarden already unlocked"
-    return 0
-  fi
-
   if rbw login >/dev/null 2>&1; then
     log SKIP "Bitwarden already logged in"
   else
@@ -113,10 +108,6 @@ main() {
 
   if ! output="$(rbw config set lock_timeout 10800)"; then
     log WARN "Failed to set rbw lock_timeout: ${output:-no output}"
-  fi
-
-  if ! rbw unlock; then
-    die "Failed to unlock Bitwarden"
   fi
 }
 

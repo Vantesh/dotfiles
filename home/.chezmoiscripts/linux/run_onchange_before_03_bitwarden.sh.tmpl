@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # 03_bitwarden.sh - Install the Bitwarden desktop application
 #
-# Vault prerequisites and authentication are handled by the earlier
-# non-templated before script on every apply.
+# Vault prerequisites and initial login are handled by the earlier
+# non-templated before script; secret reads unlock the vault on demand.
 # Globals:
 #   LAST_ERROR - Error message from package installation
 # Exit codes: 0 (success), 1 (failure)

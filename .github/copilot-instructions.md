@@ -80,8 +80,8 @@ Normal setup scripts use `run_onchange_*.sh.tmpl`. The early prerequisite is a n
 
 - **`00-install-pre-requisites.sh`**: Runs on every `chezmoi apply` (except dry runs).
   - Installs repository packages `figlet` and `base-devel` for all setups using `pacman` directly, not `install_package()` or an AUR helper.
-  - Only when `PERSONAL=1` from `scriptEnv`, installs `rbw` and `pinentry`, configures the vault, and unlocks `rbw` as needed for personal secret templates.
-  - Must run every apply because `rbw` may relock even when script content is unchanged.
+  - Only when `PERSONAL=1` from `scriptEnv`, installs `rbw` and `pinentry`, configures the vault, and performs initial login.
+  - Rechecks prerequisites on each apply, including when switching from public to personal setup. Secret reads unlock `rbw` on demand through pinentry.
   - The [official prerequisite FAQ](https://www.chezmoi.io/user-guide/frequently-asked-questions/usage/#how-do-i-install-pre-requisites-for-templates) documents using a non-templated `run_before_` script before rendering templates that depend on the installed tool. Do not assume all templates must render before before scripts can run.
 
 - **`run_onchange_*`** (PREFERRED FOR NORMAL SETUP): Runs when content differs from the last successful run with the same filename.
@@ -268,7 +268,7 @@ Normal `run_onchange_*.sh.tmpl` setup scripts embed libraries with literal `incl
 {{ include ".chezmoitemplates/lib/package_manager.sh" }}
 ```
 
-The non-templated `00-install-pre-requisites.sh` uses no template functions and sources only `common.sh` at runtime. Install early prerequisites using `pacman` directly, not `install_package()` or an AUR helper. Gate only `rbw`/`pinentry` installation and vault setup/unlock on `PERSONAL=1` from `scriptEnv`; `figlet` and `base-devel` are required for all setups. Normal setup templates continue to use literal includes.
+The non-templated `00-install-pre-requisites.sh` uses no template functions and sources only `common.sh` at runtime. Install early prerequisites using `pacman` directly, not `install_package()` or an AUR helper. Gate only `rbw`/`pinentry` installation and vault configuration/login on `PERSONAL=1` from `scriptEnv`; `figlet` and `base-devel` are required for all setups. Normal setup templates continue to use literal includes.
 
 **Runtime Sourcing Pattern (non-templated prerequisite only):**
 
@@ -1388,7 +1388,7 @@ Add early setup dependencies to `00-install-pre-requisites.sh` using `pacman` di
 **Script locations:**
 
 - Setup templates (including Arch-specific setup): `home/.chezmoiscripts/linux/` — flat `run_onchange_before_*.sh.tmpl` and `run_onchange_after_*.sh.tmpl`
-- Non-templated prerequisite: `home/.chezmoiscripts/linux/run_before_00-install-pre-requisites.sh` — runs every apply; installs `figlet`/`base-devel` for all setups, with only `rbw`/`pinentry` and vault setup/unlock gated on `PERSONAL=1`
+- Non-templated prerequisite: `home/.chezmoiscripts/linux/run_before_00-install-pre-requisites.sh` — runs every apply; installs `figlet`/`base-devel` for all setups, with only `rbw`/`pinentry` and vault configuration/login gated on `PERSONAL=1`
 - Libraries: `home/.chezmoitemplates/lib/` — included by setup templates; only `common.sh` is runtime sourced by the prerequisite
 
 **Common mistakes to avoid:**
