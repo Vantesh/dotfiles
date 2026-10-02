@@ -17,7 +17,7 @@
 {{- if .chezmoi.osRelease -}}
   {{- $distroFamily = default .chezmoi.osRelease.id (index .chezmoi.osRelease "idLike") | lower -}}
 {{- end -}}
-{{- if not (contains $distroFamily "arch") -}}
+{{- if not (contains "arch" $distroFamily) -}}
   {{- writeToStdout "\n\033[1;31mERROR:\033[0m This dotfiles repo only supports Arch Linux and Arch-based distros.\n\n" -}}
   {{- exit 1 -}}
 {{- end -}}
@@ -66,6 +66,7 @@ scriptEnv:
   INSTALL_OPTIONAL_PACKAGES: {{ ternary "1" "0" $installOptionalPackages | quote }}
   INSTALL_CHAOTIC_AUR: {{ ternary "1" "0" $installChaoticAUR | quote }}
   INSTALL_DRIVERS: {{ ternary "1" "0" $installDrivers | quote }}
+
 
 merge:
   command: bash
