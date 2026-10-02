@@ -12,6 +12,9 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
 jobs:
   test-dotfiles:
     name: ${{ matrix.os }}
@@ -25,38 +28,122 @@ jobs:
 
     runs-on: ${{ matrix.runner }}
     container: ${{ matrix.container }}
+    defaults:
+      run:
+        shell: bash
 
     steps:
       - name: Install dependencies (Arch Linux)
         if: matrix.os == 'archlinux'
         run: |
-          pacman -Syu --noconfirm git curl bash shellcheck git-delta chezmoi
+          pacman -Syu --noconfirm git curl bash shellcheck git-delta chezmoi jq
 
-      - name: Apply dotfiles
+      - name: Configure isolated home and chezmoi state
+        run: |
+          set -euo pipefail
+          readonly CI_ROOT="$RUNNER_TEMP/dotfiles-ci"
+          mkdir -p -- "$CI_ROOT/home"
+          printf '%s\n' \
+            "HOME=$CI_ROOT/home" \
+            "XDG_CONFIG_HOME=$CI_ROOT/config" \
+            "XDG_CACHE_HOME=$CI_ROOT/cache" \
+            "XDG_DATA_HOME=$CI_ROOT/data" \
+            "XDG_STATE_HOME=$CI_ROOT/state" >> "$GITHUB_ENV"
+
+      - name: Checkout tested revision
+        uses: actions/checkout@v4
+        with:
+          # Pull requests test the merge commit, not the default branch.
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Initialize from checkout
         timeout-minutes: 5
         run: |
-          chezmoi init --apply --verbose "${{ github.repository }}" --dry-run
+          set -euo pipefail
+          mkdir -p -- "$HOME" "$XDG_CONFIG_HOME" "$XDG_CACHE_HOME" "$XDG_DATA_HOME" "$XDG_STATE_HOME"
+          chezmoi --source "$GITHUB_WORKSPACE" --destination "$HOME" init --data=false --no-tty
+          source_dir="$(chezmoi --source "$GITHUB_WORKSPACE" source-path)"
+          [[ "$source_dir" = "$GITHUB_WORKSPACE/home" ]]
+          chezmoi --source "$GITHUB_WORKSPACE" data --format=json | jq --exit-status '.personal == false'
+
+      - name: Dry-run dotfiles and setup scripts
+        timeout-minutes: 5
+        run: |
+          set -euo pipefail
+          chezmoi --source "$GITHUB_WORKSPACE" --destination "$HOME" apply --dry-run --verbose --no-tty
+          [[ ! -e "$HOME/.bashrc" ]]
+          [[ ! -e "$HOME/.config/hypr/dms/colors.lua" ]]
+
+      - name: Apply and verify dotfiles without setup scripts
+        timeout-minutes: 5
+        run: |
+          set -euo pipefail
+          umask 022
+          chezmoi --source "$GITHUB_WORKSPACE" --destination "$HOME" apply --exclude=scripts --no-tty
+          chezmoi --source "$GITHUB_WORKSPACE" --destination "$HOME" verify --exclude=scripts --no-tty
+
+          cmp -- "$GITHUB_WORKSPACE/home/dot_bashrc" "$HOME/.bashrc"
+          cmp -- "$GITHUB_WORKSPACE/home/dot_local/bin/executable_fzf-preview.sh" "$HOME/.local/bin/fzf-preview.sh"
+          cmp -- "$GITHUB_WORKSPACE/home/dot_config/zed/private_settings.json" "$HOME/.config/zed/settings.json"
+          cmp -- "$GITHUB_WORKSPACE/home/dot_config/hypr/dms/create_colors.lua" "$HOME/.config/hypr/dms/colors.lua"
+          jq --exit-status '.currentThemeName == "dynamic"' "$HOME/.config/DankMaterialShell/settings.json"
+
+          mode="$(stat -c '%a' -- "$HOME/.bashrc")"
+          [[ "$mode" = "644" ]]
+          mode="$(stat -c '%a' -- "$HOME/.local/bin/fzf-preview.sh")"
+          [[ "$mode" = "755" ]]
+          mode="$(stat -c '%a' -- "$HOME/.config/zed/settings.json")"
+          [[ "$mode" = "600" ]]
+          mode="$(stat -c '%a' -- "$HOME/.ssh")"
+          [[ "$mode" = "700" ]]
+
+          [[ ! -e "$HOME/.config/git" ]]
+          [[ ! -e "$HOME/.config/atuin" ]]
+          [[ ! -e "$HOME/.config/fish/conf.d/atuin.fish" ]]
+          [[ ! -s "$HOME/.config/fish/conf.d/secrets.fish" ]]
+
+          chezmoi --source "$GITHUB_WORKSPACE" --destination "$HOME" apply --exclude=scripts --no-tty
+          chezmoi --source "$GITHUB_WORKSPACE" --destination "$HOME" verify --exclude=scripts --no-tty
 
       - name: Run ShellCheck on scripts
+        timeout-minutes: 5
         run: |
-          cd "$(chezmoi source-path)"
-          find .chezmoiscripts -type f \( -name "*.sh" -o -name "*.sh.tmpl" \) | while read -r script; do
-            echo "Checking: $script"
-            if [[ "$script" == *.tmpl ]]; then
-              chezmoi execute-template < "$script" | \
+          set -euo pipefail
+          shopt -s nullglob globstar
+          source_dir="$(chezmoi --source "$GITHUB_WORKSPACE" source-path)"
+          cd "$source_dir" || exit 1
+          scripts=(.chezmoiscripts/**/*.sh .chezmoiscripts/**/*.sh.tmpl)
+          [[ "${#scripts[@]}" -gt 0 ]]
+          for script in "${scripts[@]}"; do
+            printf 'Checking: %s\n' "$script" >&2
+            if [[ "$script" = *.tmpl ]]; then
+              chezmoi --source "$GITHUB_WORKSPACE" execute-template < "$script" | \
                 shellcheck --severity=error -s bash \
-                  -e SC2027 -e SC2086 -e SC2119 -e SC2120 - || exit 1
+                  -e SC2027 -e SC2086 -e SC2119 -e SC2120 -
             else
               shellcheck --severity=error -s bash \
-                -e SC2027 -e SC2086 -e SC2119 -e SC2120 "$script" || exit 1
+                -e SC2027 -e SC2086 -e SC2119 -e SC2120 "$script"
             fi
           done
 
       - name: Run ShellCheck on library files
+        timeout-minutes: 5
         run: |
-          cd "$(chezmoi source-path)"
-          find .chezmoiscripts/linux/lib -type f -name ".lib-*.sh" | while read -r lib; do
-            echo "Testing library: $lib"
+          set -euo pipefail
+          shopt -s nullglob globstar
+          source_dir="$(chezmoi --source "$GITHUB_WORKSPACE" source-path)"
+          cd "$source_dir" || exit 1
+          libraries=(.chezmoitemplates/lib/**/*.sh)
+          [[ "${#libraries[@]}" -gt 0 ]]
+          for lib in "${libraries[@]}"; do
+            printf 'Checking library: %s\n' "$lib" >&2
             shellcheck --severity=error -s bash \
-              -e SC2027 -e SC2086 -e SC2119 -e SC2120 "$lib" || exit 1
+              -e SC2027 -e SC2086 -e SC2119 -e SC2120 "$lib"
           done
+
+      - name: Clean up isolated home and chezmoi state
+        if: always()
+        run: |
+          set -euo pipefail
+          rm -rf -- "${{ runner.temp }}/dotfiles-ci"
