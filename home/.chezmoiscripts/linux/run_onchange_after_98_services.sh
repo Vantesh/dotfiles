@@ -24,7 +24,6 @@ readonly -a USER_SERVICES=(
 readonly -a SYSTEM_SERVICES=(
   "NetworkManager"
   "bluetooth"
-  "udisks2"
   "fstrim.timer"
   "ufw"
 )
