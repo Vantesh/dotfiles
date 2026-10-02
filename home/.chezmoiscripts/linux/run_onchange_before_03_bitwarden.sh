@@ -17,49 +17,10 @@ source "$LIB_DIR/.lib-common.sh"
 # shellcheck source=/dev/null
 source "$LIB_DIR/.lib-package_manager.sh"
 
-install_bitwarden_packages() {
-  local -a packages=(
-    rbw
-  )
-
-  case "${DISTRO_FAMILY,,}" in
-  *arch*)
-    packages+=(bitwarden-bin pinentry)
-    ;;
-  *)
-    packages+=(pinentry-curses)
-    ;;
-  esac
-
-  if ! install_package "${packages[@]}"; then
-    log ERROR "Failed to install Bitwarden packages: $LAST_ERROR"
-    return 1
-  fi
-
-  return 0
-}
-
-validate_email() {
-  local email="${1:-}"
-
-  if [[ -z "$email" ]]; then
-    return 1
-  fi
-
-  if [[ "$email" =~ ^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$ ]]; then
-    return 0
-  fi
-
-  return 1
-}
-
-BITWARDEN_EMAIL=""
-
 get_bitwarden_email() {
   local email
 
   LAST_ERROR=""
-  BITWARDEN_EMAIL=""
 
   while true; do
     printf '%b%s%b ' "$COLOR_CYAN" "Enter your Bitwarden email:" "$COLOR_RESET" >&2
@@ -79,8 +40,8 @@ get_bitwarden_email() {
       return 1
     fi
 
-    if validate_email "$email"; then
-      BITWARDEN_EMAIL="$email"
+    if [[ "$email" =~ ^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$ ]]; then
+      printf '%s\n' "$email"
       return 0
     fi
 
@@ -88,74 +49,50 @@ get_bitwarden_email() {
   done
 }
 
-configure_bitwarden_pinentry() {
-  local pinentry
-
-  if [[ -x /usr/bin/pinentry-curses ]]; then
-    pinentry=/usr/bin/pinentry-curses
-  elif command -v pinentry-curses >/dev/null 2>&1; then
-    pinentry=$(command -v pinentry-curses)
-  else
-    LAST_ERROR="Terminal pinentry is not installed"
-    return 1
-  fi
-
-  if ! rbw config set pinentry "$pinentry" >/dev/null 2>&1; then
-    LAST_ERROR="Failed to configure terminal pinentry"
-    return 1
-  fi
-}
-
-login_bitwarden() {
-  local email
-
-  if rbw login >/dev/null 2>&1; then
-    log SKIP "Bitwarden already logged in"
-    return 0
-  fi
-
-  log INFO "Logging in to Bitwarden"
-
-  if ! configure_bitwarden_pinentry; then
-    return 1
-  fi
-
-  if ! get_bitwarden_email; then
-    return 1
-  fi
-
-  email="$BITWARDEN_EMAIL"
-
-  if ! rbw config set email "$email" >/dev/null 2>&1; then
-    LAST_ERROR="Failed to set rbw email configuration"
-    return 1
-  fi
-
-  if ! rbw login; then
-    LAST_ERROR="Failed to login to Bitwarden"
-    return 1
-  fi
-
-  log INFO "Logged in to Bitwarden"
-  return 0
-}
-
 main() {
+  local -a packages=(rbw)
+  local email
+  local output
+
   print_box "Bitwarden"
   log STEP "Bitwarden Setup"
 
-  if ! install_bitwarden_packages; then
-    die "Failed to install Bitwarden packages"
+  case "${DISTRO_FAMILY,,}" in
+  *arch*)
+    packages+=(bitwarden-bin pinentry)
+    ;;
+  *)
+    packages+=(pinentry-curses)
+    ;;
+  esac
+
+  if ! install_package "${packages[@]}"; then
+    die "Failed to install Bitwarden packages: $LAST_ERROR"
   fi
 
-  if ! login_bitwarden; then
-    die "Failed to login to Bitwarden: $LAST_ERROR"
+  if rbw login >/dev/null 2>&1; then
+    log SKIP "Bitwarden already logged in"
+  else
+    log INFO "Logging in to Bitwarden"
+
+    if ! email="$(get_bitwarden_email)"; then
+      die "Failed to read Bitwarden email"
+    fi
+
+    if ! output="$(rbw config set email "$email" 2>&1)"; then
+      die "Failed to set rbw email: ${output:-no output}"
+    fi
+
+    if ! rbw login; then
+      die "Failed to login to Bitwarden"
+    fi
+
+    log INFO "Logged in to Bitwarden"
   fi
 
-  if ! rbw config set lock_timeout 10800; then
-    log WARN "Failed to set rbw lock_timeout configuration"
+  if ! output="$(rbw config set lock_timeout 10800)"; then
+    log WARN "Failed to set rbw lock_timeout: ${output:-no output}"
   fi
-
 }
 
 main "$@"
