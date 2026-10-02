@@ -67,22 +67,28 @@ enable_snapper_services() {
   return 0
 }
 
+# Preserves existing Limine configuration and updates Snapper-owned settings.
+# Globals: LIMINE_* - Configuration and package template paths.
+# Outputs: Result and error logs to stderr.
+# Returns: 0 on success, 1 on failure.
 configure_limine_snapper() {
-  if [[ ! -f "$LIMINE_ENTRY_TEMPLATE" ]] || [[ ! -f "$LIMINE_SNAPPER_TEMPLATE" ]]; then
-    log ERROR "Limine templates not found"
-    return 1
-  fi
+  if [[ ! -e "$LIMINE_CONFIG" ]]; then
+    if [[ ! -f "$LIMINE_ENTRY_TEMPLATE" ]] || [[ ! -f "$LIMINE_SNAPPER_TEMPLATE" ]]; then
+      log ERROR "Limine templates not found"
+      return 1
+    fi
 
-  if ! {
-    cat "$LIMINE_ENTRY_TEMPLATE"
-    printf '\n\n'
-    cat "$LIMINE_SNAPPER_TEMPLATE"
-  } | sudo tee "$LIMINE_CONFIG" >/dev/null 2>&1; then
-    log ERROR "Failed to create Limine configuration"
-    return 1
-  fi
+    if ! {
+      cat "$LIMINE_ENTRY_TEMPLATE"
+      printf '\n\n'
+      cat "$LIMINE_SNAPPER_TEMPLATE"
+    } | sudo tee "$LIMINE_CONFIG" >/dev/null 2>&1; then
+      log ERROR "Failed to create Limine configuration"
+      return 1
+    fi
 
-  log INFO "Created Limine configuration from templates"
+    log INFO "Created Limine configuration from templates"
+  fi
 
   declare -A settings=(
     ["MAX_SNAPSHOT_ENTRIES"]="15"
