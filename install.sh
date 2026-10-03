@@ -159,6 +159,13 @@ main() {
     ;;
   esac
 
+  # Piped bootstraps must give chezmoi, rbw, and pinentry terminal input.
+  if [[ ! -t 0 ]]; then
+    if ! exec 0</dev/tty; then
+      die "No interactive terminal available. Run this installer from a terminal"
+    fi
+  fi
+
   logo
   ensure_dependencies_installed
   backup_config_if_needed
