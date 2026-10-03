@@ -6,6 +6,8 @@
 {{- $defaultShell := "fish" -}}
 {{- $compositor := "hyprland" -}}
 {{- $terminal := "kitty" -}}
+{{- $mergeCommand := env "VISUAL" | default (env "EDITOR") | default "nvim" -}}
+{{- $mergeTool := base $mergeCommand -}}
 {{- $setupSnapper :=  not $skipPackages -}}
 {{- $setupHibernation := not $skipPackages -}}
 {{- $installOptionalPackages := not $skipPackages -}}
@@ -69,8 +71,14 @@ scriptEnv:
 
 
 merge:
-  command: bash
-  args: [-c, "cp {{ "{{" }} .Target {{ "}}" }} {{ "{{" }} .Target {{ "}}" }}.base && code --new-window --wait --merge {{ "{{" }} .Destination {{ "}}" }} {{ "{{" }} .Target {{ "}}" }} {{ "{{" }} .Target {{ "}}" }}.base {{ "{{" }} .Source {{ "}}" }}"]
+  command: {{ $mergeCommand | quote }}
+{{- if or (eq $mergeTool "zed") (eq $mergeTool "zeditor") }}
+  args: [--wait, --diff, "{{ "{{ .Destination }}" }}", "{{ "{{ .Target }}" }}", "{{ "{{ .Source }}" }}"]
+{{- else if or (eq $mergeTool "nvim") (eq $mergeTool "vim") (eq $mergeTool "vimdiff") }}
+  args: [-d, "{{ "{{ .Destination }}" }}", "{{ "{{ .Source }}" }}", "{{ "{{ .Target }}" }}"]
+{{- else }}
+  args: ["{{ "{{ .Destination }}" }}", "{{ "{{ .Source }}" }}", "{{ "{{ .Target }}" }}"]
+{{- end }}
 
 diff:
   pager: delta
