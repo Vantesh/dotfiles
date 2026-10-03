@@ -171,7 +171,7 @@ main() {
   backup_config_if_needed
 
   clear
-  exec chezmoi init --apply "$REPO" "$@"
+  exec chezmoi init --apply --progress=true "$REPO" "$@"
 }
 
 main "$@"
