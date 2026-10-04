@@ -33,8 +33,6 @@ packages:
     - wl-clipboard
     - xdg-terminal-exec
     - gpu-screen-recorder
-    - gpu-screen-recorder-ui
-    - gpu-screen-recorder-notification
     - archlinux-xdg-menu
     - noctalia
 
@@ -73,8 +71,8 @@ packages:
     - git-delta
     - tree-sitter-cli
     - shellcheck
-
-    - television 
+    - television
+    - lazygit
 
   theming:
     - nwg-look
@@ -89,12 +87,14 @@ packages:
     - qt6-5compat
     - qt6-imageformats
     - kimageformats # enable video as wallpaper
+    - python-pillow
   fonts:
     - apple-fonts
     - noto-fonts-cjk
     - noto-fonts-extra
     - ttf-liberation
     - inter-font
+    - ttf-dejavu
 
   optional:
     - rust
