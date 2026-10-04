@@ -1,22 +1,5 @@
 [config]
 
-[templates.yazi]
-  input_path  = '~/.config/matugen/templates/terminal/yazi.toml'
-  output_path = '~/.config/yazi/theme.toml'
-
-
-[templates.btop]
-  input_path  = '~/.config/matugen/templates/terminal/btop.theme'
-  output_path = '~/.config/btop/themes/matugen.theme'
-  post_hook   = 'pkill -USR2 btop || true'
-
-[templates.fzf-fish]
-  input_path  = '~/.config/matugen/templates/terminal/fzf.fish'
-  output_path = '~/.cache/wal/fzf.fish'
-
-[templates.fzf]
-  input_path  = '~/.config/matugen/templates/terminal/fzf.sh'
-  output_path = '~/.cache/zsh/fzf'
 
 [templates.fish]
   input_path  = '~/.config/matugen/templates/terminal/colors.fish'
@@ -26,10 +9,6 @@
 [templates.atuin]
   input_path  = "~/.config/matugen/templates/terminal/atuin.toml"
   output_path = "~/.config/atuin/themes/matugen.toml"
-
-[templates.starship]
-  input_path  = "~/.config/matugen/templates/terminal/starship.toml"
-  output_path = "~/.cache/starship/starship.toml"
 
 
 [templates.spotify]
