@@ -6,6 +6,7 @@
 {{- $defaultShell := "fish" -}}
 {{- $compositor := "hyprland" -}}
 {{- $terminal := "kitty" -}}
+
 {{- $setupSnapper :=  not $skipPackages -}}
 {{- $setupHibernation := not $skipPackages -}}
 {{- $installOptionalPackages := not $skipPackages -}}
@@ -17,7 +18,7 @@
 {{- if .chezmoi.osRelease -}}
   {{- $distroFamily = default .chezmoi.osRelease.id (index .chezmoi.osRelease "idLike") | lower -}}
 {{- end -}}
-{{- if not (contains $distroFamily "arch") -}}
+{{- if not (contains "arch" $distroFamily) -}}
   {{- writeToStdout "\n\033[1;31mERROR:\033[0m This dotfiles repo only supports Arch Linux and Arch-based distros.\n\n" -}}
   {{- exit 1 -}}
 {{- end -}}
@@ -67,12 +68,11 @@ scriptEnv:
   INSTALL_CHAOTIC_AUR: {{ ternary "1" "0" $installChaoticAUR | quote }}
   INSTALL_DRIVERS: {{ ternary "1" "0" $installDrivers | quote }}
 
+
 merge:
-  command: bash
-  args: [-c, "cp {{ "{{" }} .Target {{ "}}" }} {{ "{{" }} .Target {{ "}}" }}.base && code --new-window --wait --merge {{ "{{" }} .Destination {{ "}}" }} {{ "{{" }} .Target {{ "}}" }} {{ "{{" }} .Target {{ "}}" }}.base {{ "{{" }} .Source {{ "}}" }}"]
+  command: meld
+  args: ["{{ "{{ .Destination }}" }}", "{{ "{{ .Source }}" }}", "{{ "{{ .Target }}" }}"]
 
 diff:
-  command: delta
-  args: [--paging=never, "{{ "{{ .Destination }}" }}", "{{ "{{ .Target }}" }}"]
   pager: delta
   exclude: [scripts]
