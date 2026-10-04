@@ -51,8 +51,6 @@ end)
 
 
 -- Load the local configuration modules.
-require("config.colors")
-require("config.cursor")
 require("config.binds")
 require("config.decorations")
 require("config.inputs")
@@ -64,5 +62,7 @@ require("config.animations")
 require("config.gestures")
 require("config.monitors")
 require("config.workspaces")
+
+
 -- For Noctalia Color templates
 require("noctalia").apply_theme()

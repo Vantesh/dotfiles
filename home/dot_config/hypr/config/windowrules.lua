@@ -134,7 +134,6 @@ hl.window_rule({
   pin = true,
   stay_focused = true,
 })
-hl.window_rule({ match = { class = "^(com\\.danklinux\\.dms)$", title = "^([Aa]uthentication)$" }, float = true, center = true, pin = true, stay_focused = true })
 
 -- Password managers
 hl.window_rule({ match = { class = "^([Bb]itwarden)$" }, float = true, center = true, size = { "monitor_w*0.6", "monitor_h*0.6" }, no_screen_share = true })
