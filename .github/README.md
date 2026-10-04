@@ -1,12 +1,14 @@
+![Hyprland desktop screenshot 1](https://github.com/user-attachments/assets/ec0a2f68-732e-4d42-8290-3f2cf352002a)
+
 <h1 align="center">Hyprland Dotfiles</h1>
 <p align="center">Hyprland dotfiles Managed with <a href="https://github.com/twpayne/chezmoi">chezmoi</a></p>
 
 <p align="center">
-	<br><br>
-	<a href="#screenshots"><kbd> <br> Screenshots <br> </kbd></a>&ensp;&ensp;
-	<a href="#installation"><kbd> <br> Installation <br> </kbd></a>&ensp;&ensp;
-	<a href="#features"><kbd> <br> Features <br> </kbd></a>&ensp;&ensp;
-	<a href="#post-install"><kbd> <br> Post Install <br> </kbd></a>
+<br><br>
+<a href="#screenshots"><kbd> <br> Screenshots <br> </kbd></a>&ensp;&ensp;
+<a href="#installation"><kbd> <br> Installation <br> </kbd></a>&ensp;&ensp;
+<a href="#features"><kbd> <br> Features <br> </kbd></a>&ensp;&ensp;
+<a href="#post-install"><kbd> <br> Post Install <br> </kbd></a>
 </p>
 
 > [!IMPORTANT]
@@ -30,50 +32,17 @@
 
 <a id="screenshots"></a>
 
-## [![Typing SVG](https://readme-typing-svg.herokuapp.com?font=JetBrains+Mono&pause=1000&color=84D2E7&width=435&lines=Preview)](https://git.io/typing-svg)
+<details>
+<summary>Screenshots</summary>
 
-#### Demo
+![Hyprland desktop screenshot 2](https://github.com/user-attachments/assets/c536aa81-8e47-40d2-94af-da0192bf08e8)
 
-https://github.com/user-attachments/assets/bd263e88-f2b6-477a-97dc-e8c1afa23669
+![Hyprland desktop screenshot 3](https://github.com/user-attachments/assets/0e339f79-d71b-4ba2-bb26-b8b20df2cee0)
 
-<details close>
-<summary>Gallery</summary>
-<p align="center">
-<img aligh="center" width="49%" src="https://github.com/user-attachments/assets/1afa6f23-86c7-4528-bca9-f0fef1956148" />
+![Hyprland desktop screenshot 4](https://github.com/user-attachments/assets/02434f8c-eec6-4bf4-8bf6-3e9ee7be8daa)
 
-<img aligh="center" width="49%" src="https://github.com/user-attachments/assets/074f625a-da26-481d-89ce-059f4097ef81" /> <br>
+![Hyprland desktop screenshot 5](https://github.com/user-attachments/assets/feab8134-bf03-4768-8465-331a75ec5a90)
 
-<img aligh="center" width="49%" src="https://github.com/user-attachments/assets/e9bb5d28-6a90-4169-a5d8-6ea30a3a82bf" />
-<img aligh="center" width="49%" src="https://github.com/user-attachments/assets/9d13c1c0-c251-482e-822b-d0d027d79df4" />
-
-<img aligh="center" width="49%" src="https://github.com/user-attachments/assets/a224b5bf-642f-4f23-b7d1-353e795af106" />
-<img aligh="center" width="49%" src="https://github.com/user-attachments/assets/286cde9f-05ff-4eec-a8f2-3caac84aa581" />
-</p><br>
-</details>
-
-<details close>
-<summary>Overall</summary>
-<p align="center">
-<img aligh="center" width="49%" alt="Image" src="https://github.com/user-attachments/assets/3e8f1692-a216-4f7d-beb1-fa5c12388cf6" />
-
-<img aligh="center" width="49%" alt="Image" src="https://github.com/user-attachments/assets/a15b55ca-2017-403d-9eea-9a87f3b2a654" />
-
-<img aligh="center" width="49%" alt="Image" src="https://github.com/user-attachments/assets/d3be0e12-8798-4ede-949b-e15fe3cf0762" />
-
-<img aligh="center" width="49%" alt="Image" src="https://github.com/user-attachments/assets/69c53c38-0a6c-45db-9f5b-070f5c7117b3" />
-
-<img aligh="center" width="49%" alt="Image" src="https://github.com/user-attachments/assets/17a301e1-1f64-48eb-b053-d7baf2634830" />
-
-<img aligh="center" width="49%" alt="Image" src="https://github.com/user-attachments/assets/190724a6-ac40-4e2d-8fb0-6b0349166ea8" />
-
-<img aligh="center" width="49%" alt="Image" src="https://github.com/user-attachments/assets/304c5803-05ec-4036-8fc8-f2cba922f56b" />
-
-<img aligh="center" width="49%" alt="Image" src="https://github.com/user-attachments/assets/a3c36b91-b11d-4b54-9200-3384daee3544" />
-
-<img aligh="center" width="49%" alt="Image" src="https://github.com/user-attachments/assets/e21a6d4d-f885-4eab-842d-e178f580c2d9" />
-
-<img aligh="center" width="49%" alt="Image" src="https://github.com/user-attachments/assets/34511907-02ce-461f-a83e-c44478e45d4f" />
-</p><br>
 </details>
 
 <a id="installation"></a>
@@ -112,7 +81,9 @@ chmod +x install.sh
 
 ## [![Typing SVG](https://readme-typing-svg.herokuapp.com?font=JetBrains+Mono&pause=1000&color=84D2E7&width=435&lines=Features)](https://git.io/typing-svg)
 
-- Auto-generated Matugen themes with synchronized light and dark palettes across apps.
+- Noctalia desktop shell with a bar, launcher, control center, clipboard manager, and wallpaper picker.
+- Wallpaper-based theming through Noctalia, with light and dark palettes and templates for terminal, editor, and desktop apps.
+- Modular Hyprland Lua configuration for keybindings, input, monitors, workspaces, and window rules.
 - Pacman, sudo, and AUR helper tuning so your base system feels polished out of the box.
 - Kitty, Fish, Neovim, and other dotfiles polished to suit developer needs.
 - Optional extras like Snapper, GRUB/Limine themes, and laptop-specific power tweaks.
@@ -121,18 +92,16 @@ chmod +x install.sh
 
 ## [![Typing SVG](https://readme-typing-svg.herokuapp.com?font=JetBrains+Mono&pause=1000&color=84D2E7&width=435&lines=Post-install+notes)](https://git.io/typing-svg)
 
-- **Caps Lock** → Mapped as Escape by default. Change it in `~/.config/hypr/hyprland/input.conf`.
+- **Hyprland** → Uses `~/.config/hypr/hyprland.lua`, with modules in `~/.config/hypr/config/`
+- **Input** → Configure keyboard and touchpad settings in `~/.config/hypr/config/inputs.lua`.
+- **Keybindings** → Customize `~/.config/hypr/config/binds.lua`; **SUPER + F2** opens the keybinding cheat-sheet.
 - **Terminal** → Kitty is the default; adjust via `~/.config/xdg-terminals.list`.
-<!-- Niri support removed -->
-
-> [!NOTE]
-> If hyprland throws config errors on first start, simply change the wallpaper once and they should clear up.
->
-> The keybind for changing wallpapers is **SUPER + W**.
+- **Wallpapers** → **SUPER + W** opens Noctalia's wallpaper picker. Wallpapers are loaded from `~/Pictures/Wallpapers`.
+- **Theming** → Noctalia's theme settings and app templates are configured in `~/.config/noctalia/theme.toml` and `~/.config/noctalia/templates.toml`.
 
 <a id="credits"></a>
 
 ## [![Typing SVG](https://readme-typing-svg.herokuapp.com?font=JetBrains+Mono&pause=1000&color=84D2E7&width=435&lines=Credits)](https://git.io/typing-svg)
 
 - [END4 Dotfiles](https://github.com/end-4/dots-hyprland) for monet stuff.
-- [DankMaterialShell](https://github.com/AvengeMedia/DankMaterialShell) for quickshell config.
+- Noctalia for the desktop shell and app theming.
