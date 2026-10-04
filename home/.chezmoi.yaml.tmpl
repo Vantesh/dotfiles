@@ -73,7 +73,8 @@ scriptEnv:
 merge:
   command: {{ $mergeCommand | quote }}
 {{- if or (eq $mergeTool "zed") (eq $mergeTool "zeditor") }}
-  args: [--wait, --diff, "{{ "{{ .Destination }}" }}", "{{ "{{ .Target }}" }}", "{{ "{{ .Source }}" }}"]
+  # Compare destination and target; open source separately for manual edits.
+  args: [--wait, --diff, "{{ "{{ .Destination }}" }}", "{{ "{{ .Target }}" }}", --, "{{ "{{ .Source }}" }}"]
 {{- else if or (eq $mergeTool "nvim") (eq $mergeTool "vim") (eq $mergeTool "vimdiff") }}
   args: [-d, "{{ "{{ .Destination }}" }}", "{{ "{{ .Source }}" }}", "{{ "{{ .Target }}" }}"]
 {{- else }}
