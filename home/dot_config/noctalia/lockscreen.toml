@@ -1,5 +1,5 @@
 [lockscreen]
-blur_intensity = 0.7
+blur_intensity = 0.75
 
 [lockscreen_widgets]
 enabled = true

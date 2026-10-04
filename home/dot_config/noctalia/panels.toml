@@ -1,7 +1,7 @@
 [shell.panel]
 # Float bar-triggered panels with a visible gap.
 transparency_mode = "soft"
-floating_offset = 8
+floating_offset = 10
 launcher_placement = "floating"
 clipboard_placement = "floating"
 control_center_placement = "floating"

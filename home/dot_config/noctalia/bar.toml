@@ -1,8 +1,8 @@
 [bar.default]
 # Float the bar while preserving a small gap around it and below it.
-margin_edge = 2
-margin_opposite_edge = 2
-margin_ends = 2
+margin_edge = 3
+margin_opposite_edge = 3
+margin_ends = 3
 layer = "overlay"
 thickness = 35
 radius = 10
@@ -12,7 +12,7 @@ radius_bottom_left = 10
 radius_bottom_right = 10
 concave_edge_corners = false
 shadow = true
-background_opacity = 0.9
+background_opacity = 0.85
 compositor_blur = true
 
 # Give bar widgets a shared DMS-like capsule style.
