@@ -45,10 +45,10 @@ jobs:
           mkdir -p -- "$CI_ROOT/home"
           printf '%s\n' \
             "HOME=$CI_ROOT/home" \
-            "XDG_CONFIG_HOME=$CI_ROOT/config" \
-            "XDG_CACHE_HOME=$CI_ROOT/cache" \
-            "XDG_DATA_HOME=$CI_ROOT/data" \
-            "XDG_STATE_HOME=$CI_ROOT/state" >> "$GITHUB_ENV"
+            "XDG_CONFIG_HOME=$CI_ROOT/home/.config" \
+            "XDG_CACHE_HOME=$CI_ROOT/home/.cache" \
+            "XDG_DATA_HOME=$CI_ROOT/home/.local/share" \
+            "XDG_STATE_HOME=$CI_ROOT/home/.local/state" >> "$GITHUB_ENV"
 
       - name: Checkout tested revision
         uses: actions/checkout@v4
@@ -72,8 +72,12 @@ jobs:
         run: |
           set -euo pipefail
           # Diff failures during init can be printed without a nonzero exit status.
-          init_output="$(chezmoi --source "$GITHUB_WORKSPACE" --destination "$HOME" init --data=false --dry-run --verbose --no-tty 2>&1)"
+          init_status=0
+          init_output="$(chezmoi --source "$GITHUB_WORKSPACE" --destination "$HOME" init --data=false --dry-run --verbose --no-tty 2>&1)" || init_status="$?"
           printf '%s\n' "$init_output"
+          if [[ "$init_status" -ne 0 ]]; then
+            exit "$init_status"
+          fi
           if [[ "$init_output" = *"git diff: error:"* ]]; then
             exit 1
           fi
