@@ -73,16 +73,13 @@ die() {
 }
 
 ensure_dependencies_installed() {
-  local -a base_packages core_dev_package=()
-
-  base_packages=(git chezmoi figlet)
+  local -a required_packages=(git chezmoi)
 
   if ! command -v pacman >/dev/null 2>&1; then
     die "Unsupported distribution - pacman not found"
   fi
 
-  core_dev_package=("base-devel")
-  local -a required_packages=("${base_packages[@]}" "${core_dev_package[@]}")
+
   local -a to_install=()
   local pkg
 
@@ -162,12 +159,19 @@ main() {
     ;;
   esac
 
+  # Piped bootstraps must give chezmoi, rbw, and pinentry terminal input.
+  if [[ ! -t 0 ]]; then
+    if ! exec 0</dev/tty; then
+      die "No interactive terminal available. Run this installer from a terminal"
+    fi
+  fi
+
   logo
   ensure_dependencies_installed
   backup_config_if_needed
 
   clear
-  exec chezmoi init --apply "$REPO" "$@"
+  exec chezmoi init --apply --progress=true "$REPO" "$@"
 }
 
 main "$@"

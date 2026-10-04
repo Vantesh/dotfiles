@@ -2,16 +2,13 @@
 # 03_theming.sh - Configure system theming (bootloader, GTK)
 # Exit codes: 0 (success), 1 (failure)
 
+
 set -euo pipefail
 
 shopt -s nullglob globstar
 
-readonly LIB_DIR="${CHEZMOI_SOURCE_DIR:-$(chezmoi source-path)}/.chezmoiscripts/linux/lib"
-
-# shellcheck source=/dev/null
-source "$LIB_DIR/.lib-common.sh"
-# shellcheck source=/dev/null
-source "$LIB_DIR/.lib-snapboot.sh"
+{{ include ".chezmoitemplates/lib/common.sh" }}
+{{ include ".chezmoitemplates/lib/snapboot.sh" }}
 
 readonly GRUB_THEME_URL="https://github.com/semimqmo/sekiro_grub_theme"
 readonly GRUB_THEME_DIR="/usr/share/grub/themes/Sekiro"

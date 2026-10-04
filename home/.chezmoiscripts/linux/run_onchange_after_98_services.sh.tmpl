@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+
+# data: distroFamily={{ .distroFamily | quote }}
 # 98_services.sh - Enable core services and configure system utilities
 # Exit codes: 0 (success), 1 (failure)
 
@@ -6,10 +8,7 @@ set -euo pipefail
 
 shopt -s nullglob globstar
 
-readonly LIB_DIR="${CHEZMOI_SOURCE_DIR:-$(chezmoi source-path)}/.chezmoiscripts/linux/lib"
-
-# shellcheck source=/dev/null
-source "$LIB_DIR/.lib-common.sh"
+{{ include ".chezmoitemplates/lib/common.sh" }}
 
 # shellcheck disable=SC2034
 readonly -a USER_SERVICES=(
@@ -18,6 +17,7 @@ readonly -a USER_SERVICES=(
   "mpris-proxy"
   "dms"
   "confb"
+  "udiskie"
 )
 
 # shellcheck disable=SC2034

@@ -2,18 +2,18 @@
 # 00_snapper.sh - Set up snapper for btrfs snapshots
 # Exit codes: 0 (success), 1 (failure)
 
+# setup-snapper: {{ .setupSnapper }}
+# distro: {{ .chezmoi.osRelease.id | quote }}
+# distro-family: {{ .distroFamily | quote }}
+
+
 set -euo pipefail
 
 shopt -s nullglob globstar
 
-readonly LIB_DIR="${CHEZMOI_SOURCE_DIR:-$(chezmoi source-path)}/.chezmoiscripts/linux/lib"
-
-# shellcheck source=/dev/null
-source "$LIB_DIR/.lib-common.sh"
-# shellcheck source=/dev/null
-source "$LIB_DIR/.lib-package_manager.sh"
-# shellcheck source=/dev/null
-source "$LIB_DIR/.lib-snapboot.sh"
+{{ include ".chezmoitemplates/lib/common.sh" }}
+{{ include ".chezmoitemplates/lib/package_manager.sh" }}
+{{ include ".chezmoitemplates/lib/snapboot.sh" }}
 
 readonly LIMINE_CONFIG="/etc/default/limine"
 readonly LIMINE_ENTRY_TEMPLATE="/etc/limine-entry-tool.conf"
@@ -67,22 +67,28 @@ enable_snapper_services() {
   return 0
 }
 
+# Preserves existing Limine configuration and updates Snapper-owned settings.
+# Globals: LIMINE_* - Configuration and package template paths.
+# Outputs: Result and error logs to stderr.
+# Returns: 0 on success, 1 on failure.
 configure_limine_snapper() {
-  if [[ ! -f "$LIMINE_ENTRY_TEMPLATE" ]] || [[ ! -f "$LIMINE_SNAPPER_TEMPLATE" ]]; then
-    log ERROR "Limine templates not found"
-    return 1
-  fi
+  if [[ ! -e "$LIMINE_CONFIG" ]]; then
+    if [[ ! -f "$LIMINE_ENTRY_TEMPLATE" ]] || [[ ! -f "$LIMINE_SNAPPER_TEMPLATE" ]]; then
+      log ERROR "Limine templates not found"
+      return 1
+    fi
 
-  if ! {
-    cat "$LIMINE_ENTRY_TEMPLATE"
-    printf '\n\n'
-    cat "$LIMINE_SNAPPER_TEMPLATE"
-  } | sudo tee "$LIMINE_CONFIG" >/dev/null 2>&1; then
-    log ERROR "Failed to create Limine configuration"
-    return 1
-  fi
+    if ! {
+      cat "$LIMINE_ENTRY_TEMPLATE"
+      printf '\n\n'
+      cat "$LIMINE_SNAPPER_TEMPLATE"
+    } | sudo tee "$LIMINE_CONFIG" >/dev/null 2>&1; then
+      log ERROR "Failed to create Limine configuration"
+      return 1
+    fi
 
-  log INFO "Created Limine configuration from templates"
+    log INFO "Created Limine configuration from templates"
+  fi
 
   declare -A settings=(
     ["MAX_SNAPSHOT_ENTRIES"]="15"

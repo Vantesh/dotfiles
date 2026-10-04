@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# .lib-snapboot.sh - Bootloader and filesystem configuration management
+# snapboot.sh - Bootloader and filesystem configuration management
 #
 # Provides unified interface for bootloader configuration (GRUB, Limine),
 # initramfs generation (mkinitcpio, dracut), and filesystem operations (btrfs, fstab).
@@ -335,7 +335,7 @@ detect_bootloader() {
 #
 # Merges new parameters with existing GRUB_CMDLINE_LINUX_DEFAULT,
 # with new params overriding duplicates. Regenerates GRUB config.
-# Requires .lib-common.sh sourced for update_config().
+# Requires common.sh loaded for update_config().
 #
 # Arguments:
 #   $@ - Space-separated kernel parameters to add/override
@@ -370,7 +370,7 @@ update_grub_cmdline() {
     return 1
   fi
 
-  # Update GRUB config file using update_config from .lib-common.sh
+  # Update GRUB config file using update_config from common.sh
   # Wrap value in quotes as GRUB requires quoted values
   if ! update_config "$grub_file" "GRUB_CMDLINE_LINUX_DEFAULT" "\"$new_cmdline\""; then
     LAST_ERROR="Failed to update GRUB configuration: $LAST_ERROR"

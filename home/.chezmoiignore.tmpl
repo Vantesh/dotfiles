@@ -1,23 +1,66 @@
 # Secrets & temp files
 key.txt.age
 tmp*
-**/*.{bak,log,old,ori,zwc}
-.ssh/known_hosts
 .bitwarden-ssh-agent.sock
+.netrc
+.password-store
+.ssh/{id_*,*.pem,authorized_keys,known_hosts*}
+!.ssh/*.pub
+.gnupg/{private-keys-v1.d,openpgp-revocs.d,pubring.kbx*,trustdb.gpg,random_seed,S.*,*.lock}
+.aws
+.azure
+.kube/{cache,config}
+.docker/config.json
+.config/gh/hosts.yml
+
+# Backup, swap & junk files
+**/*.{bak,backup,bkp,old,orig,ori,rej,swp,swo,tmp,temp,log,zwc,pacnew,pacsave,pacorig,save,sav}
+**/*.{bak,backup,bkp,old,orig}*
+**/*~
+**/*.~*~
+**/{.backup,.backups,backups,Backups}
+**/*.sock
+**/.DS_Store
+**/Thumbs.db
+**/desktop.ini
+**/__pycache__
+**/*.pyc
+**/node_modules
+
+# Shell & tool history/state
+.bash_history
+.zsh_history
+.python_history
+.node_repl_history
+.lesshst
+.viminfo
+.wget-hsts
+.sudo_as_admin_successful
+.xsession-errors*
+.Xauthority
+.ICEauthority
+.config/zsh/.{history,zcompdump}
+.config/fish/fish_variables
 
 # IDE & cache
 .vscode
-.{cache,pki,m2,nv,dotnet}
+.{cache,pki,m2,nv,dotnet,thumbnails,java}
+
+# Dev toolchains & package manager data
+.{npm,pnpm-store,nvm,bun,deno,gradle,android,gem,pyenv,rustup,conda,steam,wine,mozilla}
+.cargo/{registry,git,bin}
 
 # App state/cache
 .config/{BraveSoftware/*,google-chrome/*,Authy*,Bitwarden*,fcitx5/conf/cached_layouts,lazygit/state.yml,rbw,wakatime}
 !.config/google-chrome/NativeMessagingHosts/**
 !.config/BraveSoftware/NativeMessagingHosts/**
+.config/{pulse,dconf,goa-1.0,session,Trolltech.conf}
+.config/Code/{Cache*,CachedData,GPUCache,logs,Crashpad,Backups,User/{workspaceStorage,globalStorage,History}}
+.config/**/{cache,Cache,GPUCache,CachedData,Crashpad,blob_storage,IndexedDB,Service Worker,Session Storage,Local Storage,Code Cache,logs,crash_reports}
 .config/clipse/{clipboard_history.json,tmp_files}
+.config/DankMaterialShell/monitors.json
 .config/nvim/lazy-lock.json
-.config/zsh/.{history,zcompdump}
-.config/fish/fish_variables
-.bash_history
+.config/systemd/user/*.wants
 
 # User directories
 {Downloads,Documents,Desktop,Music,Videos,Public,Templates,Pictures}
@@ -32,7 +75,6 @@ tmp*
 **/theme.toml*
 .config/{qt5ct,qt6ct}
 .config/gtk-{3,4}.0/{colors.css,assets,bookmarks}
-.config/hypr/dms/colors.lua
 .config/nvim/colors/dms.lua
 .config/kitty/{dank*,color*,current-theme.conf}
 .config/nvim/colors

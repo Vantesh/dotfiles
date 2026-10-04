@@ -27,6 +27,7 @@ packages:
     - libcanberra
     - ly
     - gparted
+    - meld
     - xorg-xhost
     - ddcutil
     - wl-clipboard

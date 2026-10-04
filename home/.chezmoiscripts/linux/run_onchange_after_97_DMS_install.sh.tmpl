@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+
+# data: compositor={{ .compositor | quote }} terminal={{ .terminal | quote }}
 # 99_DMS_install.sh - Install DankMaterialShell headlessly
 #
 # Runs the official DankLinux installer without prompts for the configured
@@ -9,11 +11,10 @@
 
 set -euo pipefail
 
-readonly LIB_DIR="${CHEZMOI_SOURCE_DIR:-$(chezmoi source-path)}/.chezmoiscripts/linux/lib"
+
 readonly DANK_INSTALL_URL="https://install.danklinux.com"
 
-# shellcheck source=/dev/null
-source "$LIB_DIR/.lib-common.sh"
+{{ include ".chezmoitemplates/lib/common.sh" }}
 
 main() {
 

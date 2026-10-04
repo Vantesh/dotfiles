@@ -175,6 +175,7 @@
 
   "file_types": {
     "JSONC": ["*.json", "tsconfig*.json"],
+    "Plain Text": ["modify_settings.json"],
   },
 
   // Maximum number of tabs per pane. Unset for unlimited.

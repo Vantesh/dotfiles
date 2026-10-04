@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# .lib-common.sh - Common utilities and logging functions
+# common.sh - Common utilities and logging functions
 #
 # Provides core utility functions for logging, user interaction, system
 # configuration, and service management. This is the base library for all scripts.

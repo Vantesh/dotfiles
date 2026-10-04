@@ -1,2 +1,2 @@
--- Optional per-user keybind overrides (managed by DMS). Loaded after default binds.
+-- Initial per-user keybind overrides, loaded after default binds; DMS owns updates.
 hl.bind("SUPER + S", hl.dsp.exec_cmd("dms screenshot"), { description = "Take screenshot" })
