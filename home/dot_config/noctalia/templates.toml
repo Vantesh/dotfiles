@@ -1,0 +1,14 @@
+[theme.templates.user.fish]
+input_path = "$XDG_CONFIG_HOME/noctalia/templates/fish.theme"
+output_path = "$XDG_CONFIG_HOME/fish/themes/Noctalia.theme"
+post_hook = "fish -c 'yes | fish_config theme save Noctalia'"
+
+[theme.templates.user.atuin]
+input_path = "$XDG_CONFIG_HOME/noctalia/templates/atuin.toml"
+output_path = "$XDG_CONFIG_HOME/atuin/themes/noctalia.toml"
+
+[theme.templates.user.spotify]
+input_path = "$XDG_CONFIG_HOME/noctalia/templates/spotify.ini"
+output_path = "$XDG_CONFIG_HOME/spicetify/Themes/Sleek/color.ini"
+post_hook = 'bash "{{ config_dir }}/scripts/update_spotify.sh"'
+hook_async = false
