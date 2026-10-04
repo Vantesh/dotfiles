@@ -1,0 +1,11 @@
+[dock]
+background_opacity = 0.79999998211860657
+cross_axis_padding = 10
+enabled = true
+icon_size = 35
+layer = "overlay"
+main_axis_padding = 10
+margin_edge = 7
+reserve_space = false
+show_dots = true
+smart_auto_hide = true
