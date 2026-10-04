@@ -5,7 +5,7 @@
 local mainMod = "SUPER"
 local ctrlMod = mainMod .. " + CTRL"
 local ctrlShiftMod = ctrlMod .. " + SHIFT"
-local ipc = "noctalia msg "
+local ipc = "uwsm-exec noctalia msg "
 
 -- === Applications ===
 -- --- Launchers ---
@@ -21,7 +21,7 @@ hl.bind("SUPER + N", hl.dsp.exec_cmd(ipc .. "panel-toggle noctalia/notes:panel")
   { description = "Open notes" })
 
 -- --- Tools & Pickers ---
-hl.bind(mainMod .. " + comma", hl.dsp.exec_cmd(ipc .. "settings-toggle"), { description = "Open settings" })
+hl.bind(mainMod .. " + comma", hl.dsp.exec_cmd(ipc .. "panel-toggle launcher /emo "), { description = "Open emoji picker" })
 
 hl.bind("SUPER + V", hl.dsp.exec_cmd(ipc .. "panel-toggle clipboard"), { description = "Open clipboard manager" })
 hl.bind("SUPER + W", hl.dsp.exec_cmd(ipc .. "panel-toggle wallpaper"), { description = "Open wallpaper picker" })
@@ -170,6 +170,7 @@ hl.bind("XF86PowerOff", hl.dsp.exec_cmd(ipc .. "panel-toggle session"), { descri
 hl.bind(mainMod .. " + Escape", hl.dsp.exec_cmd(ipc .. "panel-toggle session"), { description = "Open session menu" })
 
 -- --- Display ---
+hl.bind("SUPER + F12", require("scripts.movie_mode").toggle, { description = "Toggle movie mode" })
 hl.bind("XF86MonBrightnessUp", hl.dsp.exec_cmd(ipc .. "brightness-up current 5"),
   { repeating = true, locked = true, description = "Increase brightness" })
 hl.bind("XF86MonBrightnessDown", hl.dsp.exec_cmd(ipc .. "brightness-down current 5"),
@@ -181,6 +182,10 @@ hl.bind("Print", hl.dsp.exec_cmd(ipc .. "screenshot-region"), { description = "S
 hl.bind("SHIFT + Print", hl.dsp.exec_cmd(ipc .. "screenshot-region"), { description = "Screenshot region" })
 hl.bind("SUPER + S", hl.dsp.exec_cmd(ipc .. "screenshot-region"), { description = "Screenshot region" })
 hl.bind(mainMod .. " + Print", hl.dsp.exec_cmd(ipc .. "screenshot-fullscreen"), { description = "Screenshot focused monitor" })
+
+-- --- Screen Recording ---
+hl.bind("SUPER + G", hl.dsp.exec_cmd(ipc .. "plugin noctalia/screen_recorder:service all toggle"),
+  { description = "Toggle screen recorder" })
 
 
 -- --- Audio ---
@@ -210,7 +215,7 @@ hl.bind("ALT + mouse:272", hl.dsp.window.drag(), { mouse = true, description = "
 hl.bind("ALT + mouse:273", hl.dsp.window.resize(), { mouse = true, description = "Hold to resize window" })
 
 -- === Help & Utilities ===
-hl.bind("SUPER + SHIFT + Slash", hl.dsp.exec_cmd(ipc .. "panel-toggle kenn/keybind-cheatsheet:cheatsheet"),
+hl.bind("SUPER + F2", hl.dsp.exec_cmd(ipc .. "panel-toggle kenn/keybind-cheatsheet:cheatsheet"),
   { description = "Open keybinds help" })
 
 hl.bind("CTRL + ALT + DELETE", hl.dsp.exec_cmd(ipc .. "panel-toggle control-center system"),
@@ -220,7 +225,7 @@ hl.bind("SUPER + F1", require("scripts.gamemode").toggle, { description = "Toggl
 
 hl.bind("XF86RFKill",
   hl.dsp.exec_cmd(
-    "case \"$(rfkill list)\" in *\"Soft blocked: yes\"*) notify-send \"rfkill\" \"Airplane mode is on\" -u critical --icon wifi;; esac"),
+    [[uwsm-exec sh -c 'case "$(rfkill list)" in *"Soft blocked: yes"*) notify-send "rfkill" "Airplane mode is on" -u critical --icon wifi;; esac']]),
   { repeating = true, locked = true, description = "Toggle airplane mode" })
 
 

@@ -30,6 +30,7 @@ end
 add_placement_rule({
   workspace = tostring(LAPTOP_WORKSPACE),
   monitor = monitors.laptop,
+  layout = "scrolling",
   default = true,
   persistent = true,
 })
