@@ -12,3 +12,16 @@ input_path = "$XDG_CONFIG_HOME/noctalia/templates/spotify.ini"
 output_path = "$XDG_CONFIG_HOME/spicetify/Themes/Sleek/color.ini"
 post_hook = 'bash "{{ config_dir }}/scripts/update_spotify.sh"'
 hook_async = false
+
+[theme.templates.user.nvim-dark]
+input_path = "$XDG_CONFIG_HOME/noctalia/templates/base46-dark.lua"
+output_path = "$XDG_CACHE_HOME/wal/base46-dark.lua"
+
+[theme.templates.user.nvim-light]
+input_path = "$XDG_CONFIG_HOME/noctalia/templates/base46-light.lua"
+output_path = "$XDG_CACHE_HOME/wal/base46-light.lua"
+
+[theme.templates.user.nvim-mode]
+input_path = "$XDG_CONFIG_HOME/noctalia/templates/nvim-background"
+output_path = "$XDG_CACHE_HOME/wal/colors"
+index = 1
