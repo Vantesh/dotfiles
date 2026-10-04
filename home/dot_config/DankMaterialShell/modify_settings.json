@@ -13,4 +13,5 @@
 {{- end -}}
 {{- /* Seed the schema version only for a missing or empty settings file. */ -}}
 {{- $preferences := omit $defaults "configVersion" -}}
+{{- $_ := unset $current "displayPreviousRefreshModes" -}}
 {{ mergeOverwrite $current $preferences | toPrettyJson }}
