@@ -57,7 +57,6 @@ packages:
     - fd
     - duf
     - eza
-    - fzf
     - bat
     - ripgrep
     - curlie
@@ -74,6 +73,8 @@ packages:
     - git-delta
     - tree-sitter-cli
     - shellcheck
+
+    - television 
 
   theming:
     - nwg-look
