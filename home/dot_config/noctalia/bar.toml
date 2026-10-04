@@ -3,8 +3,8 @@
 margin_edge = 3
 margin_opposite_edge = 3
 margin_ends = 3
-layer = "overlay"
 thickness = 35
+padding = 5
 radius = 10
 radius_top_left = 10
 radius_top_right = 10
@@ -20,13 +20,13 @@ capsule = true
 capsule_fill = "surface_variant"
 capsule_opacity = 0.85
 capsule_padding = 6
-capsule_thickness = 0.8
+capsule_thickness = 0.85
 capsule_border = "outline"
 widget_spacing = 6
 
 # Wallpaper and Clipboard are intentionally omitted.
 start = ["control-center", "workspaces", "active_window"]
-center = ["media", "clock", "privacy"]
+center = ["media", "group:g2", "privacy"]
 end = [
   "sysmon",
   "tray",
@@ -39,7 +39,7 @@ end = [
 
 [[bar.default.capsule_group]]
 id = "g1"
-members = ["network", "bluetooth", "volume"]
+members = ["network", "bluetooth", "brightness", "volume"]
 fill = "surface_variant"
 border = "outline"
 border_width = 1.0
@@ -48,3 +48,15 @@ opacity = 0.85
 enabled = true
 accordion = false
 accordion_direction = "start"
+
+[[bar.default.capsule_group]]
+id = "g2"
+accordion = false
+accordion_direction = "end"
+border = "outline"
+border_width = 1.0
+enabled = true
+fill = "surface_variant"
+members = [ "clock", "date" ]
+opacity = 0.85
+padding = 6.0

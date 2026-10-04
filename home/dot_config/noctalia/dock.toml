@@ -1,7 +1,7 @@
 [dock]
-background_opacity = 0.79999998211860657
+background_opacity = 0.85
 cross_axis_padding = 10
-enabled = true
+enabled = false
 icon_size = 35
 layer = "overlay"
 main_axis_padding = 10

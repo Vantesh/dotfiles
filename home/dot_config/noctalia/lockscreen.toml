@@ -28,7 +28,7 @@ type = "login_box"
 
 [lockscreen_widgets.widget."lockscreen-login-box@DP-1".settings]
 background_color = "surface_variant"
-background_opacity = 0.95
+background_opacity = 0.85
 background_radius = 15.0
 center_password_text = false
 input_opacity = 1.0
@@ -55,7 +55,7 @@ type = "login_box"
 
 [lockscreen_widgets.widget."lockscreen-login-box@eDP-1".settings]
 background_color = "surface_variant"
-background_opacity = 0.88
+background_opacity = 0.85
 background_radius = 12.0
 center_password_text = false
 input_opacity = 1.0
@@ -82,7 +82,7 @@ type = "clock"
 
 [lockscreen_widgets.widget.lockscreen-widget-0000000000000001.settings]
 background = false
-background_opacity = 0.71
+background_opacity = 0.85
 clock_style = "digital"
 color = "primary"
 font_family = ""

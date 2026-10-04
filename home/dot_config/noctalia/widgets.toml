@@ -1,13 +1,15 @@
 [widget.active_window]
 title_scroll = "on_hover"
 
-[widget.brightness]
-show_label = false
+[widget.bluetooth]
+hide_when_adapter_off = true
+hide_when_no_connected_device = true
 
 [widget.media]
 hide_when_no_media = true
 rotate_album_art = true
 title_scroll = "on_hover"
+artist_first = true
 
 [widget.network]
 show_label = false
