@@ -36,7 +36,7 @@ jobs:
       - name: Install dependencies (Arch Linux)
         if: matrix.os == 'archlinux'
         run: |
-          pacman -Syu --noconfirm git curl bash shellcheck git-delta chezmoi jq
+          pacman -Syu --noconfirm git curl bash shellcheck git-delta chezmoi jq diffutils
 
       - name: Configure isolated home and chezmoi state
         run: |
