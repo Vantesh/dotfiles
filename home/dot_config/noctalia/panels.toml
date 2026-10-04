@@ -1,0 +1,21 @@
+[shell.panel]
+# Float bar-triggered panels with a visible gap.
+transparency_mode = "soft"
+floating_offset = 8
+launcher_placement = "floating"
+clipboard_placement = "floating"
+control_center_placement = "floating"
+wallpaper_placement = "floating"
+session_placement = "floating"
+
+# Preserve the current GUI placement choices.
+launcher_position = "center"
+clipboard_position = "center"
+control_center_position = "auto"
+wallpaper_position = "auto"
+session_position = "auto"
+open_near_click_control_center = true
+open_near_click_launcher = true
+open_near_click_clipboard = false
+open_near_click_wallpaper = false
+open_near_click_session = true

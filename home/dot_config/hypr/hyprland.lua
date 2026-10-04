@@ -9,6 +9,9 @@ hl.on("hyprland.start", function()
 	-- Slow app launch fix -- set systemd vars before starting session services.
 	hl.exec_cmd("systemctl --user import-environment")
 
+	-- start noctalia
+	hl.exec_cmd("uwsm app -t service -- noctalia")
+
 	-- Limine + Snapper snapshot notifications
 	hl.exec_cmd("command -v limine-snapper-restore >/dev/null && sleep 2 && uwsm-exec limine-snapper-restore --notify ")
 
@@ -18,7 +21,7 @@ hl.on("hyprland.start", function()
 		pid_file="${XDG_RUNTIME_DIR:?}/hyprland-system-inhibit-${HYPRLAND_INSTANCE_SIGNATURE:?}.pid"
 		umask 077
 		printf "%s\n" "$$" > "$pid_file" || exit 1
-		exec systemd-inhibit --who="Hyprland config $HYPRLAND_INSTANCE_SIGNATURE" --why="dms keybind" --what=handle-power-key --mode=block sleep infinity
+		exec systemd-inhibit --who="Hyprland config $HYPRLAND_INSTANCE_SIGNATURE" --why="Noctalia power-menu keybind" --what=handle-power-key --mode=block sleep infinity
 	']])
 end)
 
@@ -47,21 +50,19 @@ hl.on("hyprland.shutdown", function()
 end)
 
 
-require("dms.colors")
-require("dms.layout")
-require("dms.cursor")
-require("dms.binds")
-require("dms.outputs")
-require("dms.binds-user")
-require("dms.windowrules")
-
-
--- load dms user configs
-require("dms-user.decorations")
-require("dms-user.inputs")
-require("dms-user.misc")
-require("dms-user.windowrules")
-require("dms-user.layerrules")
-require("dms-user.layouts")
-require("dms-user.animations")
-require("dms-user.gestures")
+-- Load the local configuration modules.
+require("config.colors")
+require("config.cursor")
+require("config.binds")
+require("config.decorations")
+require("config.inputs")
+require("config.misc")
+require("config.windowrules")
+require("config.layerrules")
+require("config.layouts")
+require("config.animations")
+require("config.gestures")
+require("config.monitors")
+require("config.workspaces")
+-- For Noctalia Color templates
+require("noctalia").apply_theme()

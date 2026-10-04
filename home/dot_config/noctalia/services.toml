@@ -1,0 +1,38 @@
+[brightness]
+enable_ddcutil = true
+
+[calendar]
+enabled = true
+
+[idle]
+behavior_order = ["lock", "screen-off", "lock-and-suspend"]
+
+[idle.behavior.lock]
+action = "lock"
+enabled = true
+timeout = 600.0
+
+[idle.behavior.screen-off]
+action = "screen_off"
+enabled = true
+locked_timeout = 60.0
+timeout = 660.0
+
+[idle.behavior.lock-and-suspend]
+action = "lock_and_suspend"
+enabled = true
+timeout = 900.0
+
+[location]
+auto_locate = true
+
+[notification]
+background_opacity = 0.95
+follow_focused_output = true
+layer = "overlay"
+
+[osd]
+position = "bottom_center"
+
+[osd.kinds]
+media = false

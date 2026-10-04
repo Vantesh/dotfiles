@@ -2,31 +2,63 @@
 -- binds.lua — Hyprland Lua keybinds (Hyprland 0.55+)
 -- =============================================================================
 
+local mainMod = "SUPER"
+local ctrlMod = mainMod .. " + CTRL"
+local ctrlShiftMod = ctrlMod .. " + SHIFT"
+local ipc = "noctalia msg "
+
 -- === Applications ===
 -- --- Launchers ---
 hl.bind("SUPER + RETURN", hl.dsp.exec_cmd("uwsm-exec xdg-terminal-exec"), { description = "Open terminal" })
 hl.bind("SUPER + B", hl.dsp.exec_cmd("uwsm-exec brave"), { description = "Open web browser" })
 hl.bind("SUPER + E", hl.dsp.exec_cmd("uwsm-exec nautilus"), { description = "Open file manager" })
-hl.bind("SUPER + SPACE", hl.dsp.exec_cmd("dms ipc call spotlight toggle"), { description = "Open app launcher" })
-hl.bind("ALT + space", hl.dsp.exec_cmd("dms ipc call spotlight-bar toggle"), { description = "Open app launcher (bar)" })
+hl.bind(mainMod .. " + SPACE", hl.dsp.exec_cmd(ipc .. "panel-toggle launcher"), { description = "Open app launcher" })
+hl.bind("ALT + space", hl.dsp.exec_cmd(ipc .. "panel-toggle launcher"), { description = "Open app launcher" })
+hl.bind(mainMod .. " + ALT + SPACE", hl.dsp.exec_cmd(ipc .. "panel-toggle control-center"),
+  { description = "Open control center" })
 hl.bind("SUPER + C", hl.dsp.exec_cmd("uwsm-exec code"), { description = "Open code editor" })
-hl.bind("SUPER + N", hl.dsp.exec_cmd("dms ipc call notepad toggle"), { description = "Open notepad" })
+hl.bind("SUPER + N", hl.dsp.exec_cmd(ipc .. "panel-toggle noctalia/notes:panel"),
+  { description = "Open notes" })
 
 -- --- Tools & Pickers ---
-hl.bind("SUPER + comma", hl.dsp.exec_cmd("dms ipc call settings focusOrToggle"), { description = "Open settings" })
+hl.bind(mainMod .. " + comma", hl.dsp.exec_cmd(ipc .. "settings-toggle"), { description = "Open settings" })
 
-hl.bind("SUPER + V", hl.dsp.exec_cmd("dms ipc call clipboard toggle"), { description = "Open clipboard manager" })
-hl.bind("SUPER + W", hl.dsp.exec_cmd("dms ipc call dash open wallpaper"), { description = "Open wallpaper picker" })
+hl.bind("SUPER + V", hl.dsp.exec_cmd(ipc .. "panel-toggle clipboard"), { description = "Open clipboard manager" })
+hl.bind("SUPER + W", hl.dsp.exec_cmd(ipc .. "panel-toggle wallpaper"), { description = "Open wallpaper picker" })
 hl.bind("SUPER + K", hl.dsp.exec_cmd("uwsm-exec bitwarden.desktop"), { description = "Open password manager" })
-hl.bind("SUPER + SHIFT + N", hl.dsp.exec_cmd("dms ipc call night toggle"), { description = "Toggle night mode" })
-hl.bind("SUPER + F7", hl.dsp.exec_cmd("uwsm-exec dms color pick -a"), { description = "Open color picker" })
+hl.bind("SUPER + SHIFT + N", hl.dsp.exec_cmd(ipc .. "nightlight-force-toggle"), { description = "Toggle forced night light" })
+
+-- --- Noctalia Panels & Controls ---
+hl.bind(ctrlMod .. " + M", hl.dsp.exec_cmd(ipc .. "panel-toggle control-center media"),
+  { description = "Open music panel" })
+hl.bind(ctrlMod .. " + SPACE", hl.dsp.exec_cmd(ipc .. "panel-toggle wallpaper"),
+  { description = "Open wallpaper picker" })
+hl.bind(ctrlMod .. " + V", hl.dsp.exec_cmd(ipc .. "panel-toggle clipboard"),
+  { description = "Open clipboard manager" })
+hl.bind(ctrlMod .. " + B", hl.dsp.exec_cmd(ipc .. "panel-toggle control-center bluetooth"),
+  { description = "Open Bluetooth panel" })
+hl.bind(ctrlMod .. " + N", hl.dsp.exec_cmd(ipc .. "panel-toggle control-center network"),
+  { description = "Open network panel" })
+hl.bind(ctrlMod .. " + W", hl.dsp.exec_cmd(ipc .. "panel-toggle control-center weather"),
+  { description = "Open weather panel" })
+hl.bind(ctrlShiftMod .. " + B", hl.dsp.exec_cmd(ipc .. "bluetooth-toggle"),
+  { description = "Toggle Bluetooth" })
+hl.bind(ctrlShiftMod .. " + W", hl.dsp.exec_cmd(ipc .. "wifi-toggle"),
+  { description = "Toggle Wi-Fi" })
+hl.bind(ctrlShiftMod .. " + D", hl.dsp.exec_cmd(ipc .. "clipboard-clear"),
+  { description = "Clear clipboard history" })
+hl.bind(ctrlMod .. " + I", hl.dsp.exec_cmd(ipc .. "caffeine-toggle"),
+  { description = "Toggle idle inhibitor" })
+hl.bind(ctrlShiftMod .. " + SPACE", hl.dsp.exec_cmd(ipc .. "wallpaper-random"),
+  { description = "Set random wallpaper" })
 
 -- --- Scratchpads & Special ---
 hl.bind("SUPER + SHIFT + RETURN", hl.dsp.exec_cmd("uwsm-exec xdg-terminal-exec --app-id=FloatingTerm"),
   { description = "Toggle floating terminal" })
 hl.bind("SUPER + SHIFT + E", hl.dsp.exec_cmd("uwsm-exec xdg-terminal-exec --app-id=FloatingTerm yazi"),
   { description = "Toggle Yazi" })
-hl.bind("SUPER + TAB", hl.dsp.exec_cmd("dms ipc call hypr toggleOverview"), { description = "Toggle overview" })
+hl.bind("SUPER + TAB", hl.dsp.exec_cmd(ipc .. "window-switcher hold"), { description = "Open window switcher" })
+hl.bind("ALT + TAB", hl.dsp.exec_cmd(ipc .. "window-switcher hold"), { description = "Switch windows" })
 hl.bind("SUPER + U", hl.dsp.exec_cmd("uwsm-exec xdg-terminal-exec --app-id=FloatingTerm ~/.config/scripts/updater.sh"),
   { description = "Update system" })
 
@@ -134,37 +166,41 @@ hl.bind("SUPER + CTRL + ALT + Left", hl.dsp.window.move({ workspace = "r-1" }),
 -- --- Session Management ---
 hl.bind("SUPER + L", hl.dsp.exec_cmd("uwsm-exec loginctl lock-session $XDG_SESSION_ID"), { description = "Lock screen" })
 hl.bind("SUPER + ALT + DELETE", hl.dsp.exec_cmd("uwsm-exec ~/.config/scripts/logout.sh"), { description = "Logout" })
-hl.bind("XF86PowerOff", hl.dsp.exec_cmd("dms ipc call powermenu toggle"), { description = "Open power menu" })
+hl.bind("XF86PowerOff", hl.dsp.exec_cmd(ipc .. "panel-toggle session"), { description = "Open power menu" })
+hl.bind(mainMod .. " + Escape", hl.dsp.exec_cmd(ipc .. "panel-toggle session"), { description = "Open session menu" })
 
 -- --- Display ---
-hl.bind("XF86MonBrightnessUp", hl.dsp.exec_cmd("dms ipc call brightness increment 5 \"\""),
+hl.bind("XF86MonBrightnessUp", hl.dsp.exec_cmd(ipc .. "brightness-up current 5"),
   { repeating = true, locked = true, description = "Increase brightness" })
-hl.bind("XF86MonBrightnessDown", hl.dsp.exec_cmd("dms ipc call brightness decrement 5 \"\""),
+hl.bind("XF86MonBrightnessDown", hl.dsp.exec_cmd(ipc .. "brightness-down current 5"),
   { repeating = true, locked = true, description = "Decrease brightness" })
 
 -- --- Screenshots ---
-hl.bind("Print", hl.dsp.exec_cmd("dms screenshot"), { description = "Take a screenshot" })
-hl.bind("SHIFT + Print", hl.dsp.exec_cmd("dms screenshot --no-file"), { description = "Screenshot region to clipboard" })
-hl.bind("CTRL + Print", hl.dsp.exec_cmd("dms screenshot --window"), { description = "Screenshot active window" })
+-- Saving and clipboard copying follow Noctalia's shared screenshot settings.
+hl.bind("Print", hl.dsp.exec_cmd(ipc .. "screenshot-region"), { description = "Screenshot region" })
+hl.bind("SHIFT + Print", hl.dsp.exec_cmd(ipc .. "screenshot-region"), { description = "Screenshot region" })
+hl.bind("SUPER + S", hl.dsp.exec_cmd(ipc .. "screenshot-region"), { description = "Screenshot region" })
+hl.bind(mainMod .. " + Print", hl.dsp.exec_cmd(ipc .. "screenshot-fullscreen"), { description = "Screenshot focused monitor" })
 
 
 -- --- Audio ---
-hl.bind("XF86AudioRaiseVolume", hl.dsp.exec_cmd("dms ipc call audio increment 5"),
+hl.bind("XF86AudioRaiseVolume", hl.dsp.exec_cmd(ipc .. "volume-up 5"),
   { repeating = true, locked = true, description = "Increase volume" })
-hl.bind("XF86AudioLowerVolume", hl.dsp.exec_cmd("dms ipc call audio decrement 5"),
+hl.bind("XF86AudioLowerVolume", hl.dsp.exec_cmd(ipc .. "volume-down 5"),
   { repeating = true, locked = true, description = "Decrease volume" })
-hl.bind("XF86AudioMute", hl.dsp.exec_cmd("dms ipc call audio mute"),
+hl.bind("XF86AudioMute", hl.dsp.exec_cmd(ipc .. "volume-mute"),
   { repeating = true, locked = true, description = "Toggle audio mute" })
-hl.bind("XF86AudioMicMute", hl.dsp.exec_cmd("dms ipc call audio micmute"),
+hl.bind("XF86AudioMicMute", hl.dsp.exec_cmd(ipc .. "mic-mute"),
   { repeating = true, locked = true, description = "Toggle microphone mute" })
 
 -- --- Media ---
-hl.bind("XF86AudioNext", hl.dsp.exec_cmd("dms ipc call mpris next"), { locked = true, description = "Next media track" })
-hl.bind("XF86AudioPause", hl.dsp.exec_cmd("dms ipc call mpris playPause"),
+hl.bind("XF86AudioNext", hl.dsp.exec_cmd(ipc .. "media next"), { locked = true, description = "Next media track" })
+hl.bind("XF86AudioPause", hl.dsp.exec_cmd(ipc .. "media toggle"),
   { locked = true, description = "Pause/play media" })
-hl.bind("XF86AudioPlay", hl.dsp.exec_cmd("dms ipc call mpris playPause"), { locked = true, description = "Play media" })
-hl.bind("XF86AudioPrev", hl.dsp.exec_cmd("dms ipc call mpris previous"),
+hl.bind("XF86AudioPlay", hl.dsp.exec_cmd(ipc .. "media toggle"), { locked = true, description = "Play media" })
+hl.bind("XF86AudioPrev", hl.dsp.exec_cmd(ipc .. "media previous"),
   { locked = true, description = "Previous media track" })
+hl.bind("XF86AudioStop", hl.dsp.exec_cmd(ipc .. "media stop"), { locked = true, description = "Stop media" })
 
 
 -- === Mouse Bindings ===
@@ -174,11 +210,11 @@ hl.bind("ALT + mouse:272", hl.dsp.window.drag(), { mouse = true, description = "
 hl.bind("ALT + mouse:273", hl.dsp.window.resize(), { mouse = true, description = "Hold to resize window" })
 
 -- === Help & Utilities ===
-hl.bind("SUPER + SHIFT + Slash", hl.dsp.exec_cmd("dms ipc call keybinds toggle hyprland"),
+hl.bind("SUPER + SHIFT + Slash", hl.dsp.exec_cmd(ipc .. "panel-toggle kenn/keybind-cheatsheet:cheatsheet"),
   { description = "Open keybinds help" })
 
-hl.bind("CTRL + ALT + DELETE", hl.dsp.exec_cmd("dms ipc call processlist toggle"),
-  { description = "Open system monitor" })
+hl.bind("CTRL + ALT + DELETE", hl.dsp.exec_cmd(ipc .. "panel-toggle control-center system"),
+  { description = "Open system monitor panel" })
 
 hl.bind("SUPER + F1", require("scripts.gamemode").toggle, { description = "Toggle game mode" })
 
@@ -198,8 +234,3 @@ hl.bind("SUPER +SHIFT + CTRL + up", hl.dsp.window.move({ monitor = "u" }),
   { description = "Move window to upper monitor" })
 hl.bind("SUPER + SHIFT + CTRL + down", hl.dsp.window.move({ monitor = "d" }),
   { description = "Move window to lower monitor" })
-
-
--- === Workspace Management ===
-hl.bind("CTRL + ALT + R", hl.dsp.exec_cmd("dms ipc call workspace-rename open"),
-  { description = "Rename current workspace" })

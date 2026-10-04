@@ -1,0 +1,50 @@
+[bar.default]
+# Float the bar while preserving a small gap around it and below it.
+margin_edge = 2
+margin_opposite_edge = 2
+margin_ends = 2
+layer = "overlay"
+thickness = 35
+radius = 10
+radius_top_left = 10
+radius_top_right = 10
+radius_bottom_left = 10
+radius_bottom_right = 10
+concave_edge_corners = false
+shadow = true
+background_opacity = 0.9
+compositor_blur = true
+
+# Give bar widgets a shared DMS-like capsule style.
+capsule = true
+capsule_fill = "surface_variant"
+capsule_opacity = 0.85
+capsule_padding = 6
+capsule_thickness = 0.8
+capsule_border = "outline"
+widget_spacing = 6
+
+# Wallpaper and Clipboard are intentionally omitted.
+start = ["control-center", "workspaces", "active_window"]
+center = ["media", "clock", "privacy"]
+end = [
+  "sysmon",
+  "tray",
+  "widget",
+  "group:g1",
+  "battery",
+  "session",
+  "notifications",
+]
+
+[[bar.default.capsule_group]]
+id = "g1"
+members = ["network", "bluetooth", "volume"]
+fill = "surface_variant"
+border = "outline"
+border_width = 1.0
+padding = 6.0
+opacity = 0.85
+enabled = true
+accordion = false
+accordion_direction = "start"

@@ -1,0 +1,35 @@
+[widget.active_window]
+title_scroll = "on_hover"
+
+[widget.brightness]
+show_label = false
+
+[widget.media]
+hide_when_no_media = true
+rotate_album_art = true
+title_scroll = "on_hover"
+
+[widget.network]
+show_label = false
+
+[widget.notifications]
+hide_when_no_unread = true
+
+[widget.privacy]
+hide_inactive = true
+
+[widget.taskbar]
+group_by_workspace = true
+hide_empty_workspaces = true
+only_active_workspace = true
+
+[widget.tray]
+match_adjacent_spacing = true
+
+[widget.widget]
+type = "yuuto/arch-updater:widget"
+hide_on_empty = true
+
+[widget.workspaces]
+font_scale = 1.25
+font_weight = 600

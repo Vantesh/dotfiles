@@ -37,18 +37,6 @@ hl.window_rule({
 })
 hl.window_rule({ name = "fx-float-large", match = { tag = "float-large" }, float = true, center = true, size = { "monitor_w*0.7", "monitor_h*0.7" } })
 hl.window_rule({
-  name = "dms-system-update-large",
-  match = {
-    class = "^com\\.danklinux\\.dms$",
-    title = "^DMS — System Update( \\((paru|yay|pacman)\\))?$",
-    initial_title = "^DMS — System Update( \\((paru|yay|pacman)\\))?$",
-  },
-  float = true,
-  center = true,
-  size = { "monitor_w*0.8", "monitor_h*0.8" },
-})
-
-hl.window_rule({
   name = "tag-float-medium",
   match = { class = "^(center-float|xdg-desktop-portal-gtk|selectdefaultapplication)$" },
   tag =
@@ -114,7 +102,7 @@ hl.window_rule({
   center = true,
   size = { "monitor_w*0.55", "monitor_h*0.55" },
 })
-hl.window_rule({ match = { title = "^(Settings|System Monitor)$" }, float = true, center = true, size = { "monitor_w*0.75", "monitor_h*0.85" } })
+
 hl.window_rule({
   match = { title = "^(.*File Already Exists.*|.*Confirm to replace files.*|.*Confirm to delete files.*|Rename.*|Delete.*|Move to Trash.*|.*Confirmation.*|.*Warning.*|.*Error.*)$" },
   float = true,
@@ -184,8 +172,15 @@ hl.window_rule({ match = { title = "^(About Mozilla Firefox)$" }, float = true }
 hl.window_rule({ match = { class = "^(firefox)$", title = "^(Library)$" }, float = true })
 hl.window_rule({ match = { xwayland = true, title = "^(win[0-9]+)$" }, no_dim = true, no_shadow = true, rounding = 10 })
 
+-- Noctalia settings window
+hl.window_rule({
+  name = "noctalia-settings",
+  match = { class = "^dev\\.noctalia\\.Noctalia$" },
+  float = true,
+  center = true,
+  size = { 1080, 920 },
+})
 
--- Workspace rules
-hl.workspace_rule({ workspace = "w[tv1]", gaps_out = 0, gaps_in = 0 })
+
+-- Single tiled window styling (workspace rules live in config.workspaces).
 hl.window_rule({ match = { float = false, workspace = "w[tv1]" }, border_size = 2 })
-hl.workspace_rule({ workspace = "special:exposed", gaps_out = 60, gaps_in = 30, border_size = 5, no_shadow = true })

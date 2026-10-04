@@ -36,6 +36,7 @@ packages:
     - gpu-screen-recorder-ui
     - gpu-screen-recorder-notification
     - archlinux-xdg-menu
+    - noctalia
 
   compositor:
     hyprland:
