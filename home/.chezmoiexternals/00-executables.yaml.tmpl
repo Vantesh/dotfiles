@@ -9,13 +9,5 @@
   refreshPeriod: "168h"
   path: "app2unit-{{ trimPrefix "v" $tag }}/app2unit"
 
-{{- $confbTag := (gitHubLatestTag "nekwebdev/confb").Name }}
-".local/bin/confb":
-  type: archive-file
-  executable: true
-  url: "https://github.com/nekwebdev/confb/releases/download/{{ $confbTag }}/confb_{{ $confbTag }}_linux_{{ .chezmoi.arch }}.tar.gz"
-  refreshPeriod: "168h"
-  path: "confb"
-
 {{- end }}
 {{ end }}

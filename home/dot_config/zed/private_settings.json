@@ -58,7 +58,7 @@
     "SF Mono",
   ],
 
-  "icon_theme": "Material Icon Theme",
+  "icon_theme": "Colored Zed Icons Theme Dark",
   "telemetry": {
     "diagnostics": false,
     "metrics": false,
@@ -78,12 +78,12 @@
   "buffer_font_size": 15,
   "theme": {
     "mode": "system",
-    "light": "DankShell Light",
-    "dark": "DankShell Dark",
+    "light": "Noctalia Light",
+    "dark": "Noctalia Dark",
   },
 
   "theme_overrides": {
-    "DankShell Dark": {
+    "Noctalia Dark": {
       "border.variant": "#00000000",
       "border": "#00000000",
       "panel.focused_border": "#00000000",

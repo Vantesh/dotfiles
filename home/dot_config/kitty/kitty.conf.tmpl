@@ -43,10 +43,8 @@ map kitty_mod+e launch --type=background --cwd=current sh -c 'hyprctl dispatch e
 #open current dir with vscode
 map kitty_mod+j launch --type=background --cwd=current sh -c 'uwsm-exec code $(pwd)'
 
-# Include dank colors
-include ./dank-theme.conf
-include ./dank-tabs.conf
-
+# Include noctalia colors
+include themes/noctalia.conf
 
 # fonts
 font_size {{ .font.terminal.size }}

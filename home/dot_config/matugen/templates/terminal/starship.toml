@@ -1,5 +1,0 @@
-[palettes.matugen]
-  primary = "{{colors.primary.default.hex}}"
-  red     = "{{dank16.color1.default.hex}}"
-  yellow  = "{{dank16.color3.default.hex}}"
-  purple  = "{{dank16.color5.default.hex}}"

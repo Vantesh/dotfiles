@@ -1,6 +1,7 @@
 return {
   "folke/noice.nvim",
   event = "VeryLazy",
+  dependencies = { "MunifTanjim/nui.nvim" },
   opts = require "configs.noice",
   -- stylua: ignore
   keys = {

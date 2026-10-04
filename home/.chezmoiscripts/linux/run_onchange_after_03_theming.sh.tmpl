@@ -222,40 +222,6 @@ configure_nautilus() {
   return 0
 }
 
-add_nautilus_bookmarks() {
-  local bookmarks_file="$HOME/.config/gtk-3.0/bookmarks"
-  local bookmark
-
-  LAST_ERROR=""
-
-  if ! mkdir -p "$(dirname "$bookmarks_file")" 2>/dev/null; then
-    LAST_ERROR="Failed to create bookmarks directory"
-    return 1
-  fi
-
-  if [[ ! -f "$bookmarks_file" ]]; then
-    if ! touch "$bookmarks_file" 2>/dev/null; then
-      LAST_ERROR="Failed to create bookmarks file"
-      return 1
-    fi
-  fi
-
-  local folders=("Downloads" "Pictures" "Videos")
-  local folder
-
-  for folder in "${folders[@]}"; do
-    bookmark="file://$HOME/$folder"
-
-    if ! grep -Fxq "$bookmark" "$bookmarks_file" 2>/dev/null; then
-      if ! printf '%s\n' "$bookmark" >>"$bookmarks_file" 2>/dev/null; then
-        LAST_ERROR="Failed to add bookmark: $bookmark"
-        return 1
-      fi
-    fi
-  done
-
-  return 0
-}
 
 main() {
   local bootloader
@@ -310,12 +276,6 @@ main() {
       log WARN "Failed to configure Nautilus: $LAST_ERROR"
     else
       log INFO "Configured Nautilus preferences"
-    fi
-
-    if ! add_nautilus_bookmarks; then
-      log WARN "Failed to add Nautilus bookmarks: $LAST_ERROR"
-    else
-      log INFO "Added Nautilus bookmarks"
     fi
   else
     log SKIP "gsettings not available, skipping Nautilus configuration"
