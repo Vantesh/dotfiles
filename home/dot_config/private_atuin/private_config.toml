@@ -12,7 +12,7 @@ show_preview = true
 # Commands that are usually noise, local-only, or may contain sensitive data.
 history_filter = [
   # Secrets / credentials
-  "^export .*(KEY|TOKEN|SECRET|PASSWORD|PASSWD|CREDENTIAL|API_KEY|AUTH).*=",
+  "^export .*(KEY|TOKEN|SECRET|PASSWORD|BW_SESSION|PASSWD|CREDENTIAL|API_KEY|AUTH).*=",
   "^set .*(KEY|TOKEN|SECRET|PASSWORD|PASSWD|CREDENTIAL|API_KEY|AUTH).*=",
   ".*--password[ =]",
   ".*--token[ =]",

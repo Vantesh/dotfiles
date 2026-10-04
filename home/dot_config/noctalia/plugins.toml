@@ -1,0 +1,16 @@
+[plugins]
+enabled = [
+  "yuuto/arch-updater",
+  "kenn/keybind-cheatsheet",
+  "noctalia/screen_recorder",
+  "noctalia/notes",
+  "yugaaank/better-clock",
+]
+
+[plugin_settings."kenn/keybind-cheatsheet"]
+cheatsheet_layer = "overlay"
+
+[plugin_settings."yuuto/arch-updater"]
+panel_placement = "floating"
+terminal = "xdg-terminal-exec --app-id=FloatingTerm"
+update_cmd = "~/.config/scripts/updater.sh"
