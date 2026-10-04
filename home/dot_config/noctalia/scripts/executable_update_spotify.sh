@@ -134,6 +134,11 @@ main() {
     return 1
   fi
 
+  if ! spicetify config color_scheme noctalia >/dev/null 2>&1; then
+    log ERROR "Unable to configure spicetify color scheme to noctalia"
+    return 1
+  fi
+
   if ! write_theme_files; then
     return 1
   fi
