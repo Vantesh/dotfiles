@@ -1,11 +1,4 @@
 vim.g.base46_cache = vim.fn.stdpath "data" .. "/base46/"
-vim.fn.mkdir(vim.g.base46_cache, "p")
-for _, cache_name in ipairs { "tbline", "nvcheatsheet" } do
-  local cache_file = vim.g.base46_cache .. cache_name
-  if vim.fn.filereadable(cache_file) == 0 then
-    vim.fn.writefile({}, cache_file)
-  end
-end
 vim.g.mapleader = " "
 
 -- bootstrap lazy and all plugins
@@ -26,30 +19,15 @@ require("lazy").setup({
     "NvChad/NvChad",
     lazy = false,
     branch = "v2.5",
-  },
-
-  "nvim-lua/plenary.nvim",
-  {
-    "nvchad/ui",
-    lazy = false,
-    config = function()
-      require "nvchad"
-    end,
+    import = "nvchad.plugins",
   },
 
   { import = "plugins" },
 }, lazy_config)
 
-if vim.fn.filereadable(vim.g.base46_cache .. "defaults") == 1 then
-  dofile(vim.g.base46_cache .. "defaults")
-end
-local base46 = require "base46"
-base46.merge_tb = base46.merge_tb or base46.load
-
-if vim.fn.filereadable(vim.g.base46_cache .. "statusline") == 1 then
-  dofile(vim.g.base46_cache .. "statusline")
-end
-vim.cmd.colorscheme("dms")
+-- load theme
+dofile(vim.g.base46_cache .. "defaults")
+dofile(vim.g.base46_cache .. "statusline")
 
 require "options"
 require "autocmds"

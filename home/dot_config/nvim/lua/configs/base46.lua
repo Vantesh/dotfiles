@@ -1,3 +1,0 @@
-return {
-  transparency = true,
-}
