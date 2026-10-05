@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # 00-install-pre-requisites.sh - Install prerequisites for setup and templates
 #
-# Installs figlet and base-devel for all setups. Personal setups also configure
+# Installs git, figlet, and base-devel for all setups. Personal setups also configure
 # Bitwarden and log in before secret-backed templates render. Secret reads
 # unlock the vault on demand; desktop packages are installed by later scripts.
 # Globals:
@@ -53,7 +53,7 @@ get_bitwarden_email() {
 }
 
 main() {
-  local -a packages=(figlet base-devel)
+  local -a packages=(git figlet base-devel)
   local -a missing_packages=()
   local package email output
 
