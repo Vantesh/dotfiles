@@ -7,6 +7,10 @@ post_hook = "fish -c 'yes | fish_config theme save Noctalia'"
 input_path = "$XDG_CONFIG_HOME/noctalia/templates/atuin.toml"
 output_path = "$XDG_CONFIG_HOME/atuin/themes/noctalia.toml"
 
+[theme.templates.user.television]
+input_path = "$XDG_CONFIG_HOME/noctalia/templates/television.toml"
+output_path = "$XDG_CONFIG_HOME/television/themes/noctalia.toml"
+
 [theme.templates.user.spotify]
 input_path = "$XDG_CONFIG_HOME/noctalia/templates/spotify.ini"
 output_path = "$XDG_CONFIG_HOME/spicetify/Themes/Sleek/color.ini"
