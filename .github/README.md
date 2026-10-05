@@ -28,7 +28,7 @@
 > ```
 
 > [!CAUTION]
-> The installer backs up most configs it touches, but you're still responsible for any critical data. Make personal backups before continuing — I can't take responsibility for any loss.
+> Applying these dotfiles can overwrite existing configuration. There is no automatic backup of `~/.config`; back up your configuration and critical data before continuing — I can't take responsibility for any loss.
 
 <a id="screenshots"></a>
 
@@ -52,29 +52,19 @@
 ### Requirements
 
 - Fresh Arch Linux install.
-- `curl` (for grabbing the bootstrap script).
-- Internet access.
+- A regular user with `sudo` access.
+- An interactive terminal and internet access.
 
-### Direct installation
+### Installation
 
-```bash
-curl -fsSL https://raw.githubusercontent.com/Vantesh/dotfiles/main/install.sh | bash
-```
-
-### Manual installation
+Run these commands directly in your terminal, not through a piped shell script:
 
 ```bash
-# Clone the dotfiles repository
-git clone https://github.com/vantesh/dotfiles.git --depth=1
+# Install chezmoi
+sudo pacman -S --needed chezmoi
 
-# Navigate to the cloned directory
-cd dotfiles
-
-# Make the install script executable
-chmod +x install.sh
-
-# Run the installation script
-./install.sh
+# Fetch the dotfiles, choose setup options, and apply
+chezmoi init --apply vantesh
 ```
 
 <a id="features"></a>

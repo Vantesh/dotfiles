@@ -59,7 +59,7 @@ hl.bind("SUPER + SHIFT + E", hl.dsp.exec_cmd("uwsm-exec xdg-terminal-exec --app-
   { description = "Toggle Yazi" })
 hl.bind("SUPER + TAB", hl.dsp.exec_cmd(ipc .. "window-switcher hold"), { description = "Open window switcher" })
 hl.bind("ALT + TAB", hl.dsp.exec_cmd(ipc .. "window-switcher hold"), { description = "Switch windows" })
-hl.bind("SUPER + U", hl.dsp.exec_cmd("uwsm-exec xdg-terminal-exec --app-id=FloatingTerm ~/.config/scripts/updater.sh"),
+hl.bind("SUPER + U", hl.dsp.exec_cmd("uwsm-exec xdg-terminal-exec --app-id=FloatingTerm ~/.config/hypr/scripts/updater.sh"),
   { description = "Update system" })
 
 -- === Window Management ===
@@ -165,7 +165,7 @@ hl.bind("SUPER + CTRL + ALT + Left", hl.dsp.window.move({ workspace = "r-1" }),
 -- === System Controls ===
 -- --- Session Management ---
 hl.bind("SUPER + L", hl.dsp.exec_cmd("uwsm-exec loginctl lock-session $XDG_SESSION_ID"), { description = "Lock screen" })
-hl.bind("SUPER + ALT + DELETE", hl.dsp.exec_cmd("uwsm-exec ~/.config/scripts/logout.sh"), { description = "Logout" })
+hl.bind("SUPER + ALT + DELETE", hl.dsp.exec_cmd("uwsm-exec ~/.config/hypr/scripts/logout.sh"), { description = "Logout" })
 hl.bind("XF86PowerOff", hl.dsp.exec_cmd(ipc .. "panel-toggle session"), { description = "Open power menu" })
 hl.bind(mainMod .. " + Escape", hl.dsp.exec_cmd(ipc .. "panel-toggle session"), { description = "Open session menu" })
 

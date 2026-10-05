@@ -13,4 +13,4 @@ cheatsheet_layer = "overlay"
 [plugin_settings."yuuto/arch-updater"]
 panel_placement = "floating"
 terminal = "xdg-terminal-exec --app-id=FloatingTerm"
-update_cmd = "~/.config/scripts/updater.sh"
+update_cmd = "~/.config/hypr/scripts/updater.sh"
