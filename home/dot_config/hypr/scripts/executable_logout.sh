@@ -7,5 +7,5 @@ set -euo pipefail
 if env | grep -q '^UWSM_'; then
   exec uwsm stop
 else
-  exec loginctl terminate-user "$USER"
+  exec loginctl terminate-session "$XDG_SESSION_ID"
 fi
