@@ -1,6 +1,5 @@
 add_newline  = false
 format       = '$username$hostname$directory$git_branch$git_state$git_status$git_metrics$git_commit$line_break$status$character'
-palette      = 'matugen'
 right_format = '$time$cmd_duration'
 
 [character]

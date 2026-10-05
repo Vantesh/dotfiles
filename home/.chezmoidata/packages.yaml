@@ -34,6 +34,7 @@ packages:
     - xdg-terminal-exec
     - gpu-screen-recorder
     - archlinux-xdg-menu
+    - systemd-ukify
     - noctalia
 
   compositor:

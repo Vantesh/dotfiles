@@ -1,0 +1,6 @@
+{{- /* chezmoi:modify-template */ -}}
+{{- $palette := regexFind "(?ms)^# >>> NOCTALIA STARSHIP PALETTE >>>\\r?\\n.*?^# <<< NOCTALIA STARSHIP PALETTE <<<[^\\n]*" .chezmoi.stdin -}}
+{{ if $palette }}palette = "noctalia"
+{{ end -}}
+{{ include ".chezmoitemplates/starship.toml" }}
+{{ $palette }}

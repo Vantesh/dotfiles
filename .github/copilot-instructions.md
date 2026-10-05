@@ -45,7 +45,7 @@
 chezmoi/
 ├── LICENSE
 ├── .github/
-├── install.sh
+
 ├── .chezmoiroot
 └── home/
     ├── .chezmoi.yaml.tmpl
@@ -79,7 +79,7 @@ chezmoi/
 Normal setup scripts use `run_onchange_*.sh.tmpl`. The early prerequisite is a non-templated `run_before_` script:
 
 - **`00-install-pre-requisites.sh`**: Runs on every `chezmoi apply` (except dry runs).
-  - Installs repository packages `figlet` and `base-devel` for all setups using `pacman` directly, not `install_package()` or an AUR helper.
+  - Installs repository packages `git`, `figlet`, and `base-devel` for all setups using `pacman` directly, not `install_package()` or an AUR helper.
   - Only when `PERSONAL=1` from `scriptEnv`, installs `rbw` and `pinentry`, configures the vault, and performs initial login.
   - Rechecks prerequisites on each apply, including when switching from public to personal setup. Secret reads unlock `rbw` on demand through pinentry.
   - The [official prerequisite FAQ](https://www.chezmoi.io/user-guide/frequently-asked-questions/usage/#how-do-i-install-pre-requisites-for-templates) documents using a non-templated `run_before_` script before rendering templates that depend on the installed tool. Do not assume all templates must render before before scripts can run.
@@ -268,7 +268,7 @@ Normal `run_onchange_*.sh.tmpl` setup scripts embed libraries with literal `incl
 {{ include ".chezmoitemplates/lib/package_manager.sh" }}
 ```
 
-The non-templated `00-install-pre-requisites.sh` uses no template functions and sources only `common.sh` at runtime. Install early prerequisites using `pacman` directly, not `install_package()` or an AUR helper. Gate only `rbw`/`pinentry` installation and vault configuration/login on `PERSONAL=1` from `scriptEnv`; `figlet` and `base-devel` are required for all setups. Normal setup templates continue to use literal includes.
+The non-templated `00-install-pre-requisites.sh` uses no template functions and sources only `common.sh` at runtime. Install early prerequisites using `pacman` directly, not `install_package()` or an AUR helper. Gate only `rbw`/`pinentry` installation and vault configuration/login on `PERSONAL=1` from `scriptEnv`; `git`, `figlet`, and `base-devel` are required for all setups. Normal setup templates continue to use literal includes.
 
 **Runtime Sourcing Pattern (non-templated prerequisite only):**
 
@@ -1352,16 +1352,9 @@ chezmoi execute-template < script.sh.tmpl | bash
 
 ### Adding New Dependencies
 
-Keep `install.sh` limited to the bootstrap dependencies needed to fetch the repository and run chezmoi:
+Users install `chezmoi` themselves, then run `chezmoi init --apply vantesh` directly from an interactive terminal. Do not add a bootstrap installer, TTY redirection, or automatic chezmoi execution. Users back up their existing configuration themselves before applying.
 
-```bash
-ensure_dependencies_installed() {
-  local packages=(git chezmoi)
-  # ...
-}
-```
-
-Add early setup dependencies to `00-install-pre-requisites.sh` using `pacman` directly. Add normal setup packages to the Arch package list in `.chezmoidata/packages.yaml`. Neither belongs in the bootstrap packages array.
+Add early setup dependencies to `00-install-pre-requisites.sh` using `pacman` directly. This includes `git`, which chezmoi does not require for the initial HTTPS clone when using its built-in Git support. Add normal setup packages to the Arch package list in `.chezmoidata/packages.yaml`.
 
 ---
 
@@ -1388,7 +1381,7 @@ Add early setup dependencies to `00-install-pre-requisites.sh` using `pacman` di
 **Script locations:**
 
 - Setup templates (including Arch-specific setup): `home/.chezmoiscripts/linux/` — flat `run_onchange_before_*.sh.tmpl` and `run_onchange_after_*.sh.tmpl`
-- Non-templated prerequisite: `home/.chezmoiscripts/linux/run_before_00-install-pre-requisites.sh` — runs every apply; installs `figlet`/`base-devel` for all setups, with only `rbw`/`pinentry` and vault configuration/login gated on `PERSONAL=1`
+- Non-templated prerequisite: `home/.chezmoiscripts/linux/run_before_00-install-pre-requisites.sh` — runs every apply; installs `git`/`figlet`/`base-devel` for all setups, with only `rbw`/`pinentry` and vault configuration/login gated on `PERSONAL=1`
 - Libraries: `home/.chezmoitemplates/lib/` — included by setup templates; only `common.sh` is runtime sourced by the prerequisite
 
 **Common mistakes to avoid:**

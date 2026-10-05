@@ -20,6 +20,7 @@ variant = "default"
 
 [[shell.session.actions]]
 action = "logout"
+command = "~/.config/hypr/scripts/logout.sh"
 countdown_seconds = 0.0
 enabled = true
 shortcut = "2"
