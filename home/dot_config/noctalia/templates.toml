@@ -13,6 +13,30 @@ output_path = "$XDG_CONFIG_HOME/spicetify/Themes/Sleek/color.ini"
 post_hook = 'bash "{{ config_dir }}/scripts/update_spotify.sh"'
 hook_async = false
 
+[theme.templates.user.tela]
+input_path = "$XDG_CONFIG_HOME/noctalia/templates/folder-color"
+output_path = "$XDG_CACHE_HOME/noctalia/folder-color.txt"
+compare_to = "{{ colors.primary.default.hex }}"
+colors_to_compare = [
+    { name = "nord", color = "#4d576a" },
+    { name = "grey", color = "#bdbdbd" },
+    { name = "purple", color = "#7e57c2" },
+    { name = "brown", color = "#795548" },
+    { name = "dark", color = "#5294e2" },
+    { name = "red", color = "#ef5350" },
+    { name = "manjaro", color = "#16a085" },
+    { name = "orange", color = "#e18908" },
+    { name = "blue", color = "#5677fc" },
+    { name = "pink", color = "#f06292" },
+    { name = "ubuntu", color = "#fb8441" },
+    { name = "green", color = "#66bb6a" },
+    { name = "dracula", color = "#44475a" },
+    { name = "yellow", color = "#ffca28" },
+    { name = "black", color = "#4d4d4d" },
+]
+post_hook = 'bash "{{ config_dir }}/scripts/update_folders.sh" "{{ closest_color }}" "{{ mode }}"'
+hook_async = false
+
 [theme.templates.user.nvim-dark]
 input_path = "$XDG_CONFIG_HOME/noctalia/templates/base46-dark.lua"
 output_path = "$XDG_CACHE_HOME/wal/base46-dark.lua"
