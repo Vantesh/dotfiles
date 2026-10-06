@@ -1,9 +1,10 @@
 local M = {}
+local apps = require("config.apps")
 local monitors = require("config.monitors")
 local wake_settings
 
 local function notify(message)
-  hl.exec_cmd('uwsm-exec notify-send --app-name=Hyprland --expire-time=3000 "Movie mode" "' .. message .. '"')
+  hl.exec_cmd(apps.launcher .. ' -- notify-send --app-name=Hyprland --expire-time=3000 "Movie mode" "' .. message .. '"')
 end
 
 local function suspend_input_wake()

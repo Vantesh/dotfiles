@@ -2,21 +2,25 @@
 -- binds.lua — Hyprland Lua keybinds (Hyprland 0.55+)
 -- =============================================================================
 
+local apps = require("config.apps")
+
 local mainMod = "SUPER"
 local ctrlMod = mainMod .. " + CTRL"
 local ctrlShiftMod = ctrlMod .. " + SHIFT"
-local ipc = "uwsm-exec noctalia msg "
+local terminal = apps.launcher .. " -- " .. apps.terminal
+local floatingTerminal = terminal .. " --app-id=FloatingTerm"
+local ipc = apps.launcher .. " -- " .. apps.desktopShell .. " msg "
 
 -- === Applications ===
 -- --- Launchers ---
-hl.bind("SUPER + RETURN", hl.dsp.exec_cmd("uwsm-exec xdg-terminal-exec"), { description = "Open terminal" })
-hl.bind("SUPER + B", hl.dsp.exec_cmd("uwsm-exec brave"), { description = "Open web browser" })
-hl.bind("SUPER + E", hl.dsp.exec_cmd("uwsm-exec nautilus"), { description = "Open file manager" })
+hl.bind("SUPER + RETURN", hl.dsp.exec_cmd(terminal), { description = "Open terminal" })
+hl.bind("SUPER + B", hl.dsp.exec_cmd(apps.launcher .. " -- " .. apps.browser), { description = "Open web browser" })
+hl.bind("SUPER + E", hl.dsp.exec_cmd(apps.launcher .. " -- " .. apps.fileManager), { description = "Open file manager" })
 hl.bind(mainMod .. " + SPACE", hl.dsp.exec_cmd(ipc .. "panel-toggle launcher"), { description = "Open app launcher" })
 hl.bind("ALT + space", hl.dsp.exec_cmd(ipc .. "panel-toggle launcher"), { description = "Open app launcher" })
 hl.bind(mainMod .. " + ALT + SPACE", hl.dsp.exec_cmd(ipc .. "panel-toggle control-center"),
   { description = "Open control center" })
-hl.bind("SUPER + C", hl.dsp.exec_cmd("uwsm-exec code"), { description = "Open code editor" })
+hl.bind("SUPER + C", hl.dsp.exec_cmd(apps.launcher .. " -- " .. apps.editor), { description = "Open code editor" })
 hl.bind("SUPER + N", hl.dsp.exec_cmd(ipc .. "panel-toggle noctalia/notes:panel"),
   { description = "Open notes" })
 
@@ -25,7 +29,7 @@ hl.bind(mainMod .. " + comma", hl.dsp.exec_cmd(ipc .. "panel-toggle launcher /em
 
 hl.bind("SUPER + V", hl.dsp.exec_cmd(ipc .. "panel-toggle clipboard"), { description = "Open clipboard manager" })
 hl.bind("SUPER + W", hl.dsp.exec_cmd(ipc .. "panel-toggle wallpaper"), { description = "Open wallpaper picker" })
-hl.bind("SUPER + K", hl.dsp.exec_cmd("uwsm-exec bitwarden.desktop"), { description = "Open password manager" })
+hl.bind("SUPER + K", hl.dsp.exec_cmd(apps.launcher .. " -- " .. apps.passwordManager), { description = "Open password manager" })
 hl.bind("SUPER + SHIFT + N", hl.dsp.exec_cmd(ipc .. "nightlight-force-toggle"), { description = "Toggle forced night light" })
 
 -- --- Noctalia Panels & Controls ---
@@ -53,13 +57,13 @@ hl.bind(ctrlShiftMod .. " + SPACE", hl.dsp.exec_cmd(ipc .. "wallpaper-random"),
   { description = "Set random wallpaper" })
 
 -- --- Scratchpads & Special ---
-hl.bind("SUPER + SHIFT + RETURN", hl.dsp.exec_cmd("uwsm-exec xdg-terminal-exec --app-id=FloatingTerm"),
+hl.bind("SUPER + SHIFT + RETURN", hl.dsp.exec_cmd(floatingTerminal),
   { description = "Toggle floating terminal" })
-hl.bind("SUPER + SHIFT + E", hl.dsp.exec_cmd("uwsm-exec xdg-terminal-exec --app-id=FloatingTerm yazi"),
+hl.bind("SUPER + SHIFT + E", hl.dsp.exec_cmd(floatingTerminal .. " yazi"),
   { description = "Toggle Yazi" })
 hl.bind("SUPER + TAB", hl.dsp.exec_cmd(ipc .. "window-switcher hold"), { description = "Open window switcher" })
 hl.bind("ALT + TAB", hl.dsp.exec_cmd(ipc .. "window-switcher hold"), { description = "Switch windows" })
-hl.bind("SUPER + U", hl.dsp.exec_cmd("uwsm-exec xdg-terminal-exec --app-id=FloatingTerm ~/.config/hypr/scripts/updater.sh"),
+hl.bind("SUPER + U", hl.dsp.exec_cmd(floatingTerminal .. " ~/.config/hypr/scripts/updater.sh"),
   { description = "Update system" })
 
 -- === Window Management ===
@@ -164,8 +168,8 @@ hl.bind("SUPER + CTRL + ALT + Left", hl.dsp.window.move({ workspace = "r-1" }),
 
 -- === System Controls ===
 -- --- Session Management ---
-hl.bind("SUPER + L", hl.dsp.exec_cmd("uwsm-exec loginctl lock-session $XDG_SESSION_ID"), { description = "Lock screen" })
-hl.bind("SUPER + ALT + DELETE", hl.dsp.exec_cmd("uwsm-exec ~/.config/hypr/scripts/logout.sh"), { description = "Logout" })
+hl.bind("SUPER + L", hl.dsp.exec_cmd(apps.launcher .. " -- loginctl lock-session $XDG_SESSION_ID"), { description = "Lock screen" })
+hl.bind("SUPER + ALT + DELETE", hl.dsp.exec_cmd(apps.launcher .. " -- ~/.config/hypr/scripts/logout.sh"), { description = "Logout" })
 hl.bind("XF86PowerOff", hl.dsp.exec_cmd(ipc .. "panel-toggle session"), { description = "Open power menu" })
 hl.bind(mainMod .. " + Escape", hl.dsp.exec_cmd(ipc .. "panel-toggle session"), { description = "Open session menu" })
 
@@ -225,7 +229,7 @@ hl.bind("SUPER + F1", require("scripts.gamemode").toggle, { description = "Toggl
 
 hl.bind("XF86RFKill",
   hl.dsp.exec_cmd(
-    [[uwsm-exec sh -c 'case "$(rfkill list)" in *"Soft blocked: yes"*) notify-send "rfkill" "Airplane mode is on" -u critical --icon wifi;; esac']]),
+    apps.launcher .. [[ -- sh -c 'case "$(rfkill list)" in *"Soft blocked: yes"*) notify-send "rfkill" "Airplane mode is on" -u critical --icon wifi;; esac']]),
   { repeating = true, locked = true, description = "Toggle airplane mode" })
 
 

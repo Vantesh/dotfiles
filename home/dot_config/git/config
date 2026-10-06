@@ -13,7 +13,6 @@
     navigate = true
     side-by-side = true
     line-numbers = true
-    syntax-theme = "Matugen"
 
 [diff]
     context = 3

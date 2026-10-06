@@ -1,7 +1,6 @@
 auto_sync = true
 sync_frequency = "5m"
 search_mode = "daemon-fuzzy"
-filter_mode = "workspace"
 filter_mode_shell_up_key_binding = "session"
 
 workspaces = true
