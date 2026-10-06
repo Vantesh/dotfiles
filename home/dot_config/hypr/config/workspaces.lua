@@ -1,3 +1,4 @@
+local apps = require("config.apps")
 local monitors = require("config.monitors")
 local minimize = require("scripts.minimize")
 
@@ -189,6 +190,6 @@ hl.on("hyprland.start", function()
       center_cursor(external_monitor)
     end
 
-    hl.exec_cmd("uwsm-exec spotify-launcher")
+    hl.exec_cmd(apps.launcher .. " -- spotify-launcher")
   end)
 end)
