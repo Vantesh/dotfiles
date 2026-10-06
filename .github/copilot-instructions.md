@@ -72,17 +72,26 @@ chezmoi/
 
 1. Before scripts run in alphabetical order: the non-templated `00-install-pre-requisites.sh` checks prerequisites on every apply, followed by eligible `run_onchange_before_*.sh.tmpl` setup scripts.
 2. Dotfiles applied
-3. Eligible `run_onchange_after_*.sh.tmpl` scripts run in alphabetical order after dotfiles.
+3. After scripts run in alphabetical order after dotfiles: eligible `run_onchange_after_*.sh.tmpl` configuration scripts, the always-run `97_initramfs.sh` pending rebuild, then services and finalization.
 
 **Script Execution Behavior:**
 
-Normal setup scripts use `run_onchange_*.sh.tmpl`. The early prerequisite is a non-templated `run_before_` script:
+Normal setup scripts use `run_onchange_*.sh.tmpl`. The early prerequisite and late pending initramfs rebuild deliberately run on every apply:
 
 - **`00-install-pre-requisites.sh`**: Runs on every `chezmoi apply` (except dry runs).
   - Installs repository packages `git`, `figlet`, and `base-devel` for all setups using `pacman` directly, not `install_package()` or an AUR helper.
   - Only when `PERSONAL=1` from `scriptEnv`, installs `rbw` and `pinentry`, configures the vault, and performs initial login.
   - Rechecks prerequisites on each apply, including when switching from public to personal setup. Secret reads unlock `rbw` on demand through pinentry.
   - The [official prerequisite FAQ](https://www.chezmoi.io/user-guide/frequently-asked-questions/usage/#how-do-i-install-pre-requisites-for-templates) documents using a non-templated `run_before_` script before rendering templates that depend on the installed tool. Do not assume all templates must render before before scripts can run.
+
+- **`97_initramfs.sh`**: Uses `run_after_` and runs on every apply after boot configuration.
+  - Boot scripts call `request_initramfs_rebuild()` before changing Limine command lines, managed mkinitcpio drop-ins, ukify configuration, or PCR signing keys.
+  - Use additive configuration in `/etc/mkinitcpio.conf.d/`, not edits or backup restoration of `/etc/mkinitcpio.conf`. Preserve the user's BusyBox/systemd choice; add `resume` only for BusyBox and the matching snapshot overlay hook. Do not force or reorder NVIDIA/LZ4 modules for hibernation.
+  - Requests persist in `${XDG_STATE_HOME:-$HOME/.local/state}/chezmoi/initramfs.pending` across script processes and interrupted applies.
+  - Validate Limine's effective `MKINITCPIO_UKI_OPTIONS` before snapshot/hibernation setup. Explicit `-c`/`--config` selection disables mkinitcpio drop-ins even for the default config; stop with an actionable error rather than overwriting custom configurations.
+  - Runs `limine-update` once when pending, captures diagnostics, and clears the marker when the command exits successfully. Nonzero exits keep the request pending and print diagnostics. This relies on Limine's exit status; masked failures behind a zero exit status are not detected. Skipped TPM/quiet boot scripts do not block another script's request.
+  - Hibernation rollback uses fresh, invocation-local fstab snapshots, not persistent `.bak` files. Restore only confirmed edits when current contents match the expected result; preserve unexpected concurrent changes. Always ensure managed swap fstab entries on retry, even when swap is already mounted and active.
+  - Do not rebuild directly from configuration scripts or use `run_onchange_` for this drain step.
 
 - **`run_onchange_*`** (PREFERRED FOR NORMAL SETUP): Runs when content differs from the last successful run with the same filename.
   - For `.tmpl` scripts, chezmoi hashes rendered content, including literal library contents embedded with `include`.
@@ -876,7 +885,7 @@ log INFO "Cloning DankMaterialShell"
 log INFO "Cloned DankMaterialShell"
 
 log INFO "Regenerating initramfs"
-# ... mkinitcpio/dracut operation ...
+# ... mkinitcpio rebuild via limine-update ...
 log INFO "Regenerated initramfs"
 
 # More examples of correct format
@@ -1118,7 +1127,7 @@ build_cmdline() {
 - List each argument with clear description
 - Specify outputs (stdout/stderr) if function prints anything
 - Always document return codes (0 for success, specific codes for errors)
-- Mention important implementation details (e.g., "Prefers dracut-rebuild if available")
+- Mention important implementation details (e.g., "Rebuilds mkinitcpio initramfs via limine-update")
 - Note dependencies on other functions/libraries if critical (e.g., "Requires common.sh sourced")
 - No inline comments within function body - code should be self-explanatory
 
