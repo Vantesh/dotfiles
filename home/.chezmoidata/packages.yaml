@@ -36,6 +36,7 @@ packages:
     - archlinux-xdg-menu
     - systemd-ukify
     - noctalia
+    - jq
 
   compositor:
     hyprland:
