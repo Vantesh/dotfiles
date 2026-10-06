@@ -1,6 +1,6 @@
 [shell]
 external_ip_enabled = true
-font_family = "SF Pro Text"
+font_family = {{ .font.ui.name | quote }}
 launch_apps_as_systemd_services = true
 password_style = "random"
 polkit_agent = true

@@ -9,6 +9,19 @@ import sys
 STRING_OR_COMMENT = re.compile(r'"(?:\\.|[^"\\])*"|//[^\r\n]*|/\*[\s\S]*?\*/')
 STRING_OR_TRAILING_COMMA = re.compile(r'"(?:\\.|[^"\\])*"|,(\s*[}\]])')
 BASELINE = {{ include ".chezmoitemplates/zed-settings.jsonc" | toJson }}
+FONT_SETTINGS = {
+    "markdown_preview": {
+        "code_font_family": {{ .font.monospace.name | toJson }},
+    },
+    "ui_font_family": {{ .font.ui.name | toJson }},
+    "buffer_font_size": {{ .font.editor.size }},
+    "buffer_font_family": {{ .font.monospace.name | toJson }},
+    "buffer_font_features": {
+        {{- range .font.monospace.features }}
+        {{ . | toJson }}: True,
+        {{- end }}
+    },
+}
 
 
 def parse_jsonc(text):
@@ -40,6 +53,7 @@ def main():
     original = sys.stdin.read()
     try:
         baseline = parse_jsonc(BASELINE)
+        apply_baseline(baseline, FONT_SETTINGS)
         current = parse_jsonc(original) if original.strip() else {}
         before = json.dumps(current, sort_keys=True)
         apply_baseline(current, baseline)

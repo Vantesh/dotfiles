@@ -188,7 +188,7 @@ configure_gtk_theme() {
     return 1
   fi
 
-  if ! gsettings set org.gnome.desktop.interface font-name "SF Pro Text 12" >/dev/null 2>&1; then
+  if ! gsettings set org.gnome.desktop.interface font-name {{ cat .font.ui.name .font.ui.size | shellQuote }} >/dev/null 2>&1; then
     LAST_ERROR="Failed to set font"
     return 1
   fi
