@@ -83,12 +83,9 @@ main() {
     return 0
   fi
 
-  print_box "Bitwarden"
-  log STEP "Bitwarden Setup"
-
-  if rbw login >/dev/null 2>&1; then
-    log SKIP "Bitwarden already logged in"
-  else
+  if ! rbw login >/dev/null 2>&1; then
+    print_box "Bitwarden"
+    log STEP "Bitwarden Setup"
     log INFO "Logging in to Bitwarden"
 
     if ! email="$(get_bitwarden_email)"; then
