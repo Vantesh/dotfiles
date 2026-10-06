@@ -212,6 +212,23 @@ if is_laptop; then
 fi
 
 # ============================================================================
+# Limine and mkinitcpio Packages
+# ============================================================================
+if [[ ! -x /usr/bin/limine ]]; then
+  log WARN "Unsupported bootloader (only Limine is supported), skipping Limine and mkinitcpio installation"
+elif ! command_exists mkinitcpio; then
+  log WARN "mkinitcpio not found, skipping Limine and mkinitcpio installation"
+else
+  limine_mkinitcpio_pkgs=(
+{{- range .packages.limineMkinitcpio }}
+    "{{ . }}"
+{{- end }}
+  )
+
+  install_group "Limine and mkinitcpio" "${limine_mkinitcpio_pkgs[@]}"
+fi
+
+# ============================================================================
 # Optional Packages
 # ============================================================================
 if [[ "${INSTALL_OPTIONAL_PACKAGES:-1}" == "1" ]]; then
