@@ -36,6 +36,7 @@ packages:
     - archlinux-xdg-menu
     - systemd-ukify
     - noctalia
+    - jq
 
   compositor:
     hyprland:
@@ -144,6 +145,9 @@ packages:
     - upower
     - powertop
 
+  limineMkinitcpio:
+    - limine-mkinitcpio-hook
+
   snapper:
     common:
       - snapper
@@ -151,16 +155,5 @@ packages:
       - btrfs-progs
       - inotify-tools
       - snap-pac
-
     limine:
-      mkinitcpio:
-        - limine-mkinitcpio-hook
-        - limine-snapper-sync
-
-      dracut:
-        - limine-dracut-support
-        - limine-snapper-sync
-
-    grub:
-      - grub-btrfs
-      - snapper-rollback
+      - limine-snapper-sync

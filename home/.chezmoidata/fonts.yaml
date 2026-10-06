@@ -1,12 +1,17 @@
 font:
-  terminal:
+  monospace:
     name: "JetBrainsMono Nerd Font"
-    size: 12
     features:
       - cv11
       - cv02
       - zero
 
+  terminal:
+    size: 12
+
+  editor:
+    size: 16
+
   ui:
-    name: "SF Pro Rounded"
+    name: "SF Pro Text"
     size: 12

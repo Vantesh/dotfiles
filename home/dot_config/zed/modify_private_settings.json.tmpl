@@ -1,0 +1,72 @@
+#!/usr/bin/env python3
+# Enforce baseline settings without capturing Zed-owned settings in source state.
+
+import json
+import re
+import sys
+
+
+STRING_OR_COMMENT = re.compile(r'"(?:\\.|[^"\\])*"|//[^\r\n]*|/\*[\s\S]*?\*/')
+STRING_OR_TRAILING_COMMA = re.compile(r'"(?:\\.|[^"\\])*"|,(\s*[}\]])')
+BASELINE = {{ include ".chezmoitemplates/zed-settings.jsonc" | toJson }}
+FONT_SETTINGS = {
+    "markdown_preview": {
+        "code_font_family": {{ .font.monospace.name | toJson }},
+    },
+    "ui_font_family": {{ .font.ui.name | toJson }},
+    "buffer_font_size": {{ .font.editor.size }},
+    "buffer_font_family": {{ .font.monospace.name | toJson }},
+    "buffer_font_features": {
+        {{- range .font.monospace.features }}
+        {{ . | toJson }}: True,
+        {{- end }}
+    },
+}
+
+
+def parse_jsonc(text):
+    """Parse JSON with comments and trailing commas, preserving string contents."""
+    text = STRING_OR_COMMENT.sub(
+        lambda match: match[0] if match[0].startswith('"') else " ", text
+    )
+    text = STRING_OR_TRAILING_COMMA.sub(
+        lambda match: match[1] if match[1] is not None else match[0], text
+    )
+    value = json.loads(text)
+    if not isinstance(value, dict):
+        raise ValueError("settings must be a JSON object")
+    return value
+
+
+def apply_baseline(current, baseline):
+    """Override managed leaves while retaining unlisted keys at every level."""
+    for key, value in baseline.items():
+        if isinstance(value, dict):
+            if not isinstance(current.get(key), dict):
+                current[key] = {}
+            apply_baseline(current[key], value)
+        else:
+            current[key] = value
+
+
+def main():
+    original = sys.stdin.read()
+    try:
+        baseline = parse_jsonc(BASELINE)
+        apply_baseline(baseline, FONT_SETTINGS)
+        current = parse_jsonc(original) if original.strip() else {}
+        before = json.dumps(current, sort_keys=True)
+        apply_baseline(current, baseline)
+    except (ValueError, RecursionError) as error:
+        print(f"Cannot update Zed settings: {error}", file=sys.stderr)
+        return 1
+
+    if json.dumps(current, sort_keys=True) == before:
+        sys.stdout.write(original)
+    else:
+        sys.stdout.write(json.dumps(current, indent=2, ensure_ascii=False) + "\n")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

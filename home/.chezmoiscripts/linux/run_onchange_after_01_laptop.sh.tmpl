@@ -24,10 +24,6 @@ readonly SWAP_SUBVOL="@swap"
 readonly SWAP_MOUNT_POINT="/swap"
 readonly SWAP_FILE_PATH="/swap/swapfile"
 
-if ! keep_sudo_alive; then
-  die "Failed to keep sudo alive"
-fi
-
 # Calculates optimal swap size based on RAM.
 #
 # Uses formula: swap = sqrt(ram) + ram, minimum 2GB.
@@ -85,6 +81,73 @@ get_nvidia_pci_address() {
   printf '%s\n' "$nvidia_pci"
 }
 
+# Adds a hibernation fstab entry with invocation-local rollback tracking.
+#
+# Snapshots only before the first missing entry. Tracks expected append results
+# so rollback does not overwrite unrelated changes.
+#
+# Arguments:
+#   $1 - fstab entry line
+#   $2 - Description for error messages
+# Globals:
+#   LAST_ERROR - Set on failure
+#   fstab_snapshot_dir - Transaction snapshot directory
+#   fstab_changed - Set when an append is confirmed
+# Returns:
+#   0 on success, 1 on failure
+_add_hibernation_fstab_entry() {
+  local entry="$1"
+  local description="$2"
+
+  LAST_ERROR=""
+
+  if grep -qxF -- "$entry" /etc/fstab 2>/dev/null; then
+    return 0
+  fi
+
+  if [[ -z "$fstab_snapshot_dir" ]]; then
+    if ! fstab_snapshot_dir="$(mktemp -d)"; then
+      LAST_ERROR="Failed to create temporary fstab snapshot directory"
+      return 1
+    fi
+
+    if ! cp -- /etc/fstab "$fstab_snapshot_dir/before" ||
+      ! cp -- "$fstab_snapshot_dir/before" "$fstab_snapshot_dir/expected"; then
+      LAST_ERROR="Failed to snapshot /etc/fstab"
+      return 1
+    fi
+  fi
+
+  if ! cmp -s -- "$fstab_snapshot_dir/expected" /etc/fstab; then
+    LAST_ERROR="/etc/fstab changed before append; refusing to overwrite unrelated changes"
+    return 1
+  fi
+
+  if ! cp -- "$fstab_snapshot_dir/expected" "$fstab_snapshot_dir/next" ||
+    ! printf '\n%s\n' "$entry" >>"$fstab_snapshot_dir/next"; then
+    LAST_ERROR="Failed to prepare expected fstab contents"
+    return 1
+  fi
+
+  local append_result=0
+  add_fstab_entry "$entry" "$description" || append_result="$?"
+  local error_msg="$LAST_ERROR"
+
+  if cmp -s -- "$fstab_snapshot_dir/next" /etc/fstab; then
+    fstab_changed=true
+    if ! cp -- "$fstab_snapshot_dir/next" "$fstab_snapshot_dir/expected"; then
+      LAST_ERROR="Failed to record updated fstab contents"
+      return 1
+    fi
+  elif ! cmp -s -- "$fstab_snapshot_dir/expected" /etc/fstab; then
+    LAST_ERROR="/etc/fstab changed unexpectedly; refusing to roll back unrelated changes"
+    return 1
+  fi
+
+  LAST_ERROR="$error_msg"
+  return "$append_result"
+}
+
 # Creates btrfs swap subvolume and swapfile.
 #
 # Creates @swap subvolume if missing, mounts it, creates swapfile with
@@ -92,15 +155,13 @@ get_nvidia_pci_address() {
 #
 # Globals:
 #   LAST_ERROR - Set on failure
+#   temp_mount - Temporary root mount cleaned up by the setup transaction
 # Returns:
 #   0 on success, 1 on failure
 create_btrfs_swap() {
-  local temp_mount
   local btrfs_root
   local uuid
   local swap_size
-  local needs_mount_fstab=false
-  local needs_swap_fstab=false
 
   LAST_ERROR=""
 
@@ -111,8 +172,10 @@ create_btrfs_swap() {
   fi
 
   if ! sudo btrfs subvolume list / 2>/dev/null | grep -qE "(^|[[:space:]])${SWAP_SUBVOL}([[:space:]]|$)"; then
-    temp_mount=$(mktemp -d)
-    trap 'mountpoint -q "${temp_mount:-}" 2>/dev/null && sudo umount "${temp_mount}" >/dev/null 2>&1; [[ -d "${temp_mount:-}" ]] && rm -rf "${temp_mount}"' RETURN EXIT ERR
+    if ! temp_mount="$(mktemp -d)"; then
+      LAST_ERROR="Failed to create temporary root mount directory"
+      return 1
+    fi
 
     if ! sudo mount "$btrfs_root" "$temp_mount" >/dev/null 2>&1; then
       LAST_ERROR="Failed to mount btrfs root device"
@@ -135,8 +198,6 @@ create_btrfs_swap() {
       LAST_ERROR="Failed to mount btrfs swap subvolume"
       return 1
     fi
-
-    needs_mount_fstab=true
   fi
 
   # Create swapfile if it doesn't exist
@@ -157,43 +218,32 @@ create_btrfs_swap() {
       LAST_ERROR="Failed to activate swapfile"
       return 1
     fi
-
-    needs_swap_fstab=true
   fi
 
-  if [[ "$needs_mount_fstab" == true ]]; then
-    if ! uuid=$(lsblk -fno UUID "$btrfs_root" 2>/dev/null); then
-      LAST_ERROR="Failed to get UUID of btrfs root device: $btrfs_root"
-      return 1
-    fi
-
-    if ! add_fstab_entry "UUID=$uuid $SWAP_MOUNT_POINT btrfs defaults,noatime,nodatacow,subvol=$SWAP_SUBVOL 0 0" "swap subvolume mount"; then
-      local error_msg="$LAST_ERROR"
-      LAST_ERROR="Failed to add swap subvolume to fstab: $error_msg"
-      return 1
-    fi
+  if ! uuid=$(lsblk -fno UUID "$btrfs_root" 2>/dev/null); then
+    LAST_ERROR="Failed to get UUID of btrfs root device: $btrfs_root"
+    return 1
   fi
 
-  if [[ "$needs_swap_fstab" == true ]]; then
-    if ! add_fstab_entry "$SWAP_FILE_PATH none swap defaults 0 0" "swapfile"; then
-      local error_msg="$LAST_ERROR"
-      LAST_ERROR="Failed to add swapfile to fstab: $error_msg"
-      return 1
-    fi
-
-    log INFO "Added swapfile to /etc/fstab"
+  if ! _add_hibernation_fstab_entry "UUID=$uuid $SWAP_MOUNT_POINT btrfs defaults,noatime,nodatacow,subvol=$SWAP_SUBVOL 0 0" "swap subvolume mount"; then
+    local error_msg="$LAST_ERROR"
+    LAST_ERROR="Failed to add swap subvolume to fstab: $error_msg"
+    return 1
   fi
+
+  if ! _add_hibernation_fstab_entry "$SWAP_FILE_PATH none swap defaults 0 0" "swapfile"; then
+    local error_msg="$LAST_ERROR"
+    LAST_ERROR="Failed to add swapfile to fstab: $error_msg"
+    return 1
+  fi
+
+  log INFO "Ensured swapfile entry in /etc/fstab"
 
   return 0
 }
 
 get_swap_path() {
   swapon --show=NAME --noheadings 2>/dev/null | awk '$1 !~ /\/dev\/zram/ {print; exit}'
-}
-
-# Remove both hibernation and quiet boot parameters from a command line string
-remove_managed_params() {
-  sed -E 's/\b(hibernate\.compressor=[a-z0-9]+|resume=UUID=[a-zA-Z0-9-]+|resume_offset=[0-9]+|quiet|splash|loglevel=[0-9]+|systemd\.show_status=[a-z]+|rd\.udev\.log_level=[0-9]+|vt\.global_cursor_default=[0-9]+)\b//g; s/[[:space:]]+/ /g; s/^[[:space:]]+//; s/[[:space:]]+$//' <<<"$1"
 }
 
 # Sets up hibernation support.
@@ -206,11 +256,9 @@ remove_managed_params() {
 # Returns:
 #   0 on success (hibernation fully configured)
 #   2 on graceful skip (swap creation failed)
-#   1 on error (restore backups)
+#   1 on error (roll back this invocation's fstab edits)
 setup_hibernation() {
   local swap_path
-  local generator
-  local bootloader
   local hibernation_params
   local resume_uuid
   local resume_offset
@@ -218,10 +266,15 @@ setup_hibernation() {
 
   LAST_ERROR=""
 
-  swap_path=$(get_swap_path)
+  if ! swap_path="$(get_swap_path)"; then
+    LAST_ERROR="Failed to detect swap path"
+    return 1
+  fi
 
-  if [[ -z "$swap_path" ]]; then
-    log INFO "No swap found, creating btrfs swapfile"
+  if [[ -z "$swap_path" ]] || [[ "$swap_path" = "$SWAP_FILE_PATH" ]]; then
+    if [[ -z "$swap_path" ]]; then
+      log INFO "No swap found, creating btrfs swapfile"
+    fi
 
     if ! create_btrfs_swap; then
       log WARN "Failed to create btrfs swap: $LAST_ERROR"
@@ -229,7 +282,10 @@ setup_hibernation() {
       return 2
     fi
 
-    swap_path=$(get_swap_path)
+    if ! swap_path="$(get_swap_path)"; then
+      LAST_ERROR="Failed to detect swap path after creation"
+      return 1
+    fi
 
     if [[ -z "$swap_path" ]]; then
       log WARN "Swap still not detected after creation"
@@ -272,360 +328,49 @@ setup_hibernation() {
     fi
   fi
 
-  if ! generator=$(detect_initramfs_generator); then
-    local error_msg="$LAST_ERROR"
-    LAST_ERROR="Failed to detect initramfs generator: $error_msg"
-    return 1
-  fi
-
-  if ! bootloader=$(detect_bootloader); then
-    local error_msg="$LAST_ERROR"
-    LAST_ERROR="Failed to detect bootloader: $error_msg"
-    return 1
-  fi
-
-  case "$bootloader" in
-  grub)
-    log INFO "Updating GRUB kernel parameters"
-    if ! update_grub_cmdline "${hibernation_params[@]}"; then
-      local error_msg="$LAST_ERROR"
-      LAST_ERROR="Failed to update GRUB kernel command line: $error_msg"
-      return 1
-    fi
-    log INFO "Updated GRUB kernel parameters"
-    ;;
-  limine)
-    if [[ ! -f /etc/limine-entry-tool.d/01-default.conf ]]; then
-      if [[ -r /proc/cmdline ]]; then
-        local cleaned_params
-        cleaned_params=$(remove_managed_params "$(cat /proc/cmdline)")
-
-        if [[ -n "$cleaned_params" ]]; then
-          if ! update_limine_cmdline "01-default.conf" "$cleaned_params"; then
-            local error_msg="$LAST_ERROR"
-            LAST_ERROR="Failed to create default Limine config: $error_msg"
-            return 1
-          fi
-        fi
-      else
-        LAST_ERROR="/proc/cmdline not readable; cannot create default Limine drop-in"
+  if [[ ! -f /etc/limine-entry-tool.d/01-default.conf ]]; then
+    if [[ -r /proc/cmdline ]]; then
+      local cleaned_params
+      if ! cleaned_params="$(sed -E 's/\b(hibernate\.compressor=[a-z0-9]+|resume=UUID=[a-zA-Z0-9-]+|resume_offset=[0-9]+|quiet|splash|loglevel=[0-9]+|systemd\.show_status=[a-z]+|rd\.udev\.log_level=[0-9]+|vt\.global_cursor_default=[0-9]+)\b//g; s/[[:space:]]+/ /g; s/^[[:space:]]+//; s/[[:space:]]+$//' /proc/cmdline)"; then
+        LAST_ERROR="Failed to clean current kernel parameters from /proc/cmdline"
         return 1
       fi
-    fi
 
-    if ! update_limine_cmdline "50-hibernation.conf" --append "${hibernation_params[@]}"; then
-      local error_msg="$LAST_ERROR"
-      LAST_ERROR="Failed to write Limine hibernation config: $error_msg"
-      return 1
-    fi
-    log INFO "Updated Limine kernel parameters"
-    ;;
-  *)
-    log WARN "Unsupported bootloader ($bootloader), skipping kernel parameter update"
-    ;;
-  esac
-
-  case "$generator" in
-  mkinitcpio)
-    local mkinitcpio_conf="/etc/mkinitcpio.conf"
-    local hooks
-    local needs_regen=false
-
-    if [[ ! -f "$mkinitcpio_conf" ]]; then
-      LAST_ERROR="mkinitcpio.conf not found"
-      return 1
-    fi
-
-    hooks=$(sed -nE 's/^[[:space:]]*HOOKS=\((.*)\)[[:space:]]*$/\1/p' "$mkinitcpio_conf" 2>/dev/null | head -n1)
-
-    # Convert to systemd-based initramfs hooks for better hibernation support
-    if [[ -n "$hooks" ]]; then
-      local new_hooks="$hooks"
-      local hooks_changed=false
-
-      # Define hook replacements: "old_hook:new_hook" (empty new_hook means remove)
-      local -a hook_replacements=(
-        "udev:systemd"
-        "usr:systemd"
-        "keymap:sd-vconsole"
-        "consolefont:sd-vconsole"
-        "btrfs-overlayfs:sd-btrfs-overlayfs"
-        "resume:"
-        "shutdown:sd-shutdown"
-        "encrypt:sd-encrypt"
-      )
-
-      local old_hook new_hook replacement
-      for replacement in "${hook_replacements[@]}"; do
-        old_hook="${replacement%%:*}"
-        new_hook="${replacement#*:}"
-
-        if [[ "$new_hooks" =~ (^|[[:space:]])${old_hook}([[:space:]]|$) ]]; then
-          if [[ -n "$new_hook" ]]; then
-            new_hooks=$(echo "$new_hooks" | sed -E "s/(^|[[:space:]])${old_hook}([[:space:]]|$)/\1${new_hook}\2/")
-            log INFO "Replaced '${old_hook}' with '${new_hook}' hook"
-          else
-            new_hooks=$(echo "$new_hooks" | sed -E "s/(^|[[:space:]])${old_hook}([[:space:]]|$)/\1\2/")
-            log INFO "Removed '${old_hook}' hook (handled by systemd)"
-          fi
-          hooks_changed=true
-        fi
-      done
-
-      # Clean up extra spaces and remove duplicates while preserving order
-      new_hooks=$(echo "$new_hooks" | tr -s ' ' | sed 's/^ //; s/ $//')
-
-      # Remove duplicate hooks while preserving order
-      if [[ "$hooks_changed" == true ]]; then
-        local -a hook_array seen_hooks final_hooks
-        read -ra hook_array <<<"$new_hooks"
-
-        for hook in "${hook_array[@]}"; do
-          local found=false
-          for seen in "${seen_hooks[@]}"; do
-            if [[ "$hook" == "$seen" ]]; then
-              found=true
-              break
-            fi
-          done
-          if [[ "$found" == false ]]; then
-            seen_hooks+=("$hook")
-            final_hooks+=("$hook")
-          fi
-        done
-
-        new_hooks="${final_hooks[*]}"
-      fi
-
-      if [[ "$hooks_changed" == true ]]; then
-        if ! sudo sed -i -E "s|^[[:space:]]*HOOKS=\(.*\)|HOOKS=($new_hooks)|" "$mkinitcpio_conf" 2>/dev/null; then
-          LAST_ERROR="Failed to update mkinitcpio HOOKS"
+      if [[ -n "$cleaned_params" ]]; then
+        if ! update_limine_cmdline "01-default.conf" "$cleaned_params"; then
+          local error_msg="$LAST_ERROR"
+          LAST_ERROR="Failed to create default Limine config: $error_msg"
           return 1
         fi
-        log INFO "Converted to systemd-based initramfs hooks"
-        needs_regen=true
       fi
-    fi
-
-    # Get GPU info early to determine module order
-    local gpu_info
-    gpu_info=$(get_gpu_info)
-
-    local modules
-    modules=$(sed -nE 's/^[[:space:]]*MODULES=\((.*)\)[[:space:]]*$/\1/p' "$mkinitcpio_conf" 2>/dev/null | head -n1)
-
-    # Build ordered list of modules ensuring correct order
-    # CRITICAL: NVIDIA modules MUST come before compression modules for hibernation to work
-    local -a current_modules
-    local nvidia_modules=("nvidia" "nvidia_modeset" "nvidia_uvm" "nvidia_drm")
-    local compression_modules=("lz4" "lz4_compress")
-    local needs_reorder=false
-    local has_nvidia=false
-
-    read -ra current_modules <<<"$modules"
-
-    if [[ "$gpu_info" = *"NVIDIA Corporation"* ]]; then
-      has_nvidia=true
-    fi
-
-    # Check if we have both NVIDIA and compression modules, and if compression comes first
-    if [[ "$has_nvidia" = true ]]; then
-      local first_nvidia_idx=-1
-      local first_compression_idx=-1
-
-      for i in "${!current_modules[@]}"; do
-        local mod="${current_modules[$i]}"
-
-        # Find first NVIDIA module index
-        if [[ $first_nvidia_idx -eq -1 ]]; then
-          for nvidia_mod in "${nvidia_modules[@]}"; do
-            if [[ "$mod" = "$nvidia_mod" ]]; then
-              first_nvidia_idx=$i
-              break
-            fi
-          done
-        fi
-
-        # Find first compression module index
-        if [[ $first_compression_idx -eq -1 ]]; then
-          for comp_mod in "${compression_modules[@]}"; do
-            if [[ "$mod" = "$comp_mod" ]]; then
-              first_compression_idx=$i
-              break
-            fi
-          done
-        fi
-      done
-
-      # If compression modules exist and come before NVIDIA modules (or NVIDIA doesn't exist yet), reorder
-      if [[ $first_compression_idx -ne -1 ]] && { [[ $first_nvidia_idx -eq -1 ]] || [[ $first_compression_idx -lt $first_nvidia_idx ]]; }; then
-        needs_reorder=true
-      fi
-    fi
-
-    # Rebuild module list with correct order
-    if [[ "$needs_reorder" = true ]] || [[ "$has_nvidia" = true ]]; then
-      local -a final_modules=()
-      local -a other_modules=()
-      local -a nvidia_to_add=()
-      local -a compression_to_add=()
-
-      # Separate modules into categories
-      for mod in "${current_modules[@]}"; do
-        local is_nvidia=false
-        local is_compression=false
-
-        for nvidia_mod in "${nvidia_modules[@]}"; do
-          if [[ "$mod" = "$nvidia_mod" ]]; then
-            is_nvidia=true
-            break
-          fi
-        done
-
-        if [[ "$is_nvidia" = false ]]; then
-          for comp_mod in "${compression_modules[@]}"; do
-            if [[ "$mod" = "$comp_mod" ]]; then
-              is_compression=true
-              break
-            fi
-          done
-        fi
-
-        if [[ "$is_nvidia" = false ]] && [[ "$is_compression" = false ]]; then
-          other_modules+=("$mod")
-        fi
-      done
-
-      # Determine which modules to add
-      if [[ "$has_nvidia" = true ]]; then
-        for nvidia_mod in "${nvidia_modules[@]}"; do
-          local found=false
-          for mod in "${current_modules[@]}"; do
-            if [[ "$mod" = "$nvidia_mod" ]]; then
-              found=true
-              break
-            fi
-          done
-          if [[ "$found" = false ]]; then
-            nvidia_to_add+=("$nvidia_mod")
-          fi
-        done
-      fi
-
-      for comp_mod in "${compression_modules[@]}"; do
-        local found=false
-        for mod in "${current_modules[@]}"; do
-          if [[ "$mod" = "$comp_mod" ]]; then
-            found=true
-            break
-          fi
-        done
-        if [[ "$found" = false ]]; then
-          compression_to_add+=("$comp_mod")
-        fi
-      done
-
-      # Build final module list: other modules + NVIDIA modules + compression modules
-      final_modules=("${other_modules[@]}")
-
-      if [[ "$has_nvidia" = true ]]; then
-        # Add existing NVIDIA modules first
-        for nvidia_mod in "${nvidia_modules[@]}"; do
-          for mod in "${current_modules[@]}"; do
-            if [[ "$mod" = "$nvidia_mod" ]]; then
-              final_modules+=("$mod")
-              break
-            fi
-          done
-        done
-        # Then add any missing NVIDIA modules
-        final_modules+=("${nvidia_to_add[@]}")
-      fi
-
-      # Add existing compression modules
-      for comp_mod in "${compression_modules[@]}"; do
-        for mod in "${current_modules[@]}"; do
-          if [[ "$mod" = "$comp_mod" ]]; then
-            final_modules+=("$mod")
-            break
-          fi
-        done
-      done
-      # Then add any missing compression modules
-      final_modules+=("${compression_to_add[@]}")
-
-      # Only update if something changed
-      if [[ "${final_modules[*]}" != "${current_modules[*]}" ]]; then
-        local new_modules_str="${final_modules[*]}"
-
-        if ! sudo sed -i -E "s|^[[:space:]]*MODULES=\(.*\)|MODULES=($new_modules_str)|" "$mkinitcpio_conf" 2>/dev/null; then
-          LAST_ERROR="Failed to update mkinitcpio MODULES"
-          return 1
-        fi
-
-        if [[ "$needs_reorder" = true ]]; then
-          log INFO "Reordered mkinitcpio MODULES (NVIDIA before compression)"
-        fi
-
-        if [[ ${#nvidia_to_add[@]} -gt 0 ]] || [[ ${#compression_to_add[@]} -gt 0 ]]; then
-          local -a added=("${nvidia_to_add[@]}" "${compression_to_add[@]}")
-          log INFO "Updated mkinitcpio MODULES (added ${added[*]})"
-        fi
-
-        needs_regen=true
-      fi
-    fi
-
-    if [[ "$needs_regen" = true ]]; then
-      log INFO "Regenerating initramfs (this may take a moment)..."
-      if ! regenerate_initramfs; then
-        local error_msg="$LAST_ERROR"
-        LAST_ERROR="Failed to regenerate initramfs: $error_msg"
-        return 1
-      fi
-      log INFO "Regenerated initramfs"
-    fi
-    ;;
-  dracut)
-    local dracut_result=0
-    local needs_initramfs_regen=false
-
-    add_dracut_module "resume" || dracut_result=$?
-
-    case $dracut_result in
-    0)
-      log INFO "Added dracut resume module"
-      needs_initramfs_regen=true
-      ;;
-    2)
-      log SKIP "Dracut resume module already configured"
-      ;;
-    *)
-      local error_msg="$LAST_ERROR"
-      LAST_ERROR="Failed to add dracut resume module: $error_msg"
-      return 1
-      ;;
-    esac
-
-    if [[ "$needs_initramfs_regen" = true ]]; then
-      log INFO "Regenerating initramfs (this may take a moment)..."
-      if ! regenerate_initramfs; then
-        local error_msg="$LAST_ERROR"
-        LAST_ERROR="Failed to regenerate initramfs: $error_msg"
-        return 1
-      fi
-      log INFO "Regenerated initramfs"
     else
-      log SKIP "No initramfs changes, skipping regeneration"
+      LAST_ERROR="/proc/cmdline not readable; cannot create default Limine drop-in"
+      return 1
     fi
-    ;;
-  unsupported)
-    log WARN "No supported initramfs generator found, skipping initramfs configuration"
-    ;;
-  *)
-    log WARN "Unknown initramfs generator ($generator), skipping initramfs configuration"
-    ;;
-  esac
+  fi
+
+  if ! update_limine_cmdline "50-hibernation.conf" --append "${hibernation_params[@]}"; then
+    local error_msg="$LAST_ERROR"
+    LAST_ERROR="Failed to write Limine hibernation config: $error_msg"
+    return 1
+  fi
+  log INFO "Updated Limine kernel parameters"
+
+  # shellcheck disable=SC2016
+  local mkinitcpio_content='if [[ -n "${HOOKS:-}" && "${HOOKS@a}" != *a* ]]; then
+  read -r -a HOOKS <<< "$HOOKS"
+fi
+if [[ " ${HOOKS[*]:-} " != *" systemd "* && " ${HOOKS[*]:-} " != *" resume "* ]]; then
+  HOOKS+=(resume)
+fi'
+
+  if ! write_mkinitcpio_dropin 'hibernation.conf' "$mkinitcpio_content"; then
+    local error_msg="$LAST_ERROR"
+    LAST_ERROR="Failed to write mkinitcpio hibernation drop-in: $error_msg"
+    return 1
+  fi
+
+  log INFO "Configured mkinitcpio hibernation drop-in"
 
   return 0
 }
@@ -640,6 +385,10 @@ main() {
     log STEP "Laptop Optimizations"
 
     if command_exists powertop; then
+      if ! keep_sudo_alive; then
+        die "Failed to keep sudo alive"
+      fi
+
       if sudo powertop --auto-tune >/dev/null 2>&1; then
         log INFO "Applied powertop auto-tune"
       else
@@ -651,6 +400,16 @@ main() {
   # Exit early if hibernation setup is disabled
   if [[ "${SETUP_HIBERNATION:-1}" != "1" ]]; then
     log INFO "Skipping hibernation setup (disabled in configuration)"
+    return 0
+  fi
+
+  if [[ ! -x /usr/bin/limine ]]; then
+    log WARN "Unsupported bootloader (only Limine is supported), skipping hibernation setup"
+    return 0
+  fi
+
+  if ! command_exists mkinitcpio; then
+    log WARN "mkinitcpio not found, skipping hibernation setup"
     return 0
   fi
 
@@ -666,71 +425,69 @@ main() {
 
   log STEP "Hibernation Setup"
 
-  local generator
-  local bootloader
-
-  if ! generator=$(detect_initramfs_generator); then
-    die "Failed to detect initramfs generator: $LAST_ERROR"
+  if ! keep_sudo_alive; then
+    die "Failed to keep sudo alive"
   fi
 
-  if ! bootloader=$(detect_bootloader); then
-    die "Failed to detect bootloader: $LAST_ERROR"
+  if ! validate_mkinitcpio_dropins; then
+    die "Cannot configure hibernation hooks: $LAST_ERROR"
   fi
 
-  if ! create_backup "/etc/fstab"; then
-    die "Failed to backup /etc/fstab: $LAST_ERROR"
-  fi
+  local setup_result=0
+  (
+    local fstab_snapshot_dir=""
+    local fstab_changed=false
+    local temp_mount=""
 
-  if [[ "$generator" = "mkinitcpio" ]] && [[ -f /etc/mkinitcpio.conf ]]; then
-    if ! create_backup "/etc/mkinitcpio.conf"; then
-      die "Failed to backup /etc/mkinitcpio.conf: $LAST_ERROR"
-    fi
-  fi
+    trap '
+      if [[ -n "$temp_mount" ]]; then
+        if mountpoint -q "$temp_mount" 2>/dev/null; then
+          sudo umount "$temp_mount" >/dev/null 2>&1 || true
+        fi
+        rmdir -- "$temp_mount" 2>/dev/null || true
+      fi
+      if [[ -n "$fstab_snapshot_dir" ]]; then
+        rm -rf -- "$fstab_snapshot_dir" || true
+      fi
+    ' EXIT
+    trap 'exit 130' INT
+    trap 'exit 143' TERM
 
-  if [[ "$bootloader" = "grub" ]] && [[ -f /etc/default/grub ]]; then
-    if ! create_backup "/etc/default/grub"; then
-      die "Failed to backup /etc/default/grub: $LAST_ERROR"
-    fi
-  fi
-
-  # setup_hibernation returns:
-  # 0: success (hibernation fully configured)
-  # 2: graceful skip (swap creation failed, no backups to restore)
-  # 1: error (restore backups)
-  setup_hibernation
-  local setup_result=$?
-
-  case $setup_result in
-  0) ;;
-  2)
-    # Graceful skip due to swap creation failure
-    log SKIP "Hibernation setup skipped due to swap creation failure"
-    return 0
-    ;;
-  1)
-    # Error during setup, restore backups
+    setup_hibernation || setup_result="$?"
     local error_msg="$LAST_ERROR"
-    local restore_failures=0
 
-    restore_backup "/etc/fstab" >/dev/null 2>&1 || ((restore_failures++))
-
-    if [[ "$generator" = "mkinitcpio" ]] && [[ -f /etc/mkinitcpio.conf ]]; then
-      restore_backup "/etc/mkinitcpio.conf" >/dev/null 2>&1 || ((restore_failures++))
+    if [[ "$setup_result" -ne 0 ]] && [[ "$fstab_changed" = true ]]; then
+      if ! cmp -s -- "$fstab_snapshot_dir/expected" /etc/fstab; then
+        log WARN "Skipped /etc/fstab rollback: contents changed unexpectedly"
+      elif ! sudo cp -- "$fstab_snapshot_dir/before" /etc/fstab 2>/dev/null; then
+        die "Hibernation setup failed: $error_msg (failed to restore /etc/fstab)"
+      else
+        log INFO "Restored /etc/fstab from this invocation's snapshot"
+        if ! reload_systemd_daemon; then
+          log WARN "Failed to reload systemd after fstab rollback: $LAST_ERROR"
+        fi
+      fi
     fi
 
-    if [[ "$bootloader" = "grub" ]] && [[ -f /etc/default/grub ]]; then
-      restore_backup "/etc/default/grub" >/dev/null 2>&1 || ((restore_failures++))
-    fi
+    case "$setup_result" in
+    0) ;;
+    2)
+      log SKIP "Hibernation setup skipped due to swap creation failure"
+      exit 2
+      ;;
+    1)
+      die "Hibernation setup failed: $error_msg"
+      ;;
+    *)
+      die "Unexpected return code from setup_hibernation: $setup_result"
+      ;;
+    esac
+  ) || setup_result="$?"
 
-    if [[ $restore_failures -eq 0 ]]; then
-      die "Hibernation setup failed: $error_msg (backups restored)"
-    else
-      die "Hibernation setup failed: $error_msg (warning: some backups may not have been restored)"
-    fi
-    ;;
-  *)
-    die "Unexpected return code from setup_hibernation: $setup_result"
-    ;;
+  case "$setup_result" in
+  0) ;;
+  2) return 0 ;;
+  *) return "$setup_result" ;;
   esac
 
   if ! write_system_config "/etc/systemd/sleep.conf.d/hibernation.conf" <<'EOF'; then

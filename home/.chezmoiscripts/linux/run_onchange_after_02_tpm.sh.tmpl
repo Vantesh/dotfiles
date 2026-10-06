@@ -2,11 +2,13 @@
 # 02_tpm.sh - Configure signed initrd PCR policies for systemd NvPCRs
 #
 # Creates a minimal ukify configuration and machine-local PCR signing keys
-# when absent, then rebuilds the initramfs. Existing configurations and keys
-# are preserved; existing configurations must enable SignInitrdPCRs and
-# configure a PCR signing private key. Default keys are managed only when
+# when absent, requesting a deferred initramfs rebuild before each creation.
+# Existing configurations and keys are preserved; existing configurations
+# must enable SignInitrdPCRs and configure a PCR signing private key.
+# Default keys are managed only when
 # referenced by the configuration.
-# Rebuilds on every script execution so a failed rebuild can be retried.
+# A late always-run after script handles rebuilding and retries using a
+# persistent pending marker.
 #
 # Globals:
 #   DISTRO_FAMILY - Distribution family from chezmoi scriptEnv
@@ -27,6 +29,16 @@ readonly PCR_PRIVATE_KEY="/etc/systemd/tpm2-pcr-private-key.pem"
 readonly PCR_PUBLIC_KEY="/etc/systemd/tpm2-pcr-public-key.pem"
 
 main() {
+  if [[ ! -x /usr/bin/limine ]]; then
+    log WARN "Unsupported bootloader (only Limine is supported), skipping TPM PCR policy setup"
+    return 0
+  fi
+
+  if ! command_exists mkinitcpio; then
+    log WARN "mkinitcpio not found, skipping TPM PCR policy setup"
+    return 0
+  fi
+
   case "${DISTRO_FAMILY,,}" in
   *arch*) ;;
   *)
@@ -57,6 +69,9 @@ main() {
     fi
     log SKIP "Preserved existing ukify configuration"
   else
+    if ! request_initramfs_rebuild; then
+      die "Failed to request initramfs rebuild: $LAST_ERROR"
+    fi
     if ! write_system_config "$UKI_CONFIG" <<EOF
 [UKI]
 SignInitrdPCRs=yes
@@ -79,6 +94,9 @@ EOF
     elif sudo test -e "$PCR_PRIVATE_KEY" || sudo test -e "$PCR_PUBLIC_KEY"; then
       die "Incomplete PCR signing keypair in /etc/systemd; existing key preserved"
     else
+      if ! request_initramfs_rebuild; then
+        die "Failed to request initramfs rebuild: $LAST_ERROR"
+      fi
       if ! sudo ukify --config=/dev/null genkey \
         --pcr-private-key="$PCR_PRIVATE_KEY" \
         --pcr-public-key="$PCR_PUBLIC_KEY"; then
@@ -93,12 +111,6 @@ EOF
   else
     log SKIP "Existing configuration uses its own PCR signing keys"
   fi
-
-  log INFO "Regenerating initramfs"
-  if ! regenerate_initramfs; then
-    die "Failed to regenerate initramfs: $LAST_ERROR"
-  fi
-  log INFO "Regenerated initramfs"
 }
 
 main "$@"
