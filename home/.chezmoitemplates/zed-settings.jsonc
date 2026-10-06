@@ -30,23 +30,12 @@
   },
   "autosave": "on_focus_change",
   "text_rendering_mode": "platform_default",
-  "markdown_preview": {
-    "code_font_family": "JetBrainsMono Nerd Font",
-  },
+
   "cli_default_open_behavior": "new_window",
   "tab_size": 2,
-  "ui_font_family": "SF Pro Text",
+
   "buffer_line_height": {
     "custom": 2.0,
-  },
-
-  "buffer_font_size": 16.0,
-  "buffer_font_family": "JetBrainsMono Nerd Font",
-
-  "buffer_font_features": {
-    "cv11": true,
-    "cv02": true,
-    "zero": true,
   },
 
   "icon_theme": "Zed (Default)",
