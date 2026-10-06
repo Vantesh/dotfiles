@@ -1,3 +1,7 @@
+[theme.templates.user.zed]
+input_path = "$XDG_CONFIG_HOME/noctalia/templates/zed.json"
+output_path = "$XDG_CONFIG_HOME/zed/themes/noctalia.json"
+
 [theme.templates.user.fish]
 input_path = "$XDG_CONFIG_HOME/noctalia/templates/fish.theme"
 output_path = "$XDG_CONFIG_HOME/fish/themes/Noctalia.theme"

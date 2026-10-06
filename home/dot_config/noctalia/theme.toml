@@ -6,7 +6,7 @@ wallpaper_scheme = "m3-content"
 
 [theme.templates]
 builtin_ids = ["btop", "cava", "gtk3", "gtk4", "hyprland", "kcolorscheme", "kitty", "qt", "starship"]
-community_ids = ["zed", "fastfetch", "bat", "lazygit", "yazi"]
+community_ids = ["fastfetch", "bat", "lazygit", "yazi"]
 
 [wallpaper]
 directory = "~/Pictures/Wallpapers"
