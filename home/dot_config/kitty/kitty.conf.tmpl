@@ -41,7 +41,7 @@ map kitty_mod+f   launch --location=hsplit --allow-remote-control kitty +kitten 
 # Others
 map kitty_mod+e launch --type=background --cwd=current sh -c 'hyprctl dispatch exec "[float; size 60% 60%; center 1] xdg-open" $(pwd)'
 #open current dir with vscode
-map kitty_mod+j launch --type=background --cwd=current sh -c 'uwsm-exec code $(pwd)'
+map kitty_mod+j launch --type=background --cwd=current sh -c 'uwsm-app -- code $(pwd)'
 
 # Include noctalia colors
 include themes/noctalia.conf
