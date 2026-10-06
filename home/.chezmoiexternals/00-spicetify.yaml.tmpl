@@ -1,0 +1,10 @@
+{{ if not (env "OFFLINE") }}
+{{- if eq .chezmoi.os "linux" }}
+
+".config/spicetify/Themes/Sleek/user.css":
+  type: file
+  url: "https://raw.githubusercontent.com/spicetify/spicetify-themes/master/Sleek/user.css"
+  refreshPeriod: "744h"
+
+{{- end }}
+{{ end }}
