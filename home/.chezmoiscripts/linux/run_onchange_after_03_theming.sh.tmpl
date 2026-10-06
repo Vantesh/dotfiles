@@ -8,10 +8,9 @@ set -euo pipefail
 shopt -s nullglob globstar
 
 {{ include ".chezmoitemplates/lib/common.sh" }}
-{{ include ".chezmoitemplates/lib/snapboot.sh" }}
 
-readonly GRUB_THEME_URL="https://github.com/semimqmo/sekiro_grub_theme"
-readonly GRUB_THEME_DIR="/usr/share/grub/themes/Sekiro"
+
+
 readonly -a LIMINE_OPTIONS=(
   "timeout=0.5"
   "terse=yes"
@@ -22,34 +21,7 @@ readonly -a LIMINE_OPTIONS=(
 
 )
 
-if ! keep_sudo_alive; then
-  die "Failed to keep sudo alive"
-fi
 
-install_grub_theme() {
-  local temp_dir
-
-  LAST_ERROR=""
-
-  if [[ -d "$GRUB_THEME_DIR" ]]; then
-    return 0
-  fi
-
-  temp_dir=$(mktemp -d)
-  trap '[[ -d "${temp_dir:-}" ]] && rm -rf "${temp_dir}"' RETURN EXIT ERR
-
-  if ! git clone "$GRUB_THEME_URL" "$temp_dir" >/dev/null 2>&1; then
-    LAST_ERROR="Failed to clone GRUB theme repository"
-    return 1
-  fi
-
-  if ! (cd "$temp_dir" && sudo ./install.sh >/dev/null 2>&1); then
-    LAST_ERROR="Failed to install GRUB theme"
-    return 1
-  fi
-
-  return 0
-}
 
 configure_limine_options() {
   local limine_conf="/boot/limine.conf"
@@ -224,28 +196,14 @@ configure_nautilus() {
 
 
 main() {
-  local bootloader
-
   print_box "Theming"
   log STEP "System Theming"
 
-  if ! bootloader=$(detect_bootloader); then
-    die "Failed to detect bootloader: $LAST_ERROR"
-  fi
-
-  case "$bootloader" in
-  grub)
-    if ! install_grub_theme; then
-      if [[ -d "$GRUB_THEME_DIR" ]]; then
-        log SKIP "GRUB theme already installed"
-      else
-        log WARN "Failed to install GRUB theme: $LAST_ERROR"
-      fi
-    else
-      log INFO "Installed GRUB theme"
+  if [[ -x /usr/bin/limine ]]; then
+    if ! keep_sudo_alive; then
+      die "Failed to keep sudo alive"
     fi
-    ;;
-  limine)
+
     local limine_result=0
     configure_limine_options || limine_result=$?
     if [[ "$limine_result" -eq 2 ]]; then
@@ -255,11 +213,9 @@ main() {
     else
       log INFO "Configured Limine options"
     fi
-    ;;
-  *)
-    log SKIP "No theme available for bootloader: $bootloader"
-    ;;
-  esac
+  else
+    log WARN "Unsupported bootloader (only Limine is supported), skipping bootloader theming"
+  fi
 
   if command_exists gsettings; then
     if ! configure_gtk_theme; then

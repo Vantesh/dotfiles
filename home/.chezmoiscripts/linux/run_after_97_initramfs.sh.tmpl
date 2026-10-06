@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+# 97_initramfs.sh - Rebuild pending initramfs and Limine entries after configuration
+#
+# Runs on every apply, after boot-related configuration scripts, so a pending
+# rebuild is retried even when those scripts are skipped by their execution state.
+# Clears the persistent request when limine-update exits successfully.
+# Captures diagnostics and prints them when the command reports a failure.
+#
+# Globals:
+#   INITRAMFS_PENDING_FILE - Rebuild request created by boot setup scripts
+#   LAST_ERROR - Error message from sudo setup
+# Exit codes:
+#   0 (success or skipped), 1 (failure), 127 (missing rebuild command)
+
+set -euo pipefail
+
+shopt -s nullglob globstar
+
+{{ include ".chezmoitemplates/lib/common.sh" }}
+{{ include ".chezmoitemplates/lib/snapboot.sh" }}
+
+main() {
+  if [[ ! -x /usr/bin/limine ]]; then
+    log WARN "Unsupported bootloader (only Limine is supported), skipping initramfs rebuild"
+    return 0
+  fi
+
+  if [[ ! -f "$INITRAMFS_PENDING_FILE" ]]; then
+    return 0
+  fi
+
+  if ! command_exists mkinitcpio; then
+    log WARN "mkinitcpio not found, keeping initramfs rebuild pending"
+    return 0
+  fi
+
+  if ! command_exists limine-update; then
+    die 127 "limine-update not found; initramfs rebuild remains pending"
+  fi
+
+  if ! keep_sudo_alive; then
+    die "Failed to obtain sudo access; initramfs rebuild remains pending: $LAST_ERROR"
+  fi
+
+  log INFO "Regenerating initramfs"
+  local update_output update_status=0
+  update_output="$(sudo env LC_ALL=C NO_COLOR=1 TERM=dumb limine-update 2>&1)" || update_status="$?"
+  if [[ "$update_status" -ne 0 ]]; then
+    printf '%s\n' "$update_output" >&2
+    die "Failed to regenerate initramfs (exit $update_status); rebuild remains pending"
+  fi
+
+
+  if ! rm -f -- "$INITRAMFS_PENDING_FILE"; then
+    die "Regenerated initramfs but failed to clear the pending rebuild"
+  fi
+
+  log INFO "Regenerated initramfs"
+}
+
+main "$@"

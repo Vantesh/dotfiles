@@ -12,48 +12,19 @@ set -euo pipefail
 shopt -s nullglob globstar
 
 {{ include ".chezmoitemplates/lib/common.sh" }}
-{{ include ".chezmoitemplates/lib/package_manager.sh" }}
+
 {{ include ".chezmoitemplates/lib/snapboot.sh" }}
 
 readonly LIMINE_CONFIG="/etc/default/limine"
 readonly LIMINE_ENTRY_TEMPLATE="/etc/limine-entry-tool.conf"
 readonly LIMINE_SNAPPER_TEMPLATE="/etc/limine-snapper-sync.conf"
 
-if ! keep_sudo_alive; then
-  die "Failed to keep sudo alive"
-fi
 
 enable_snapper_services() {
   local -a services=(
     snapper-cleanup.timer
+    limine-snapper-sync.service
   )
-
-  local bootloader
-  if ! bootloader=$(detect_bootloader); then
-    log ERROR "Failed to detect bootloader: $LAST_ERROR"
-    return 1
-  fi
-
-  case "$bootloader" in
-  limine)
-    services+=(
-      limine-snapper-sync.service
-    )
-    ;;
-  grub)
-    if systemctl list-unit-files grub-btrfsd.service >/dev/null 2>&1; then
-      services+=(
-        grub-btrfsd.service
-      )
-    elif systemctl list-unit-files grub-btrfs.service >/dev/null 2>&1; then
-      services+=(
-        grub-btrfs.service
-      )
-    else
-      log WARN "grub-btrfs unit not found (grub-btrfsd.service or grub-btrfs.service)"
-    fi
-    ;;
-  esac
 
   local service
   for service in "${services[@]}"; do
@@ -72,6 +43,11 @@ enable_snapper_services() {
 # Outputs: Result and error logs to stderr.
 # Returns: 0 on success, 1 on failure.
 configure_limine_snapper() {
+  if ! request_initramfs_rebuild; then
+    log ERROR "Failed to queue Limine configuration rebuild: $LAST_ERROR"
+    return 1
+  fi
+
   if [[ ! -e "$LIMINE_CONFIG" ]]; then
     if [[ ! -f "$LIMINE_ENTRY_TEMPLATE" ]] || [[ ! -f "$LIMINE_SNAPPER_TEMPLATE" ]]; then
       log ERROR "Limine templates not found"
@@ -117,7 +93,38 @@ configure_limine_snapper() {
   return 0
 }
 
+# Creates the root Snapper config when absent and applies snapshot settings.
+# Outputs: Result and error logs to stderr.
+# Returns: 0 on success, 1 on missing snapper or configuration failure.
 configure_snapper() {
+  if ! command_exists snapper; then
+    log ERROR "snapper command not found"
+    return 1
+  fi
+
+  if ! sudo snapper list-configs 2>/dev/null | grep -q "^root"; then
+    if ! sudo snapper -c root create-config / >/dev/null 2>&1; then
+      log ERROR "Failed to create snapper config for root"
+      return 1
+    fi
+
+    sleep 0.5
+
+    local retries=0
+    while [[ "$retries" -lt 10 ]]; do
+      if sudo snapper -c root get-config >/dev/null 2>&1; then
+        break
+      fi
+      sleep 0.1
+      retries=$((retries + 1))
+    done
+
+    if [[ "$retries" -eq 10 ]]; then
+      log ERROR "Snapper config 'root' not readable after waiting"
+      return 1
+    fi
+  fi
+
   declare -A settings=(
     ["NUMBER_CLEANUP"]="yes"
     ["NUMBER_LIMIT"]="20"
@@ -137,8 +144,8 @@ configure_snapper() {
   for key in "${!settings[@]}"; do
     value="${settings[$key]}"
 
-    if ! set_snapper_config_value "root" "$key" "$value"; then
-      log ERROR "Failed to set snapper config $key: $LAST_ERROR"
+    if ! sudo snapper -c root set-config "${key}=${value}" >/dev/null 2>&1; then
+      log ERROR "Failed to set $key in snapper config 'root'"
       return 1
     fi
   done
@@ -147,79 +154,37 @@ configure_snapper() {
   return 0
 }
 
+# Adds the overlay hook matching the user's initramfs through a managed drop-in.
+# Selects the hook when mkinitcpio reads its configuration, preserving earlier hooks.
+# Globals: LAST_ERROR - Error from writing the drop-in or requesting a rebuild.
+# Outputs: Result and error logs to stderr.
+# Returns: 0 on success, 1 on configuration or rebuild request failure.
 add_mkinitcpio_overlay_hook() {
-  local generator
-  if ! generator=$(detect_initramfs_generator); then
-    log ERROR "Failed to detect initramfs generator: $LAST_ERROR"
-    return 1
-  fi
+  # shellcheck disable=SC2016
+  local content='if [[ -n "${HOOKS:-}" && "${HOOKS@a}" != *a* ]]; then
+  read -r -a HOOKS <<< "$HOOKS"
+fi
 
-  if [[ "$generator" != "mkinitcpio" ]]; then
-    log WARN "Initramfs generator is $generator, skipping mkinitcpio overlay hook"
-    return 0
-  fi
-
-  local bootloader
-  if ! bootloader=$(detect_bootloader); then
-    log ERROR "Failed to detect bootloader: $LAST_ERROR"
-    return 1
-  fi
-
-  local hook
-  case "$bootloader" in
-  grub)
-    hook="grub-btrfs-overlayfs"
-    ;;
-  limine)
-    local mkinitcpio_conf="/etc/mkinitcpio.conf"
-    local current_hooks
-    current_hooks=$(
-      local config
-      local -a HOOKS=() dropins=()
-      # mkinitcpio reads the main config, then drop-ins in version order.
-      mapfile -d '' -t dropins < <(printf '%s\0' /etc/mkinitcpio.conf.d/*.conf | LC_ALL=C.UTF-8 sort -zV)
-      for config in "$mkinitcpio_conf" "${dropins[@]}"; do
-        [[ -f "$config" && -r "$config" ]] || continue
-        # shellcheck source=/dev/null
-        source "$config" || exit 1
-      done
-      printf '%s\n' "${HOOKS[*]}"
-    )
-
-    if [[ " $current_hooks " = *" systemd "* ]]; then
-      hook="sd-btrfs-overlayfs"
-    else
-      hook="btrfs-overlayfs"
+case " ${HOOKS[*]:-} " in
+  *" systemd "*)
+    if [[ " ${HOOKS[*]:-} " != *" sd-btrfs-overlayfs "* ]]; then
+      HOOKS+=(sd-btrfs-overlayfs)
     fi
     ;;
   *)
-    log WARN "No overlay hook needed for bootloader: $bootloader"
-    return 0
+    if [[ " ${HOOKS[*]:-} " != *" btrfs-overlayfs "* ]]; then
+      HOOKS+=(btrfs-overlayfs)
+    fi
     ;;
-  esac
+esac'
 
-  local hook_exists=false
-  if grep -q "^HOOKS=.*$hook" /etc/mkinitcpio.conf; then
-    hook_exists=true
-  fi
-
-  if ! add_mkinitcpio_hook "$hook"; then
-    log ERROR "Failed to add mkinitcpio hook: $LAST_ERROR"
+  if ! write_mkinitcpio_dropin "snapper.conf" "$content"; then
+    log ERROR "Failed to configure mkinitcpio snapshot overlay: $LAST_ERROR"
     return 1
   fi
 
-  if [[ "$hook_exists" == "false" ]]; then
-    log INFO "Added $hook to mkinitcpio HOOKS"
 
-    if ! regenerate_initramfs; then
-      log ERROR "Failed to regenerate initramfs: $LAST_ERROR"
-      return 1
-    fi
-    log INFO "Regenerated initramfs"
-  else
-    log SKIP "mkinitcpio hook $hook already present"
-  fi
-
+  log INFO "Configured mkinitcpio snapshot overlay drop-in"
   return 0
 }
 
@@ -264,6 +229,16 @@ main() {
     return 0
   fi
 
+  if [[ ! -x /usr/bin/limine ]]; then
+    log WARN "Unsupported bootloader (only Limine is supported), skipping Snapper setup"
+    return 0
+  fi
+
+  if ! command_exists mkinitcpio; then
+    log WARN "mkinitcpio not found, skipping Snapper setup"
+    return 0
+  fi
+
   case "${DISTRO,,}" in
   garuda | cachyos)
     log SKIP "${DISTRO} already has snapper pre-configured"
@@ -276,6 +251,14 @@ main() {
     return 0
   fi
 
+  if ! keep_sudo_alive; then
+    die "Failed to keep sudo alive"
+  fi
+
+  if ! validate_mkinitcpio_dropins; then
+    die "Cannot configure snapshot overlay hooks: $LAST_ERROR"
+  fi
+
   print_box "Snapper"
 
   log STEP "Configuring Snapper"
@@ -284,15 +267,8 @@ main() {
     log WARN "Some services failed to enable, continuing anyway"
   fi
 
-  local bootloader
-  if ! bootloader=$(detect_bootloader); then
-    die "Failed to detect bootloader: $LAST_ERROR"
-  fi
-
-  if [[ "$bootloader" = "limine" ]]; then
-    if ! configure_limine_snapper; then
-      die "Failed to configure Limine snapper integration"
-    fi
+  if ! configure_limine_snapper; then
+    die "Failed to configure Limine snapper integration"
   fi
 
   if ! configure_snapper; then
@@ -300,7 +276,7 @@ main() {
   fi
 
   if ! add_mkinitcpio_overlay_hook; then
-    log WARN "Failed to add mkinitcpio overlay hook, snapshots may not be bootable"
+    die "Failed to configure mkinitcpio snapshot overlay"
   fi
 
   if ! optimize_btrfs_fstab; then

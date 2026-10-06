@@ -20,7 +20,7 @@ shopt -s nullglob globstar
 {{ include ".chezmoitemplates/lib/chaotic_aur.sh" }}
 {{ include ".chezmoitemplates/lib/aur_helper.sh" }}
 {{ include ".chezmoitemplates/lib/package_manager.sh" }}
-{{ include ".chezmoitemplates/lib/snapboot.sh" }}
+
 
 if [[ "$(id -u)" -eq 0 ]]; then
   die "Do not run this script as root."
@@ -228,52 +228,21 @@ fi
 # ============================================================================
 # Snapper Packages
 # ============================================================================
-if [[ "${SETUP_SNAPPER:-1}" == "1" ]]; then
+if [[ "${SETUP_SNAPPER:-1}" != "1" ]]; then
+  log INFO "Skipping Snapper installation"
+elif [[ ! -x /usr/bin/limine ]]; then
+  log WARN "Unsupported bootloader (only Limine is supported), skipping Snapper installation"
+elif ! command_exists mkinitcpio; then
+  log WARN "mkinitcpio not found, skipping Snapper installation"
+else
   snapper_pkgs=(
 {{- range .packages.snapper.common }}
     "{{ . }}"
 {{- end }}
+{{- range .packages.snapper.limine }}
+    "{{ . }}"
+{{- end }}
   )
 
-  # Detect bootloader and initramfs generator
-  bootloader=$(detect_bootloader) || {
-    log ERROR "Failed to detect bootloader: $LAST_ERROR"
-    bootloader=""
-  }
-
-  generator=$(detect_initramfs_generator) || {
-    log ERROR "Failed to detect initramfs generator: $LAST_ERROR"
-    generator=""
-  }
-
-  # Add bootloader-specific packages
-  if [[ "$bootloader" == "limine" ]]; then
-    if [[ "$generator" == "mkinitcpio" ]]; then
-      snapper_pkgs+=(
-{{- range .packages.snapper.limine.mkinitcpio }}
-        "{{ . }}"
-{{- end }}
-      )
-    elif [[ "$generator" == "dracut" ]]; then
-      snapper_pkgs+=(
-{{- range .packages.snapper.limine.dracut }}
-        "{{ . }}"
-{{- end }}
-      )
-    else
-      log WARN "Unknown initramfs generator: $generator"
-    fi
-  elif [[ "$bootloader" == "grub" ]]; then
-    snapper_pkgs+=(
-{{- range .packages.snapper.grub }}
-      "{{ . }}"
-{{- end }}
-    )
-  else
-    log WARN "Unknown or unsupported bootloader: $bootloader"
-  fi
-
   install_group "Snapper" "${snapper_pkgs[@]}"
-else
-  log INFO "Skipping Snapper installation"
 fi
