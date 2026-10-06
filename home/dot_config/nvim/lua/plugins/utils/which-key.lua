@@ -1,7 +1,7 @@
 ---@type wk.Win.opts
 return {
   "folke/which-key.nvim",
-  keys = { "<leader>", "<c-r>", "<c-w>", '"', "'", "`", "c", "v", "g" },
+  event = "VeryLazy",
   cmd = "WhichKey",
   opts = require "configs.which-key",
   config = function(_, opts)
