@@ -1,0 +1,164 @@
+{
+  "auto_update": false,
+
+  "tabs": {
+    "file_icons": true,
+    "git_status": true,
+  },
+
+  "horizontal_scroll_margin": 1,
+  "vertical_scroll_margin": 1,
+
+  "status_bar": {
+    "line_endings_button": true,
+  },
+  "prettier": {
+    "allowed": true,
+  },
+  "colorize_brackets": true,
+  "format_on_save": "modifications",
+  "indent_guides": {
+    "coloring": "indent_aware",
+  },
+  "minimap": {
+    "thumb": "hover",
+    "show": "never",
+  },
+  "which_key": {
+    "delay_ms": 1000,
+    "enabled": true,
+  },
+  "autosave": "on_focus_change",
+  "text_rendering_mode": "platform_default",
+  "markdown_preview": {
+    "code_font_family": "JetBrainsMono Nerd Font",
+  },
+  "cli_default_open_behavior": "new_window",
+  "tab_size": 2,
+  "ui_font_family": "SF Pro Text",
+  "buffer_line_height": {
+    "custom": 2.0,
+  },
+
+  "buffer_font_size": 16.0,
+  "buffer_font_family": "JetBrainsMono Nerd Font",
+
+  "buffer_font_features": {
+    "cv11": true,
+    "cv02": true,
+    "zero": true,
+  },
+
+  "icon_theme": "Zed (Default)",
+  "theme": {
+    "mode": "system",
+    "light": "Noctalia Light",
+    "dark": "Noctalia Dark",
+  },
+
+  "gutter": {
+    "git_gutter_width": {
+      "custom": 5.0,
+    },
+    "min_line_number_digits": 0,
+    "folds": false,
+    "runnables": false,
+  },
+
+  "file_finder": {
+    "modal_max_width": "large",
+  },
+
+  "selection_highlight": false,
+  "drag_and_drop_selection": {
+    "enabled": false,
+  },
+
+  "seed_search_query_from_cursor": "never",
+  "current_line_highlight": "none",
+
+  // VSCODE STYLE
+  "base_keymap": "VSCode",
+  "project_panel": {
+    "sort_mode": "directories_first",
+    "dock": "left",
+    "starts_open": false,
+    "auto_fold_dirs": false,
+    "git_status_indicator": true,
+    "default_width": 240,
+    "hide_root": true,
+    "indent_size": 15,
+    "sticky_scroll": false,
+    "indent_guides": {
+      "show": "never",
+    },
+    "scrollbar": {
+      "show": "never",
+    },
+  },
+  "outline_panel": {
+    "dock": "right",
+    "button": false,
+    "default_width": 240,
+    "indent_guides": {
+      "show": "never",
+    },
+  },
+  "collaboration_panel": {
+    "dock": "left",
+    "button": false,
+  },
+  "agent": {
+    "flexible": false,
+    "dock": "right",
+    "default_width": 300,
+    "play_sound_when_agent_done": "when_hidden",
+    "threads_sidebar": {
+      "auto_open": false,
+      "position": "right",
+    },
+
+    "favorite_models": [],
+    "model_parameters": [],
+  },
+  "git_panel": {
+    "entry_primary_click_action": "file_diff",
+    "show_count_badge": false,
+    "file_icons": false,
+    "starts_open": false,
+    "dock": "right",
+    "default_width": 400,
+    "group_by": "staging",
+  },
+
+  "title_bar": {
+    "show_menus": false,
+    "show_user_picture": false,
+    "show_branch_status_icon": false,
+    "show_onboarding_banner": false,
+    "show_project_items": true,
+    "show_worktree_name": false,
+    "show_branch_name": true,
+    "show_user_menu": false,
+    "show_sign_in": false,
+  },
+  "tab_bar": {
+    "show_tab_bar_buttons": false,
+    "show_nav_history_buttons": false,
+  },
+  "toolbar": {
+    "quick_actions": false,
+  },
+
+  "lsp": {
+    "lua-language-server": {
+      "settings": {
+        "Lua": {
+          "workspace": {
+            "library": ["/usr/share/hypr/stubs"],
+          },
+        },
+      },
+    },
+  },
+}
