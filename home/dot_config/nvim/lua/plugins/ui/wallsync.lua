@@ -4,7 +4,9 @@ return {
     lazy = false,
     main = "wallsync",
     opts = {
-      notify = false,
+            notify = false,
+            debounce_ms = 100,
+            auto_install_templates = false,
     },
   },
 }
