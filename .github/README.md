@@ -76,7 +76,7 @@ chezmoi init --apply vantesh
 - Modular Hyprland Lua configuration for keybindings, input, monitors, workspaces, and window rules.
 - Pacman, sudo, and AUR helper tuning so your base system feels polished out of the box.
 - Kitty, Fish, Neovim, and other dotfiles polished to suit developer needs.
-- Optional extras like Snapper, GRUB/Limine themes, and laptop-specific power tweaks.
+- Optional extras like Snapper with Limine/mkinitcpio integration, Limine theming, and laptop-specific power tweaks.
 
 <a id="post-install"></a>
 
