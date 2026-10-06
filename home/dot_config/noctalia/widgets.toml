@@ -1,5 +1,6 @@
 [widget.active_window]
 title_scroll = "on_hover"
+icon_size = 16
 
 [widget.bluetooth]
 hide_when_adapter_off = true
@@ -10,6 +11,7 @@ hide_when_no_media = true
 rotate_album_art = true
 title_scroll = "on_hover"
 artist_first = true
+art_size = 20
 
 [widget.network]
 show_label = false
@@ -35,3 +37,9 @@ hide_on_empty = true
 [widget.workspaces]
 font_scale = 1.25
 font_weight = 600
+active_pill_size = 2.5
+inactive_pill_size = 1.5
+focused_output_only = true
+hide_when_empty = true
+
+enabled = true
