@@ -1,83 +1,20 @@
 #!/usr/bin/env bash
-# snapboot.sh - Bootloader and filesystem configuration management
+# snapboot.sh - Shared bootloader and filesystem configuration helpers
 #
-# Provides unified interface for bootloader configuration (GRUB, Limine),
-# initramfs generation (mkinitcpio, dracut), and filesystem operations (btrfs, fstab).
+# Provides Limine command line updates, managed mkinitcpio drop-ins, deferred
+# initramfs rebuild requests, and btrfs/fstab operations used by setup scripts.
 #
 # Globals:
 #   LAST_ERROR - Error message from last failed operation
+#   INITRAMFS_PENDING_FILE - Persistent rebuild request shared between scripts
+#   MKINITCPIO_DROPIN_DIR - Directory for managed initramfs configuration
 # Exit codes:
-#   0 (success), 1 (failure), 2 (invalid args/already exists), 127 (missing dependency)
+#   0 (success), 1 (failure), 2 (invalid args), 127 (missing dependency)
 
 export LAST_ERROR="${LAST_ERROR:-}"
 
-# Track which snapper configs have been created in this session
-declare -gA _SNAPPER_CONFIGS_CREATED=()
-
-# Merges kernel command line parameters.
-#
-# Combines current and new parameters, with new params overriding duplicates.
-# Maintains parameter order. Intentionally uses word splitting on parameters.
-#
-# Arguments:
-#   $1 - Current kernel command line (space-separated)
-#   $2 - New parameters to add/override (space-separated)
-# Globals:
-#   LAST_ERROR - Set on invalid args
-# Outputs:
-#   Merged command line to stdout
-# Returns:
-#   0 on success, 2 on missing arguments
-build_cmdline() {
-  local current="${1:-}"
-  local new_params="${2:-}"
-
-  LAST_ERROR=""
-
-  if [[ -z "$current" ]] && [[ -z "$new_params" ]]; then
-    LAST_ERROR="build_cmdline() requires at least one argument"
-    return 2
-  fi
-
-  declare -A params_map
-  local -a ordered_keys=()
-  local param key
-
-  # Parse current parameters - intentional word splitting
-  if [[ -n "$current" ]]; then
-    # shellcheck disable=SC2086
-    while IFS= read -r param; do
-      [[ -z "$param" ]] && continue
-      key="${param%%=*}"
-      if [[ -z "${params_map[$key]+x}" ]]; then
-        ordered_keys+=("$key")
-      fi
-      params_map["$key"]="$param"
-    done < <(printf '%s\n' $current)
-  fi
-
-  # Parse new parameters - intentional word splitting (override existing)
-  if [[ -n "$new_params" ]]; then
-    # shellcheck disable=SC2086
-    while IFS= read -r param; do
-      [[ -z "$param" ]] && continue
-      key="${param%%=*}"
-      if [[ -z "${params_map[$key]+x}" ]]; then
-        ordered_keys+=("$key")
-      fi
-      params_map["$key"]="$param"
-    done < <(printf '%s\n' $new_params)
-  fi
-
-  # Build result array
-  local -a result=()
-  for key in "${ordered_keys[@]}"; do
-    result+=("${params_map[$key]}")
-  done
-
-  printf '%s\n' "${result[*]}"
-  return 0
-}
+readonly INITRAMFS_PENDING_FILE="${XDG_STATE_HOME:-$HOME/.local/state}/chezmoi/initramfs.pending"
+readonly MKINITCPIO_DROPIN_DIR="/etc/mkinitcpio.conf.d"
 
 # Verifies root filesystem is btrfs.
 #
@@ -97,54 +34,6 @@ check_btrfs() {
 
   if ! findmnt -n -o FSTYPE / 2>/dev/null | grep -q "^btrfs$"; then
     LAST_ERROR="Root filesystem is not btrfs"
-    return 1
-  fi
-
-  return 0
-}
-
-# Adds hook to mkinitcpio.conf HOOKS array.
-#
-# skips if hook already present. Preserves existing hooks order.
-#
-# Arguments:
-#   $1 - Hook name to add
-# Globals:
-#   LAST_ERROR - Set on failure
-# Returns:
-#   0 on success (added or already present), 1 on failure, 2 on invalid args
-add_mkinitcpio_hook() {
-  local hook="${1:-}"
-  local mkinitcpio_conf="/etc/mkinitcpio.conf"
-
-  LAST_ERROR=""
-
-  if [[ -z "$hook" ]]; then
-    LAST_ERROR="add_mkinitcpio_hook() requires hook name"
-    return 2
-  fi
-
-  if [[ ! -f "$mkinitcpio_conf" ]]; then
-    LAST_ERROR="mkinitcpio.conf not found"
-    return 1
-  fi
-
-  local current_hooks
-  current_hooks=$(sed -nE 's/^[[:space:]]*HOOKS=\((.*)\)[[:space:]]*$/\1/p' "$mkinitcpio_conf" 2>/dev/null | head -n1)
-
-  if [[ -z "$current_hooks" ]]; then
-    LAST_ERROR="Failed to parse HOOKS from mkinitcpio.conf"
-    return 1
-  fi
-
-  if [[ " $current_hooks " = *" $hook "* ]]; then
-    return 0
-  fi
-
-  local new_hooks="$current_hooks $hook"
-
-  if ! sudo sed -i -E "s|^[[:space:]]*HOOKS=\(.*\)|HOOKS=($new_hooks)|" "$mkinitcpio_conf" 2>/dev/null; then
-    LAST_ERROR="Failed to update mkinitcpio HOOKS"
     return 1
   fi
 
@@ -226,196 +115,12 @@ add_fstab_entry() {
   return 0
 }
 
-# Sets snapper configuration value.
-#
-# Auto-creates config if it doesn't exist (only for "root" and "home").
-# Uses snapper -c command to set configuration. Prevents race condition
-# by waiting for config to be fully initialized after creation.
-#
-# Arguments:
-#   $1 - Config name (e.g., "root", "home")
-#   $2 - Configuration key
-#   $3 - Configuration value
-# Globals:
-#   LAST_ERROR - Set on failure
-#   _SNAPPER_CONFIGS_CREATED - Tracks created configs to avoid re-waiting
-# Returns:
-#   0 on success, 1 on failure, 2 on invalid args, 127 if snapper missing
-set_snapper_config_value() {
-  local config_name="${1:-}"
-  local key="${2:-}"
-  local value="${3:-}"
-
-  LAST_ERROR=""
-
-  if [[ -z "$config_name" ]] || [[ -z "$key" ]] || [[ -z "$value" ]]; then
-    LAST_ERROR="set_snapper_config_value() requires config_name, key, and value"
-    return 2
-  fi
-
-  if ! command_exists snapper; then
-    LAST_ERROR="snapper command not found"
-    return 127
-  fi
-
-  # Check if config exists, create if needed
-  if ! sudo snapper list-configs 2>/dev/null | grep -q "^$config_name"; then
-    case "$config_name" in
-    root)
-      if ! sudo snapper -c "$config_name" create-config / >/dev/null 2>&1; then
-        LAST_ERROR="Failed to create snapper config for root"
-        return 1
-      fi
-      ;;
-    home)
-      if ! sudo snapper -c "$config_name" create-config /home >/dev/null 2>&1; then
-        LAST_ERROR="Failed to create snapper config for home"
-        return 1
-      fi
-      ;;
-    *)
-      LAST_ERROR="Snapper config '$config_name' does not exist"
-      return 1
-      ;;
-    esac
-
-    # Mark that we just created this config
-    _SNAPPER_CONFIGS_CREATED["$config_name"]=1
-
-    # Allow config to initialize
-    sleep 0.5
-
-    # Verify config is readable
-    local retries=0
-    while [[ $retries -lt 10 ]]; do
-      if sudo snapper -c "$config_name" get-config >/dev/null 2>&1; then
-        break
-      fi
-      sleep 0.1
-      ((retries++))
-    done
-
-    if [[ $retries -eq 10 ]]; then
-      LAST_ERROR="Snapper config '$config_name' created but not readable after waiting"
-      return 1
-    fi
-  fi
-
-  if ! sudo snapper -c "$config_name" set-config "${key}=${value}" >/dev/null 2>&1; then
-    LAST_ERROR="Failed to set $key in snapper config '$config_name'"
-    return 1
-  fi
-
-  return 0
-}
-
-# Identifies system bootloader.
-#
-# Checks for limine binary first, then GRUB config file.
-#
-# Outputs:
-#   Bootloader type to stdout: "grub", "limine", or "unsupported"
-# Returns:
-#   0 always
-detect_bootloader() {
-  LAST_ERROR=""
-
-  if [[ -x /usr/bin/limine ]]; then
-    printf 'limine\n'
-  elif [[ -f /etc/default/grub ]]; then
-    printf 'grub\n'
-  else
-    printf 'unsupported\n'
-  fi
-
-  return 0
-}
-
-# Updates GRUB kernel command line parameters.
-#
-# Merges new parameters with existing GRUB_CMDLINE_LINUX_DEFAULT,
-# with new params overriding duplicates. Regenerates GRUB config.
-# Requires common.sh loaded for update_config().
-#
-# Arguments:
-#   $@ - Space-separated kernel parameters to add/override
-# Globals:
-#   LAST_ERROR - Set on failure
-# Returns:
-#   0 on success, 1 on failure, 2 on invalid args, 127 if GRUB not found
-update_grub_cmdline() {
-  local params="$*"
-  local grub_file="/etc/default/grub"
-
-  LAST_ERROR=""
-
-  if [[ -z "$params" ]]; then
-    LAST_ERROR="update_grub_cmdline() requires kernel parameters"
-    return 2
-  fi
-
-  if [[ ! -f "$grub_file" ]]; then
-    LAST_ERROR="GRUB configuration file not found: $grub_file"
-    return 127
-  fi
-
-  # Extract current GRUB_CMDLINE_LINUX_DEFAULT value
-  local current_cmdline
-  current_cmdline=$(sed -nE 's/^GRUB_CMDLINE_LINUX_DEFAULT="(.*)"/\1/p' "$grub_file" 2>/dev/null | head -n1)
-
-  # Build new command line (build_cmdline handles deduplication)
-  local new_cmdline
-  if ! new_cmdline=$(build_cmdline "$current_cmdline" "$params"); then
-    LAST_ERROR="Failed to build new command line"
-    return 1
-  fi
-
-  # Update GRUB config file using update_config from common.sh
-  # Wrap value in quotes as GRUB requires quoted values
-  if ! update_config "$grub_file" "GRUB_CMDLINE_LINUX_DEFAULT" "\"$new_cmdline\""; then
-    LAST_ERROR="Failed to update GRUB configuration: $LAST_ERROR"
-    return 1
-  fi
-
-  # Regenerate GRUB config using available mkconfig command
-  local mkconfig_cmd
-  local grub_cfg_dir
-  local grub_cfg_file
-
-  mkconfig_cmd=""
-  if command_exists grub-mkconfig; then
-    mkconfig_cmd="grub-mkconfig"
-    grub_cfg_dir="/boot/grub"
-    grub_cfg_file="/boot/grub/grub.cfg"
-  elif command_exists grub2-mkconfig; then
-    mkconfig_cmd="grub2-mkconfig"
-    grub_cfg_dir="/boot/grub2"
-    grub_cfg_file="/boot/grub2/grub.cfg"
-  else
-    LAST_ERROR="GRUB mkconfig command not found (grub-mkconfig or grub2-mkconfig)"
-    return 127
-  fi
-
-  if [[ ! -d "$grub_cfg_dir" ]]; then
-    if ! sudo mkdir -p "$grub_cfg_dir" >/dev/null 2>&1; then
-      LAST_ERROR="Failed to create $grub_cfg_dir directory"
-      return 1
-    fi
-  fi
-
-  if ! sudo "$mkconfig_cmd" -o "$grub_cfg_file" >/dev/null 2>&1; then
-    LAST_ERROR="Failed to regenerate GRUB configuration with $mkconfig_cmd"
-    return 1
-  fi
-
-  return 0
-}
-
 # Updates Limine kernel command line via drop-in file.
 #
 # Creates configuration file in /etc/limine-entry-tool.d/ with
 # KERNEL_CMDLINE[default] directive. Use --append for += operator.
-# Escapes quotes in parameters.
+# Escapes quotes in parameters and atomically replaces root-owned drop-ins.
+# Requests a deferred rebuild before changed writes; unchanged content is skipped.
 #
 # Arguments:
 #   $1 - Drop-in filename (e.g., "50-hibernation" or "50-hibernation.conf")
@@ -452,182 +157,228 @@ update_limine_cmdline() {
 
   [[ "$dropin_name" != *.conf ]] && dropin_name+=".conf"
 
+  if [[ ! "$dropin_name" =~ ^[[:alnum:]_-]+\.conf$ ]]; then
+    LAST_ERROR="Limine drop-in filename must not contain directory components"
+    return 2
+  fi
+
   local dropin_dir="/etc/limine-entry-tool.d"
   local dropin_file="$dropin_dir/$dropin_name"
 
   local escaped_params
-  escaped_params=$(printf '%s' "$params" | sed 's/"/\\"/g')
+  if ! escaped_params="$(printf '%s' "$params" | sed 's/"/\\"/g')"; then
+    LAST_ERROR="Failed to escape Limine kernel parameters"
+    return 1
+  fi
 
-  # If limine-entry-tool didn't create it yet, create it here.
+  local content
+  printf -v content 'KERNEL_CMDLINE[default]%s "%s"' "$operator" "$escaped_params"
+
+  if printf '%s\n' "$content" | sudo cmp -s -- "$dropin_file" -; then
+    return 0
+  fi
+
+  if ! request_initramfs_rebuild; then
+    return 1
+  fi
+
   if ! sudo mkdir -p "$dropin_dir" 2>/dev/null; then
     LAST_ERROR="Failed to create Limine drop-in directory: $dropin_dir"
     return 1
   fi
 
-  if ! printf 'KERNEL_CMDLINE[default]%s "%s"\n' "$operator" "$escaped_params" | sudo tee "$dropin_file" >/dev/null 2>&1; then
-    LAST_ERROR="Failed to write Limine drop-in file: $dropin_file"
-    return 1
-  fi
-
-  if ! sudo chmod 0644 "$dropin_file" 2>/dev/null; then
-    LAST_ERROR="Failed to set permissions on: $dropin_file"
-    return 1
-  fi
-
-  if ! command_exists limine-update; then
-    LAST_ERROR="limine-update is not installed"
-    return 127
-  fi
-
-  if ! sudo limine-update >/dev/null 2>&1; then
-    LAST_ERROR="Failed to regenerate Limine boot entries"
+  local stage=""
+  if ! (
+    stage="$(sudo mktemp -- "$dropin_dir/.$dropin_name.XXXXXX")" || exit 1
+    trap 'sudo rm -f -- "$stage" >/dev/null 2>&1 || true' EXIT
+    trap 'exit 1' INT TERM
+    printf '%s\n' "$content" | sudo tee "$stage" >/dev/null 2>&1 || exit 1
+    sudo chmod 0644 "$stage" >/dev/null 2>&1 || exit 1
+    sudo chown root:root "$stage" >/dev/null 2>&1 || exit 1
+    sudo mv -f -- "$stage" "$dropin_file" >/dev/null 2>&1 || exit 1
+  ) >/dev/null 2>&1; then
+    LAST_ERROR="Failed to atomically write Limine drop-in file: $dropin_file"
     return 1
   fi
 
   return 0
 }
 
-# Adds dracut module to configuration.
-#
-# Creates drop-in file in /etc/dracut.conf.d/ with add_dracutmodules directive.
-# Idempotent - returns 2 if module already present.
-#
+# Reads a Limine option using package configuration precedence, without execution.
 # Arguments:
-#   $1 - Module name (e.g., "resume", "plymouth")
+#   $1 - Uppercase configuration key
 # Globals:
-#   LAST_ERROR - Set on failure or if already present
+#   LAST_ERROR - Set on invalid key or configuration read failure
+# Outputs:
+#   Effective value to stdout, empty when absent
 # Returns:
-#   0 on success (added), 1 on failure, 2 (already present), 127 if dracut not found
-add_dracut_module() {
-  local module="${1:-}"
-
+#   0 on success, 1 on read failure, 2 on invalid key
+get_limine_config_value() {
+  local key="${1:-}"
   LAST_ERROR=""
 
-  if [[ -z "$module" ]]; then
-    LAST_ERROR="add_dracut_module() requires module name"
+  if [[ ! "$key" =~ ^[A-Z_][A-Z0-9_]*$ ]]; then
+    LAST_ERROR="get_limine_config_value() requires an uppercase configuration key"
     return 2
   fi
 
-  if ! command_exists dracut; then
-    LAST_ERROR="dracut command not found"
-    return 127
-  fi
-
-  local dropin_dir="/etc/dracut.conf.d"
-  local dropin_file="$dropin_dir/${module}-module.conf"
-
-  if ! sudo mkdir -p "$dropin_dir" 2>/dev/null; then
-    LAST_ERROR="Failed to create dracut drop-in directory: $dropin_dir"
-    return 1
-  fi
-
-  if [[ -f "$dropin_file" ]]; then
-    if grep -qF "add_dracutmodules+=\" $module \"" "$dropin_file" 2>/dev/null; then
-      LAST_ERROR="Module already present"
-      return 2
-    fi
-  fi
-
-  if ! printf 'add_dracutmodules+=" %s "\n' "$module" | sudo tee "$dropin_file" >/dev/null 2>&1; then
-    LAST_ERROR="Failed to write dracut module config: $dropin_file"
-    return 1
-  fi
-
-  if ! sudo chmod 0644 "$dropin_file" 2>/dev/null; then
-    LAST_ERROR="Failed to set permissions on: $dropin_file"
+  if ! sudo bash -s -- "$key" <<'BASH'
+set -euo pipefail
+shopt -s nullglob
+files=()
+for file in /usr/share/limine-entry-tool.d/*.conf /etc/limine-entry-tool.conf /etc/limine-entry-tool.d/*.conf /etc/default/limine; do
+  [[ -f "$file" ]] || continue
+  files+=("$file")
+done
+if [[ "${#files[@]}" -eq 0 ]]; then
+  exit 0
+fi
+awk -v key="$1" '
+  $0 ~ "^[[:space:]]*" key "[[:space:]]*=" {
+    value = $0
+    sub("^[[:space:]]*" key "[[:space:]]*=[[:space:]]*", "", value)
+    sub(/"$/, "", value)
+    sub(/^"/, "", value)
+  }
+  END { print value }
+' "${files[@]}"
+BASH
+  then
+    LAST_ERROR="Failed to read effective Limine configuration: $key"
     return 1
   fi
 
   return 0
 }
 
-# Identifies system's initramfs generator.
+# Checks that Limine's UKI options do not disable managed mkinitcpio drop-ins.
 #
-# Checks for mkinitcpio first, then dracut.
-#
-# Outputs:
-#   Generator type to stdout: "mkinitcpio", "dracut", or "unsupported"
+# Explicit -c/--config arguments disable drop-ins even for the default config.
+# Requires sudo access; callers validate before changing boot or swap settings.
+# Globals:
+#   LAST_ERROR - Set on unreadable configuration or unsupported options
 # Returns:
-#   0 always
-detect_initramfs_generator() {
+#   0 on compatible options, 1 on read failure, 2 on explicit config selection
+validate_mkinitcpio_dropins() {
   LAST_ERROR=""
 
-  if command_exists mkinitcpio; then
-    printf 'mkinitcpio\n'
-  elif command_exists dracut; then
-    printf 'dracut\n'
-  else
-    printf 'unsupported\n'
+  local options
+  if ! options="$(get_limine_config_value MKINITCPIO_UKI_OPTIONS)"; then
+    LAST_ERROR="Failed to read effective Limine mkinitcpio UKI options"
+    return 1
+  fi
+
+  local -a args=()
+  read -r -a args <<<"$options"
+  local arg short_options
+  for arg in "${args[@]}"; do
+    case "$arg" in
+    --config | --config=*)
+      LAST_ERROR="MKINITCPIO_UKI_OPTIONS selects an explicit config ($arg), which disables /etc/mkinitcpio.conf.d; remove -c/--config before managed hook setup"
+      return 2
+      ;;
+    --) break ;;
+    --*) continue ;;
+    -*)
+      short_options="${arg:1}"
+      while [[ -n "$short_options" ]]; do
+        case "${short_options:0:1}" in
+        c)
+          LAST_ERROR="MKINITCPIO_UKI_OPTIONS selects an explicit config ($arg), which disables /etc/mkinitcpio.conf.d; remove -c/--config before managed hook setup"
+          return 2
+          ;;
+        A | g | H | h | k | p | r | S | s | t | U) break ;;
+        esac
+        short_options="${short_options:1}"
+      done
+      ;;
+    esac
+  done
+
+  return 0
+}
+
+# Writes a managed mkinitcpio drop-in without modifying the main configuration.
+#
+# Validates shell syntax and skips identical content. Queues a rebuild before
+# staging a root-owned file in the destination directory and replacing it atomically.
+# Temporary files are cleaned up on failure or interruption.
+#
+# Arguments:
+#   $1 - Drop-in filename ending in .conf, without directory components
+#   $2 - Shell configuration content
+# Globals:
+#   MKINITCPIO_DROPIN_DIR - Destination directory
+#   LAST_ERROR - Set on validation, request, or write failure
+# Returns:
+#   0 on success or unchanged content, 1 on failure, 2 on invalid arguments
+write_mkinitcpio_dropin() {
+  local name="${1:-}"
+  local content="${2:-}"
+
+  LAST_ERROR=""
+
+  if [[ ! "$name" =~ ^[[:alnum:]_-]+\.conf$ ]] || [[ -z "$content" ]]; then
+    LAST_ERROR="write_mkinitcpio_dropin() requires a .conf filename and content"
+    return 2
+  fi
+
+  if ! bash -n <<<"$content" >/dev/null 2>&1; then
+    LAST_ERROR="Invalid shell syntax in mkinitcpio drop-in: $name"
+    return 2
+  fi
+
+  local destination="$MKINITCPIO_DROPIN_DIR/$name"
+  if printf '%s\n' "$content" | sudo cmp -s -- "$destination" -; then
+    return 0
+  fi
+
+  if ! request_initramfs_rebuild; then
+    return 1
+  fi
+
+  if ! sudo mkdir -p -- "$MKINITCPIO_DROPIN_DIR" >/dev/null 2>&1; then
+    LAST_ERROR="Failed to create mkinitcpio drop-in directory: $MKINITCPIO_DROPIN_DIR"
+    return 1
+  fi
+
+  local stage=""
+  if ! (
+    stage="$(sudo mktemp -- "$MKINITCPIO_DROPIN_DIR/.$name.XXXXXX")" || exit 1
+    trap 'sudo rm -f -- "$stage" >/dev/null 2>&1 || true' EXIT
+    trap 'exit 1' INT TERM
+    printf '%s\n' "$content" | sudo tee "$stage" >/dev/null 2>&1 || exit 1
+    sudo chmod 0644 "$stage" >/dev/null 2>&1 || exit 1
+    sudo chown root:root "$stage" >/dev/null 2>&1 || exit 1
+    sudo mv -f -- "$stage" "$destination" >/dev/null 2>&1 || exit 1
+  ) >/dev/null 2>&1; then
+    LAST_ERROR="Failed to write mkinitcpio drop-in: $destination"
+    return 1
   fi
 
   return 0
 }
 
-# Rebuilds initramfs using detected generator.
+# Requests one late initramfs rebuild before a boot-related configuration write.
 #
-# For mkinitcpio: Uses mkinitcpio -P (all presets).
-# For dracut: Prefers dracut-rebuild if available, else dracut --force --regenerate-all.
+# The marker survives failed or interrupted applies. The late rebuild script runs
+# on every apply and removes it when limine-update reports success.
 #
 # Globals:
+#   INITRAMFS_PENDING_FILE - Marker shared between setup scripts
 #   LAST_ERROR - Set on failure
 # Returns:
-#   0 on success, 1 on failure, 127 if generator unsupported
-regenerate_initramfs() {
+#   0 on success, 1 if the persistent request cannot be written
+request_initramfs_rebuild() {
   LAST_ERROR=""
 
-  local generator
-  if ! generator=$(detect_initramfs_generator); then
-    LAST_ERROR="Failed to detect initramfs generator"
+  if ! (
+    umask 077
+    mkdir -p -- "${INITRAMFS_PENDING_FILE%/*}" && touch -- "$INITRAMFS_PENDING_FILE"
+  ) >/dev/null 2>&1; then
+    LAST_ERROR="Failed to request initramfs rebuild: $INITRAMFS_PENDING_FILE"
     return 1
   fi
-
-  case "$generator" in
-  mkinitcpio)
-    local bootloader
-    if ! bootloader=$(detect_bootloader); then
-      LAST_ERROR="Failed to detect bootloader"
-      return 1
-    fi
-
-    if [[ "$bootloader" = "limine" ]]; then
-      if ! command_exists limine-update; then
-        LAST_ERROR="limine-update command not found"
-        return 127
-      fi
-
-      if ! sudo limine-update >/dev/null 2>&1; then
-        LAST_ERROR="Failed to regenerate initramfs with limine-update"
-        return 1
-      fi
-    else
-      if ! sudo mkinitcpio -P >/dev/null 2>&1; then
-        LAST_ERROR="Failed to regenerate initramfs with mkinitcpio"
-        return 1
-      fi
-    fi
-    ;;
-  dracut)
-    if command_exists dracut-rebuild; then
-      if ! sudo dracut-rebuild >/dev/null 2>&1; then
-        LAST_ERROR="Failed to regenerate initramfs with dracut-rebuild"
-        return 1
-      fi
-    else
-      if ! sudo dracut --force --regenerate-all >/dev/null 2>&1; then
-        LAST_ERROR="Failed to regenerate initramfs with dracut"
-        return 1
-      fi
-    fi
-    ;;
-  unsupported)
-    LAST_ERROR="No supported initramfs generator found (mkinitcpio or dracut)"
-    return 127
-    ;;
-  *)
-    LAST_ERROR="Unknown initramfs generator: $generator"
-    return 1
-    ;;
-  esac
 
   return 0
 }
