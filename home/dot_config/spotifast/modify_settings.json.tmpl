@@ -1,0 +1,42 @@
+#!/usr/bin/env python3
+# Manage selected Spotifast settings while preserving application-owned state.
+
+import json
+import sys
+
+
+MANAGED_SETTINGS = {
+    "custom_theme": "noctalia.json",
+    "device_name": "Arch Linux",
+    "check_for_updates": False,
+    "download_updates_automatically": False,
+    "lyrics_width": 600,
+    "accent_from_art": False,
+
+{{- if .personal }}
+    "web_client_id": {{ (rbwFields "spotify").client_id.value | toJson }},
+{{- end }}
+}
+
+
+def main():
+    original = sys.stdin.read()
+    try:
+        current = json.loads(original) if original.strip() else {}
+        if not isinstance(current, dict):
+            raise ValueError("settings must be a JSON object")
+        changed = any(current.get(key) != value for key, value in MANAGED_SETTINGS.items())
+        current.update(MANAGED_SETTINGS)
+    except (ValueError, RecursionError) as error:
+        print(f"Cannot update Spotifast settings: {error}", file=sys.stderr)
+        return 1
+
+    if changed:
+        sys.stdout.write(json.dumps(current, indent=2, ensure_ascii=False) + "\n")
+    else:
+        sys.stdout.write(original)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
