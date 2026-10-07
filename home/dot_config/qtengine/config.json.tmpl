@@ -1,0 +1,22 @@
+{
+  "theme": {
+    "colorScheme": "~/.local/share/color-schemes/noctalia.colors",
+    "iconTheme": "Tela",
+    "style": "Darkly",
+    "font": {
+      "family": {{ .font.ui.name | toJson }},
+      "size": {{ .font.ui.size }},
+      "weight": 400
+    },
+    "fontFixed": {
+      "family": {{ .font.monospace.name | toJson }},
+      "size": {{ .font.terminal.size }},
+      "weight": 400
+    }
+  },
+  "misc": {
+    "menusHaveIcons": true,
+    "singleClickActivate": false,
+    "shortcutsForContextMenus": true
+  }
+}

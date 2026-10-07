@@ -82,6 +82,7 @@ packages:
     - apple_cursor
     - frameworkintegration
     - qtengine
+    - darkly-bin
     - tela-icon-theme
     - layer-shell-qt
     - qt6-multimedia
