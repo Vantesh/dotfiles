@@ -166,7 +166,7 @@ hl.window_rule({ match = { class = "^(imv)$" }, float = true, center = true, siz
 hl.window_rule({ match = { class = "^(waypaper|org\\.Waytrogen\\.Waytrogen)$" }, float = true, center = true, size = { "monitor_w*0.55", "monitor_h*0.7" } })
 hl.window_rule({ match = { title = "^(SWWW Advanced Image Settings)$" }, float = true })
 hl.window_rule({ match = { class = "^(io\\.missioncenter\\.MissionCenter)$" }, float = true, center = true, size = { "monitor_w*0.75", "monitor_h*0.75" } })
-hl.window_rule({ match = { class = "^(FloatingTerm)$" }, float = true, center = true, size = { "monitor_w*0.8", "monitor_h*0.8" } })
+hl.window_rule({ match = { initial_title = "^(FloatingTerm|Yazi|System Update)$" }, float = true, center = true, size = { "monitor_w*0.8", "monitor_h*0.8" } })
 hl.window_rule({ match = { title = "^(About Mozilla Firefox)$" }, float = true })
 hl.window_rule({ match = { class = "^(firefox)$", title = "^(Library)$" }, float = true })
 hl.window_rule({ match = { xwayland = true, title = "^(win[0-9]+)$" }, no_dim = true, no_shadow = true, rounding = 10 })
