@@ -1,7 +1,7 @@
 -- Window rules — https://wiki.hypr.land/configuring/core/rules/window-rules/
 
 -- Tags: idle inhibit
-hl.window_rule({ name = "tag-idle-media", match = { class = "^(celluloid|mpv|vlc|[Ss]potify)$" }, tag = "+idle-media" })
+hl.window_rule({ name = "tag-idle-media", match = { class = "^(celluloid|mpv|vlc|[Ss]potify|[Ss]potifast|[Ss]poticast)$" }, tag = "+idle-media" })
 hl.window_rule({
   name = "tag-idle-browser",
   match = { class = "^([Ll]ibre[Ww]olf|floorp|[Bb]rave(-browser)?|firefox|chromium|zen|vivaldi)$" },

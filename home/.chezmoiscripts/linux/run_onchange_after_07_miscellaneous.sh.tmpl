@@ -13,7 +13,7 @@ shopt -s nullglob globstar
 {{ include ".chezmoitemplates/lib/common.sh" }}
 
 readonly SSH_KNOWN_HOSTS="${HOME}/.ssh/known_hosts"
-readonly SPOTIFY_PREFS="${HOME}/.config/spotify/prefs"
+
 
 if ! keep_sudo_alive; then
   die "Failed to keep sudo alive"
@@ -93,45 +93,6 @@ setup_ssh_known_hosts() {
   return 0
 }
 
-setup_spicetify() {
-  if ! command_exists spotify && ! command_exists spotify-launcher; then
-    log SKIP "Spotify not installed"
-    return 0
-  fi
-
-  if ! command_exists spicetify; then
-    log SKIP "Spicetify not installed"
-    return 0
-  fi
-
-  if command_exists spotify-launcher; then
-    if ! spicetify config spotify_path "$HOME/.local/share/spotify-launcher/install/usr/share/spotify" >/dev/null 2>&1; then
-      LAST_ERROR="Failed to configure Spicetify Spotify path"
-      return 1
-    fi
-
-    log INFO "Configured Spicetify Spotify path"
-  fi
-
-  if [[ ! -f "$SPOTIFY_PREFS" ]]; then
-    local spotify_dir
-    spotify_dir=$(dirname "$SPOTIFY_PREFS")
-
-    if ! mkdir -p "$spotify_dir"; then
-      LAST_ERROR="Failed to create spotify config directory"
-      return 1
-    fi
-
-    if ! touch "$SPOTIFY_PREFS"; then
-      LAST_ERROR="Failed to create spotify prefs file"
-      return 1
-    fi
-  fi
-
-  log INFO "Set up Spotify prefs file"
-
-  return 0
-}
 
 install_yazi_plugins() {
   if ! command_exists yazi; then
@@ -181,9 +142,6 @@ main() {
     log WARN "SSH known_hosts setup failed: $LAST_ERROR"
   fi
 
-  if ! setup_spicetify; then
-    log WARN "Spicetify setup failed: $LAST_ERROR"
-  fi
 
   if ! install_yazi_plugins; then
     log WARN "Yazi plugin installation failed: $LAST_ERROR"

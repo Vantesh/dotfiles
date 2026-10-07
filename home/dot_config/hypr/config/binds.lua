@@ -22,7 +22,9 @@ hl.bind(mainMod .. " + ALT + SPACE", hl.dsp.exec_cmd(ipc .. "panel-toggle contro
   { description = "Open control center" })
 hl.bind("SUPER + C", hl.dsp.exec_cmd(apps.launcher .. " -- " .. apps.editor), { description = "Open code editor" })
 hl.bind("SUPER + N", hl.dsp.exec_cmd(ipc .. "panel-toggle noctalia/notes:panel"),
-  { description = "Open notes" })
+    { description = "Open notes" })
+
+hl.bind("SUPER + M", hl.dsp.exec_cmd(apps.launcher .. " -- " .. apps.music), {description = "Open Music player"})
 
 -- --- Tools & Pickers ---
 hl.bind(mainMod .. " + comma", hl.dsp.exec_cmd(ipc .. "panel-toggle launcher /emo "), { description = "Open emoji picker" })

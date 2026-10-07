@@ -52,7 +52,7 @@ hl.workspace_rule({
 
 local spotify_rule = hl.window_rule({
   name = "spotify-workspace",
-  match = { class = "^([Ss]potify)$" },
+  match = { class = "^([Ss]potify|[Ss]potifast|[Ss]poticast)$" },
   workspace = tostring(LAPTOP_WORKSPACE) .. " silent",
   no_initial_focus = true,
   enabled = dual_display,
@@ -107,7 +107,9 @@ end
 local function move_spotify()
   for _, window in ipairs(hl.get_windows() or {}) do
     local is_spotify = type(window.class) == "string"
-      and window.class:match("^[Ss]potify$")
+      and (window.class:match("^[Ss]potify$")
+              or window.class:match("^[Ss]potifast$")
+              or window.class:match("^[Ss]poticast$"))
     local workspace_id = window.workspace and window.workspace.id
 
     if is_spotify and workspace_id
@@ -190,6 +192,6 @@ hl.on("hyprland.start", function()
       center_cursor(external_monitor)
     end
 
-    hl.exec_cmd(apps.launcher .. " -- spotify-launcher")
+    hl.exec_cmd(apps.launcher .. " -- " .. apps.music)
   end)
 end)

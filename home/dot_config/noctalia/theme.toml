@@ -5,8 +5,8 @@ source = "wallpaper"
 wallpaper_scheme = "m3-content"
 
 [theme.templates]
-builtin_ids = ["btop", "cava", "gtk3", "gtk4", "hyprland", "kcolorscheme", "kitty", "qt", "starship"]
-community_ids = ["fastfetch", "bat", "lazygit", "yazi"]
+builtin_ids = ["btop", "cava", "gtk3", "gtk4", "hyprland", "kitty", "qt", "starship"]
+community_ids = ["fastfetch", "bat", "lazygit", "yazi", "spotifast"]
 
 [wallpaper]
 directory = "~/Pictures/Wallpapers"
