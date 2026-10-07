@@ -3,12 +3,14 @@
 #
 # Runs on every apply, after boot-related configuration scripts, so a pending
 # rebuild is retried even when those scripts are skipped by their execution state.
-# Clears the persistent request when limine-update exits successfully.
-# Captures diagnostics and prints them when the command reports a failure.
+# Removes the obsolete fallback config only when the canonical config exists.
+# After rebuilding, explicitly enrolls and signs the final config when enabled.
+# Clears the persistent request only after rebuild and enrollment both succeed.
+# Captures diagnostics and prints them when either command reports a failure.
 #
 # Globals:
 #   INITRAMFS_PENDING_FILE - Rebuild request created by boot setup scripts
-#   LAST_ERROR - Error message from sudo setup
+#   LAST_ERROR - Error message from sudo setup and boot configuration helpers
 # Exit codes:
 #   0 (success or skipped), 1 (failure), 127 (missing rebuild command)
 
@@ -42,6 +44,31 @@ main() {
     die "Failed to obtain sudo access; initramfs rebuild remains pending: $LAST_ERROR"
   fi
 
+  local boot_directory
+  if ! boot_directory="$(get_limine_boot_directory)"; then
+    die "Limine FAT32 boot partition not mounted; mount it or configure ESP_PATH in /etc/default/limine; rebuild remains pending"
+  fi
+
+  local conflicting_config="$boot_directory/EFI/BOOT/limine.conf"
+  if sudo test -e "$conflicting_config" || sudo test -L "$conflicting_config"; then
+    if ! sudo test -f "$boot_directory/limine.conf" || ! sudo test -s "$boot_directory/limine.conf"; then
+      die "Canonical $boot_directory/limine.conf missing or empty; conflicting config preserved and rebuild remains pending"
+    fi
+    log WARN "Removing obsolete Limine config: $conflicting_config"
+    if ! sudo rm -f -- "$conflicting_config"; then
+      die "Failed to remove conflicting Limine config; rebuild remains pending"
+    fi
+    log INFO "Removed obsolete Limine config"
+  fi
+
+  local enroll_config
+  if ! enroll_config="$(get_limine_config_value ENABLE_ENROLL_LIMINE_CONFIG)"; then
+    die "Failed to read Limine checksum enrollment setting; rebuild remains pending"
+  fi
+  if [[ "$enroll_config" = "yes" ]] && ! command_exists limine-enroll-config; then
+    die 127 "limine-enroll-config not found; rebuild remains pending"
+  fi
+
   log INFO "Regenerating initramfs"
   local update_output update_status=0
   update_output="$(sudo env LC_ALL=C NO_COLOR=1 TERM=dumb limine-update 2>&1)" || update_status="$?"
@@ -50,6 +77,16 @@ main() {
     die "Failed to regenerate initramfs (exit $update_status); rebuild remains pending"
   fi
 
+  if [[ "$enroll_config" = "yes" ]]; then
+    log INFO "Enrolling Limine config checksum and signing EFI binary"
+    local enroll_output enroll_status=0
+    enroll_output="$(sudo env LC_ALL=C NO_COLOR=1 TERM=dumb limine-enroll-config 2>&1)" || enroll_status="$?"
+    if [[ "$enroll_status" -ne 0 ]]; then
+      printf '%s\n' "$enroll_output" >&2
+      die "Failed to enroll and sign Limine config (exit $enroll_status); rebuild remains pending"
+    fi
+    log INFO "Enrolled Limine config checksum and signed EFI binary"
+  fi
 
   if ! rm -f -- "$INITRAMFS_PENDING_FILE"; then
     die "Regenerated initramfs but failed to clear the pending rebuild"

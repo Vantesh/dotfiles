@@ -146,6 +146,7 @@ packages:
 
   limineMkinitcpio:
     - limine-mkinitcpio-hook
+    - sbctl
 
   snapper:
     common:

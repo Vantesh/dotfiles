@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # snapboot.sh - Shared bootloader and filesystem configuration helpers
 #
-# Provides Limine command line updates, managed mkinitcpio drop-ins, deferred
-# initramfs rebuild requests, and btrfs/fstab operations used by setup scripts.
+# Provides Limine configuration and boot partition detection, command line
+# updates, managed mkinitcpio drop-ins, deferred initramfs rebuild requests,
+# and btrfs/fstab operations used by setup scripts.
 #
 # Globals:
 #   LAST_ERROR - Error message from last failed operation
@@ -228,6 +229,9 @@ shopt -s nullglob
 files=()
 for file in /usr/share/limine-entry-tool.d/*.conf /etc/limine-entry-tool.conf /etc/limine-entry-tool.d/*.conf /etc/default/limine; do
   [[ -f "$file" ]] || continue
+  if [[ "$1" = "ENABLE_ENROLL_LIMINE_CONFIG" && "$file" != "/etc/default/limine" ]]; then
+    continue
+  fi
   files+=("$file")
 done
 if [[ "${#files[@]}" -eq 0 ]]; then
@@ -249,6 +253,51 @@ BASH
   fi
 
   return 0
+}
+
+# Finds Limine's mounted FAT32 boot partition using package search precedence.
+#
+# Honors the effective ESP_PATH setting and otherwise checks the same mount
+# locations as Limine. Requires sudo access for reading configuration.
+# Globals:
+#   LAST_ERROR - Set on invalid configuration or a missing FAT32 mount
+# Outputs:
+#   Boot partition mount path to stdout
+# Returns:
+#   0 on success, 1 on detection failure, 127 if findmnt is missing
+get_limine_boot_directory() {
+  LAST_ERROR=""
+
+  if ! command_exists findmnt; then
+    LAST_ERROR="findmnt command not found"
+    return 127
+  fi
+
+  local configured_path
+  if ! configured_path="$(get_limine_config_value ESP_PATH)"; then
+    LAST_ERROR="Failed to read Limine ESP_PATH"
+    return 1
+  fi
+
+  local -a paths=(/efi /boot /boot/efi /limine)
+  if [[ -n "$configured_path" ]]; then
+    if [[ "$configured_path" != /* ]]; then
+      LAST_ERROR="Limine ESP_PATH must be an absolute mount path"
+      return 1
+    fi
+    paths=("${configured_path%/}")
+  fi
+
+  local path filesystem
+  for path in "${paths[@]}"; do
+    if filesystem="$(findmnt -rn -o FSTYPE --mountpoint "$path" 2>/dev/null)" && [[ "$filesystem" = "vfat" ]]; then
+      printf '%s\n' "$path"
+      return 0
+    fi
+  done
+
+  LAST_ERROR="Limine FAT32 boot partition not mounted; mount it or configure ESP_PATH in /etc/default/limine"
+  return 1
 }
 
 # Checks that Limine's UKI options do not disable managed mkinitcpio drop-ins.
@@ -362,7 +411,7 @@ write_mkinitcpio_dropin() {
 # Requests one late initramfs rebuild before a boot-related configuration write.
 #
 # The marker survives failed or interrupted applies. The late rebuild script runs
-# on every apply and removes it when limine-update reports success.
+# on every apply and removes it after rebuild and optional config enrollment succeed.
 #
 # Globals:
 #   INITRAMFS_PENDING_FILE - Marker shared between setup scripts
