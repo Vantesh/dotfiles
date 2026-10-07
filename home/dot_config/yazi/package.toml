@@ -5,7 +5,7 @@ hash = "c238595c801caa4f28553b9af8cf8804"
 
 [[plugin.deps]]
 use = "yazi-rs/plugins:full-border"
-rev = "f703392"
+rev = "6229767"
 hash = "f281261ff04ad7ec867c3f802a50835f"
 
 [flavor]
