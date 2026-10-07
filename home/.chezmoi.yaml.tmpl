@@ -2,7 +2,7 @@
 {{- $skipPackages := eq (env "SKIP_PACKAGES") "1" -}}
 
 {{- /* Defaults */ -}}
-{{- $personal := false -}}
+{{- $personal := get . "personal" | default false -}}
 {{- $defaultShell := "fish" -}}
 {{- $compositor := "hyprland" -}}
 {{- $terminal := "kitty" -}}
@@ -26,9 +26,10 @@
 
 {{- /* Interactive prompts */ -}}
 {{- if $interactive -}}
-  {{- writeToStdout "\n\033[1;33mWARN:\033[0m Personal setup requires bitwarden secrets.\n\n" -}}
-
-  {{- $personal = promptBool "Is this a personal setup (y/N)" false -}}
+  {{- $personal = promptBoolOnce . "personal" "Is this a personal setup" false -}}
+  {{- if $personal -}}
+    {{- writeToStdout "\n\033[1;32mINFO:\033[0m Personal setup enables Bitwarden-backed private configuration.\n\n" -}}
+  {{- end -}}
   {{- $defaultShell = promptChoice "Preferred shell" (list "fish" "zsh") "fish" -}}
 
   {{- $setupSnapper = promptBool "Setup Snapper snapshots (Y/n)" true -}}
@@ -40,7 +41,7 @@
     {{- $installDrivers = promptBool "Install drivers (Y/n)" true -}}
   {{- end -}}
 
-  {{- writeToStdout "\n\033[1;32mTIP:\033[0m You can always make chezmoi ask this again by running \033[1mchezmoi init\033[0m\n\n" -}}
+  {{- writeToStdout "\n\033[1;32mTIP:\033[0m Reconfigure saved choices with \033[1mchezmoi init --prompt\033[0m\n\n" -}}
 {{- end -}}
 
 data:
