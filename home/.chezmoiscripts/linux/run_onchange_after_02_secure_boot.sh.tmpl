@@ -140,8 +140,19 @@ main() {
       --ignore-immutable
     )
     if [[ "$PRESERVE_FIRMWARE_SECURE_BOOT_KEYS" = "1" ]]; then
-      enrollment_flags+=(--firmware-builtin)
-      log INFO "Preserving firmware-builtin Secure Boot certificates"
+      local system_vendor=""
+      if [[ -r /sys/class/dmi/id/sys_vendor ]]; then
+        IFS= read -r system_vendor < /sys/class/dmi/id/sys_vendor || true
+      fi
+      case "${system_vendor,,}" in
+      *asus* | *gigabyte*)
+        log WARN "Skipped firmware-builtin certificate preservation for $system_vendor firmware"
+        ;;
+      *)
+        enrollment_flags+=(--firmware-builtin)
+        log INFO "Preserving firmware-builtin Secure Boot certificates"
+        ;;
+      esac
     else
       log INFO "Not preserving firmware-builtin Secure Boot certificates"
     fi

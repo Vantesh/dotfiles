@@ -9,7 +9,11 @@
 
 {{- $setupSnapper :=  not $skipPackages -}}
 {{- $setupHibernation := not $skipPackages -}}
-{{- $setupSecureBoot := false -}}
+{{- $setupSecureBoot := get . "setupSecureBoot" | default false -}}
+{{- $preserveFirmwareSecureBootKeys := get . "preserveFirmwareSecureBootKeys" | default true -}}
+{{- if hasKey . "preserveFirmwareSecureBootKeys" -}}
+  {{- $preserveFirmwareSecureBootKeys = get . "preserveFirmwareSecureBootKeys" -}}
+{{- end -}}
 {{- $installOptionalPackages := not $skipPackages -}}
 {{- $installChaoticAUR := not $skipPackages -}}
 {{- $installDrivers := not $skipPackages -}}
@@ -37,6 +41,7 @@
   {{- $setupHibernation = promptBool "Setup hibernation (Y/n)" true -}}
   {{- $setupSecureBoot = promptBool "Setup Limine Secure Boot (writes firmware keys) (y/N)" false -}}
   {{- if $setupSecureBoot -}}
+    {{- $preserveFirmwareSecureBootKeys = promptBool "Preserve firmware Secure Boot certificates (Y/n)" $preserveFirmwareSecureBootKeys -}}
     {{- writeToStdout "\n\033[1;33mWARN:\033[0m First-time key enrollment requires UEFI Setup Mode with Secure Boot disabled. Enable Secure Boot only after applying successfully.\n\n" -}}
   {{- end -}}
 
@@ -58,6 +63,7 @@ data:
   setupSnapper: {{ $setupSnapper }}
   setupHibernation: {{ $setupHibernation }}
   setupSecureBoot: {{ $setupSecureBoot }}
+  preserveFirmwareSecureBootKeys: {{ $preserveFirmwareSecureBootKeys }}
   installOptionalPackages: {{ $installOptionalPackages }}
   installChaoticAUR: {{ $installChaoticAUR }}
   installDrivers: {{ $installDrivers }}
@@ -72,6 +78,7 @@ scriptEnv:
   SETUP_SNAPPER: {{ ternary "1" "0" $setupSnapper | quote }}
   SETUP_HIBERNATION: {{ ternary "1" "0" $setupHibernation | quote }}
   SETUP_SECURE_BOOT: {{ ternary "1" "0" $setupSecureBoot | quote }}
+  PRESERVE_FIRMWARE_SECURE_BOOT_KEYS: {{ ternary "1" "0" $preserveFirmwareSecureBootKeys | quote }}
   INSTALL_OPTIONAL_PACKAGES: {{ ternary "1" "0" $installOptionalPackages | quote }}
   INSTALL_CHAOTIC_AUR: {{ ternary "1" "0" $installChaoticAUR | quote }}
   INSTALL_DRIVERS: {{ ternary "1" "0" $installDrivers | quote }}
