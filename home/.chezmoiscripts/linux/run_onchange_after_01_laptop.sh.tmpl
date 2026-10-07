@@ -497,7 +497,8 @@ AllowHibernation=yes
 AllowSuspendThenHibernate=yes
 HibernateDelaySec=30min
 AllowHybridSleep=yes
-HibernateMode=shutdown
+HibernateMode=platform shutdown
+HibernateOnACPower=yes
 EOF
     die "Failed to write systemd sleep config: $LAST_ERROR"
   fi
