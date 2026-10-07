@@ -2,13 +2,15 @@ name: Validate chezmoi externals
 
 on:
   push:
+    branches: [main]
     paths:
       - "home/.chezmoiexternals/*.tmpl"
       - ".github/workflows/chezmoi-externals-check.yaml"
   pull_request:
-    paths:
-      - "home/.chezmoiexternals/*.tmpl"
-      - ".github/workflows/chezmoi-externals-check.yaml"
+    branches: [main]
+
+permissions:
+  contents: read
 
 jobs:
   externals-check:
@@ -18,7 +20,9 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
 
       - name: Install dependencies
         run: |
@@ -34,7 +38,7 @@ jobs:
             echo "   • Validating $tmpl"
 
             # Render template
-            if ! output=$(chezmoi execute-template < "$tmpl"); then
+            if ! output=$(chezmoi --verbose execute-template < "$tmpl"); then
               echo "❌ Failed to render: $tmpl"
               failed=1
               continue

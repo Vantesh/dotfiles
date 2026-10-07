@@ -5,6 +5,7 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -26,10 +27,10 @@ jobs:
 
     steps:
       - name: Install dependencies
-        run: pacman -Syu --noconfirm git bash shellcheck chezmoi diffutils python
+        run: pacman -Syu --noconfirm git git-delta bash shellcheck chezmoi diffutils python
 
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           persist-credentials: false
 
@@ -50,21 +51,21 @@ jobs:
           set -euo pipefail
           umask 022
           mkdir -p -- "$XDG_CONFIG_HOME" "$XDG_CACHE_HOME" "$XDG_DATA_HOME" "$XDG_STATE_HOME"
-          chezmoi --source "$GITHUB_WORKSPACE" --destination "$HOME" init --data=false --no-tty
-          chezmoi --source "$GITHUB_WORKSPACE" --destination "$HOME" apply --exclude=scripts --no-tty
-          chezmoi --source "$GITHUB_WORKSPACE" --destination "$HOME" verify --exclude=scripts --no-tty
+          chezmoi --verbose --source "$GITHUB_WORKSPACE" --destination "$HOME" init --data=false --no-tty
+          chezmoi --verbose --source "$GITHUB_WORKSPACE" --destination "$HOME" apply --exclude=scripts --no-tty
+          chezmoi --verbose --source "$GITHUB_WORKSPACE" --destination "$HOME" verify --exclude=scripts --no-tty
 
       - name: ShellCheck scripts and libraries
         run: |
           set -euo pipefail
           shopt -s nullglob globstar
-          source_dir="$(chezmoi --source "$GITHUB_WORKSPACE" source-path)"
+          source_dir="$(chezmoi --verbose --source "$GITHUB_WORKSPACE" source-path)"
           cd "$source_dir" || exit 1
           files=(.chezmoiscripts/**/*.sh .chezmoiscripts/**/*.sh.tmpl .chezmoitemplates/lib/**/*.sh)
           for file in "${files[@]}"; do
             printf 'Checking: %s\n' "$file" >&2
             if [[ "$file" = *.tmpl ]]; then
-              chezmoi --source "$GITHUB_WORKSPACE" execute-template < "$file" | \
+              chezmoi --verbose --source "$GITHUB_WORKSPACE" execute-template < "$file" | \
                 shellcheck --severity=error -s bash -
             else
               shellcheck --severity=error -s bash "$file"

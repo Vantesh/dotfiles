@@ -5,6 +5,8 @@ enable_ddcutil = true
 enabled = true
 
 [idle]
+pre_action_fade_seconds = 5
+
 behavior_order = ["lock", "screen-off", "lock-and-suspend"]
 
 [idle.behavior.lock]
@@ -30,9 +32,13 @@ auto_locate = true
 background_opacity = 0.85
 follow_focused_output = true
 layer = "overlay"
+history_retention = 72
 
 [osd]
 position = "bottom_center"
+background_opacity = 0.84999998100101948
+follow_focused_output = true
+
 
 [osd.kinds]
 media = false

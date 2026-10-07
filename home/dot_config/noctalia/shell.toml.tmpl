@@ -4,12 +4,19 @@ font_family = {{ .font.ui.name | quote }}
 launch_apps_as_systemd_services = true
 password_style = "random"
 polkit_agent = true
+clipboard_history_max_entries = 300
+
+[shell.screenshot]
+directory = "~/Pictures/Screenshots"
 
 [shell.launcher]
 categories = false
 
 [shell.session]
 grid = true
+
+[shell.window_switcher]
+mru = true
 
 [[shell.session.actions]]
 action = "lock"
@@ -42,7 +49,16 @@ variant = "default"
 
 [[shell.session.actions]]
 action = "shutdown"
-countdown_seconds = 0.0
+countdown_seconds = 3.0
 enabled = true
 shortcut = "5"
 variant = "destructive"
+
+[[shell.session.actions]]
+action = "command"
+command = "systemctl hibernate"
+countdown_seconds = 3.0
+enabled = true
+label = "Hibernate"
+shortcut = "6"
+variant = "default"

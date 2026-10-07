@@ -1,5 +1,31 @@
-# See https://github.com/Vladimir-csp/xdg-terminal-exec?tab=readme-ov-file#configuration
-kitty.desktop
-#ghostty.desktop
+# See https://github.com/Vladimir-csp/xdg-terminal-exec#configuration
+
+
+# Uncomment your choice and comment out the others.
+# The first installed, valid entry wins. Use the installed desktop filename
+# from /usr/share/applications or ~/.local/share/applications.
+
+# To check title forwarding, run:
+#   xdg-terminal-exec --title=FloatingTerm --print-cmd
+# If the output has no title option, create a user-local desktop override:
+#   mkdir -p ~/.local/share/applications
+#   cp /usr/share/applications/<entry>.desktop ~/.local/share/applications/
+# Add X-TerminalArgTitle=<title flag> in its [Desktop Entry] section,
+# before any [Desktop Action ...] section. Check the terminal CLI help
+# for the supported flag; do not edit the system desktop entry.
+#
+# For Alacritty, use Alacritty.desktop and add these keys if missing:
+#   X-TerminalArgExec=-e
+#   X-TerminalArgTitle=--title
+#   X-TerminalArgAppId=--class
+#   X-TerminalArgDir=--working-directory
+#   X-TerminalArgHold=--hold
+# Check Rio title forwarding too; Ghostty needs no metadata override.
+#
+
+
 #Alacritty.desktop
-#foot.desktop
+kitty.desktop
+#com.mitchellh.ghostty.desktop
+#org.wezfurlong.wezterm.desktop
+#rio.desktop

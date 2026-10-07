@@ -8,7 +8,9 @@ local mainMod = "SUPER"
 local ctrlMod = mainMod .. " + CTRL"
 local ctrlShiftMod = ctrlMod .. " + SHIFT"
 local terminal = apps.launcher .. " -- " .. apps.terminal
-local floatingTerminal = terminal .. " --app-id=FloatingTerm"
+local function floating_terminal(title)
+  return terminal .. " --title='" .. title .. "'"
+end
 local ipc = apps.launcher .. " -- " .. apps.desktopShell .. " msg "
 
 -- === Applications ===
@@ -22,7 +24,9 @@ hl.bind(mainMod .. " + ALT + SPACE", hl.dsp.exec_cmd(ipc .. "panel-toggle contro
   { description = "Open control center" })
 hl.bind("SUPER + C", hl.dsp.exec_cmd(apps.launcher .. " -- " .. apps.editor), { description = "Open code editor" })
 hl.bind("SUPER + N", hl.dsp.exec_cmd(ipc .. "panel-toggle noctalia/notes:panel"),
-  { description = "Open notes" })
+    { description = "Open notes" })
+
+hl.bind("SUPER + M", hl.dsp.exec_cmd(apps.launcher .. " -- " .. apps.music), {description = "Open Music player"})
 
 -- --- Tools & Pickers ---
 hl.bind(mainMod .. " + comma", hl.dsp.exec_cmd(ipc .. "panel-toggle launcher /emo "), { description = "Open emoji picker" })
@@ -57,13 +61,13 @@ hl.bind(ctrlShiftMod .. " + SPACE", hl.dsp.exec_cmd(ipc .. "wallpaper-random"),
   { description = "Set random wallpaper" })
 
 -- --- Scratchpads & Special ---
-hl.bind("SUPER + SHIFT + RETURN", hl.dsp.exec_cmd(floatingTerminal),
+hl.bind("SUPER + SHIFT + RETURN", hl.dsp.exec_cmd(floating_terminal("FloatingTerm")),
   { description = "Toggle floating terminal" })
-hl.bind("SUPER + SHIFT + E", hl.dsp.exec_cmd(floatingTerminal .. " yazi"),
+hl.bind("SUPER + SHIFT + E", hl.dsp.exec_cmd(floating_terminal("Yazi") .. " -- yazi"),
   { description = "Toggle Yazi" })
 hl.bind("SUPER + TAB", hl.dsp.exec_cmd(ipc .. "window-switcher hold"), { description = "Open window switcher" })
 hl.bind("ALT + TAB", hl.dsp.exec_cmd(ipc .. "window-switcher hold"), { description = "Switch windows" })
-hl.bind("SUPER + U", hl.dsp.exec_cmd(floatingTerminal .. " ~/.config/hypr/scripts/updater.sh"),
+hl.bind("SUPER + U", hl.dsp.exec_cmd(floating_terminal("System Update") .. " -- ~/.config/hypr/scripts/updater.sh"),
   { description = "Update system" })
 
 -- === Window Management ===

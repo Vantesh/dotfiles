@@ -6,4 +6,5 @@ return {
   editor = "zeditor",
   passwordManager = "bitwarden.desktop",
   desktopShell = "noctalia",
+  music = "spotifast",
 }

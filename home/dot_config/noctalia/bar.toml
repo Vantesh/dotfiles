@@ -3,7 +3,8 @@
 margin_edge = 3
 margin_opposite_edge = 3
 margin_ends = 3
-thickness = 35
+thickness = 32
+font_weight = 400
 padding = 5
 radius = 10
 radius_top_left = 10
@@ -25,7 +26,7 @@ capsule_border = "outline"
 widget_spacing = 6
 
 # Wallpaper and Clipboard are intentionally omitted.
-start = ["workspaces", "active_window"]
+start = ["launcher", "workspaces", "active_window"]
 center = ["media", "group:g2", "privacy"]
 end = [
   "sysmon",
