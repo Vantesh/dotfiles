@@ -2,13 +2,18 @@
 {{- $skipPackages := eq (env "SKIP_PACKAGES") "1" -}}
 
 {{- /* Defaults */ -}}
-{{- $personal := false -}}
+{{- $personal := get . "personal" | default false -}}
 {{- $defaultShell := "fish" -}}
 {{- $compositor := "hyprland" -}}
 {{- $terminal := "kitty" -}}
 
 {{- $setupSnapper :=  not $skipPackages -}}
 {{- $setupHibernation := not $skipPackages -}}
+{{- $setupSecureBoot := get . "setupSecureBoot" | default false -}}
+{{- $preserveFirmwareSecureBootKeys := get . "preserveFirmwareSecureBootKeys" | default true -}}
+{{- if hasKey . "preserveFirmwareSecureBootKeys" -}}
+  {{- $preserveFirmwareSecureBootKeys = get . "preserveFirmwareSecureBootKeys" -}}
+{{- end -}}
 {{- $installOptionalPackages := not $skipPackages -}}
 {{- $installChaoticAUR := not $skipPackages -}}
 {{- $installDrivers := not $skipPackages -}}
@@ -26,13 +31,19 @@
 
 {{- /* Interactive prompts */ -}}
 {{- if $interactive -}}
-  {{- writeToStdout "\n\033[1;33mWARN:\033[0m Personal setup requires bitwarden secrets.\n\n" -}}
-
-  {{- $personal = promptBool "Is this a personal setup (y/N)" false -}}
+  {{- $personal = promptBoolOnce . "personal" "Is this a personal setup" false -}}
+  {{- if $personal -}}
+    {{- writeToStdout "\n\033[1;32mINFO:\033[0m Personal setup enables Bitwarden-backed private configuration.\n\n" -}}
+  {{- end -}}
   {{- $defaultShell = promptChoice "Preferred shell" (list "fish" "zsh") "fish" -}}
 
   {{- $setupSnapper = promptBool "Setup Snapper snapshots (Y/n)" true -}}
   {{- $setupHibernation = promptBool "Setup hibernation (Y/n)" true -}}
+  {{- $setupSecureBoot = promptBool "Setup Limine Secure Boot (writes firmware keys) (y/N)" false -}}
+  {{- if $setupSecureBoot -}}
+    {{- $preserveFirmwareSecureBootKeys = promptBool "Preserve firmware Secure Boot certificates (Y/n)" $preserveFirmwareSecureBootKeys -}}
+    {{- writeToStdout "\n\033[1;33mWARN:\033[0m First-time key enrollment requires UEFI Setup Mode with Secure Boot disabled. Enable Secure Boot only after applying successfully.\n\n" -}}
+  {{- end -}}
 
   {{- if not $skipPackages -}}
     {{- $installOptionalPackages = promptBool "Install optional packages (Y/n)" true -}}
@@ -40,7 +51,7 @@
     {{- $installDrivers = promptBool "Install drivers (Y/n)" true -}}
   {{- end -}}
 
-  {{- writeToStdout "\n\033[1;32mTIP:\033[0m You can always make chezmoi ask this again by running \033[1mchezmoi init\033[0m\n\n" -}}
+  {{- writeToStdout "\n\033[1;32mTIP:\033[0m Reconfigure saved choices with \033[1mchezmoi init --prompt\033[0m\n\n" -}}
 {{- end -}}
 
 data:
@@ -51,6 +62,8 @@ data:
   distroFamily: {{ $distroFamily | quote }}
   setupSnapper: {{ $setupSnapper }}
   setupHibernation: {{ $setupHibernation }}
+  setupSecureBoot: {{ $setupSecureBoot }}
+  preserveFirmwareSecureBootKeys: {{ $preserveFirmwareSecureBootKeys }}
   installOptionalPackages: {{ $installOptionalPackages }}
   installChaoticAUR: {{ $installChaoticAUR }}
   installDrivers: {{ $installDrivers }}
@@ -64,6 +77,8 @@ scriptEnv:
   TERMINAL: {{ $terminal | quote }}
   SETUP_SNAPPER: {{ ternary "1" "0" $setupSnapper | quote }}
   SETUP_HIBERNATION: {{ ternary "1" "0" $setupHibernation | quote }}
+  SETUP_SECURE_BOOT: {{ ternary "1" "0" $setupSecureBoot | quote }}
+  PRESERVE_FIRMWARE_SECURE_BOOT_KEYS: {{ ternary "1" "0" $preserveFirmwareSecureBootKeys | quote }}
   INSTALL_OPTIONAL_PACKAGES: {{ ternary "1" "0" $installOptionalPackages | quote }}
   INSTALL_CHAOTIC_AUR: {{ ternary "1" "0" $installChaoticAUR | quote }}
   INSTALL_DRIVERS: {{ ternary "1" "0" $installDrivers | quote }}

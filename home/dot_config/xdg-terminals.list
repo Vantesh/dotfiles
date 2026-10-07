@@ -7,9 +7,11 @@
 
 # To check title forwarding, run:
 #   xdg-terminal-exec --title=FloatingTerm --print-cmd
-# If the output has no title option, create a user-local desktop override:
+# If the output has no title option, use a user-local desktop entry. If the
+# selected entry is under /usr/share/applications, copy it before editing:
 #   mkdir -p ~/.local/share/applications
 #   cp /usr/share/applications/<entry>.desktop ~/.local/share/applications/
+# If it is already under ~/.local/share/applications, edit that file directly.
 # Add X-TerminalArgTitle=<title flag> in its [Desktop Entry] section,
 # before any [Desktop Action ...] section. Check the terminal CLI help
 # for the supported flag; do not edit the system desktop entry.
