@@ -33,6 +33,7 @@ match_adjacent_spacing = true
 [widget.widget]
 type = "yuuto/arch-updater:widget"
 hide_on_empty = true
+glyph = "pacman"
 
 [widget.workspaces]
 font_scale = 1.25
@@ -41,5 +42,7 @@ active_pill_size = 2.5
 inactive_pill_size = 1.5
 focused_output_only = true
 hide_when_empty = true
+occupied_color = "outline"
 
-enabled = true
+[widget.weather]
+show_condition = false
