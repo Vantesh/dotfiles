@@ -139,7 +139,35 @@ hl.window_rule({
 hl.window_rule({ match = { class = "^([Bb]itwarden)$" }, float = true, center = true, size = { "monitor_w*0.6", "monitor_h*0.6" }, no_screen_share = true })
 hl.window_rule({ match = { class = "^(brave-nngceckbapebfimnlniiiahkandclblb-Default)$" }, float = true, center = true, size = { "monitor_w*0.3", "monitor_h*0.6" }, no_screen_share = true }) -- Bitwarden's Brave extension popup
 hl.window_rule({ match = { class = "^(1[Pp]assword)$" }, float = true, center = true, size = { "monitor_w*0.6", "monitor_h*0.6" } })
-hl.window_rule({ match = { class = "^([Bb]rave(-browser)?)$", initial_title = "^(Untitled - Brave|PayPal - Brave)$" }, float = true, center = true, size = { "monitor_w*0.3", "monitor_h*0.7" } })
+hl.window_rule({ match = { class = "^([Bb]rave(-browser)?)$", initial_title = "^(Sign in - Google Accounts - Brave|PayPal - Brave)$" }, float = true, center = true, size = { "monitor_w*0.3", "monitor_h*0.7" } })
+
+-- Sign-in windows start as Untitled; static float rules cannot match their later title.
+local function float_brave_sign_in(window)
+  if not window or window.floating then return end
+  if not (window.class == "brave-browser" or window.class == "Brave-browser"
+    or window.class == "brave" or window.class == "Brave") then return end
+  if window.title ~= "Sign in - Google Accounts - Brave"
+    and window.title ~= "PayPal - Brave" then return end
+
+  hl.dispatch(hl.dsp.window.float({ window = window, action = "enable" }))
+  local monitor = window.monitor
+  if monitor and monitor.scale > 0 then
+    hl.dispatch(hl.dsp.window.resize({
+      window = window,
+      x = math.floor(monitor.width / monitor.scale * 0.3),
+      y = math.floor(monitor.height / monitor.scale * 0.7),
+      relative = false,
+    }))
+  end
+  hl.dispatch(hl.dsp.window.center({ window = window }))
+end
+
+hl.on("window.title", float_brave_sign_in)
+hl.on("config.reloaded", function()
+  for _, window in ipairs(hl.get_windows() or {}) do
+    float_brave_sign_in(window)
+  end
+end)
 hl.window_rule({ match = { initial_title = "^(Task Manager - Brave)$" }, float = true, center = true, size = { "monitor_w*0.7", "monitor_h*0.7" } })
 
 -- App-specific
