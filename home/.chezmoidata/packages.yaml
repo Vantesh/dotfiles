@@ -105,8 +105,7 @@ packages:
     - brave-bin
     - zed
     - qbittorrent
-    - spotify-launcher
-    - spicetify-cli
+    - spotifast-bin
     - localsend
     - vesktop-bin
 

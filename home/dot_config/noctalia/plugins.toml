@@ -4,7 +4,6 @@ enabled = [
   "kenn/keybind-cheatsheet",
   "noctalia/screen_recorder",
   "noctalia/notes",
-  "yugaaank/better-clock",
 ]
 
 [plugin_settings."kenn/keybind-cheatsheet"]
@@ -12,5 +11,6 @@ cheatsheet_layer = "overlay"
 
 [plugin_settings."yuuto/arch-updater"]
 panel_placement = "floating"
-terminal = "xdg-terminal-exec --app-id=FloatingTerm"
+terminal = 'xdg-terminal-exec --title="System Update"'
 update_cmd = "~/.config/hypr/scripts/updater.sh"
+auto_check_hours = 3

@@ -5,9 +5,14 @@ source = "wallpaper"
 wallpaper_scheme = "m3-content"
 
 [theme.templates]
-builtin_ids = ["btop", "cava", "gtk3", "gtk4", "hyprland", "kcolorscheme", "kitty", "qt", "starship"]
-community_ids = ["fastfetch", "bat", "lazygit", "yazi"]
+builtin_ids = ["btop", "cava", "gtk3", "gtk4", "hyprland", "kitty", "qt", "starship"]
+community_ids = ["fastfetch", "bat", "lazygit", "yazi", "spotifast"]
 
 [wallpaper]
+transition = ["wipe"]
 directory = "~/Pictures/Wallpapers"
 fill_mode = "fit"
+
+[wallpaper.automation]
+enabled = true
+interval_seconds = 86400

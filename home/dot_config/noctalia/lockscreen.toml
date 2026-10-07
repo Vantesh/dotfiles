@@ -1,5 +1,7 @@
 [lockscreen]
 blur_intensity = 0.75
+tint_intensity = 0.60
+transition = [ "disc" ]
 
 [lockscreen_widgets]
 enabled = true

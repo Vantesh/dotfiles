@@ -15,7 +15,7 @@
   # sudo_command = "sudo"
 
   # Disable specific steps - same options as the command line flag
-  disable = ["chezmoi", "poetry", "spicetify", "vim", "containers", "yazi"]
+  disable = ["chezmoi", "poetry", "vim", "containers", "yazi"]
 
   # Ignore failures for these steps
   # ignore_failures = []
