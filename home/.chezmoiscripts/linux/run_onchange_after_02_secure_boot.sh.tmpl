@@ -1,0 +1,180 @@
+#!/usr/bin/env bash
+# 02_secure_boot.sh - Configure Limine Secure Boot and queue stale config cleanup
+#
+# Opt-in setup preserves existing keys, enrolls only in UEFI Setup Mode,
+# delegates immutable efivar handling to sbctl, and enables Limine file
+# verification and automatic config checksum enrollment. Rebuilding and signing
+# are deferred.
+# Stale fallback config cleanup is independent of the Secure Boot opt-in.
+# Enabling Secure Boot itself remains a manual firmware setting.
+#
+# Globals:
+#   DISTRO_FAMILY - Distribution family from chezmoi scriptEnv
+#   SETUP_SECURE_BOOT - Explicit opt-in from chezmoi configuration
+#   PRESERVE_FIRMWARE_SECURE_BOOT_KEYS - Firmware certificate preservation policy
+#   LAST_ERROR - Error message from the last failed operation
+# Exit codes:
+#   0 (success or skipped), 1 (failure), 127 (missing dependency)
+
+set -euo pipefail
+
+shopt -s nullglob globstar
+
+{{ include ".chezmoitemplates/lib/common.sh" }}
+{{ include ".chezmoitemplates/lib/snapboot.sh" }}
+
+readonly LIMINE_DEFAULTS="/etc/default/limine"
+readonly SECURE_BOOT_ENABLED="${SETUP_SECURE_BOOT:-{{ ternary "1" "0" (get . "setupSecureBoot" | default false) }}}"
+readonly PRESERVE_FIRMWARE_SECURE_BOOT_KEYS="${PRESERVE_FIRMWARE_SECURE_BOOT_KEYS:-{{ ternary "1" "0" (get . "preserveFirmwareSecureBootKeys" | default true) }}}"
+
+# Validates the boolean fields required from sbctl status JSON.
+#
+# Arguments:
+#   $1 - sbctl status JSON
+# Returns:
+#   0 when the required fields are booleans, 1 otherwise
+validate_sbctl_status() {
+  local state="$1"
+
+  jq -e '(.installed | type) == "boolean" and (.setup_mode | type) == "boolean" and (.secure_boot | type) == "boolean"' \
+    <<<"$state" >/dev/null
+}
+
+# Checks that firmware trusts the local db certificate used to sign EFI images.
+#
+# Only the enrolled db certificate is required to trust EFI binaries signed
+# with the local sbctl db key. PK and KEK control administration of the Secure
+# Boot databases and are not used directly to validate the signed Limine image.
+# Arguments:
+#   $1 - Effective sbctl key configuration as JSON
+# Outputs:
+#   Errors to stderr; exits on a missing or untrusted signing certificate
+# Returns:
+#   0 when the local db signing certificate is enrolled
+check_secure_boot_signing_key() {
+  local key_config="$1"
+  local enrolled_keys certificate_path certificate
+  enrolled_keys="$(sudo sbctl --json list-enrolled-keys)" || die "Failed to read enrolled Secure Boot keys"
+  certificate_path="$(
+    jq -er '
+      .keys.db.pubkey
+      | select(type == "string" and length > 0)
+    ' <<<"$key_config"
+  )" || die "sbctl configuration does not contain a usable db public certificate"
+  certificate="$(sudo awk '
+    /-----BEGIN CERTIFICATE-----/ { active = 1; next }
+    /-----END CERTIFICATE-----/ { exit }
+    active { gsub(/[[:space:]]/, ""); printf "%s", $0 }
+  ' "$certificate_path")" || die "Failed to read local db signing certificate"
+  if [[ -z "$certificate" ]] || ! jq -e --arg certificate "$certificate" \
+    'any(.DB[]?; .Raw == $certificate)' <<<"$enrolled_keys" >/dev/null; then
+    die "Local db signing certificate is not enrolled; enroll the signing key before rebuilding or re-signing Limine"
+  fi
+}
+
+# Queues config cleanup and configures optional Secure Boot using existing helpers.
+# Globals:
+#   DISTRO_FAMILY, SECURE_BOOT_ENABLED - Platform and opt-in checks
+#   PRESERVE_FIRMWARE_SECURE_BOOT_KEYS - Firmware certificate preservation policy
+#   LIMINE_DEFAULTS - Limine configuration to update
+#   LAST_ERROR - Error state from shared helpers
+# Outputs:
+#   Progress, results, and actionable errors to stderr
+# Returns:
+#   0 on success or skipped environments; exits on setup failures
+main() {
+  if [[ "${DISTRO_FAMILY,,}" != *arch* ]] || [[ ! -x /usr/bin/limine ]] || [[ ! -d /sys/firmware/efi/efivars ]]; then
+    log SKIP "Limine UEFI setup not available on this system"
+    return 0
+  fi
+  if ! command_exists mkinitcpio; then
+    log SKIP "mkinitcpio not found, skipping Limine Secure Boot setup"
+    return 0
+  fi
+  if ! keep_sudo_alive; then
+    die "Failed to obtain sudo access: $LAST_ERROR"
+  fi
+
+  local boot_directory
+  boot_directory="$(get_limine_boot_directory)" || die "Mount the Limine FAT32 boot partition or configure ESP_PATH in $LIMINE_DEFAULTS"
+  if sudo test -e "$boot_directory/EFI/BOOT/limine.conf" || sudo test -L "$boot_directory/EFI/BOOT/limine.conf"; then
+    if ! sudo test -f "$boot_directory/limine.conf" || ! sudo test -s "$boot_directory/limine.conf"; then
+      die "Canonical $boot_directory/limine.conf missing or empty; conflicting config preserved"
+    fi
+    request_initramfs_rebuild || die "Failed to queue conflicting Limine config cleanup: $LAST_ERROR"
+  fi
+  if [[ "$SECURE_BOOT_ENABLED" != "1" ]]; then
+    log SKIP "Secure Boot setup not enabled"
+    return 0
+  fi
+
+  print_box "Secure Boot" >&2
+  log STEP "Secure Boot Configuration"
+
+  local dependency
+  for dependency in sbctl jq limine-enroll-config limine-update; do
+    command_exists "$dependency" || die 127 "$dependency not found; install the Limine Secure Boot dependencies"
+  done
+
+  local state key_config
+  state="$(sudo sbctl --json status)" || die "Failed to read Secure Boot status"
+  if ! validate_sbctl_status "$state"; then
+    die "Unexpected sbctl status; refusing to modify Secure Boot keys"
+  fi
+  if jq -e '.setup_mode and .secure_boot' <<<"$state" >/dev/null; then
+    die "Disable Secure Boot in UEFI settings before enrolling keys"
+  fi
+  if ! jq -e '.installed' <<<"$state" >/dev/null; then
+    if ! jq -e '.setup_mode' <<<"$state" >/dev/null; then
+      die "Enter UEFI Setup Mode with Secure Boot disabled, then retry; use systemctl reboot --firmware-setup to open firmware settings"
+    fi
+    sudo sbctl create-keys || die "Failed to create Secure Boot keys"
+    log INFO "Created Secure Boot signing keys"
+  fi
+  key_config="$(sudo sbctl --json setup --print-config)" || die "Existing sbctl keys preserved; repair the incomplete key configuration before retrying"
+
+  if jq -e '.setup_mode' <<<"$state" >/dev/null; then
+    log WARN "Secure Boot key enrollment requires UEFI Setup Mode with Secure Boot disabled"
+    local -a enrollment_flags=(
+      --microsoft
+      --ignore-immutable
+    )
+    if [[ "$PRESERVE_FIRMWARE_SECURE_BOOT_KEYS" = "1" ]]; then
+      local system_vendor=""
+      if [[ -r /sys/class/dmi/id/sys_vendor ]]; then
+        IFS= read -r system_vendor < /sys/class/dmi/id/sys_vendor || true
+      fi
+      case "${system_vendor,,}" in
+      *asus* | *gigabyte*)
+        log WARN "Skipped firmware-builtin certificate preservation for $system_vendor firmware"
+        ;;
+      *)
+        enrollment_flags+=(--firmware-builtin)
+        log INFO "Preserving firmware-builtin Secure Boot certificates"
+        ;;
+      esac
+    else
+      log INFO "Not preserving firmware-builtin Secure Boot certificates"
+    fi
+    log WARN "Enrolling Secure Boot keys replaces the firmware key databases"
+    sudo sbctl enroll-keys "${enrollment_flags[@]}" || die "Failed to enroll Secure Boot keys; leave Secure Boot disabled"
+    state="$(sudo sbctl --json status)" || die "Failed to verify Secure Boot state after enrollment"
+    if ! validate_sbctl_status "$state"; then
+      die "Unexpected sbctl status after enrollment; leave Secure Boot disabled"
+    fi
+    if jq -e '.setup_mode' <<<"$state" >/dev/null; then
+      die "Secure Boot keys were enrolled but firmware remains in Setup Mode; leave Secure Boot disabled until repaired"
+    fi
+    log INFO "Enrolled Secure Boot keys"
+  fi
+
+  check_secure_boot_signing_key "$key_config"
+  local key
+  for key in ENABLE_VERIFICATION ENABLE_ENROLL_LIMINE_CONFIG; do
+    update_config "$LIMINE_DEFAULTS" "$key" yes || die "Failed to configure $key: $LAST_ERROR"
+  done
+  request_initramfs_rebuild || die "Failed to request Secure Boot rebuild: $LAST_ERROR"
+  log INFO "Enabled Limine file verification and automatic config checksum enrollment"
+}
+
+main "$@"
