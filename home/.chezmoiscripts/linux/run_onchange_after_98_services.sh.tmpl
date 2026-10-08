@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 
 # data: distroFamily={{ .distroFamily | quote }}
-# 98_services.sh - Enable core services and configure system utilities
+# Packaged user units, firewall policy, and one-shot maintenance.
+# Ordinary system-service lifecycle state is owned by mise.services.toml.
 # Exit codes: 0 (success), 1 (failure)
 
 set -euo pipefail
@@ -18,74 +19,40 @@ readonly -a USER_SERVICES=(
   "udiskie"
 )
 
-# shellcheck disable=SC2034
-readonly -a SYSTEM_SERVICES=(
-  "NetworkManager"
-  "bluetooth"
-  "fstrim.timer"
-  "ufw"
-)
-
-readonly -a PACMAN_SERVICES=(
-  "reflector.timer"
-  "pacman-filesdb-refresh.timer"
-  "paccache.timer"
-)
 
 if ! keep_sudo_alive; then
   die "Failed to keep sudo alive"
 fi
 
-enable_configured_services() {
-  local -a failed_services=()
-  local scope service error_msg
+# Native mise user services create new dev.mise.* units; they cannot manage
+# these existing packaged services/socket without changing their identity.
+converge_packaged_user_services() {
+  local service load_state
 
-  for scope in user system; do
-    local -n scope_services="${scope^^}_SERVICES"
-    ((${#scope_services[@]} == 0)) && continue
-
-    for service in "${scope_services[@]}"; do
-      if enable_service "$service" "$scope"; then
-        log INFO "${COLOR_GREEN}${service}${COLOR_RESET} enabled (${scope})"
-        continue
-      fi
-
-      error_msg="$LAST_ERROR"
-      if [[ "$error_msg" == "Unit not found:"* ]]; then
-        log SKIP "$service ($scope) not available"
-        continue
-      fi
-
-      failed_services+=("$service ($scope): $error_msg")
-      log WARN "Failed to enable $service ($scope): $error_msg"
-    done
-  done
-
-  ((${#failed_services[@]} > 0)) && log WARN "Some services failed to enable"
-
-  case "${DISTRO_FAMILY,,}" in
-  *arch*) ;;
-  *)
-    return 0
-    ;;
-  esac
-
-  for service in "${PACMAN_SERVICES[@]}"; do
-    if enable_service "$service" "system"; then
-      log INFO "${COLOR_GREEN}${service}${COLOR_RESET} enabled"
+  for service in "${USER_SERVICES[@]}"; do
+    if ! load_state=$(systemctl --user show --property=LoadState --value -- "$service"); then
+      log WARN "Failed to inspect $service (user)"
       continue
     fi
+    case "$load_state" in
+      not-found)
+        log SKIP "$service (user) not available"
+        continue
+        ;;
+      loaded|masked) ;;
+      *)
+        log WARN "Cannot apply $service (user): unexpected LoadState=$load_state"
+        continue
+        ;;
+    esac
 
-    error_msg="$LAST_ERROR"
-    if [[ "$error_msg" == "Unit not found:"* ]]; then
-      log SKIP "$service not available"
-      continue
+    if systemctl --user unmask -- "$service" &&
+      systemctl --user enable --now -- "$service"; then
+      log INFO "${COLOR_GREEN}${service}${COLOR_RESET} enabled and running (user)"
+    else
+      log WARN "Failed to converge $service (user)"
     fi
-
-    log WARN "Failed to enable $service: $error_msg"
   done
-
-  return 0
 }
 
 configure_ufw() {
@@ -138,30 +105,6 @@ configure_ufw() {
   return 0
 }
 
-disable_networkd_wait_online() {
-  local service="systemd-networkd-wait-online.service"
-
-  if ! systemctl list-unit-files "$service" >/dev/null 2>&1; then
-    log SKIP "systemd-networkd-wait-online not present"
-    return 0
-  fi
-
-  if systemctl is-active --quiet "$service" || systemctl is-enabled --quiet "$service"; then
-    if sudo systemctl disable --now "$service" >/dev/null 2>&1; then
-      log INFO "Disabled $service"
-    else
-      log WARN "Failed to disable $service"
-    fi
-  fi
-
-  if sudo systemctl mask "$service" >/dev/null 2>&1; then
-    log INFO "Masked $service"
-  else
-    log WARN "Failed to mask $service"
-  fi
-
-  return 0
-}
 
 update_locate_database() {
   if ! command_exists updatedb; then
@@ -184,9 +127,8 @@ main() {
   print_box "Services"
   log STEP "Configuring services"
 
-  enable_configured_services
+  converge_packaged_user_services
   configure_ufw
-  disable_networkd_wait_online
   update_locate_database
 }
 

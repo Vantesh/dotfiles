@@ -538,21 +538,7 @@ EOF
   if [[ "$gpu_info" = *"NVIDIA Corporation"* ]]; then
     log INFO "Detected NVIDIA GPU, configuring power management"
 
-    local services=(
-      "nvidia-suspend-then-hibernate.service"
-      "nvidia-hibernate.service"
-      "nvidia-suspend.service"
-      "nvidia-resume.service"
-    )
-
-    local svc
-    for svc in "${services[@]}"; do
-      if ! systemctl --quiet is-enabled "$svc" 2>/dev/null; then
-        if ! enable_service "$svc" "system"; then
-          log WARN "Failed to enable $svc: $LAST_ERROR"
-        fi
-      fi
-    done
+{{ template "nvidia-sleep-services" . }}
 
     local nvidia_pci
     nvidia_pci=$(get_nvidia_pci_address)

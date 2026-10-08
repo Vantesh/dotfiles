@@ -637,10 +637,11 @@ update_config() {
   return 0
 }
 
-# Enables systemd service/timer/socket.
+# Enable-only system units for login transitions and deferred Snapper setup.
+# Ordinary system lifecycle state belongs to mise, not this helper.
 # Arguments:
-#   $1 - Unit name (e.g., 'ly', 'ly.service', 'docker.socket')
-#   $2 - Scope: 'system' or 'user' (default: 'system')
+#   $1 - Unit name
+#   $2 - Scope: 'system' (default); user lifecycle uses its packaged-unit path
 # Globals:
 #   LAST_ERROR - Set on failure
 # Returns:
@@ -656,27 +657,20 @@ enable_service() {
     return 2
   fi
 
-  if [[ "$scope" != "system" ]] && [[ "$scope" != "user" ]]; then
-    LAST_ERROR="Invalid scope: $scope (must be 'system' or 'user')"
+  if [[ "$scope" != "system" ]]; then
+    LAST_ERROR="Invalid scope: $scope (enable_service only supports system units)"
     return 2
   fi
 
-  local use_sudo="true"
-  local systemctl_args=()
-  if [[ "$scope" = "user" ]]; then
-    use_sudo="false"
-    systemctl_args=("--user")
-  fi
-
   local status_code=0
-  _run_with_optional_sudo "$use_sudo" systemctl "${systemctl_args[@]}" is-enabled "$unit" >/dev/null 2>&1 || status_code=$?
+  sudo systemctl is-enabled "$unit" >/dev/null 2>&1 || status_code=$?
 
   case "$status_code" in
   0 | 3)
     return 0
     ;;
   1)
-    if _run_with_optional_sudo "$use_sudo" systemctl "${systemctl_args[@]}" enable "$unit" >/dev/null 2>&1; then
+    if sudo systemctl enable "$unit" >/dev/null 2>&1; then
       return 0
     fi
     LAST_ERROR="Failed to enable $unit (scope: $scope)"
