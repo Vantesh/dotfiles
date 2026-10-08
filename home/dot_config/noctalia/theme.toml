@@ -5,7 +5,7 @@ source = "wallpaper"
 wallpaper_scheme = "m3-content"
 
 [theme.templates]
-builtin_ids = ["btop", "cava", "gtk3", "gtk4", "hyprland", "kitty", "qt", "starship"]
+builtin_ids = ["btop", "cava", "gtk3", "gtk4", "hyprland", "kitty", "kcolorscheme", "starship"]
 community_ids = ["fastfetch", "bat", "lazygit", "yazi", "spotifast"]
 
 [wallpaper]
