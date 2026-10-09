@@ -6,9 +6,6 @@
 # hash so changes make this run_onchange script eligible to run again.
 # mise.toml: {{ include "../mise.toml" | sha256sum }}
 # Effective settings not already represented by the rendered package arrays.
-# DEFAULT_SHELL: {{ .defaultShell | quote }}
-# COMPOSITOR: {{ .compositor | quote }}
-# TERMINAL: {{ .terminal | quote }}
 # DISTRO_FAMILY: {{ .distroFamily | quote }}
 # DISTRO: {{ .chezmoi.osRelease.id | quote }}
 
@@ -37,10 +34,6 @@ if [[ "${SKIP_PACKAGES:-0}" == "1" ]]; then
   exit 0
 fi
 
-if ! command_exists mise; then
-  die "Bootstrap invariant violated: mise is required; run the phase 00 prerequisite script first"
-fi
-
 if ! keep_sudo_alive; then
   die "Failed to keep sudo alive"
 fi
@@ -63,7 +56,7 @@ fi
 print_box "Packages"
 
 
-mise_environments="packages,shell-{{ .defaultShell }},compositor-{{ .compositor }},terminal-{{ .terminal }}"
+mise_environments="packages"
 if [[ "${INSTALL_OPTIONAL_PACKAGES:-1}" == "1" ]]; then
   mise_environments+=",optional"
 fi
@@ -75,12 +68,9 @@ if ! (
   cd {{ .chezmoi.workingTree | quote }} || exit 1
   env -u MISE_CONFIG_FILE -u MISE_GLOBAL_CONFIG_FILE -u MISE_SYSTEM_CONFIG_FILE \
   MISE_CONFIG_DIR=/dev/null MISE_SYSTEM_CONFIG_DIR=/dev/null \
-  MISE_USE_TOML=true MISE_AUTO_ENV=false \
-  MISE_CEILING_PATHS={{ dir .chezmoi.workingTree | quote }} \
-  MISE_OVERRIDE_CONFIG_FILENAMES=mise.toml \
-  MISE_OVERRIDE_TOOL_VERSIONS_FILENAMES=none \
+  MISE_AUTO_ENV=false MISE_CEILING_PATHS={{ dir .chezmoi.workingTree | quote }} \
   MISE_TRUSTED_CONFIG_PATHS={{ joinPath .chezmoi.workingTree "mise.toml" | quote }} \
-  mise --cd {{ .chezmoi.workingTree | quote }} --env "$mise_environments" \
+  mise --env "$mise_environments" \
     bootstrap packages apply --yes
 ); then
   die "Failed to install static packages with mise"

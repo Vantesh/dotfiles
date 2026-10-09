@@ -3,9 +3,6 @@
 
 {{- /* Defaults */ -}}
 {{- $personal := get . "personal" | default false -}}
-{{- $defaultShell := "fish" -}}
-{{- $compositor := "hyprland" -}}
-{{- $terminal := "kitty" -}}
 
 {{- $setupSnapper :=  not $skipPackages -}}
 {{- $setupHibernation := not $skipPackages -}}
@@ -35,7 +32,6 @@
   {{- if $personal -}}
     {{- writeToStdout "\n\033[1;32mINFO:\033[0m Personal setup enables Bitwarden-backed private configuration.\n\n" -}}
   {{- end -}}
-  {{- $defaultShell = promptChoice "Preferred shell" (list "fish" "zsh") "fish" -}}
 
   {{- $setupSnapper = promptBool "Setup Snapper snapshots (Y/n)" true -}}
   {{- $setupHibernation = promptBool "Setup hibernation (Y/n)" true -}}
@@ -55,9 +51,6 @@
 {{- end -}}
 
 data:
-  defaultShell: {{ $defaultShell | quote }}
-  compositor: {{ $compositor | quote }}
-  terminal: {{ $terminal | quote }}
   personal: {{ $personal }}
   distroFamily: {{ $distroFamily | quote }}
   setupSnapper: {{ $setupSnapper }}
@@ -72,9 +65,6 @@ scriptEnv:
   PERSONAL: {{ ternary "1" "0" $personal | quote }}
   DISTRO_FAMILY: {{ $distroFamily | quote }}
   DISTRO: {{ .chezmoi.osRelease.id | quote }}
-  DEFAULT_SHELL: {{ $defaultShell | quote }}
-  COMPOSITOR: {{ $compositor | quote }}
-  TERMINAL: {{ $terminal | quote }}
   SETUP_SNAPPER: {{ ternary "1" "0" $setupSnapper | quote }}
   SETUP_HIBERNATION: {{ ternary "1" "0" $setupHibernation | quote }}
   SETUP_SECURE_BOOT: {{ ternary "1" "0" $setupSecureBoot | quote }}
