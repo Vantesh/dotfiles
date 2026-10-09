@@ -22,11 +22,6 @@ install_package() {
       ;;
   esac
 
-  if ! command_exists mise; then
-    LAST_ERROR="Bootstrap invariant violated: mise is required; run the phase 00 prerequisite script first"
-    return 127
-  fi
-
   if ! command_exists pacman; then
     LAST_ERROR="pacman is required to inspect installed packages"
     return 127

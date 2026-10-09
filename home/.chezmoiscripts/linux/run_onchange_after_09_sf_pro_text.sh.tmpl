@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+{{ include ".chezmoitemplates/lib/common.sh" }}
+
+readonly url="https://devimages-cdn.apple.com/design/resources/download/SF-Pro.dmg"
+readonly fonts_dir="$HOME/.local/share/fonts/SF-Pro-Text"
+
+for dependency in curl 7z bsdtar cmp fc-cache; do
+  command_exists "$dependency" || die "Required command not found: $dependency"
+done
+
+log STEP "Installing SF Pro Text"
+temp_dir=$(mktemp -d)
+trap 'rm -rf -- "$temp_dir"' EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
+curl --fail --location --show-error --proto '=https' --proto-redir '=https' \
+  --connect-timeout 20 --max-time 300 --output "$temp_dir/SF-Pro.dmg" "$url" ||
+  die "Failed to download the official SF Pro DMG"
+
+# The DMG contains a flat XAR package with a gzip-compressed CPIO payload.
+7z e -y -o"$temp_dir" "$temp_dir/SF-Pro.dmg" SFProFonts.pkg >/dev/null ||
+  die "Failed to extract SFProFonts.pkg from the DMG"
+bsdtar -xOf "$temp_dir/SFProFonts.pkg" SFProFontsPackage.pkg/Payload |
+  bsdtar -xf - -C "$temp_dir" './Library/Fonts/SF-Pro-Text-*.otf' ||
+  die "Failed to extract SF Pro Text fonts from the package payload"
+
+shopt -s nullglob
+fonts=("$temp_dir"/Library/Fonts/SF-Pro-Text-*.otf)
+[[ ${#fonts[@]} -gt 0 ]] || die "No SF Pro Text fonts found"
+
+mkdir -p -- "$fonts_dir"
+for font in "${fonts[@]}"; do
+  destination="$fonts_dir/${font##*/}"
+  if ! cmp -s -- "$font" "$destination"; then
+    install -m 644 -T -- "$font" "$destination"
+  fi
+done
+
+fc-cache "$fonts_dir"
+log INFO "Installed ${#fonts[@]} SF Pro Text fonts in $fonts_dir"

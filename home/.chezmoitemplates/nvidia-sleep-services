@@ -3,16 +3,12 @@
 # Invoked only inside the existing NVIDIA branch after hibernation setup.
 # Keep the hooks idle; systemd's sleep transactions execute their oneshots.
 (
-  if ! command_exists mise; then
-    die "Bootstrap invariant violated: mise is required; run the phase 00 prerequisite script first"
-  fi
-
   temp_dir=$(mktemp -d)
   trap 'rm -rf -- "$temp_dir"' EXIT
   trap 'exit 130' INT
   trap 'exit 143' TERM
-  config_file="$temp_dir/mise.toml"
-  printf 'min_version = %s\n' '{{ $config.min_version | toJson }}' >"$config_file"
+  cd "$temp_dir" || exit 1
+  printf 'min_version = %s\n' '{{ $config.min_version | toJson }}' >mise.toml
   available=false
 
 {{ range $unit, $declaration := $config.bootstrap.services }}
@@ -25,7 +21,7 @@
       ;;
     loaded|masked)
       available=true
-      cat >>"$config_file" <<'UNIT'
+      cat >>mise.toml <<'UNIT'
 [bootstrap.services.{{ $unit | toJson }}]
 {{ $declaration | toToml }}
 UNIT
@@ -41,16 +37,12 @@ UNIT
     exit 0
   fi
 
-  cd {{ .chezmoi.workingTree | quote }} || exit 1
-  if ! env -u MISE_GLOBAL_CONFIG_FILE -u MISE_SYSTEM_CONFIG_FILE -u MISE_ENV \
-    MISE_CONFIG_FILE="$config_file" \
+  # Discover only the selected NVIDIA units, never the baseline services.
+  if ! env -u MISE_CONFIG_FILE -u MISE_GLOBAL_CONFIG_FILE -u MISE_SYSTEM_CONFIG_FILE \
     MISE_CONFIG_DIR=/dev/null MISE_SYSTEM_CONFIG_DIR=/dev/null \
-    MISE_USE_TOML=true MISE_AUTO_ENV=false \
-    MISE_CEILING_PATHS={{ dir .chezmoi.workingTree | quote }} \
-    MISE_OVERRIDE_CONFIG_FILENAMES=none \
-    MISE_OVERRIDE_TOOL_VERSIONS_FILENAMES=none \
-    MISE_TRUSTED_CONFIG_PATHS="$config_file" \
-    mise bootstrap services apply --yes; then
+    MISE_AUTO_ENV=false MISE_CEILING_PATHS="${PWD%/*}" \
+    MISE_TRUSTED_CONFIG_PATHS="$PWD/mise.toml" \
+    mise --env '' bootstrap services apply --yes; then
     die "Failed to apply NVIDIA sleep services with mise"
   fi
 )
