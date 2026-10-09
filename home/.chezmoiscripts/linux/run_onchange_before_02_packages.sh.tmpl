@@ -2,10 +2,16 @@
 # 02_packages.sh - Install packages
 # Exit codes: 0 (success), 1 (failure)
 
+# Static declarations are outside the chezmoi source root; include their content
+# hash so changes make this run_onchange script eligible to run again.
+# mise.toml: {{ include "../mise.toml" | sha256sum }}
 # Effective settings not already represented by the rendered package arrays.
+# DEFAULT_SHELL: {{ .defaultShell | quote }}
+# COMPOSITOR: {{ .compositor | quote }}
+# TERMINAL: {{ .terminal | quote }}
 # DISTRO_FAMILY: {{ .distroFamily | quote }}
 # DISTRO: {{ .chezmoi.osRelease.id | quote }}
-# INSTALL_CHAOTIC_AUR: {{ ternary "1" "0" .installChaoticAUR }}
+
 # INSTALL_DRIVERS: {{ ternary "1" "0" .installDrivers }}
 # INSTALL_OPTIONAL_PACKAGES: {{ ternary "1" "0" .installOptionalPackages }}
 # SETUP_SNAPPER: {{ ternary "1" "0" .setupSnapper }}
@@ -17,7 +23,7 @@ shopt -s nullglob globstar
 
 {{ include ".chezmoitemplates/lib/common.sh" }}
 {{ include ".chezmoitemplates/lib/xdg_setup.sh" }}
-{{ include ".chezmoitemplates/lib/chaotic_aur.sh" }}
+
 {{ include ".chezmoitemplates/lib/aur_helper.sh" }}
 {{ include ".chezmoitemplates/lib/package_manager.sh" }}
 
@@ -26,34 +32,23 @@ if [[ "$(id -u)" -eq 0 ]]; then
   die "Do not run this script as root."
 fi
 
-if ! keep_sudo_alive; then
-  die "Failed to keep sudo alive"
-fi
-
 if [[ "${SKIP_PACKAGES:-0}" == "1" ]]; then
   log INFO "Skipping package installation"
   exit 0
+fi
+
+if ! command_exists mise; then
+  die "Bootstrap invariant violated: mise is required; run the phase 00 prerequisite script first"
+fi
+
+if ! keep_sudo_alive; then
+  die "Failed to keep sudo alive"
 fi
 
 if ! setup_xdg; then
   die "XDG setup failed: $LAST_ERROR"
 fi
 
-# Chaotic-AUR setup
-if [[ "${INSTALL_CHAOTIC_AUR:-0}" == "1" ]]; then
-  if ! chaotic_repo_configured; then
-    log STEP "Chaotic-AUR"
-    log INFO "Setting up Chaotic-AUR repository"
-
-    if ! setup_chaotic_aur; then
-      die "Failed to set up Chaotic-AUR repo: $LAST_ERROR"
-    fi
-
-    log INFO "Configured Chaotic-AUR repository"
-  fi
-else
-  log INFO "Skipping Chaotic-AUR setup"
-fi
 
 # AUR helper installation
 if ! command_exists paru && ! command_exists yay; then
@@ -67,63 +62,30 @@ fi
 
 print_box "Packages"
 
-# ============================================================================
-# Core Packages
-# ============================================================================
-core_pkgs=(
-{{- range .packages.core }}
-  "{{ . }}"
-{{- end }}
-  "{{ .defaultShell }}"
-)
 
-core_pkgs+=(
-{{- range (index .packages.compositor .compositor) }}
-  "{{ . }}"
-{{- end }}
-)
+mise_environments="packages,shell-{{ .defaultShell }},compositor-{{ .compositor }},terminal-{{ .terminal }}"
+if [[ "${INSTALL_OPTIONAL_PACKAGES:-1}" == "1" ]]; then
+  mise_environments+=",optional"
+fi
 
-install_group "Core" "${core_pkgs[@]}"
+# Load only this repository's package declarations, not unrelated host configs.
+# Use the working tree because chezmoi may execute this script from a temp file.
+# Change directory before launch: mise reads early .miserc config before --cd.
+if ! (
+  cd {{ .chezmoi.workingTree | quote }} || exit 1
+  env -u MISE_CONFIG_FILE -u MISE_GLOBAL_CONFIG_FILE -u MISE_SYSTEM_CONFIG_FILE \
+  MISE_CONFIG_DIR=/dev/null MISE_SYSTEM_CONFIG_DIR=/dev/null \
+  MISE_USE_TOML=true MISE_AUTO_ENV=false \
+  MISE_CEILING_PATHS={{ dir .chezmoi.workingTree | quote }} \
+  MISE_OVERRIDE_CONFIG_FILENAMES=mise.toml \
+  MISE_OVERRIDE_TOOL_VERSIONS_FILENAMES=none \
+  MISE_TRUSTED_CONFIG_PATHS={{ joinPath .chezmoi.workingTree "mise.toml" | quote }} \
+  mise --cd {{ .chezmoi.workingTree | quote }} --env "$mise_environments" \
+    bootstrap packages apply --yes
+); then
+  die "Failed to install static packages with mise"
+fi
 
-# ============================================================================
-# Terminal
-# ============================================================================
-terminal_pkgs=(
-{{- range (index .packages.terminal .terminal) }}
-  "{{ . }}"
-{{- end }}
-)
-install_group "Terminal" "${terminal_pkgs[@]}"
-
-# ============================================================================
-# CLI Tools
-# ============================================================================
-cli_pkgs=(
-{{- range .packages.cli }}
-  "{{ . }}"
-{{- end }}
-)
-install_group "CLI Tools" "${cli_pkgs[@]}"
-
-# ============================================================================
-# Theming
-# ============================================================================
-theme_pkgs=(
-{{- range .packages.theming }}
-  "{{ . }}"
-{{- end }}
-)
-install_group "Theming" "${theme_pkgs[@]}"
-
-# ============================================================================
-# Fonts
-# ============================================================================
-font_pkgs=(
-{{- range .packages.fonts }}
-  "{{ . }}"
-{{- end }}
-)
-install_group "Fonts" "${font_pkgs[@]}"
 
 # ============================================================================
 # Drivers
@@ -228,19 +190,6 @@ else
   install_group "Limine and mkinitcpio" "${limine_mkinitcpio_pkgs[@]}"
 fi
 
-# ============================================================================
-# Optional Packages
-# ============================================================================
-if [[ "${INSTALL_OPTIONAL_PACKAGES:-1}" == "1" ]]; then
-  opt_pkgs=(
-{{- range .packages.optional }}
-    "{{ . }}"
-{{- end }}
-  )
-  install_group "Optional" "${opt_pkgs[@]}"
-else
-  log INFO "Skipping optional packages"
-fi
 
 # ============================================================================
 # Snapper Packages

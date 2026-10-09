@@ -42,12 +42,8 @@ setup_pkgfile() {
     return 1
   fi
 
-  if ! enable_service "pkgfile-update.timer" "system"; then
-    LAST_ERROR="Failed to enable pkgfile-update.timer: $LAST_ERROR"
-    return 1
-  fi
-
-  log INFO "Updated pkgfile database and enabled timer"
+  # Timer lifecycle follows this database initialization in the mise service phase.
+  log INFO "Updated pkgfile database"
   return 0
 }
 
