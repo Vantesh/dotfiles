@@ -1,0 +1,56 @@
+# mise.nvidia-sleep.toml: {{ include "../mise.nvidia-sleep.toml" | sha256sum }}
+{{- $config := include "../mise.nvidia-sleep.toml" | fromToml }}
+# Invoked only inside the existing NVIDIA branch after hibernation setup.
+# Keep the hooks idle; systemd's sleep transactions execute their oneshots.
+(
+  if ! command_exists mise; then
+    die "Bootstrap invariant violated: mise is required; run the phase 00 prerequisite script first"
+  fi
+
+  temp_dir=$(mktemp -d)
+  trap 'rm -rf -- "$temp_dir"' EXIT
+  trap 'exit 130' INT
+  trap 'exit 143' TERM
+  config_file="$temp_dir/mise.toml"
+  printf 'min_version = %s\n' '{{ $config.min_version | toJson }}' >"$config_file"
+  available=false
+
+{{ range $unit, $declaration := $config.bootstrap.services }}
+  if ! load_state=$(systemctl show --property=LoadState --value -- {{ $unit | quote }}); then
+    die "Failed to inspect {{ $unit }}"
+  fi
+  case "$load_state" in
+    not-found)
+      log SKIP "{{ $unit }} not available"
+      ;;
+    loaded|masked)
+      available=true
+      cat >>"$config_file" <<'UNIT'
+[bootstrap.services.{{ $unit | toJson }}]
+{{ $declaration | toToml }}
+UNIT
+      ;;
+    *)
+      die "Cannot apply {{ $unit }}: unexpected LoadState=$load_state"
+      ;;
+  esac
+{{ end }}
+
+  if [[ "$available" == false ]]; then
+    log SKIP "No NVIDIA sleep units are available"
+    exit 0
+  fi
+
+  cd {{ .chezmoi.workingTree | quote }} || exit 1
+  if ! env -u MISE_GLOBAL_CONFIG_FILE -u MISE_SYSTEM_CONFIG_FILE -u MISE_ENV \
+    MISE_CONFIG_FILE="$config_file" \
+    MISE_CONFIG_DIR=/dev/null MISE_SYSTEM_CONFIG_DIR=/dev/null \
+    MISE_USE_TOML=true MISE_AUTO_ENV=false \
+    MISE_CEILING_PATHS={{ dir .chezmoi.workingTree | quote }} \
+    MISE_OVERRIDE_CONFIG_FILENAMES=none \
+    MISE_OVERRIDE_TOOL_VERSIONS_FILENAMES=none \
+    MISE_TRUSTED_CONFIG_PATHS="$config_file" \
+    mise bootstrap services apply --yes; then
+    die "Failed to apply NVIDIA sleep services with mise"
+  fi
+)

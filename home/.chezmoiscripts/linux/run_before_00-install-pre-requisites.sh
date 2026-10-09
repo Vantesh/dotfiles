@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # 00-install-pre-requisites.sh - Install prerequisites for setup and templates
 #
-# Installs git, figlet, and base-devel for all setups. Personal setups also configure
-# Bitwarden and log in before secret-backed templates render. Secret reads
+# Installs git, figlet, and base-devel and ensures mise for all setups.
+# Personal setups configure Bitwarden before secret-backed templates render. Secret reads
 # unlock the vault on demand; desktop packages are installed by later scripts.
 # Globals:
 #   PERSONAL - Enable vault prerequisites only when set to 1
@@ -61,6 +61,10 @@ main() {
     die 127 "Unsupported distribution: pacman not found"
   fi
 
+  if ! command_exists mise; then
+    packages+=(mise)
+  fi
+
   if [[ "${PERSONAL:-0}" = "1" ]]; then
     packages+=(rbw pinentry)
   fi
@@ -77,6 +81,10 @@ main() {
       die "Failed to install prerequisites: ${missing_packages[*]}"
     fi
     log INFO "Installed prerequisites"
+  fi
+
+  if ! command_exists mise; then
+    die "Bootstrap prerequisite missing: mise is unavailable after prerequisite installation"
   fi
 
   if [[ "${PERSONAL:-0}" != "1" ]]; then

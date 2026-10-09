@@ -15,7 +15,7 @@
   {{- $preserveFirmwareSecureBootKeys = get . "preserveFirmwareSecureBootKeys" -}}
 {{- end -}}
 {{- $installOptionalPackages := not $skipPackages -}}
-{{- $installChaoticAUR := not $skipPackages -}}
+
 {{- $installDrivers := not $skipPackages -}}
 
 {{- /* Arch-only setup */ -}}
@@ -47,7 +47,7 @@
 
   {{- if not $skipPackages -}}
     {{- $installOptionalPackages = promptBool "Install optional packages (Y/n)" true -}}
-    {{- $installChaoticAUR = promptBool "Install Chaotic AUR (Y/n)" true -}}
+
     {{- $installDrivers = promptBool "Install drivers (Y/n)" true -}}
   {{- end -}}
 
@@ -65,7 +65,7 @@ data:
   setupSecureBoot: {{ $setupSecureBoot }}
   preserveFirmwareSecureBootKeys: {{ $preserveFirmwareSecureBootKeys }}
   installOptionalPackages: {{ $installOptionalPackages }}
-  installChaoticAUR: {{ $installChaoticAUR }}
+
   installDrivers: {{ $installDrivers }}
 
 scriptEnv:
@@ -80,7 +80,7 @@ scriptEnv:
   SETUP_SECURE_BOOT: {{ ternary "1" "0" $setupSecureBoot | quote }}
   PRESERVE_FIRMWARE_SECURE_BOOT_KEYS: {{ ternary "1" "0" $preserveFirmwareSecureBootKeys | quote }}
   INSTALL_OPTIONAL_PACKAGES: {{ ternary "1" "0" $installOptionalPackages | quote }}
-  INSTALL_CHAOTIC_AUR: {{ ternary "1" "0" $installChaoticAUR | quote }}
+
   INSTALL_DRIVERS: {{ ternary "1" "0" $installDrivers | quote }}
 
 
