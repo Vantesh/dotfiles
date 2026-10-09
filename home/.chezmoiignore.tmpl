@@ -104,12 +104,7 @@ tmp*
 {{ end }}
 
 # Shell-specific
-{{ if ne .defaultShell "zsh" -}}
 .config/{zsh,fsh}
-{{ end -}}
-{{ if ne .defaultShell "fish" -}}
-.config/fish
-{{ end }}
 
 # personal files
 {{- if not .personal }}
