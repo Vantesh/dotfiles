@@ -39,6 +39,7 @@ UNIT
 
   # Discover only the selected NVIDIA units, never the baseline services.
   if ! env -u MISE_CONFIG_FILE -u MISE_GLOBAL_CONFIG_FILE -u MISE_SYSTEM_CONFIG_FILE \
+    -u MISE_OVERRIDE_CONFIG_FILENAMES \
     MISE_CONFIG_DIR=/dev/null MISE_SYSTEM_CONFIG_DIR=/dev/null \
     MISE_AUTO_ENV=false MISE_CEILING_PATHS="${PWD%/*}" \
     MISE_TRUSTED_CONFIG_PATHS="$PWD/mise.toml" \
