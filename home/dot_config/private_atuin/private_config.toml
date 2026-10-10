@@ -193,6 +193,6 @@ model = "balanced"
 
 [logs]
 enabled = true
-dir = "${XDG_DATA_HOME}/atuin/logs"
+dir = "~/.local/share/atuin/logs"
 level = "info"
 retention = "2d"
