@@ -1,0 +1,17 @@
+min_version = "2026.10.6"
+
+[bootstrap.services."nvidia-suspend-then-hibernate.service"]
+state = "stopped"
+enabled = true
+
+[bootstrap.services."nvidia-suspend.service"]
+state = "stopped"
+enabled = true
+
+[bootstrap.services."nvidia-hibernate.service"]
+state = "stopped"
+enabled = true
+
+[bootstrap.services."nvidia-resume.service"]
+state = "stopped"
+enabled = true

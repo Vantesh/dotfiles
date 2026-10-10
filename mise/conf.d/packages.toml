@@ -1,0 +1,110 @@
+[bootstrap.packages]
+# Core
+"pacman:fish" = { env = "packages" }
+"pacman:uwsm" = { env = "packages" }
+"pacman:accountsservice" = { env = "packages" }
+"pacman:xdg-desktop-portal-gtk" = { env = "packages" }
+"aur:xdg-autostart" = { env = "packages" }
+"pacman:gnome-keyring" = { env = "packages" }
+"pacman:networkmanager" = { env = "packages" }
+"pacman:bluez" = { env = "packages" }
+"pacman:udiskie" = { env = "packages" }
+"pacman:ntfs-3g" = { env = "packages" }
+"pacman:exfatprogs" = { env = "packages" }
+"pacman:dosfstools" = { env = "packages" }
+"pacman:mtools" = { env = "packages" }
+"pacman:f2fs-tools" = { env = "packages" }
+"pacman:reflector" = { env = "packages" }
+"pacman:wget" = { env = "packages" }
+"pacman:man-db" = { env = "packages" }
+"pacman:pkgfile" = { env = "packages" }
+"pacman:plocate" = { env = "packages" }
+"pacman:usbutils" = { env = "packages" }
+"pacman:ufw" = { env = "packages" }
+"pacman:imv" = { env = "packages" }
+"pacman:mpv" = { env = "packages" }
+"pacman:evince" = { env = "packages" }
+"pacman:nautilus" = { env = "packages" }
+"pacman:gvfs-mtp" = { env = "packages" }
+"pacman:libcanberra" = { env = "packages" }
+"pacman:ly" = { env = "packages" }
+"pacman:gparted" = { env = "packages" }
+"pacman:meld" = { env = "packages" }
+"pacman:xorg-xhost" = { env = "packages" }
+"pacman:ddcutil" = { env = "packages" }
+"pacman:wl-clipboard" = { env = "packages" }
+"pacman:xdg-terminal-exec" = { env = "packages" }
+"pacman:gpu-screen-recorder" = { env = "packages" }
+"pacman:archlinux-xdg-menu" = { env = "packages" }
+"pacman:systemd-ukify" = { env = "packages" }
+"pacman:noctalia" = { env = "packages" }
+"pacman:jq" = { env = "packages" }
+
+# Desktop
+"pacman:hyprland" = { env = "packages" }
+"pacman:xdg-desktop-portal-hyprland" = { env = "packages" }
+"pacman:socat" = { env = "packages" }
+"pacman:cpio" = { env = "packages" }
+"pacman:kitty" = { env = "packages" }
+
+# CLI tools
+"pacman:fastfetch" = { env = "packages" }
+"pacman:btop" = { env = "packages" }
+"pacman:starship" = { env = "packages" }
+"pacman:zoxide" = { env = "packages" }
+"pacman:fd" = { env = "packages" }
+"pacman:duf" = { env = "packages" }
+"pacman:eza" = { env = "packages" }
+"pacman:bat" = { env = "packages" }
+"pacman:ripgrep" = { env = "packages" }
+"pacman:curlie" = { env = "packages" }
+"pacman:shfmt" = { env = "packages" }
+"pacman:imagemagick" = { env = "packages" }
+"pacman:poppler" = { env = "packages" }
+"pacman:resvg" = { env = "packages" }
+"pacman:ffmpeg" = { env = "packages" }
+"pacman:chafa" = { env = "packages" }
+"aur:topgrade-bin" = { env = "packages" }
+"pacman:yazi" = { env = "packages" }
+"pacman:unzip" = { env = "packages" }
+"pacman:7zip" = { env = "packages" }
+"pacman:neovim" = { env = "packages" }
+"pacman:git-delta" = { env = "packages" }
+"pacman:tree-sitter-cli" = { env = "packages" }
+"pacman:shellcheck" = { env = "packages" }
+"pacman:television" = { env = "packages" }
+"pacman:lazygit" = { env = "packages" }
+
+# Theming
+"pacman:nwg-look" = { env = "packages" }
+"pacman:adw-gtk-theme" = { env = "packages" }
+"aur:apple_cursor" = { env = "packages" }
+"pacman:frameworkintegration" = { env = "packages" }
+"aur:qtengine" = { env = "packages" }
+"aur:darkly-bin" = { env = "packages" }
+"aur:tela-icon-theme" = { env = "packages" }
+"pacman:layer-shell-qt" = { env = "packages" }
+"pacman:qt6-multimedia" = { env = "packages" }
+"pacman:qt6-positioning" = { env = "packages" }
+"pacman:qt6-5compat" = { env = "packages" }
+"pacman:qt6-imageformats" = { env = "packages" }
+"pacman:kimageformats" = { env = "packages" } # enable video as wallpaper
+"pacman:python-pillow" = { env = "packages" }
+
+# Fonts
+"pacman:noto-fonts-cjk" = { env = "packages" }
+"pacman:noto-fonts-extra" = { env = "packages" }
+"pacman:ttf-liberation" = { env = "packages" }
+"pacman:inter-font" = { env = "packages" }
+"pacman:ttf-dejavu" = { env = "packages" }
+
+# Applications
+"pacman:rust" = { env = "packages" }
+"pacman:go" = { env = "packages" }
+"pacman:cava" = { env = "packages" }
+"pacman:zed" = { env = "packages" }
+"pacman:qbittorrent" = { env = "packages" }
+"aur:brave-bin" = { env = "packages" }
+"aur:spotifast-bin" = { env = "packages" }
+"aur:localsend-bin" = { env = "packages" }
+"aur:vesktop-bin" = { env = "packages" }
