@@ -11,7 +11,6 @@
 {{- if hasKey . "preserveFirmwareSecureBootKeys" -}}
   {{- $preserveFirmwareSecureBootKeys = get . "preserveFirmwareSecureBootKeys" -}}
 {{- end -}}
-{{- $installOptionalPackages := not $skipPackages -}}
 
 {{- $installDrivers := not $skipPackages -}}
 
@@ -42,8 +41,6 @@
   {{- end -}}
 
   {{- if not $skipPackages -}}
-    {{- $installOptionalPackages = promptBool "Install optional packages (Y/n)" true -}}
-
     {{- $installDrivers = promptBool "Install drivers (Y/n)" true -}}
   {{- end -}}
 
@@ -57,7 +54,6 @@ data:
   setupHibernation: {{ $setupHibernation }}
   setupSecureBoot: {{ $setupSecureBoot }}
   preserveFirmwareSecureBootKeys: {{ $preserveFirmwareSecureBootKeys }}
-  installOptionalPackages: {{ $installOptionalPackages }}
 
   installDrivers: {{ $installDrivers }}
 
@@ -69,7 +65,6 @@ scriptEnv:
   SETUP_HIBERNATION: {{ ternary "1" "0" $setupHibernation | quote }}
   SETUP_SECURE_BOOT: {{ ternary "1" "0" $setupSecureBoot | quote }}
   PRESERVE_FIRMWARE_SECURE_BOOT_KEYS: {{ ternary "1" "0" $preserveFirmwareSecureBootKeys | quote }}
-  INSTALL_OPTIONAL_PACKAGES: {{ ternary "1" "0" $installOptionalPackages | quote }}
 
   INSTALL_DRIVERS: {{ ternary "1" "0" $installDrivers | quote }}
 

@@ -10,7 +10,6 @@
 # DISTRO: {{ .chezmoi.osRelease.id | quote }}
 
 # INSTALL_DRIVERS: {{ ternary "1" "0" .installDrivers }}
-# INSTALL_OPTIONAL_PACKAGES: {{ ternary "1" "0" .installOptionalPackages }}
 # SETUP_SNAPPER: {{ ternary "1" "0" .setupSnapper }}
 # SKIP_PACKAGES: {{ ternary "1" "0" (eq (env "SKIP_PACKAGES") "1") }}
 
@@ -55,12 +54,6 @@ fi
 
 print_box "Packages"
 
-
-mise_environments="packages"
-if [[ "${INSTALL_OPTIONAL_PACKAGES:-1}" == "1" ]]; then
-  mise_environments+=",optional"
-fi
-
 # Load only this repository's package declarations, not unrelated host configs.
 # Use the working tree because chezmoi may execute this script from a temp file.
 # Change directory before launch: mise reads early .miserc config before --cd.
@@ -70,7 +63,7 @@ if ! (
   MISE_CONFIG_DIR=/dev/null MISE_SYSTEM_CONFIG_DIR=/dev/null \
   MISE_AUTO_ENV=false MISE_CEILING_PATHS={{ dir .chezmoi.workingTree | quote }} \
   MISE_TRUSTED_CONFIG_PATHS={{ joinPath .chezmoi.workingTree "mise.toml" | quote }} \
-  mise --env "$mise_environments" \
+  mise --env packages \
     bootstrap packages apply --yes
 ); then
   die "Failed to install static packages with mise"
