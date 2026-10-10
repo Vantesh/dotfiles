@@ -1,5 +1,5 @@
 # Static packages, ordinary system-service state, and mandatory UFW firewall.
-# Chezmoi selects package environments and owns dotfiles and setup ordering.
+# Chezmoi owns dotfiles and setup ordering.
 # Syntax and bootstrap capabilities verified against mise 2026.10.6.
 min_version = "2026.10.6"
 
@@ -103,16 +103,16 @@ min_version = "2026.10.6"
 "pacman:inter-font" = { env = "packages" }
 "pacman:ttf-dejavu" = { env = "packages" }
 
-# Optional applications: selected only when INSTALL_OPTIONAL_PACKAGES=1.
-"pacman:rust" = { env = "optional" }
-"pacman:go" = { env = "optional" }
-"pacman:cava" = { env = "optional" }
-"pacman:zed" = { env = "optional" }
-"pacman:qbittorrent" = { env = "optional" }
-"aur:brave-bin" = { env = "optional" }
-"aur:spotifast-bin" = { env = "optional" }
-"aur:localsend-bin" = { env = "optional" }
-"aur:vesktop-bin" = { env = "optional" }
+# Applications
+"pacman:rust" = { env = "packages" }
+"pacman:go" = { env = "packages" }
+"pacman:cava" = { env = "packages" }
+"pacman:zed" = { env = "packages" }
+"pacman:qbittorrent" = { env = "packages" }
+"aur:brave-bin" = { env = "packages" }
+"aur:spotifast-bin" = { env = "packages" }
+"aur:localsend-bin" = { env = "packages" }
+"aur:vesktop-bin" = { env = "packages" }
 
 [bootstrap.user]
 login_shell = "/usr/bin/fish"
