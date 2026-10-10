@@ -1,0 +1,36 @@
+[bootstrap.linux.firewall]
+backend = "ufw"
+state = "enabled"
+default_incoming = "deny"
+default_outgoing = "allow"
+exclusive = false
+
+[[bootstrap.linux.firewall.rules]]
+name = "allow-53317-udp"
+action = "allow"
+protocol = "udp"
+port = 53317
+
+[[bootstrap.linux.firewall.rules]]
+name = "allow-53317-tcp"
+action = "allow"
+protocol = "tcp"
+port = 53317
+
+[[bootstrap.linux.firewall.rules]]
+name = "https"
+action = "allow"
+protocol = "tcp"
+port = 443
+
+[[bootstrap.linux.firewall.rules]]
+name = "http"
+action = "allow"
+protocol = "tcp"
+port = 80
+
+[[bootstrap.linux.firewall.rules]]
+name = "ssh"
+action = "limit"
+protocol = "tcp"
+port = 22

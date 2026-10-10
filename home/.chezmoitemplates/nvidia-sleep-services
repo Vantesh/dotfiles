@@ -1,5 +1,5 @@
-# mise.nvidia-sleep.toml: {{ include "../mise.nvidia-sleep.toml" | sha256sum }}
-{{- $config := include "../mise.nvidia-sleep.toml" | fromToml }}
+# mise/config.nvidia-sleep.toml: {{ include "../mise/config.nvidia-sleep.toml" | sha256sum }}
+{{- $config := include "../mise/config.nvidia-sleep.toml" | fromToml }}
 # Invoked only inside the existing NVIDIA branch after hibernation setup.
 # Keep the hooks idle; systemd's sleep transactions execute their oneshots.
 (
@@ -8,7 +8,8 @@
   trap 'exit 130' INT
   trap 'exit 143' TERM
   cd "$temp_dir" || exit 1
-  printf 'min_version = %s\n' '{{ $config.min_version | toJson }}' >mise.toml
+  mkdir mise
+  printf 'min_version = %s\n' '{{ $config.min_version | toJson }}' >mise/config.nvidia-sleep.toml
   available=false
 
 {{ range $unit, $declaration := $config.bootstrap.services }}
@@ -21,7 +22,7 @@
       ;;
     loaded|masked)
       available=true
-      cat >>mise.toml <<'UNIT'
+      cat >>mise/config.nvidia-sleep.toml <<'UNIT'
 [bootstrap.services.{{ $unit | toJson }}]
 {{ $declaration | toToml }}
 UNIT
@@ -42,8 +43,8 @@ UNIT
     -u MISE_OVERRIDE_CONFIG_FILENAMES \
     MISE_CONFIG_DIR=/dev/null MISE_SYSTEM_CONFIG_DIR=/dev/null \
     MISE_AUTO_ENV=false MISE_CEILING_PATHS="${PWD%/*}" \
-    MISE_TRUSTED_CONFIG_PATHS="$PWD/mise.toml" \
-    mise --env '' bootstrap services apply --yes; then
+    MISE_TRUSTED_CONFIG_PATHS="$PWD/mise" \
+    mise --env nvidia-sleep bootstrap services apply --yes; then
     die "Failed to apply NVIDIA sleep services with mise"
   fi
 )

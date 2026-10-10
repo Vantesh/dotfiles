@@ -4,7 +4,8 @@
 
 # Static declarations are outside the chezmoi source root; include their content
 # hash so changes make this run_onchange script eligible to run again.
-# mise.toml: {{ include "../mise.toml" | sha256sum }}
+# mise/config.toml: {{ include "../mise/config.toml" | sha256sum }}
+# mise/conf.d/packages.toml: {{ include "../mise/conf.d/packages.toml" | sha256sum }}
 # Effective settings not already represented by the rendered package arrays.
 # DISTRO_FAMILY: {{ .distroFamily | quote }}
 # DISTRO: {{ .chezmoi.osRelease.id | quote }}
@@ -62,7 +63,7 @@ if ! (
   env -u MISE_CONFIG_FILE -u MISE_GLOBAL_CONFIG_FILE -u MISE_SYSTEM_CONFIG_FILE \
   MISE_CONFIG_DIR=/dev/null MISE_SYSTEM_CONFIG_DIR=/dev/null \
   MISE_AUTO_ENV=false MISE_CEILING_PATHS={{ dir .chezmoi.workingTree | quote }} \
-  MISE_TRUSTED_CONFIG_PATHS={{ joinPath .chezmoi.workingTree "mise.toml" | quote }} \
+  MISE_TRUSTED_CONFIG_PATHS={{ joinPath .chezmoi.workingTree "mise" | quote }} \
   mise --env packages \
     bootstrap packages apply --yes
 ); then

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Transitional adapter for names selected by the remaining setup scripts.
-# Static declarations live in mise.toml; mise owns all non-bootstrap installs.
+# Static declarations live in mise/conf.d/packages.toml; mise owns all non-bootstrap installs.
 
 export LAST_ERROR="${LAST_ERROR:-}"
 

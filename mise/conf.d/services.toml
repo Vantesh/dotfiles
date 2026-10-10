@@ -1,0 +1,37 @@
+[bootstrap.services."NetworkManager.service"]
+state = "running"
+enabled = true
+
+[bootstrap.services."bluetooth.service"]
+state = "running"
+enabled = true
+
+[bootstrap.services."fstrim.timer"]
+state = "running"
+enabled = true
+
+# Native firewall activation does not enable/start the systemd unit.
+[bootstrap.services."ufw.service"]
+state = "running"
+enabled = true
+
+[bootstrap.services."reflector.timer"]
+state = "running"
+enabled = true
+
+[bootstrap.services."pacman-filesdb-refresh.timer"]
+state = "running"
+enabled = true
+
+[bootstrap.services."paccache.timer"]
+state = "running"
+enabled = true
+
+[bootstrap.services."pkgfile-update.timer"]
+state = "running"
+enabled = true
+
+[bootstrap.services."systemd-networkd-wait-online.service"]
+state = "stopped"
+enabled = false
+masked = true

@@ -1,4 +1,4 @@
-# Static Arch and AUR packages are owned by root mise.toml.
+# Static Arch and AUR packages are owned by mise/conf.d/packages.toml.
 # Only runtime-dependent and boot-conditional groups remain here.
 packages:
   drivers:

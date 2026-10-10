@@ -2,7 +2,10 @@
 
 # data: distroFamily={{ .distroFamily | quote }}
 # Packaged user units, one-shot maintenance, and native mise services/firewall/login shell.
-# mise.toml: {{ include "../mise.toml" | sha256sum }}
+# mise/config.toml: {{ include "../mise/config.toml" | sha256sum }}
+# mise/conf.d/services.toml: {{ include "../mise/conf.d/services.toml" | sha256sum }}
+# mise/conf.d/firewall.toml: {{ include "../mise/conf.d/firewall.toml" | sha256sum }}
+# mise/conf.d/login-shell.toml: {{ include "../mise/conf.d/login-shell.toml" | sha256sum }}
 # Exit codes: 0 (success), 1 (failure)
 
 set -euo pipefail
@@ -87,7 +90,7 @@ main() {
     env -u MISE_CONFIG_FILE -u MISE_GLOBAL_CONFIG_FILE -u MISE_SYSTEM_CONFIG_FILE \
     MISE_CONFIG_DIR=/dev/null MISE_SYSTEM_CONFIG_DIR=/dev/null \
     MISE_AUTO_ENV=false MISE_CEILING_PATHS={{ dir .chezmoi.workingTree | quote }} \
-    MISE_TRUSTED_CONFIG_PATHS={{ joinPath .chezmoi.workingTree "mise.toml" | quote }} \
+    MISE_TRUSTED_CONFIG_PATHS={{ joinPath .chezmoi.workingTree "mise" | quote }} \
       mise --env '' bootstrap --only services,firewall,user --yes
   ); then
     die "Failed to apply system services/firewall/login shell with mise"

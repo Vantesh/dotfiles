@@ -1,7 +1,4 @@
-# Sleep-transaction hooks are enabled but idle while the machine is awake.
-# Starting these oneshots directly would suspend/hibernate/resume the GPU.
-# The laptop phase selects this configuration after its existing setup gates.
-min_version = "2026.10.3"
+min_version = "2026.10.6"
 
 [bootstrap.services."nvidia-suspend-then-hibernate.service"]
 state = "stopped"
