@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Apply the Tela color and mode selected by Noctalia's template engine.
+# Apply the Tela Circle color and mode selected by Noctalia's template engine.
 set -euo pipefail
 
 if [[ $# -ne 2 || -z "$1" || ( "$2" != dark && "$2" != light ) ]]; then
@@ -9,10 +9,10 @@ fi
 
 color="$1"
 mode="$2"
-theme="Tela-$color-$mode"
-# Tela's default blue variant has no color suffix.
+theme="Tela-circle-$color-$mode"
+# Tela Circle's default blue variant has no color suffix.
 if [[ "$color" == dark ]]; then
-  theme="Tela"
+  theme="Tela-circle"
   [[ "$mode" != dark ]] || theme+="-dark"
 fi
 
@@ -41,7 +41,7 @@ for qt in qt5ct qt6ct; do
 done
 
 if [[ "$failed" -ne 0 ]]; then
-  printf 'Failed to apply Tela icon theme: %s\n' "$theme" >&2
+  printf 'Failed to apply Tela Circle icon theme: %s\n' "$theme" >&2
   exit 1
 fi
-printf 'Tela icon theme: %s\n' "$theme"
+printf 'Tela Circle icon theme: %s\n' "$theme"
