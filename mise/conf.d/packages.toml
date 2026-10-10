@@ -82,7 +82,7 @@
 "pacman:frameworkintegration" = { env = "packages" }
 "aur:qtengine" = { env = "packages" }
 "aur:darkly-bin" = { env = "packages" }
-"aur:tela-icon-theme" = { env = "packages" }
+"pacman:tela-circle-icon-theme-all" = { env = "packages" }
 "pacman:layer-shell-qt" = { env = "packages" }
 "pacman:qt6-multimedia" = { env = "packages" }
 "pacman:qt6-positioning" = { env = "packages" }
