@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# Preserve legacy history when first adopting the XDG history path.
+set -euo pipefail
+
+old_history="$HOME/.bash_history"
+history_dir="${XDG_STATE_HOME:-$HOME/.local/state}/bash"
+new_history="$history_dir/history"
+
+if [[ -e "$new_history" || -L "$new_history" ]]; then
+  exit 0
+fi
+
+# A legacy shell may save history after apply; retry on the next apply.
+if [[ ! -f "$old_history" ]]; then
+  exit 0
+fi
+
+mkdir -p -- "$history_dir"
+temporary_history=$(mktemp "$history_dir/.history.XXXXXX")
+trap 'rm -f -- "$temporary_history"' EXIT
+cat -- "$old_history" > "$temporary_history"
+# A hard link publishes the completed copy without replacing any existing file.
+ln -- "$temporary_history" "$new_history"

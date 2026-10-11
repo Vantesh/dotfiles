@@ -1,0 +1,41 @@
+# Applied by 03_pacman after the mise package phase.
+[bootstrap.directories."/etc/pacman.d/hooks"]
+owner = "root"
+group = "root"
+mode = "0755"
+
+[bootstrap.files."/etc/pacman.d/hooks/00-paccache.hook"]
+owner = "root"
+group = "root"
+mode = "0644"
+content = """
+[Trigger]
+Type = Package
+Operation = Remove
+Operation = Install
+Operation = Upgrade
+Target = *
+
+[Action]
+Description = Cleaning pacman cache...
+When = PostTransaction
+Exec = /usr/bin/paccache -rk2
+Depends = pacman-contrib
+"""
+
+[bootstrap.files."/etc/pacman.d/hooks/01-paccache-uninstalled.hook"]
+owner = "root"
+group = "root"
+mode = "0644"
+content = """
+[Trigger]
+Operation = Remove
+Type = Package
+Target = *
+
+[Action]
+Description = Cleaning pacman cache for uninstalled packages...
+When = PostTransaction
+Exec = /usr/bin/paccache -ruk1
+Depends = pacman-contrib
+"""

@@ -12,9 +12,6 @@ shopt -s nullglob globstar
 
 {{ include ".chezmoitemplates/lib/common.sh" }}
 
-readonly SSH_KNOWN_HOSTS="${HOME}/.ssh/known_hosts"
-
-
 if ! keep_sudo_alive; then
   die "Failed to keep sudo alive"
 fi
@@ -46,49 +43,6 @@ setup_pkgfile() {
   log INFO "Updated pkgfile database"
   return 0
 }
-
-setup_ssh_known_hosts() {
-  if [[ ! -f "$SSH_KNOWN_HOSTS" ]]; then
-    if ! touch "$SSH_KNOWN_HOSTS"; then
-      LAST_ERROR="Failed to create known_hosts file"
-      return 1
-    fi
-
-    if ! chmod 644 "$SSH_KNOWN_HOSTS"; then
-      LAST_ERROR="Failed to set permissions on known_hosts"
-      return 1
-    fi
-
-    log INFO "Created SSH known_hosts file"
-  fi
-
-  local added=false
-
-  if ! grep -q "github.com" "$SSH_KNOWN_HOSTS"; then
-    if ssh-keyscan -t rsa github.com >>"$SSH_KNOWN_HOSTS" 2>/dev/null; then
-      log INFO "Added GitHub to known_hosts"
-      added=true
-    else
-      log WARN "Failed to add GitHub to known_hosts"
-    fi
-  fi
-
-  if ! grep -q "gitlab.com" "$SSH_KNOWN_HOSTS"; then
-    if ssh-keyscan gitlab.com >>"$SSH_KNOWN_HOSTS" 2>/dev/null; then
-      log INFO "Added GitLab to known_hosts"
-      added=true
-    else
-      log WARN "Failed to add GitLab to known_hosts"
-    fi
-  fi
-
-  if [[ "$added" == false ]] && [[ -f "$SSH_KNOWN_HOSTS" ]]; then
-    log SKIP "SSH known_hosts already configured"
-  fi
-
-  return 0
-}
-
 
 install_yazi_plugins() {
   if ! command_exists yazi; then
@@ -133,11 +87,6 @@ main() {
   else
     log INFO "Regenerated font cache"
   fi
-
-  if ! setup_ssh_known_hosts; then
-    log WARN "SSH known_hosts setup failed: $LAST_ERROR"
-  fi
-
 
   if ! install_yazi_plugins; then
     log WARN "Yazi plugin installation failed: $LAST_ERROR"
