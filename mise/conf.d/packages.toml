@@ -18,6 +18,7 @@
 "pacman:wget" = { env = "packages" }
 "pacman:man-db" = { env = "packages" }
 "pacman:pkgfile" = { env = "packages" }
+"pacman:pacman-contrib" = { env = "packages" }
 "pacman:plocate" = { env = "packages" }
 "pacman:usbutils" = { env = "packages" }
 "pacman:ufw" = { env = "packages" }
@@ -74,6 +75,9 @@
 "pacman:shellcheck" = { env = "packages" }
 "pacman:television" = { env = "packages" }
 "pacman:lazygit" = { env = "packages" }
+
+# Personal shell history sync
+"pacman:atuin" = { env = "personal" }
 
 # Theming
 "pacman:nwg-look" = { env = "packages" }

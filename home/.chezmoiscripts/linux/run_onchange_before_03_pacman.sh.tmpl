@@ -1,0 +1,108 @@
+#!/usr/bin/env bash
+# 03_pacman.sh - Configure pacman after mise installs pacman-contrib
+# Exit codes: 0 (success), 1 (failure)
+# SKIP_PACKAGES: {{ ternary "1" "0" (eq (env "SKIP_PACKAGES") "1") }}
+# mise/config.toml: {{ include "../mise/config.toml" | sha256sum }}
+# mise/conf.d/pacman-hooks.toml: {{ include "../mise/conf.d/pacman-hooks.toml" | sha256sum }}
+
+set -euo pipefail
+
+shopt -s nullglob globstar
+
+{{ include ".chezmoitemplates/lib/common.sh" }}
+
+readonly PACMAN_CONF="/etc/pacman.conf"
+readonly PACCACHE_CONFIG="/etc/conf.d/pacman-contrib"
+
+if ! keep_sudo_alive; then
+  die "Failed to keep sudo alive"
+fi
+
+_configure_pacman_options() {
+  local pacman_conf="$1"
+  local -a options=(
+    "Color"
+    "VerbosePkgLists"
+    "ParallelDownloads"
+  )
+
+  for option in "${options[@]}"; do
+    if grep -q "^#[[:space:]]*${option}" "$pacman_conf"; then
+      sudo sed -i "s/^#[[:space:]]*${option}/${option}/" "$pacman_conf"
+      log INFO "Enabled ${COLOR_CYAN}${option}${COLOR_RESET}"
+    elif grep -q "^${option}" "$pacman_conf"; then
+      log SKIP "${COLOR_CYAN}${option}${COLOR_RESET} already enabled"
+    else
+      log WARN "Option not found: $option"
+    fi
+  done
+}
+
+_add_ilovecandy() {
+  local pacman_conf="$1"
+
+  if grep -q "^ParallelDownloads" "$pacman_conf" && ! grep -q "^ILoveCandy" "$pacman_conf"; then
+    sudo sed -i "/^ParallelDownloads/a ILoveCandy" "$pacman_conf"
+    log INFO "Enabled ${COLOR_CYAN}ILoveCandy${COLOR_RESET}"
+  elif grep -q "^ILoveCandy" "$pacman_conf"; then
+    log SKIP "${COLOR_CYAN}ILoveCandy${COLOR_RESET} already enabled"
+  fi
+}
+
+_configure_paccache() {
+  if ! update_config "$PACCACHE_CONFIG" "PACCACHE_ARGS" "'-k2'"; then
+    log WARN "Failed to configure paccache: $LAST_ERROR"
+    return 1
+  fi
+
+  log INFO "Configured paccache (keep 2 versions)"
+  return 0
+}
+
+setup_pacman() {
+  print_box "Pacman"
+  log STEP "Configuring Pacman"
+
+  local configure_cache=false
+  if command_exists paccache; then
+    configure_cache=true
+  elif [[ "${SKIP_PACKAGES:-0}" != "1" ]]; then
+    die "pacman-contrib is missing; the mise package phase must complete before pacman configuration"
+  else
+    log SKIP "pacman-contrib not installed and package installation is disabled; skipping cache configuration"
+  fi
+
+  if ! create_backup "$PACMAN_CONF"; then
+    die "Failed to create backup of $PACMAN_CONF"
+  fi
+
+  if ! {
+    _configure_pacman_options "$PACMAN_CONF" &&
+      _add_ilovecandy "$PACMAN_CONF" &&
+      { [[ "$configure_cache" == false ]] || _configure_paccache; }
+  }; then
+    restore_backup "$PACMAN_CONF" 2>/dev/null || true
+    die "Failed to configure pacman (backup restored)"
+  fi
+
+  # Apply only system files; standalone files apply can also offer service changes.
+  if [[ "$configure_cache" == true ]] && ! (
+    cd {{ .chezmoi.workingTree | quote }} || exit 1
+    env -u MISE_CONFIG_FILE -u MISE_GLOBAL_CONFIG_FILE -u MISE_SYSTEM_CONFIG_FILE \
+    MISE_CONFIG_DIR=/dev/null MISE_SYSTEM_CONFIG_DIR=/dev/null \
+    MISE_AUTO_ENV=false MISE_CEILING_PATHS={{ dir .chezmoi.workingTree | quote }} \
+    MISE_TRUSTED_CONFIG_PATHS={{ joinPath .chezmoi.workingTree "mise" | quote }} \
+      mise --env '' bootstrap --only files --yes
+  ); then
+    die "Failed to apply pacman cache hooks with mise"
+  fi
+
+}
+
+main() {
+  if ! setup_pacman; then
+    die "Pacman setup failed"
+  fi
+}
+
+main "$@"
