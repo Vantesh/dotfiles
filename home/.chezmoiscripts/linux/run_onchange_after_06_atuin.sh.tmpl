@@ -5,6 +5,7 @@
 {{- if .personal }}
 
 # distro-family: {{ .distroFamily | quote }}
+# SKIP_PACKAGES: {{ ternary "1" "0" (eq (env "SKIP_PACKAGES") "1") }}
 
 
 set -euo pipefail
@@ -12,7 +13,11 @@ set -euo pipefail
 shopt -s nullglob globstar
 
 {{ include ".chezmoitemplates/lib/common.sh" }}
-{{ include ".chezmoitemplates/lib/package_manager.sh" }}
+
+if [[ "${SKIP_PACKAGES:-0}" == "1" ]] && ! command_exists atuin; then
+  log SKIP "Atuin not installed and package installation is disabled"
+  exit 0
+fi
 
 # Logs in with runtime vault credentials and synchronizes history.
 # Captures fields with a sentinel, removing only rbw's final output newline.
@@ -73,11 +78,6 @@ main() {
 
   print_box "Atuin"
   log STEP "Atuin Configuration"
-
-  if ! install_package "atuin"; then
-    die "Failed to install atuin: $LAST_ERROR"
-  fi
-
 
   if login_atuin; then
     :

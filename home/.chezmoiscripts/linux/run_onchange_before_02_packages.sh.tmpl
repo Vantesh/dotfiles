@@ -34,6 +34,10 @@ if [[ "${SKIP_PACKAGES:-0}" == "1" ]]; then
   exit 0
 fi
 
+if ! command_exists mise; then
+  die "Bootstrap prerequisite missing: mise must be installed before package setup"
+fi
+
 if ! keep_sudo_alive; then
   die "Failed to keep sudo alive"
 fi
@@ -64,7 +68,7 @@ if ! (
   MISE_CONFIG_DIR=/dev/null MISE_SYSTEM_CONFIG_DIR=/dev/null \
   MISE_AUTO_ENV=false MISE_CEILING_PATHS={{ dir .chezmoi.workingTree | quote }} \
   MISE_TRUSTED_CONFIG_PATHS={{ joinPath .chezmoi.workingTree "mise" | quote }} \
-  mise --env packages \
+  mise --env {{ ternary "packages,personal" "packages" .personal | quote }} \
     bootstrap packages apply --yes
 ); then
   die "Failed to install static packages with mise"

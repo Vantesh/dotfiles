@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
-# 01_pacman.sh - Configure pacman
+# 03_pacman.sh - Configure pacman after mise installs pacman-contrib
 # Exit codes: 0 (success), 1 (failure)
-
+# SKIP_PACKAGES: {{ ternary "1" "0" (eq (env "SKIP_PACKAGES") "1") }}
+# mise/config.toml: {{ include "../mise/config.toml" | sha256sum }}
+# mise/conf.d/pacman-hooks.toml: {{ include "../mise/conf.d/pacman-hooks.toml" | sha256sum }}
 
 set -euo pipefail
 
@@ -11,24 +13,10 @@ shopt -s nullglob globstar
 
 readonly PACMAN_CONF="/etc/pacman.conf"
 readonly PACCACHE_CONFIG="/etc/conf.d/pacman-contrib"
-readonly HOOKS_DIR="/etc/pacman.d/hooks"
 
 if ! keep_sudo_alive; then
   die "Failed to keep sudo alive"
 fi
-
-_ensure_pacman_contrib() {
-  if pacman -Q "pacman-contrib" &>/dev/null; then
-    return 0
-  fi
-
-  if ! sudo pacman -S --noconfirm "pacman-contrib" &>/dev/null; then
-    LAST_ERROR="pacman-contrib installation failed"
-    return 1
-  fi
-
-  return 0
-}
 
 _configure_pacman_options() {
   local pacman_conf="$1"
@@ -71,65 +59,42 @@ _configure_paccache() {
   return 0
 }
 
-_create_paccache_hooks() {
-  if ! write_system_config "$HOOKS_DIR/00-paccache.hook" <<'EOF'; then
-[Trigger]
-Type = Package
-Operation = Remove
-Operation = Install
-Operation = Upgrade
-Target = *
-
-[Action]
-Description = Cleaning pacman cache...
-When = PostTransaction
-Exec = /usr/bin/paccache -rk2
-Depends = pacman-contrib
-EOF
-    log ERROR "Failed to create paccache cleanup hook: $LAST_ERROR"
-    return 1
-  fi
-  log INFO "Created paccache cleanup hook"
-
-  if ! write_system_config "$HOOKS_DIR/01-paccache-uninstalled.hook" <<'EOF'; then
-[Trigger]
-Operation = Remove
-Type = Package
-Target = *
-
-[Action]
-Description = Cleaning pacman cache for uninstalled packages...
-When = PostTransaction
-Exec = /usr/bin/paccache -ruk1
-Depends = pacman-contrib
-EOF
-    log ERROR "Failed to create paccache uninstalled hook: $LAST_ERROR"
-    return 1
-  fi
-  log INFO "Created paccache uninstalled hook"
-
-  return 0
-}
-
 setup_pacman() {
   print_box "Pacman"
   log STEP "Configuring Pacman"
 
-  if ! _ensure_pacman_contrib; then
-    die "Failed to install dependencies: $LAST_ERROR"
+  local configure_cache=false
+  if command_exists paccache; then
+    configure_cache=true
+  elif [[ "${SKIP_PACKAGES:-0}" != "1" ]]; then
+    die "pacman-contrib is missing; the mise package phase must complete before pacman configuration"
+  else
+    log SKIP "pacman-contrib not installed and package installation is disabled; skipping cache configuration"
   fi
 
   if ! create_backup "$PACMAN_CONF"; then
     die "Failed to create backup of $PACMAN_CONF"
   fi
 
-  if ! { _configure_pacman_options "$PACMAN_CONF" && _add_ilovecandy "$PACMAN_CONF" && _configure_paccache; }; then
+  if ! {
+    _configure_pacman_options "$PACMAN_CONF" &&
+      _add_ilovecandy "$PACMAN_CONF" &&
+      { [[ "$configure_cache" == false ]] || _configure_paccache; }
+  }; then
     restore_backup "$PACMAN_CONF" 2>/dev/null || true
     die "Failed to configure pacman (backup restored)"
   fi
 
-  if ! _create_paccache_hooks; then
-    log WARN "Hooks may be incomplete"
+  # Apply only system files; standalone files apply can also offer service changes.
+  if [[ "$configure_cache" == true ]] && ! (
+    cd {{ .chezmoi.workingTree | quote }} || exit 1
+    env -u MISE_CONFIG_FILE -u MISE_GLOBAL_CONFIG_FILE -u MISE_SYSTEM_CONFIG_FILE \
+    MISE_CONFIG_DIR=/dev/null MISE_SYSTEM_CONFIG_DIR=/dev/null \
+    MISE_AUTO_ENV=false MISE_CEILING_PATHS={{ dir .chezmoi.workingTree | quote }} \
+    MISE_TRUSTED_CONFIG_PATHS={{ joinPath .chezmoi.workingTree "mise" | quote }} \
+      mise --env '' bootstrap --only files --yes
+  ); then
+    die "Failed to apply pacman cache hooks with mise"
   fi
 
 }

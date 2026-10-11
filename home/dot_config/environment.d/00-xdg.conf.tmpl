@@ -3,7 +3,8 @@ XDG_CONFIG_HOME=${XDG_CONFIG_HOME:-$HOME/.config}
 XDG_DATA_HOME=${XDG_DATA_HOME:-$HOME/.local/share}
 XDG_STATE_HOME=${XDG_STATE_HOME:-$HOME/.local/state}
 XDG_BIN_HOME=${XDG_BIN_HOME:-$HOME/.local/bin}
-XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:-/run/user/$(id -u)}
+# environment.d does not execute shell commands; preserve the PAM value first.
+XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:-/run/user/{{ .chezmoi.uid }}}
 
 # Rust
 RUSTUP_HOME=${XDG_DATA_HOME}/rustup
