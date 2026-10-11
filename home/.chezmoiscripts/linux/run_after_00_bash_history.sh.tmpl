@@ -6,7 +6,12 @@ old_history="$HOME/.bash_history"
 history_dir="${XDG_STATE_HOME:-$HOME/.local/state}/bash"
 new_history="$history_dir/history"
 
-if [[ ! -f "$old_history" || -e "$new_history" || -L "$new_history" ]]; then
+if [[ -e "$new_history" || -L "$new_history" ]]; then
+  exit 0
+fi
+
+# A legacy shell may save history after apply; retry on the next apply.
+if [[ ! -f "$old_history" ]]; then
   exit 0
 fi
 
