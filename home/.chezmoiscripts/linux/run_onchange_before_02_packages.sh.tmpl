@@ -96,37 +96,50 @@ if [[ "${INSTALL_DRIVERS:-1}" == "1" ]]; then
   gpu_info=$(lspci -nn) || die "Failed to inspect PCI controllers"
   gpu_info=$(grep -Ei "VGA|3D|Display" <<< "$gpu_info" || true)
 
-  # Numeric heuristic, not a compatibility guarantee: unknown IDs >= 0x1e00
-  # are misclassified as current. Pre-Turing cards except this P1000 (e.g. Volta)
-  # are skipped; PCI IDs do not reliably encode GPU generations.
   nvidia_branch=""
-  nvidia_skip=false
-  shopt -s nullglob
-  for device in /sys/bus/pci/devices/*; do
-    [[ $(< "$device/vendor") == 0x10de && $(< "$device/class") == 0x03* ]] || continue
-    pci_id=$(< "$device/device")
-    if (( pci_id == 0x1cbb )); then
-      branch=legacy
-    elif (( pci_id >= 0x1e00 )); then
-      branch=current
-    else
-      nvidia_skip=true
-      continue
+  # Any NVIDIA-named package makes this a user-managed installation, even if
+  # incomplete or unfamiliar. Do not select helpers that could pull another stack.
+  if grep -Eq '^[^[:space:]]*nvidia[^[:space:]]*[[:space:]]' <<< "$installed_packages"; then
+    log WARN "Existing NVIDIA packages detected; leaving them unchanged and unverified. Driver maintenance may be required separately."
+    log SKIP "Skipping NVIDIA package provisioning"
+  else
+    # Numeric heuristic, not a compatibility guarantee: unknown IDs >= 0x1e00
+    # are misclassified as current. Pre-Turing cards except this P1000 (e.g. Volta)
+    # are skipped; PCI IDs do not reliably encode GPU generations.
+    nvidia_skip=false
+    shopt -s nullglob
+    for device in /sys/bus/pci/devices/*; do
+      [[ $(< "$device/vendor") == 0x10de && $(< "$device/class") == 0x03* ]] || continue
+      pci_id=$(< "$device/device")
+      if (( pci_id == 0x1cbb )); then
+        branch=legacy
+      elif (( pci_id >= 0x1e00 )); then
+        branch=current
+      else
+        nvidia_skip=true
+        continue
+      fi
+      nvidia_branch="${nvidia_branch:-$branch}"
+      [[ "$nvidia_branch" == "$branch" ]] || nvidia_branch=mixed
+    done
+    if [[ "$nvidia_skip" == true ]]; then
+      log SKIP "Unsupported NVIDIA display controller found; skipping all NVIDIA packages"
+      nvidia_branch=""
+    elif [[ "$nvidia_branch" == mixed ]]; then
+      log WARN "Mixed legacy/current NVIDIA GPUs; skipping NVIDIA packages, configure drivers manually"
+      nvidia_branch=""
     fi
-    nvidia_branch="${nvidia_branch:-$branch}"
-    [[ "$nvidia_branch" == "$branch" ]] || nvidia_branch=mixed
-  done
-  if [[ "$nvidia_skip" == true ]]; then
-    log SKIP "Unsupported NVIDIA display controller found; skipping all NVIDIA packages"
-    nvidia_branch=""
-  elif [[ "$nvidia_branch" == mixed ]]; then
-    log WARN "Mixed legacy/current NVIDIA GPUs; skipping NVIDIA packages, configure drivers manually"
+  fi
+
+  # Also preserve unusually named packages providing the NVIDIA module capability.
+  if [[ -n "$nvidia_branch" ]] && pacman -T NVIDIA-MODULE >/dev/null 2>&1; then
+    log WARN "Existing NVIDIA module provider detected; leaving it unchanged and unverified."
+    log SKIP "Skipping NVIDIA package provisioning"
     nvidia_branch=""
   fi
 
   if [[ -n "$nvidia_branch" ]]; then
     if [[ "$nvidia_branch" == legacy ]]; then
-      opposite='^(nvidia-(utils|settings|dkms|open(-dkms|-lts)?|lts)|opencl-nvidia) '
       nvidia_core=(nvidia-580xx-utils opencl-nvidia-580xx)
       nvidia_module=nvidia-580xx-dkms
       drivers=(
@@ -136,13 +149,9 @@ if [[ "${INSTALL_DRIVERS:-1}" == "1" ]]; then
       )
       package_envs+=",nvidia-legacy"
     else
-      opposite='^(nvidia-[0-9]+xx-|opencl-nvidia-[0-9]+xx)'
       nvidia_core=(nvidia-utils opencl-nvidia)
       nvidia_module=nvidia-open-dkms
       package_envs+=",nvidia-current"
-    fi
-    if grep -Eq "$opposite" <<< "$installed_packages"; then
-      die "An opposing NVIDIA branch is installed; reconcile the complete driver family manually with a supported full-system upgrade before rerunning setup."
     fi
     case "${DISTRO,,}" in
       cachyos|garuda)
@@ -150,21 +159,10 @@ if [[ "${INSTALL_DRIVERS:-1}" == "1" ]]; then
         pacman -Dk >/dev/null || die "Broken package dependencies; complete supported system maintenance before rerunning setup."
         ;;
       *)
-        if ! grep -q "^$nvidia_module " <<< "$installed_packages" && pacman -T NVIDIA-MODULE >/dev/null 2>&1; then
-          die "Another NVIDIA module owner is installed; reconcile manually rather than replacing it."
-        fi
         nvidia_core+=("$nvidia_module")
         if [[ "$nvidia_branch" == legacy ]]; then drivers+=("$nvidia_module"); else package_envs+=",nvidia-open"; fi
         ;;
     esac
-    # A partial or mixed core is a maintenance problem, not a bootstrap resolver.
-    nvidia_status=0
-    nvidia_installed=$(pacman -Q -- "${nvidia_core[@]}" 2>/dev/null) || nvidia_status=$?
-    [[ "$nvidia_status" == 0 || ( "$nvidia_status" == 1 && -z "$nvidia_installed" ) ]] || die "Incomplete NVIDIA core or failed package query; provision the complete selected family manually before rerunning setup."
-    if [[ -n "$nvidia_installed" ]]; then
-      [[ $(awk '{print $1}' <<< "$nvidia_installed") == $(printf '%s\n' "${nvidia_core[@]}") ]] || die "Incomplete or noncanonical NVIDIA core; provision the complete selected driver family manually before rerunning setup."
-      awk '{sub(/^[0-9]+:/, "", $2); sub(/-[^-]+$/, "", $2); versions[$2]=1} END {exit(length(versions) != 1)}' <<< "$nvidia_installed" || die "Installed NVIDIA driver releases differ; reconcile the complete family manually before rerunning setup."
-    fi
   fi
 
   # Intel drivers
