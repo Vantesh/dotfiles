@@ -7,8 +7,6 @@ install_aur_helper() {
   local temp_dir
 
   LAST_ERROR=""
-  command_exists paru && return 0
-  command_exists yay && return 0
 
   temp_dir="$(mktemp -d)" || {
     LAST_ERROR="Failed to create paru build directory"
@@ -28,11 +26,6 @@ install_aur_helper() {
     makepkg -si --noconfirm
   ) >/dev/null 2>&1; then
     LAST_ERROR="Failed to build and install paru"
-    return 1
-  fi
-
-  if ! command_exists paru; then
-    LAST_ERROR="paru is unavailable after installation"
     return 1
   fi
 }

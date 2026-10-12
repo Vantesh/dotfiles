@@ -2,11 +2,11 @@
 # 02_packages.sh - Install packages
 # Exit codes: 0 (success), 1 (failure)
 
-# Static declarations are outside the chezmoi source root; include their content
+# Fixed declarations are outside the chezmoi source root; include their content
 # hash so changes make this run_onchange script eligible to run again.
 # mise/config.toml: {{ include "../mise/config.toml" | sha256sum }}
 # mise/conf.d/packages.toml: {{ include "../mise/conf.d/packages.toml" | sha256sum }}
-# Effective settings not already represented by the rendered package arrays.
+# Effective settings used by package environment selection and deferred arrays.
 # DISTRO_FAMILY: {{ .distroFamily | quote }}
 # DISTRO: {{ .chezmoi.osRelease.id | quote }}
 
@@ -16,14 +16,11 @@
 
 set -euo pipefail
 
-shopt -s nullglob globstar
-
 {{ include ".chezmoitemplates/lib/common.sh" }}
 {{ include ".chezmoitemplates/lib/xdg_setup.sh" }}
 
 {{ include ".chezmoitemplates/lib/aur_helper.sh" }}
 {{ include ".chezmoitemplates/lib/package_manager.sh" }}
-
 
 if [[ "$(id -u)" -eq 0 ]]; then
   die "Do not run this script as root."
@@ -34,10 +31,6 @@ if [[ "${SKIP_PACKAGES:-0}" == "1" ]]; then
   exit 0
 fi
 
-if ! command_exists mise; then
-  die "Bootstrap prerequisite missing: mise must be installed before package setup"
-fi
-
 if ! keep_sudo_alive; then
   die "Failed to keep sudo alive"
 fi
@@ -45,7 +38,6 @@ fi
 if ! setup_xdg; then
   die "XDG setup failed: $LAST_ERROR"
 fi
-
 
 # AUR helper installation
 if ! command_exists paru && ! command_exists yay; then
@@ -59,7 +51,166 @@ fi
 
 print_box "Packages"
 
-# Load only this repository's package declarations, not unrelated host configs.
+package_envs={{ ternary "packages,personal" "packages" .personal | quote }}
+drivers=()
+nvidia_core=()
+
+# Drivers
+if [[ "${INSTALL_DRIVERS:-1}" == "1" ]]; then
+  package_envs+=",driver-utils"
+
+  # Use installed package versions, not the release still running before reboot.
+  # Pacman enforces exact split-package targets; mise cannot install version pins.
+  header_targets=()
+  installed_packages=$(pacman -Q) || die "Failed to query installed packages"
+  while read -r kernel kernel_version; do
+    case "$kernel" in
+      linux)         header="{{ .packages.drivers.kernelHeaders.default }}" ;;
+      linux-zen)     header="{{ .packages.drivers.kernelHeaders.zen }}" ;;
+      linux-lts)     header="{{ .packages.drivers.kernelHeaders.lts }}" ;;
+      linux-cachyos) header="{{ .packages.drivers.kernelHeaders.cachyos }}" ;;
+      *) continue ;;
+    esac
+
+    header_version=$(awk -v name="$header" '$1 == name { print $2 }' <<< "$installed_packages")
+    if [[ -z "$header_version" ]]; then
+      header_targets+=("$kernel=$kernel_version" "$header=$kernel_version")
+    elif [[ "$header_version" != "$kernel_version" ]]; then
+      die "$kernel $kernel_version does not match $header $header_version. Reconcile the kernel/header pair manually using a supported full-system upgrade; setup will not change either package."
+    fi
+  done <<< "$installed_packages"
+
+  if [[ ${#header_targets[@]} -gt 0 ]]; then
+    log STEP "Installing missing kernel headers"
+    # No refresh or system upgrade: unavailable exact versions must fail.
+    if ! sudo pacman -S --needed --noconfirm -- "${header_targets[@]}"; then
+      die "Failed to install matching kernel headers. Complete a supported full-system upgrade with the required headers, then rerun setup; setup will not upgrade kernels automatically."
+    fi
+    for target in "${header_targets[@]}"; do
+      installed_package=$(pacman -Q -- "${target%%=*}") || die "Failed to verify $target"
+      [[ "$installed_package" == "${target/=/ }" ]] || die "Expected $target after header installation, found $installed_package; reconcile the kernel/header pair before rerunning setup."
+    done
+  fi
+
+  # GPU-specific drivers
+  gpu_info=$(lspci -nn) || die "Failed to inspect PCI controllers"
+  gpu_info=$(grep -Ei "VGA|3D|Display" <<< "$gpu_info" || true)
+
+  # Numeric heuristic, not a compatibility guarantee: unknown IDs >= 0x1e00
+  # are misclassified as current. Pre-Turing cards except this P1000 (e.g. Volta)
+  # are skipped; PCI IDs do not reliably encode GPU generations.
+  nvidia_branch=""
+  nvidia_skip=false
+  shopt -s nullglob
+  for device in /sys/bus/pci/devices/*; do
+    [[ $(< "$device/vendor") == 0x10de && $(< "$device/class") == 0x03* ]] || continue
+    pci_id=$(< "$device/device")
+    if (( pci_id == 0x1cbb )); then
+      branch=legacy
+    elif (( pci_id >= 0x1e00 )); then
+      branch=current
+    else
+      nvidia_skip=true
+      continue
+    fi
+    nvidia_branch="${nvidia_branch:-$branch}"
+    [[ "$nvidia_branch" == "$branch" ]] || nvidia_branch=mixed
+  done
+  if [[ "$nvidia_skip" == true ]]; then
+    log SKIP "Unsupported NVIDIA display controller found; skipping all NVIDIA packages"
+    nvidia_branch=""
+  elif [[ "$nvidia_branch" == mixed ]]; then
+    log WARN "Mixed legacy/current NVIDIA GPUs; skipping NVIDIA packages, configure drivers manually"
+    nvidia_branch=""
+  fi
+
+  if [[ -n "$nvidia_branch" ]]; then
+    if [[ "$nvidia_branch" == legacy ]]; then
+      opposite='^(nvidia-(utils|settings|dkms|open(-dkms|-lts)?|lts)|opencl-nvidia) '
+      nvidia_core=(nvidia-580xx-utils opencl-nvidia-580xx)
+      nvidia_module=nvidia-580xx-dkms
+      drivers=(
+{{- range .packages.drivers.nvidia580 }}
+        "{{ . }}"
+{{- end }}
+      )
+      package_envs+=",nvidia-legacy"
+    else
+      opposite='^(nvidia-[0-9]+xx-|opencl-nvidia-[0-9]+xx)'
+      nvidia_core=(nvidia-utils opencl-nvidia)
+      nvidia_module=nvidia-open-dkms
+      package_envs+=",nvidia-current"
+    fi
+    if grep -Eq "$opposite" <<< "$installed_packages"; then
+      die "An opposing NVIDIA branch is installed; reconcile the complete driver family manually with a supported full-system upgrade before rerunning setup."
+    fi
+    case "${DISTRO,,}" in
+      cachyos|garuda)
+        log SKIP "Leaving NVIDIA modules to the distribution"
+        pacman -Dk >/dev/null || die "Broken package dependencies; complete supported system maintenance before rerunning setup."
+        ;;
+      *)
+        if ! grep -q "^$nvidia_module " <<< "$installed_packages" && pacman -T NVIDIA-MODULE >/dev/null 2>&1; then
+          die "Another NVIDIA module owner is installed; reconcile manually rather than replacing it."
+        fi
+        nvidia_core+=("$nvidia_module")
+        if [[ "$nvidia_branch" == legacy ]]; then drivers+=("$nvidia_module"); else package_envs+=",nvidia-open"; fi
+        ;;
+    esac
+    # A partial or mixed core is a maintenance problem, not a bootstrap resolver.
+    nvidia_status=0
+    nvidia_installed=$(pacman -Q -- "${nvidia_core[@]}" 2>/dev/null) || nvidia_status=$?
+    [[ "$nvidia_status" == 0 || ( "$nvidia_status" == 1 && -z "$nvidia_installed" ) ]] || die "Incomplete NVIDIA core or failed package query; provision the complete selected family manually before rerunning setup."
+    if [[ -n "$nvidia_installed" ]]; then
+      [[ $(awk '{print $1}' <<< "$nvidia_installed") == $(printf '%s\n' "${nvidia_core[@]}") ]] || die "Incomplete or noncanonical NVIDIA core; provision the complete selected driver family manually before rerunning setup."
+      awk '{sub(/^[0-9]+:/, "", $2); sub(/-[^-]+$/, "", $2); versions[$2]=1} END {exit(length(versions) != 1)}' <<< "$nvidia_installed" || die "Installed NVIDIA driver releases differ; reconcile the complete family manually before rerunning setup."
+    fi
+  fi
+
+  # Intel drivers
+  if [[ $gpu_info == *"Intel"* ]]; then
+    package_envs+=",intel"
+  fi
+else
+  log INFO "Skipping driver installation"
+fi
+
+# Laptop packages
+if is_laptop; then
+  package_envs+=",laptop"
+fi
+
+# Limine and mkinitcpio packages
+if [[ ! -x /usr/bin/limine ]]; then
+  log WARN "Unsupported bootloader (only Limine is supported), skipping Limine and mkinitcpio installation"
+elif ! command_exists mkinitcpio; then
+  log WARN "mkinitcpio not found, skipping Limine and mkinitcpio installation"
+else
+  package_envs+=",limine-mkinitcpio"
+fi
+
+# Snapper packages
+if [[ "${SETUP_SNAPPER:-1}" != "1" ]]; then
+  log INFO "Skipping Snapper installation"
+elif [[ ! -x /usr/bin/limine ]]; then
+  log WARN "Unsupported bootloader (only Limine is supported), skipping Snapper installation"
+elif ! command_exists mkinitcpio; then
+  log WARN "mkinitcpio not found, skipping Snapper installation"
+else
+  package_envs+=",snapper"
+fi
+
+# Legacy userspace must precede nvidia-prime, whose generic dependency could
+# otherwise pull the current branch. Preserve installed/repository origin handling.
+if [[ ${#drivers[@]} -gt 0 ]]; then
+  log STEP "Installing NVIDIA 580xx packages"
+  # Utilities first: a failed AUR operation must not be followed by repository
+  # settings resolving their generic dependency to the current utilities.
+  install_package "${drivers[0]}" || die "$LAST_ERROR"
+  install_package "${drivers[@]:1}" || die "$LAST_ERROR"
+fi
+
+# Load only this repository's declarations, not unrelated host configs.
 # Use the working tree because chezmoi may execute this script from a temp file.
 # Change directory before launch: mise reads early .miserc config before --cd.
 if ! (
@@ -68,135 +219,13 @@ if ! (
   MISE_CONFIG_DIR=/dev/null MISE_SYSTEM_CONFIG_DIR=/dev/null \
   MISE_AUTO_ENV=false MISE_CEILING_PATHS={{ dir .chezmoi.workingTree | quote }} \
   MISE_TRUSTED_CONFIG_PATHS={{ joinPath .chezmoi.workingTree "mise" | quote }} \
-  mise --env {{ ternary "packages,personal" "packages" .personal | quote }} \
-    bootstrap packages apply --yes
+    mise --env "$package_envs" bootstrap packages apply --yes
 ); then
-  die "Failed to install static packages with mise"
+  die "Failed to install selected packages with mise"
 fi
 
-
-# ============================================================================
-# Drivers
-# ============================================================================
-if [[ "${INSTALL_DRIVERS:-1}" == "1" ]]; then
-  drivers=(
-{{- range .packages.drivers.base }}
-    "{{ . }}"
-{{- end }}
-  )
-
-  # Kernel headers
-  kernel_version=$(uname -r)
-  case "$kernel_version" in
-    *-zen*)     drivers+=("{{ .packages.drivers.kernelHeaders.zen }}") ;;
-    *-lts*)     drivers+=("{{ .packages.drivers.kernelHeaders.lts }}") ;;
-    *-cachyos*) drivers+=("{{ .packages.drivers.kernelHeaders.cachyos }}") ;;
-    *)          drivers+=("{{ .packages.drivers.kernelHeaders.default }}") ;;
-  esac
-
-  # GPU-specific drivers
-  gpu_info=$(lspci -nn | grep -Ei "VGA|3D|Display")
-
-  # NVIDIA drivers
-  if [[ $gpu_info == *"NVIDIA"* ]]; then
-    drivers+=(
-{{- range .packages.drivers.nvidia }}
-      "{{ . }}"
-{{- end }}
-    )
-
-    # Select NVIDIA variant based on GPU generation
-    nvidia_variant=""
-    if echo "$gpu_info" | grep -q -E "RTX [2-9][0-9]|GTX 16"; then
-      # Turing+ (RTX 20xx, GTX 16xx): Use open kernel modules
-      nvidia_variant="nvidia-open-dkms"
-    else
-      # Pascal/Maxwell/older (GTX 10xx and older): Use legacy 580xx
-      nvidia_variant="nvidia-580xx-dkms"
-    fi
-
-    # Skip variant selection on certain distros
-    case "${DISTRO,,}" in
-      cachyos|garuda)
-        log SKIP "Skipping NVIDIA variant selection"
-        ;;
-      *)
-        drivers+=("${nvidia_variant}")
-        ;;
-    esac
-  fi
-
-  # AMD drivers
-  if [[ $gpu_info == *"AMD/ATI"* ]]; then
-    drivers+=(
-{{- range .packages.drivers.amd }}
-      "{{ . }}"
-{{- end }}
-    )
-  fi
-
-  # Intel drivers
-  if [[ $gpu_info == *"Intel"* ]]; then
-    drivers+=(
-{{- range .packages.drivers.intel }}
-      "{{ . }}"
-{{- end }}
-    )
-  fi
-
-  install_group "Drivers" "${drivers[@]}"
-else
-  log INFO "Skipping driver installation"
-fi
-
-# ============================================================================
-# Laptop Packages
-# ============================================================================
-if is_laptop; then
-  laptop_pkgs=(
-{{- range .packages.laptop }}
-    "{{ . }}"
-{{- end }}
-  )
-  install_group "Laptop" "${laptop_pkgs[@]}"
-fi
-
-# ============================================================================
-# Limine and mkinitcpio Packages
-# ============================================================================
-if [[ ! -x /usr/bin/limine ]]; then
-  log WARN "Unsupported bootloader (only Limine is supported), skipping Limine and mkinitcpio installation"
-elif ! command_exists mkinitcpio; then
-  log WARN "mkinitcpio not found, skipping Limine and mkinitcpio installation"
-else
-  limine_mkinitcpio_pkgs=(
-{{- range .packages.limineMkinitcpio }}
-    "{{ . }}"
-{{- end }}
-  )
-
-  install_group "Limine and mkinitcpio" "${limine_mkinitcpio_pkgs[@]}"
-fi
-
-
-# ============================================================================
-# Snapper Packages
-# ============================================================================
-if [[ "${SETUP_SNAPPER:-1}" != "1" ]]; then
-  log INFO "Skipping Snapper installation"
-elif [[ ! -x /usr/bin/limine ]]; then
-  log WARN "Unsupported bootloader (only Limine is supported), skipping Snapper installation"
-elif ! command_exists mkinitcpio; then
-  log WARN "mkinitcpio not found, skipping Snapper installation"
-else
-  snapper_pkgs=(
-{{- range .packages.snapper.common }}
-    "{{ . }}"
-{{- end }}
-{{- range .packages.snapper.limine }}
-    "{{ . }}"
-{{- end }}
-  )
-
-  install_group "Snapper" "${snapper_pkgs[@]}"
+if [[ ${#nvidia_core[@]} -gt 0 ]]; then
+  nvidia_installed=$(pacman -Q -- "${nvidia_core[@]}") || die "Incomplete NVIDIA core after installation; reconcile manually."
+  [[ $(awk '{print $1}' <<< "$nvidia_installed") == $(printf '%s\n' "${nvidia_core[@]}") ]] || die "Unexpected NVIDIA package providers; reconcile manually."
+  awk '{sub(/^[0-9]+:/, "", $2); sub(/-[^-]+$/, "", $2); versions[$2]=1} END {exit(length(versions) != 1)}' <<< "$nvidia_installed" || die "Installed NVIDIA driver releases differ; reconcile the complete family manually before rerunning setup."
 fi
