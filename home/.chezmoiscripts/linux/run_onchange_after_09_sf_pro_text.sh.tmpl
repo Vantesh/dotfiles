@@ -6,7 +6,7 @@ set -euo pipefail
 readonly url="https://devimages-cdn.apple.com/design/resources/download/SF-Pro.dmg"
 readonly fonts_dir="$HOME/.local/share/fonts/SF-Pro-Text"
 
-for dependency in curl 7z bsdtar cmp fc-cache; do
+for dependency in 7z cmp fc-cache; do
   command_exists "$dependency" || die "Required command not found: $dependency"
 done
 

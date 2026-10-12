@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Transitional adapter for names selected by the remaining setup scripts.
-# Static declarations live in mise/conf.d/packages.toml; mise owns all non-bootstrap installs.
+# Transitional adapter for legacy NVIDIA installed/repository-origin handling.
+# Fixed groups live in mise/conf.d/packages.toml; exact header pairs use pacman.
 
 export LAST_ERROR="${LAST_ERROR:-}"
 
@@ -14,22 +14,8 @@ install_package() {
     return 2
   fi
 
-  case "${DISTRO_FAMILY:-}" in
-    *[Aa][Rr][Cc][Hh]*) ;;
-    *)
-      LAST_ERROR="Unsupported or unset distro family: ${DISTRO_FAMILY:-}"
-      return 1
-      ;;
-  esac
-
-  if ! command_exists pacman; then
-    LAST_ERROR="pacman is required to inspect installed packages"
-    return 127
-  fi
-
   for package_name in "$@"; do
-    # Preserve exact-name skipping for transitional runtime-selected packages.
-    # Static aur: declarations intentionally use mise's foreign-package checks.
+    # Keep this skip: native AUR checks only consider foreign packages.
     if pacman -Qi -- "$package_name" >/dev/null 2>&1; then
       log SKIP "${COLOR_GREEN}${package_name}${COLOR_RESET} exists"
     elif pacman -Si -- "$package_name" >/dev/null 2>&1; then
@@ -45,17 +31,5 @@ install_package() {
   if ! mise --no-config bootstrap packages apply --yes "${specifications[@]}"; then
     LAST_ERROR="Failed to install selected packages with mise: ${specifications[*]}"
     return 1
-  fi
-}
-
-install_group() {
-  local group_name="$1"
-  shift
-
-  [[ $# -gt 0 ]] || return 0
-  log STEP "Installing $group_name packages"
-
-  if ! install_package "$@"; then
-    die "$LAST_ERROR"
   fi
 }

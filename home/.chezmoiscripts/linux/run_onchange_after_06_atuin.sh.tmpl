@@ -38,11 +38,6 @@ login_atuin() {
     return 0
   fi
 
-  if ! command_exists rbw; then
-    LAST_ERROR="rbw command not found"
-    return 127
-  fi
-
   if ! username="$(rbw get --field username Atuin && printf '.')" ||
     ! password="$(rbw get --field password Atuin && printf '.')" ||
     ! key="$(rbw get --field atuin_key Atuin && printf '.')"; then
