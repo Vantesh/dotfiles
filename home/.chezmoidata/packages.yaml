@@ -1,51 +1,15 @@
-# Static Arch and AUR packages are owned by mise/conf.d/packages.toml.
-# Only runtime-dependent and boot-conditional groups remain here.
+# Fixed package groups are owned by mise/conf.d/packages.toml.
+# Kernel/header mappings and deferred legacy NVIDIA packages remain here.
 packages:
   drivers:
-    base:
-      - mesa-utils
-      - libva-utils
-      - vulkan-tools
-      - vulkan-headers
-
     kernelHeaders:
       zen: linux-zen-headers
       lts: linux-lts-headers
       cachyos: linux-cachyos-headers
       default: linux-headers
 
-    nvidia:
-      - libva-nvidia-driver
-      - nvidia-settings
-      - nvidia-prime
-      - opencl-nvidia
-
-    amd:
-      - xf86-video-amdgpu
-      - vulkan-radeon
-      - libva-mesa-driver
-      - mesa-vdpau
-
-    intel:
-      - libva-intel-driver
-      - intel-media-driver
-      - vulkan-intel
-
-  laptop:
-    - power-profiles-daemon
-    - upower
-    - powertop
-
-  limineMkinitcpio:
-    - limine-mkinitcpio-hook
-    - sbctl
-
-  snapper:
-    common:
-      - snapper
-      - btrfs-assistant
-      - btrfs-progs
-      - inotify-tools
-      - snap-pac
-    limine:
-      - limine-snapper-sync
+    # Utilities remain first; the caller establishes this provider separately.
+    nvidia580:
+      - nvidia-580xx-utils
+      - nvidia-580xx-settings
+      - opencl-nvidia-580xx
