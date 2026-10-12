@@ -1,15 +1,11 @@
 #!/usr/bin/env bash
-# 03_theming.sh - Configure system theming (bootloader, GTK)
+# 03_theming.sh - Configure Limine appearance
+# GTK theme and color scheme are applied by Noctalia's enabled GTK templates.
 # Exit codes: 0 (success), 1 (failure)
-
 
 set -euo pipefail
 
-shopt -s nullglob globstar
-
 {{ include ".chezmoitemplates/lib/common.sh" }}
-
-
 
 readonly -a LIMINE_OPTIONS=(
   "timeout=0.5"
@@ -18,10 +14,7 @@ readonly -a LIMINE_OPTIONS=(
   "firmware_logo=yes"
   "interface_help_hidden=yes"
   "mouse=no"
-
 )
-
-
 
 configure_limine_options() {
   local limine_conf="/boot/limine.conf"
@@ -40,11 +33,6 @@ configure_limine_options() {
     return 2
   fi
 
-  if ! create_backup "$limine_conf"; then
-    local error_msg="$LAST_ERROR"
-    LAST_ERROR="Failed to backup limine config: $error_msg"
-    return 1
-  fi
 
   temp_file=$(mktemp)
   trap '[[ -f "${temp_file:-}" ]] && rm -f "${temp_file}"' RETURN
@@ -139,6 +127,17 @@ configure_limine_options() {
     return 1
   fi
 
+  # A lifecycle/content change must not rewrite an already configured boot file.
+  if sudo cmp -s -- "$temp_file" "$limine_conf"; then
+    return 0
+  fi
+
+  if ! create_backup "$limine_conf"; then
+    local error_msg="$LAST_ERROR"
+    LAST_ERROR="Failed to backup limine config: $error_msg"
+    return 1
+  fi
+
   if ! sudo mv "$temp_file" "$limine_conf" 2>/dev/null; then
     local error_msg="Failed to write Limine options"
     if ! restore_backup "$limine_conf"; then
@@ -152,52 +151,9 @@ configure_limine_options() {
   return 0
 }
 
-configure_gtk_theme() {
-  LAST_ERROR=""
-
-  if ! gsettings set org.gnome.desktop.interface gtk-theme "adw-gtk3-dark" >/dev/null 2>&1; then
-    LAST_ERROR="Failed to set GTK theme"
-    return 1
-  fi
-
-  if ! gsettings set org.gnome.desktop.interface font-name {{ cat .font.ui.name .font.ui.size | shellQuote }} >/dev/null 2>&1; then
-    LAST_ERROR="Failed to set font"
-    return 1
-  fi
-
-  if ! gsettings set org.gnome.desktop.wm.preferences button-layout ":" >/dev/null 2>&1; then
-    LAST_ERROR="Failed to set button layout"
-    return 1
-  fi
-
-  if ! gsettings set org.gnome.desktop.interface color-scheme "prefer-dark" >/dev/null 2>&1; then
-    LAST_ERROR="Failed to set color scheme"
-    return 1
-  fi
-
-  return 0
-}
-
-configure_nautilus() {
-  LAST_ERROR=""
-
-  if ! gsettings set org.gnome.nautilus.icon-view default-zoom-level "small-plus" >/dev/null 2>&1; then
-    LAST_ERROR="Failed to set Nautilus zoom level"
-    return 1
-  fi
-
-  if ! gsettings set org.gnome.nautilus.preferences show-delete-permanently true >/dev/null 2>&1; then
-    LAST_ERROR="Failed to set Nautilus delete permanently option"
-    return 1
-  fi
-
-  return 0
-}
-
-
 main() {
   print_box "Theming"
-  log STEP "System Theming"
+  log STEP "Limine Appearance"
 
   if [[ -x /usr/bin/limine ]]; then
     if ! keep_sudo_alive; then
@@ -217,27 +173,8 @@ main() {
     log WARN "Unsupported bootloader (only Limine is supported), skipping bootloader theming"
   fi
 
-  if command_exists gsettings; then
-    if ! configure_gtk_theme; then
-      log WARN "Failed to configure GTK theme: $LAST_ERROR"
-    else
-      log INFO "Configured GTK theme"
-    fi
-  else
-    log SKIP "gsettings not available, skipping GTK theme"
-  fi
 
-  if command_exists gsettings; then
-    if ! configure_nautilus; then
-      log WARN "Failed to configure Nautilus: $LAST_ERROR"
-    else
-      log INFO "Configured Nautilus preferences"
-    fi
-  else
-    log SKIP "gsettings not available, skipping Nautilus configuration"
-  fi
-
-  log INFO "System theming complete"
+  log INFO "Limine appearance setup complete"
 }
 
 main "$@"

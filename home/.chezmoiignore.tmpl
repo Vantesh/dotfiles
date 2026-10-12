@@ -64,6 +64,12 @@ tmp*
 
 # User directories
 {Downloads,Documents,Desktop,Music,Videos,Public,Templates,Pictures}
+# Keep only the Linux wallpaper directory; its contents remain user-owned.
+Pictures/**
+{{ if eq .chezmoi.os "linux" -}}
+!Pictures
+!Pictures/Wallpapers
+{{ end -}}
 
 # .local (whitelist only what's needed)
 .local/*
