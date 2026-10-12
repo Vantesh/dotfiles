@@ -8,7 +8,7 @@
 #   PERSONAL - Enable vault prerequisites only when set to 1
 #   CHEZMOI_SOURCE_DIR - Source directory containing shared libraries
 
-# Exit codes: 0 (success), 1 (failure), 127 (missing pacman)
+# Exit codes: 0 (success), 1 (failure)
 
 set -euo pipefail
 
@@ -57,10 +57,6 @@ main() {
   local -a missing_packages=()
   local package email output
 
-  if ! command_exists pacman; then
-    die 127 "Unsupported distribution: pacman not found"
-  fi
-
   if ! command_exists mise; then
     packages+=(mise)
   fi
@@ -81,10 +77,6 @@ main() {
       die "Failed to install prerequisites: ${missing_packages[*]}"
     fi
     log INFO "Installed prerequisites"
-  fi
-
-  if ! command_exists mise; then
-    die "Bootstrap prerequisite missing: mise is unavailable after prerequisite installation"
   fi
 
   if [[ "${PERSONAL:-0}" != "1" ]]; then

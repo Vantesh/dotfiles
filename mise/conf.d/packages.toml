@@ -112,3 +112,42 @@
 "aur:spotifast-bin" = { env = "packages" }
 "aur:localsend-bin" = { env = "packages" }
 "aur:vesktop-bin" = { env = "packages" }
+
+# Optional groups selected by the package phase; never part of the baseline.
+# Driver utilities
+"pacman:mesa-utils" = { env = "driver-utils" }
+"pacman:libva-utils" = { env = "driver-utils" }
+"pacman:vulkan-tools" = { env = "driver-utils" }
+"pacman:vulkan-headers" = { env = "driver-utils" }
+
+# Intel graphics
+"pacman:libva-intel-driver" = { env = "intel" }
+"pacman:intel-media-driver" = { env = "intel" }
+"pacman:vulkan-intel" = { env = "intel" }
+
+# Helpers follow the selected userspace family; legacy utilities install first.
+"pacman:libva-nvidia-driver" = { env = ["nvidia-current", "nvidia-legacy"] }
+"pacman:nvidia-prime" = { env = ["nvidia-current", "nvidia-legacy"] }
+
+# Current Turing+ userspace; module selection remains separate on derivatives.
+"pacman:nvidia-utils" = { env = "nvidia-current" }
+"pacman:nvidia-settings" = { env = "nvidia-current" }
+"pacman:opencl-nvidia" = { env = "nvidia-current" }
+"pacman:nvidia-open-dkms" = { env = "nvidia-open" }
+
+# Laptop utilities
+"pacman:power-profiles-daemon" = { env = "laptop" }
+"pacman:upower" = { env = "laptop" }
+"pacman:powertop" = { env = "laptop" }
+
+# Existing Limine/mkinitcpio installations
+"aur:limine-mkinitcpio-hook" = { env = "limine-mkinitcpio" }
+"pacman:sbctl" = { env = "limine-mkinitcpio" }
+
+# Opt-in Snapper integration on supported Limine/mkinitcpio installations
+"pacman:snapper" = { env = "snapper" }
+"pacman:btrfs-assistant" = { env = "snapper" }
+"pacman:btrfs-progs" = { env = "snapper" }
+"pacman:inotify-tools" = { env = "snapper" }
+"pacman:snap-pac" = { env = "snapper" }
+"aur:limine-snapper-sync" = { env = "snapper" }

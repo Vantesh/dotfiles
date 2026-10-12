@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# Synchronize manifest-managed Yazi plugins.
+# SKIP_PACKAGES: {{ ternary "1" "0" (eq (env "SKIP_PACKAGES") "1") }}
+# yazi-plugin-manifest: {{ include "dot_config/yazi/package.toml" | sha256sum }}
+
+set -euo pipefail
+
+if ! command -v ya >/dev/null 2>&1; then
+  printf 'SKIP: Yazi package manager not installed\n' >&2
+  exit 0
+fi
+
+if ! ya pkg install; then
+  printf 'ERROR: Failed to install Yazi plugins\n' >&2
+  exit 1
+fi
+
+printf 'INFO: Installed Yazi plugins\n' >&2
