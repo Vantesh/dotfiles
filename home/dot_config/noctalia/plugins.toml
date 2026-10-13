@@ -12,5 +12,5 @@ cheatsheet_layer = "overlay"
 [plugin_settings."yuuto/arch-updater"]
 panel_placement = "floating"
 terminal = 'xdg-terminal-exec --title="System Update"'
-update_cmd = "~/.config/hypr/scripts/updater.sh"
+update_cmd = "~/.config/noctalia/scripts/updater.sh"
 auto_check_hours = 3
