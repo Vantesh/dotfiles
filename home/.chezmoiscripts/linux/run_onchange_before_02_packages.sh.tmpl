@@ -154,7 +154,15 @@ fi
 
 # Fingerprint packages are independent of graphics driver provisioning.
 fingerprint_build=false
-if command_exists lsusb && lsusb -d 27c6:5395 | grep -q .; then
+fingerprint_goodix=false
+for usb_device in /sys/bus/usb/devices/*; do
+  [[ -r "$usb_device/idVendor" && -r "$usb_device/idProduct" ]] || continue
+  if [[ $(< "$usb_device/idVendor") == 27c6 && $(< "$usb_device/idProduct") == 5395 ]]; then
+    fingerprint_goodix=true
+    break
+  fi
+done
+if [[ "$fingerprint_goodix" == true ]]; then
   fingerprint_packages=$(pacman -Qq) || die "Failed to query installed fingerprint packages"
   fingerprint_missing=$(pacman -T libfprint libfprint-2 libfprint-2.so fprintd) || [[ $? -eq 127 ]] || die "Failed to inspect installed fingerprint providers"
   fingerprint_other=$(awk '/^(libfprint|fprintd)($|-)/ && $0 != "libfprint-goodix53x5" && $0 != "fprintd" {print}' <<< "$fingerprint_packages")
