@@ -6,7 +6,6 @@
 # hash so changes make this run_onchange script eligible to run again.
 # mise/config.toml: {{ include "../mise/config.toml" | sha256sum }}
 # mise/conf.d/packages.toml: {{ include "../mise/conf.d/packages.toml" | sha256sum }}
-# Effective settings used by package environment selection and deferred arrays.
 # DISTRO_FAMILY: {{ .distroFamily | quote }}
 # DISTRO: {{ .chezmoi.osRelease.id | quote }}
 
@@ -18,9 +17,8 @@ set -euo pipefail
 
 {{ include ".chezmoitemplates/lib/common.sh" }}
 {{ include ".chezmoitemplates/lib/xdg_setup.sh" }}
-
 {{ include ".chezmoitemplates/lib/aur_helper.sh" }}
-{{ include ".chezmoitemplates/lib/package_manager.sh" }}
+
 
 if [[ "$(id -u)" -eq 0 ]]; then
   die "Do not run this script as root."
@@ -52,8 +50,7 @@ fi
 print_box "Packages"
 
 package_envs={{ ternary "packages,personal" "packages" .personal | quote }}
-drivers=()
-nvidia_core=()
+nvidia_branch=""
 
 # Drivers
 if [[ "${INSTALL_DRIVERS:-1}" == "1" ]]; then
@@ -65,10 +62,7 @@ if [[ "${INSTALL_DRIVERS:-1}" == "1" ]]; then
   installed_packages=$(pacman -Q) || die "Failed to query installed packages"
   while read -r kernel kernel_version; do
     case "$kernel" in
-      linux)         header="{{ .packages.drivers.kernelHeaders.default }}" ;;
-      linux-zen)     header="{{ .packages.drivers.kernelHeaders.zen }}" ;;
-      linux-lts)     header="{{ .packages.drivers.kernelHeaders.lts }}" ;;
-      linux-cachyos) header="{{ .packages.drivers.kernelHeaders.cachyos }}" ;;
+      linux|linux-zen|linux-lts|linux-cachyos) header="$kernel-headers" ;;
       *) continue ;;
     esac
 
@@ -92,75 +86,60 @@ if [[ "${INSTALL_DRIVERS:-1}" == "1" ]]; then
     done
   fi
 
-  # GPU-specific drivers
   gpu_info=$(lspci -nn) || die "Failed to inspect PCI controllers"
-  gpu_info=$(grep -Ei "VGA|3D|Display" <<< "$gpu_info" || true)
 
-  nvidia_branch=""
-  # Any NVIDIA-named package makes this a user-managed installation, even if
-  # incomplete or unfamiliar. Do not select helpers that could pull another stack.
-  if grep -Eq '^[^[:space:]]*nvidia[^[:space:]]*[[:space:]]' <<< "$installed_packages"; then
-    log WARN "Existing NVIDIA packages detected; leaving them unchanged and unverified. Driver maintenance may be required separately."
-    log SKIP "Skipping NVIDIA package provisioning"
-  else
-    # Numeric heuristic, not a compatibility guarantee: unknown IDs >= 0x1e00
-    # are misclassified as current. Pre-Turing cards except this P1000 (e.g. Volta)
-    # are skipped; PCI IDs do not reliably encode GPU generations.
-    nvidia_skip=false
-    shopt -s nullglob
-    for device in /sys/bus/pci/devices/*; do
-      [[ $(< "$device/vendor") == 0x10de && $(< "$device/class") == 0x03* ]] || continue
-      pci_id=$(< "$device/device")
-      if (( pci_id == 0x1cbb )); then
-        branch=legacy
-      elif (( pci_id >= 0x1e00 )); then
-        branch=current
-      else
-        nvidia_skip=true
-        continue
-      fi
+  nvidia_unknown=false
+  while IFS= read -r gpu; do
+    # PCI class 03 is display; the vendor ID also works with unnamed devices.
+    [[ "$gpu" =~ \[03[[:xdigit:]]{2}\]: && "$gpu" =~ \[10de:[[:xdigit:]]{4}\] ]] || continue
+    if [[ "$gpu" =~ (^|[^[:alnum:]_])(GM|GP|GV|TU|GA|AD|GB)[0-9]{3}[A-Z]*([^[:alnum:]_]|$) ]]; then
+      case "${BASH_REMATCH[2]}" in
+        GM|GP|GV) branch=legacy ;; # R580 is the last Maxwell/Pascal/Volta branch.
+        *)        branch=current ;;
+      esac
       nvidia_branch="${nvidia_branch:-$branch}"
       [[ "$nvidia_branch" == "$branch" ]] || nvidia_branch=mixed
-    done
-    if [[ "$nvidia_skip" == true ]]; then
-      log SKIP "Unsupported NVIDIA display controller found; skipping all NVIDIA packages"
-      nvidia_branch=""
-    elif [[ "$nvidia_branch" == mixed ]]; then
-      log WARN "Mixed legacy/current NVIDIA GPUs; skipping NVIDIA packages, configure drivers manually"
-      nvidia_branch=""
+    else
+      log WARN "Unrecognized NVIDIA display architecture; skipping automatic NVIDIA provisioning: $gpu"
+      nvidia_unknown=true
     fi
-  fi
+  done <<< "$gpu_info"
 
-  # Also preserve unusually named packages providing the NVIDIA module capability.
-  if [[ -n "$nvidia_branch" ]] && pacman -T NVIDIA-MODULE >/dev/null 2>&1; then
-    log WARN "Existing NVIDIA module provider detected; leaving it unchanged and unverified."
-    log SKIP "Skipping NVIDIA package provisioning"
+  if [[ "$nvidia_branch" == mixed ]]; then
+    log WARN "Mixed legacy/current NVIDIA GPUs; configure drivers manually"
+  fi
+  if [[ "$nvidia_unknown" == true || "$nvidia_branch" == mixed ]]; then
     nvidia_branch=""
   fi
 
   if [[ -n "$nvidia_branch" ]]; then
-    if [[ "$nvidia_branch" == legacy ]]; then
-      nvidia_core=(nvidia-580xx-utils opencl-nvidia-580xx)
-      nvidia_module=nvidia-580xx-dkms
-      drivers=(
-{{- range .packages.drivers.nvidia580 }}
-        "{{ . }}"
-{{- end }}
-      )
-      package_envs+=",nvidia-legacy"
-    else
-      nvidia_core=(nvidia-utils opencl-nvidia)
-      nvidia_module=nvidia-open-dkms
-      package_envs+=",nvidia-current"
+    # Helpers alone are not a driver. Include partial/multilib userspace and
+    # alternate providers; every existing stack is user-owned, even if broken.
+    nvidia_installed=$(awk '$1 ~ /^(lib32-)?(nvidia(-[0-9]+xx)?-utils|opencl-nvidia(-[0-9]+xx)?)$/ {print $1}' <<< "$installed_packages")
+    nvidia_missing=$(pacman -T NVIDIA-MODULE nvidia-utils opencl-nvidia) || [[ $? -eq 127 ]] || die "Failed to inspect installed NVIDIA providers"
+    if [[ -n "$nvidia_installed" || "$nvidia_missing" != $'NVIDIA-MODULE\nnvidia-utils\nopencl-nvidia' ]]; then
+      log WARN "Existing NVIDIA driver packages or provider detected (possibly partial, unfamiliar or incompatible); preserving without reinstalling or switching families"
+      nvidia_branch=""
     fi
+  fi
+
+  if [[ "$nvidia_branch" == legacy ]]; then
+    package_envs+=",nvidia-legacy"
+  elif [[ "$nvidia_branch" == current ]]; then
+    package_envs+=",nvidia-current"
+  fi
+  if [[ -n "$nvidia_branch" ]]; then
     case "${DISTRO,,}" in
       cachyos|garuda)
         log SKIP "Leaving NVIDIA modules to the distribution"
         pacman -Dk >/dev/null || die "Broken package dependencies; complete supported system maintenance before rerunning setup."
         ;;
       *)
-        nvidia_core+=("$nvidia_module")
-        if [[ "$nvidia_branch" == legacy ]]; then drivers+=("$nvidia_module"); else package_envs+=",nvidia-open"; fi
+        if [[ "$nvidia_branch" == legacy ]]; then
+          package_envs+=",nvidia-legacy-dkms"
+        else
+          package_envs+=",nvidia-open"
+        fi
         ;;
     esac
   fi
@@ -171,6 +150,39 @@ if [[ "${INSTALL_DRIVERS:-1}" == "1" ]]; then
   fi
 else
   log INFO "Skipping driver installation"
+fi
+
+# Fingerprint packages are independent of graphics driver provisioning.
+fingerprint_build=false
+fingerprint_goodix=false
+for usb_device in /sys/bus/usb/devices/*; do
+  [[ -r "$usb_device/idVendor" && -r "$usb_device/idProduct" ]] || continue
+  if [[ $(< "$usb_device/idVendor") == 27c6 && $(< "$usb_device/idProduct") == 5395 ]]; then
+    fingerprint_goodix=true
+    break
+  fi
+done
+if [[ "$fingerprint_goodix" == true ]]; then
+  fingerprint_packages=$(pacman -Qq) || die "Failed to query installed fingerprint packages"
+  fingerprint_missing=$(pacman -T libfprint libfprint-2 libfprint-2.so fprintd) || [[ $? -eq 127 ]] || die "Failed to inspect installed fingerprint providers"
+  fingerprint_other=$(awk '/^(libfprint|fprintd)($|-)/ && $0 != "libfprint-goodix53x5" && $0 != "fprintd" {print}' <<< "$fingerprint_packages")
+
+  if grep -Fxq libfprint-goodix53x5 <<< "$fingerprint_packages" && [[ -z "$fingerprint_other" ]]; then
+    # Accept only the named patched library with the ABI required by Arch fprintd.
+    # An alternate daemon provider is user-managed too, even if unusually named.
+    if pacman -T libfprint 'libfprint-2.so=2-64' >/dev/null &&
+      { grep -Fxq fprintd <<< "$fingerprint_packages" || grep -Fxq fprintd <<< "$fingerprint_missing"; }; then
+      package_envs+=",fingerprint-goodix"
+    else
+      log WARN "Unverified Goodix library or alternate fingerprint daemon; preserving the existing fingerprint stack"
+    fi
+  elif grep -Eq '^(libfprint|fprintd)($|-)' <<< "$fingerprint_packages" ||
+    [[ "$fingerprint_missing" != $'libfprint\nlibfprint-2\nlibfprint-2.so\nfprintd' ]]; then
+    log WARN "Existing unfamiliar or conflicting fingerprint stack; skipping Goodix packages without replacing it"
+  else
+    fingerprint_build=true
+    package_envs+=",fingerprint-goodix"
+  fi
 fi
 
 # Laptop packages
@@ -198,14 +210,10 @@ else
   package_envs+=",snapper"
 fi
 
-# Legacy userspace must precede nvidia-prime, whose generic dependency could
-# otherwise pull the current branch. Preserve installed/repository origin handling.
-if [[ ${#drivers[@]} -gt 0 ]]; then
-  log STEP "Installing NVIDIA 580xx packages"
-  # Utilities first: a failed AUR operation must not be followed by repository
-  # settings resolving their generic dependency to the current utilities.
-  install_package "${drivers[0]}" || die "$LAST_ERROR"
-  install_package "${drivers[@]:1}" || die "$LAST_ERROR"
+# Zed's generic vulkan-driver dependency can otherwise select nvidia-utils,
+# even when NVIDIA provisioning is skipped. Do not choose a replacement driver.
+if [[ "$package_envs" != *,intel* && "$package_envs" != *,nvidia-current* && "$nvidia_branch" != legacy ]]; then
+  pacman -T vulkan-driver >/dev/null || die "No installed Vulkan provider; baseline dependencies could select NVIDIA utilities. Install a compatible Vulkan provider manually, then rerun setup."
 fi
 
 # Load only this repository's declarations, not unrelated host configs.
@@ -213,17 +221,28 @@ fi
 # Change directory before launch: mise reads early .miserc config before --cd.
 if ! (
   cd {{ .chezmoi.workingTree | quote }} || exit 1
-  env -u MISE_CONFIG_FILE -u MISE_GLOBAL_CONFIG_FILE -u MISE_SYSTEM_CONFIG_FILE \
-  MISE_CONFIG_DIR=/dev/null MISE_SYSTEM_CONFIG_DIR=/dev/null \
-  MISE_AUTO_ENV=false MISE_CEILING_PATHS={{ dir .chezmoi.workingTree | quote }} \
-  MISE_TRUSTED_CONFIG_PATHS={{ joinPath .chezmoi.workingTree "mise" | quote }} \
-    mise --env "$package_envs" bootstrap packages apply --yes
+  unset MISE_CONFIG_FILE MISE_GLOBAL_CONFIG_FILE MISE_SYSTEM_CONFIG_FILE
+  export MISE_CONFIG_DIR=/dev/null MISE_SYSTEM_CONFIG_DIR=/dev/null
+  export MISE_AUTO_ENV=false MISE_CEILING_PATHS={{ dir .chezmoi.workingTree | quote }}
+  export MISE_TRUSTED_CONFIG_PATHS={{ joinPath .chezmoi.workingTree "mise" | quote }}
+
+  # Establish the legacy provider before settings and generic helper dependencies.
+  # Explicitly stop on failure: this subshell is tested by the enclosing if.
+  if [[ "$nvidia_branch" == legacy ]]; then
+    log STEP "Installing NVIDIA 580xx utilities"
+    mise --env nvidia-legacy-utils bootstrap packages apply --yes || exit 1
+  fi
+  if [[ "$package_envs" == *,fingerprint-goodix* ]]; then
+    # fprintd must not pull official libfprint before the patched provider exists.
+    if [[ "$fingerprint_build" == true ]]; then
+      mise --env fingerprint-goodix bootstrap packages apply --yes pacman:glib2-devel pacman:libgudev || exit 1
+      mise --env fingerprint-goodix bootstrap packages apply --yes aur:libfprint-goodix53x5 || exit 1
+    fi
+    pacman -T libfprint 'libfprint-2.so=2-64' >/dev/null || die "Goodix libfprint does not provide the required fprintd ABI; reconcile the fingerprint stack manually."
+    mise --env fingerprint-goodix bootstrap packages apply --yes pacman:fprintd || exit 1
+  fi
+  # Do not reselect the AUR library, especially a repository-installed build.
+  mise --env "${package_envs/,fingerprint-goodix/}" bootstrap packages apply --yes
 ); then
   die "Failed to install selected packages with mise"
-fi
-
-if [[ ${#nvidia_core[@]} -gt 0 ]]; then
-  nvidia_installed=$(pacman -Q -- "${nvidia_core[@]}") || die "Incomplete NVIDIA core after installation; reconcile manually."
-  [[ $(awk '{print $1}' <<< "$nvidia_installed") == $(printf '%s\n' "${nvidia_core[@]}") ]] || die "Unexpected NVIDIA package providers; reconcile manually."
-  awk '{sub(/^[0-9]+:/, "", $2); sub(/-[^-]+$/, "", $2); versions[$2]=1} END {exit(length(versions) != 1)}' <<< "$nvidia_installed" || die "Installed NVIDIA driver releases differ; reconcile the complete family manually before rerunning setup."
 fi
