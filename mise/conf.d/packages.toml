@@ -8,6 +8,8 @@
 "pacman:gnome-keyring" = { env = "packages" }
 "pacman:networkmanager" = { env = "packages" }
 "pacman:bluez" = { env = "packages" }
+"pacman:bluez-utils" = { env = "packages" }
+"pacman:bluez-tools" = { env = "packages" }
 "pacman:udiskie" = { env = "packages" }
 "pacman:ntfs-3g" = { env = "packages" }
 "pacman:exfatprogs" = { env = "packages" }
@@ -126,15 +128,30 @@
 "pacman:intel-media-driver" = { env = "intel" }
 "pacman:vulkan-intel" = { env = "intel" }
 
-# Helpers follow the selected userspace family; legacy utilities install first.
+# Helpers follow the selected family; legacy utilities must be installed first.
 "pacman:libva-nvidia-driver" = { env = ["nvidia-current", "nvidia-legacy"] }
 "pacman:nvidia-prime" = { env = ["nvidia-current", "nvidia-legacy"] }
+
+# Legacy Maxwell/Pascal/Volta: establish AUR utilities in a separate first phase.
+"aur:nvidia-580xx-utils" = { env = "nvidia-legacy-utils" }
+"aur:nvidia-580xx-settings" = { env = "nvidia-legacy" }
+"aur:opencl-nvidia-580xx" = { env = "nvidia-legacy" }
+"aur:nvidia-580xx-dkms" = { env = "nvidia-legacy-dkms" }
 
 # Current Turing+ userspace; module selection remains separate on derivatives.
 "pacman:nvidia-utils" = { env = "nvidia-current" }
 "pacman:nvidia-settings" = { env = "nvidia-current" }
 "pacman:opencl-nvidia" = { env = "nvidia-current" }
 "pacman:nvidia-open-dkms" = { env = "nvidia-open" }
+
+# Goodix 27c6:5395 fingerprint reader
+# The package script orders prerequisites/library/daemon; do not apply this
+# group wholesale on a fresh stack, as fprintd can pull official libfprint first.
+# The AUR recipe omits these build requirements; install them before building.
+"pacman:glib2-devel" = { env = "fingerprint-goodix" }
+"pacman:libgudev" = { env = "fingerprint-goodix" }
+"pacman:fprintd" = { env = "fingerprint-goodix" }
+"aur:libfprint-goodix53x5" = { env = "fingerprint-goodix" }
 
 # Laptop utilities
 "pacman:power-profiles-daemon" = { env = "laptop" }
