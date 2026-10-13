@@ -75,6 +75,7 @@
 "pacman:shellcheck" = { env = "packages" }
 "pacman:television" = { env = "packages" }
 "pacman:lazygit" = { env = "packages" }
+"aur:herdr" = {env = "packages"}
 
 # Personal shell history sync
 "pacman:atuin" = { env = "personal" }

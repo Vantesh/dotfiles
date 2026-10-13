@@ -11,6 +11,7 @@ cheatsheet_layer = "overlay"
 
 [plugin_settings."yuuto/arch-updater"]
 panel_placement = "floating"
-terminal = 'xdg-terminal-exec --title="System Update"'
+terminal = 'xdg-terminal-exec --title=\"System Update\" --hold'
 update_cmd = "~/.config/noctalia/scripts/updater.sh"
 auto_check_hours = 3
+show_changelog_after_update = false
