@@ -4,9 +4,6 @@
 
 local apps = require("config.apps")
 
-local mainMod = "SUPER"
-local ctrlMod = mainMod .. " + CTRL"
-local ctrlShiftMod = ctrlMod .. " + SHIFT"
 local terminal = apps.launcher .. " -- " .. apps.terminal
 local function floating_terminal(title)
   return terminal .. " --title='" .. title .. "'"
@@ -18,9 +15,9 @@ local ipc = apps.launcher .. " -- " .. apps.desktopShell .. " msg "
 hl.bind("SUPER + RETURN", hl.dsp.exec_cmd(terminal), { description = "Open terminal" })
 hl.bind("SUPER + B", hl.dsp.exec_cmd(apps.launcher .. " -- " .. apps.browser), { description = "Open web browser" })
 hl.bind("SUPER + E", hl.dsp.exec_cmd(apps.launcher .. " -- " .. apps.fileManager), { description = "Open file manager" })
-hl.bind(mainMod .. " + SPACE", hl.dsp.exec_cmd(ipc .. "panel-toggle launcher"), { description = "Open app launcher" })
+hl.bind("SUPER + SPACE", hl.dsp.exec_cmd(ipc .. "panel-toggle launcher"), { description = "Open app launcher" })
 hl.bind("ALT + space", hl.dsp.exec_cmd(ipc .. "panel-toggle launcher"), { description = "Open app launcher" })
-hl.bind(mainMod .. " + ALT + SPACE", hl.dsp.exec_cmd(ipc .. "panel-toggle control-center"),
+hl.bind("SUPER + ALT + SPACE", hl.dsp.exec_cmd(ipc .. "panel-toggle control-center"),
   { description = "Open control center" })
 hl.bind("SUPER + C", hl.dsp.exec_cmd(apps.launcher .. " -- " .. apps.editor), { description = "Open code editor" })
 hl.bind("SUPER + N", hl.dsp.exec_cmd(ipc .. "panel-toggle noctalia/notes:panel"),
@@ -29,7 +26,7 @@ hl.bind("SUPER + N", hl.dsp.exec_cmd(ipc .. "panel-toggle noctalia/notes:panel")
 hl.bind("SUPER + M", hl.dsp.exec_cmd(apps.launcher .. " -- " .. apps.music), {description = "Open Music player"})
 
 -- --- Tools & Pickers ---
-hl.bind(mainMod .. " + comma", hl.dsp.exec_cmd(ipc .. "panel-toggle launcher /emo "), { description = "Open emoji picker" })
+hl.bind("SUPER + comma", hl.dsp.exec_cmd(ipc .. "panel-toggle launcher /emo "), { description = "Open emoji picker" })
 
 hl.bind("SUPER + V", hl.dsp.exec_cmd(ipc .. "panel-toggle clipboard"), { description = "Open clipboard manager" })
 hl.bind("SUPER + W", hl.dsp.exec_cmd(ipc .. "panel-toggle wallpaper"), { description = "Open wallpaper picker" })
@@ -37,27 +34,27 @@ hl.bind("SUPER + K", hl.dsp.exec_cmd(apps.launcher .. " -- " .. apps.passwordMan
 hl.bind("SUPER + SHIFT + N", hl.dsp.exec_cmd(ipc .. "nightlight-force-toggle"), { description = "Toggle forced night light" })
 
 -- --- Noctalia Panels & Controls ---
-hl.bind(ctrlMod .. " + M", hl.dsp.exec_cmd(ipc .. "panel-toggle control-center media"),
+hl.bind("SUPER + CTRL + M", hl.dsp.exec_cmd(ipc .. "panel-toggle control-center media"),
   { description = "Open music panel" })
-hl.bind(ctrlMod .. " + SPACE", hl.dsp.exec_cmd(ipc .. "panel-toggle wallpaper"),
+hl.bind("SUPER + CTRL + SPACE", hl.dsp.exec_cmd(ipc .. "panel-toggle wallpaper"),
   { description = "Open wallpaper picker" })
-hl.bind(ctrlMod .. " + V", hl.dsp.exec_cmd(ipc .. "panel-toggle clipboard"),
+hl.bind("SUPER + CTRL + V", hl.dsp.exec_cmd(ipc .. "panel-toggle clipboard"),
   { description = "Open clipboard manager" })
-hl.bind(ctrlMod .. " + B", hl.dsp.exec_cmd(ipc .. "panel-toggle control-center bluetooth"),
+hl.bind("SUPER + CTRL + B", hl.dsp.exec_cmd(ipc .. "panel-toggle control-center bluetooth"),
   { description = "Open Bluetooth panel" })
-hl.bind(ctrlMod .. " + N", hl.dsp.exec_cmd(ipc .. "panel-toggle control-center network"),
+hl.bind("SUPER + CTRL + N", hl.dsp.exec_cmd(ipc .. "panel-toggle control-center network"),
   { description = "Open network panel" })
-hl.bind(ctrlMod .. " + W", hl.dsp.exec_cmd(ipc .. "panel-toggle control-center weather"),
+hl.bind("SUPER + CTRL + W", hl.dsp.exec_cmd(ipc .. "panel-toggle control-center weather"),
   { description = "Open weather panel" })
-hl.bind(ctrlShiftMod .. " + B", hl.dsp.exec_cmd(ipc .. "bluetooth-toggle"),
+hl.bind("SUPER + CTRL + SHIFT + B", hl.dsp.exec_cmd(ipc .. "bluetooth-toggle"),
   { description = "Toggle Bluetooth" })
-hl.bind(ctrlShiftMod .. " + W", hl.dsp.exec_cmd(ipc .. "wifi-toggle"),
+hl.bind("SUPER + CTRL + SHIFT + W", hl.dsp.exec_cmd(ipc .. "wifi-toggle"),
   { description = "Toggle Wi-Fi" })
-hl.bind(ctrlShiftMod .. " + D", hl.dsp.exec_cmd(ipc .. "clipboard-clear"),
+hl.bind("SUPER + CTRL + SHIFT + D", hl.dsp.exec_cmd(ipc .. "clipboard-clear"),
   { description = "Clear clipboard history" })
-hl.bind(ctrlMod .. " + I", hl.dsp.exec_cmd(ipc .. "caffeine-toggle"),
+hl.bind("SUPER + CTRL + I", hl.dsp.exec_cmd(ipc .. "caffeine-toggle"),
   { description = "Toggle idle inhibitor" })
-hl.bind(ctrlShiftMod .. " + SPACE", hl.dsp.exec_cmd(ipc .. "wallpaper-random"),
+hl.bind("SUPER + CTRL + SHIFT + SPACE", hl.dsp.exec_cmd(ipc .. "wallpaper-random"),
   { description = "Set random wallpaper" })
 
 -- --- Scratchpads & Special ---
@@ -67,7 +64,7 @@ hl.bind("SUPER + SHIFT + E", hl.dsp.exec_cmd(floating_terminal("Yazi") .. " -- y
   { description = "Toggle Yazi" })
 hl.bind("SUPER + TAB", hl.dsp.exec_cmd(ipc .. "window-switcher hold"), { description = "Open window switcher" })
 hl.bind("ALT + TAB", hl.dsp.exec_cmd(ipc .. "window-switcher hold"), { description = "Switch windows" })
-hl.bind("SUPER + U", hl.dsp.exec_cmd(floating_terminal("System Update") .. " -- ~/.config/hypr/scripts/updater.sh"),
+hl.bind("SUPER + U", hl.dsp.exec_cmd(floating_terminal("System Update") .. " -- ~/.config/noctalia/scripts/updater.sh"),
   { description = "Update system" })
 
 -- === Window Management ===
@@ -175,7 +172,7 @@ hl.bind("SUPER + CTRL + ALT + Left", hl.dsp.window.move({ workspace = "r-1" }),
 hl.bind("SUPER + L", hl.dsp.exec_cmd(apps.launcher .. " -- loginctl lock-session $XDG_SESSION_ID"), { description = "Lock screen" })
 hl.bind("SUPER + ALT + DELETE", hl.dsp.exec_cmd(apps.launcher .. " -- ~/.config/hypr/scripts/logout.sh"), { description = "Logout" })
 hl.bind("XF86PowerOff", hl.dsp.exec_cmd(ipc .. "panel-toggle session"), { description = "Open power menu" })
-hl.bind(mainMod .. " + Escape", hl.dsp.exec_cmd(ipc .. "panel-toggle session"), { description = "Open session menu" })
+hl.bind("SUPER + Escape", hl.dsp.exec_cmd(ipc .. "panel-toggle session"), { description = "Open session menu" })
 
 -- --- Display ---
 hl.bind("SUPER + F12", require("scripts.movie_mode").toggle, { description = "Toggle movie mode" })
@@ -189,7 +186,7 @@ hl.bind("XF86MonBrightnessDown", hl.dsp.exec_cmd(ipc .. "brightness-down current
 hl.bind("Print", hl.dsp.exec_cmd(ipc .. "screenshot-region"), { description = "Screenshot region" })
 hl.bind("SHIFT + Print", hl.dsp.exec_cmd(ipc .. "screenshot-region"), { description = "Screenshot region" })
 hl.bind("SUPER + S", hl.dsp.exec_cmd(ipc .. "screenshot-region"), { description = "Screenshot region" })
-hl.bind(mainMod .. " + Print", hl.dsp.exec_cmd(ipc .. "screenshot-fullscreen"), { description = "Screenshot focused monitor" })
+hl.bind("SUPER + Print", hl.dsp.exec_cmd(ipc .. "screenshot-fullscreen"), { description = "Screenshot focused monitor" })
 
 -- --- Screen Recording ---
 hl.bind("SUPER + G", hl.dsp.exec_cmd(ipc .. "plugin noctalia/screen_recorder:service all toggle"),

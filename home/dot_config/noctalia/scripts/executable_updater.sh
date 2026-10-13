@@ -9,9 +9,9 @@ echo '
     '
 
 if command -v topgrade >/dev/null 2>&1; then
-  topgrade -k --no-self-update --skip-notify "$@"
+  exec topgrade -k --no-self-update --skip-notify "$@"
 elif command -v paru >/dev/null 2>&1; then
-  paru -Syu "$@"
+  exec paru -Syu "$@"
 else
-  sudo pacman -Syu "$@"
+  exec sudo pacman -Syu "$@"
 fi
