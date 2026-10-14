@@ -40,7 +40,7 @@ end = [
 
 [[bar.default.capsule_group]]
 id = "g1"
-members = ["network", "bluetooth", "brightness", "volume"]
+members = ["network", "bluetooth", "warp", "brightness", "volume"]
 fill = "surface_variant"
 border = "outline"
 border_width = 1.0

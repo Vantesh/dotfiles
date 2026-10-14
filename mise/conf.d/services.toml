@@ -2,6 +2,10 @@
 state = "running"
 enabled = true
 
+[bootstrap.services."warp-svc.service"]
+state = "running"
+enabled = true
+
 [bootstrap.services."bluetooth.service"]
 state = "running"
 enabled = true

@@ -7,6 +7,7 @@
 "aur:xdg-autostart" = { env = "packages" }
 "pacman:gnome-keyring" = { env = "packages" }
 "pacman:networkmanager" = { env = "packages" }
+"aur:warp-cli" = { env = "packages" }
 "pacman:bluez" = { env = "packages" }
 "pacman:bluez-utils" = { env = "packages" }
 "pacman:bluez-tools" = { env = "packages" }

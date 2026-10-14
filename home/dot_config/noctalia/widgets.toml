@@ -35,6 +35,9 @@ type = "yuuto/arch-updater:widget"
 hide_on_empty = true
 glyph = "pacman"
 
+[widget.warp]
+type = "levi/warp:warp"
+
 [widget.workspaces]
 font_scale = 1.25
 font_weight = 600
