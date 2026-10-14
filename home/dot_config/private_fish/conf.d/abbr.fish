@@ -35,9 +35,9 @@ if type -q nvim
 end
 
 # package manager abbreviations
-abbr -a pi 'paru -S'
-abbr -a painfo 'paru -Si'
-abbr -a pu 'paru -Syu'
+abbr -a pi 'yay -S'
+abbr -a painfo 'yay -Si'
+abbr -a pu 'yay -Syu'
 
 abbr -a jctl 'journalctl -p 3 -xb'
 abbr -a jtcl 'journalctl -p 3 -xb'

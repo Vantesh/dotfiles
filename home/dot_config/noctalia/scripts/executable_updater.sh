@@ -10,8 +10,8 @@ echo '
 
 if command -v topgrade >/dev/null 2>&1; then
   exec topgrade -k --no-self-update --skip-notify "$@"
-elif command -v paru >/dev/null 2>&1; then
-  exec paru -Syu "$@"
+elif command -v yay >/dev/null 2>&1; then
+  exec yay -Syu "$@"
 else
   exec sudo pacman -Syu "$@"
 fi
