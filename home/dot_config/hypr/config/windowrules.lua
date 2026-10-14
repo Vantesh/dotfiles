@@ -35,7 +35,13 @@ hl.window_rule({
   match = { class = "^(center-float-large|qimgv|nvidia-settings|localsend|org\\.localsend\\.localsend_app|org\\.gnome\\.Evince)$" }, -- localsend renamed upstream
   tag = "+float-large",
 })
-hl.window_rule({ name = "fx-float-large", match = { tag = "float-large" }, float = true, center = true, size = { "monitor_w*0.7", "monitor_h*0.7" } })
+hl.window_rule({
+  name = "fx-float-large",
+  match = { tag = "float-large" },
+  float = true,
+  center = true,
+  size = { "monitor_w*0.7", "monitor_h*0.7" },
+})
 hl.window_rule({
   name = "tag-float-medium",
   match = { class = "^(center-float|xdg-desktop-portal-gtk|selectdefaultapplication)$" },
@@ -171,6 +177,20 @@ end)
 hl.window_rule({ match = { initial_title = "^(Task Manager - Brave)$" }, float = true, center = true, size = { "monitor_w*0.7", "monitor_h*0.7" } })
 
 -- App-specific
+hl.window_rule({
+  name = "obsidian-main",
+  match = { class = "^([Oo]bsidian|md\\.obsidian\\.Obsidian)$", initial_title = "negative:^Settings - Obsidian.*$" },
+  float = true,
+  center = true,
+  size = { "monitor_w*0.8", "monitor_h*0.8" },
+})
+hl.window_rule({
+  name = "obsidian-settings",
+  match = { class = "^([Oo]bsidian|md\\.obsidian\\.Obsidian)$", initial_title = "^Settings - Obsidian.*$" },
+  float = true,
+  center = true,
+  size = { "monitor_w*0.6", "monitor_h*0.65" },
+})
 hl.window_rule({ match = { class = "^(pavucontrol|blueman-manager|pwvucontrol)$" }, float = true, center = true, size = { "monitor_w*0.4", "monitor_h*0.4" } })
 hl.window_rule({ match = { class = "^(org\\.gnome\\.Nautilus)$", initial_title = "^(Loading…|Home)$" }, float = true, center = true, size = { "monitor_w*0.8", "monitor_h*0.8" } })
 hl.window_rule({

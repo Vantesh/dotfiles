@@ -111,6 +111,7 @@
 "pacman:go" = { env = "packages" }
 "pacman:cava" = { env = "packages" }
 "pacman:zed" = { env = "packages" }
+"pacman:obsidian" = { env = "packages" }
 "pacman:qbittorrent" = { env = "packages" }
 "aur:brave-bin" = { env = "packages" }
 "aur:spotifast-bin" = { env = "packages" }
