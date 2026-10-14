@@ -6,12 +6,6 @@ abbr -a -- sysu 'systemctl --user'
 abbr -a -- cls clear
 abbr -a cm chezmoi
 
-# color-enhanced commands
-abbr -a grep 'ugrep --color=auto'
-abbr -a fgrep 'ugrep -F --color=auto'
-abbr -a egrep 'ugrep -E --color=auto'
-abbr -a dir 'dir --color=auto'
-abbr -a vdir 'vdir --color=auto'
 
 # git abbreviations
 abbr -a gs 'git status --short --branch'
