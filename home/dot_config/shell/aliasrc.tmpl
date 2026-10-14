@@ -77,10 +77,5 @@ alias cleanup='sudo pacman -Rns $(pacman -Qtdq)'
 alias fixpacman='sudo rm /var/lib/pacman/db.lck'
 alias yayf="yay -Slq | fzf --multi --preview 'yay -Sii {1}' --preview-window=down:75% | xargs -ro yay -S"
 
-# Use paru as yay alternative if yay is not available
-if [ ! -x "$(command -v yay)" ] && [ -x "$(command -v paru)" ]; then
-    alias yay="paru"
-    alias yayf='paru -Slq | fzf --multi --preview "paru -Sii {1}" --preview-window=down:75% | xargs -ro paru -S'
-fi
 
 {{- end }}
