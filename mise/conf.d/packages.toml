@@ -156,7 +156,6 @@
 "aur:libfprint-goodix53x5" = { env = "fingerprint-goodix" }
 
 # Laptop utilities
-"pacman:power-profiles-daemon" = { env = "laptop" }
 "pacman:upower" = { env = "laptop" }
 "pacman:powertop" = { env = "laptop" }
 

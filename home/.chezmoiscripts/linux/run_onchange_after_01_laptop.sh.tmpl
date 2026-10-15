@@ -11,6 +11,7 @@
 #   0 (success), 1 (failure)
 
 # setup-hibernation: {{ .setupHibernation }}
+# SKIP_PACKAGES: {{ ternary "1" "0" (eq (env "SKIP_PACKAGES") "1") }}
 
 
 set -euo pipefail
@@ -23,6 +24,8 @@ shopt -s nullglob globstar
 readonly SWAP_SUBVOL="@swap"
 readonly SWAP_MOUNT_POINT="/swap"
 readonly SWAP_FILE_PATH="/swap/swapfile"
+
+readonly AUTO_CPUFREQ_BIN="/usr/local/bin/auto-cpufreq"
 
 # Calculates optimal swap size based on RAM.
 #
@@ -375,6 +378,95 @@ fi'
   return 0
 }
 
+install_auto_cpufreq() (
+  local source_dir version
+
+  if ! version=$(curl -fsSL -m 60 https://api.github.com/repos/AdnanHodzic/auto-cpufreq/releases/latest |
+    python3 -c 'import json, sys; print(json.load(sys.stdin)["tag_name"])'); then
+    die "Failed to resolve the latest stable auto-cpufreq release"
+  fi
+  [[ -n "$version" ]] || die "GitHub returned an empty auto-cpufreq release tag"
+
+  source_dir=$(mktemp -d) || die "Failed to create auto-cpufreq source directory"
+  # The root-run Python build can leave root-owned files in the checkout.
+  trap 'sudo rm -rf -- "$source_dir"' EXIT
+
+  log STEP "Installing auto-cpufreq $version from upstream"
+  # Dunamai's strict versioning rejects shallow checkouts.
+  if ! git clone --single-branch --branch "$version" -- \
+    https://github.com/AdnanHodzic/auto-cpufreq.git "$source_dir/auto-cpufreq"; then
+    die "Failed to download auto-cpufreq $version"
+  fi
+  if ! sudo bash "$source_dir/auto-cpufreq/auto-cpufreq-installer" --install; then
+    die "Failed to install auto-cpufreq from upstream"
+  fi
+)
+
+configure_auto_cpufreq() {
+  local service load_state bluetooth_boot_off=false daemon_install_status=0
+
+  if [[ ! -x "$AUTO_CPUFREQ_BIN" ]]; then
+    if [[ "${SKIP_PACKAGES:-0}" == "1" ]]; then
+      log SKIP "auto-cpufreq is not installed and package installation is disabled"
+      return 0
+    fi
+    if command_exists auto-cpufreq; then
+      die "Existing auto-cpufreq is not an upstream installation; migrate it before running laptop setup"
+    fi
+  fi
+
+  if ! keep_sudo_alive; then
+    die "Failed to keep sudo alive"
+  fi
+
+  if [[ ! -x "$AUTO_CPUFREQ_BIN" ]]; then
+    install_auto_cpufreq || die "Failed to install auto-cpufreq"
+    [[ -x "$AUTO_CPUFREQ_BIN" ]] || die "Upstream installer did not provide $AUTO_CPUFREQ_BIN"
+  fi
+
+  # These services can overwrite auto-cpufreq's CPU power policy.
+  for service in power-profiles-daemon.service tlp.service tuned.service tuned-ppd.service cpupower.service; do
+    if ! load_state=$(systemctl show --property=LoadState --value -- "$service"); then
+      die "Failed to inspect conflicting power service: $service"
+    fi
+    case "$load_state" in
+      not-found) continue ;;
+      loaded|masked) ;;
+      *) die "Cannot configure $service: unexpected LoadState=$load_state" ;;
+    esac
+
+    if ! sudo systemctl disable --now -- "$service" ||
+      ! sudo systemctl mask -- "$service"; then
+      die "Failed to disable and mask $service before starting auto-cpufreq"
+    fi
+  done
+
+  sudo systemctl unmask -- auto-cpufreq.service || die "Failed to unmask auto-cpufreq.service"
+  if ! load_state=$(systemctl show --property=LoadState --value -- auto-cpufreq.service); then
+    die "Failed to inspect auto-cpufreq.service"
+  fi
+  case "$load_state" in
+    not-found)
+      # Upstream daemon setup disables Bluetooth autostart; retain the existing policy.
+      if grep -Eq '^[[:space:]]*AutoEnable[[:space:]]*=[[:space:]]*false([[:space:]#]|$)' /etc/bluetooth/main.conf 2>/dev/null; then
+        bluetooth_boot_off=true
+      fi
+      sudo "$AUTO_CPUFREQ_BIN" --install || daemon_install_status=$?
+      if [[ "$bluetooth_boot_off" == false ]] && command_exists bluetoothctl; then
+        sudo "$AUTO_CPUFREQ_BIN" --bluetooth_boot_on || die "Failed to restore Bluetooth autostart"
+      fi
+      [[ "$daemon_install_status" -eq 0 ]] || die "Failed to deploy the auto-cpufreq daemon"
+      ;;
+    loaded) ;;
+    *) die "Cannot configure auto-cpufreq.service: unexpected LoadState=$load_state" ;;
+  esac
+
+  if ! sudo systemctl enable --now -- auto-cpufreq.service; then
+    die "Failed to enable and start auto-cpufreq.service"
+  fi
+  log INFO "auto-cpufreq enabled with automatic charger/battery power management"
+}
+
 main() {
   local gpu_info
   local ram_size
@@ -395,6 +487,8 @@ main() {
         log WARN "Failed to apply powertop auto-tune"
       fi
     fi
+
+    configure_auto_cpufreq
   fi
 
   # Exit early if hibernation setup is disabled

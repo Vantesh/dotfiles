@@ -32,7 +32,7 @@ hl.window_rule({ match = { class = "^(polkit-.*|pinentry.*)$", title = "^([Aa]ut
 -- Tags: float sizes
 hl.window_rule({
   name = "tag-float-large",
-  match = { class = "^(center-float-large|qimgv|nvidia-settings|localsend|org\\.localsend\\.localsend_app|org\\.gnome\\.Evince)$" }, -- localsend renamed upstream
+  match = { class = "^(auto-cpufreq-gtk|center-float-large|qimgv|nvidia-settings|localsend|org\\.localsend\\.localsend_app|org\\.gnome\\.Evince)$" }, -- localsend renamed upstream
   tag = "+float-large",
 })
 hl.window_rule({
