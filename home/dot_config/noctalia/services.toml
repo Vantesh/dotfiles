@@ -32,7 +32,7 @@ auto_locate = true
 background_opacity = 0.85
 follow_focused_output = true
 layer = "overlay"
-history_retention = 72
+history_retention_hours = 72
 
 [osd]
 position = "bottom_center"

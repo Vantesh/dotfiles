@@ -1,7 +1,6 @@
 [plugins]
 enabled = [
   "yuuto/arch-updater",
-  "kenn/keybind-cheatsheet",
   "noctalia/screen_recorder",
   "noctalia/notes",
   "levi/warp",
@@ -10,9 +9,6 @@ enabled = [
 [plugin_settings."levi/warp"]
 panel_layer = "overlay"
 panel_placement = "floating"
-
-[plugin_settings."kenn/keybind-cheatsheet"]
-cheatsheet_layer = "overlay"
 
 [plugin_settings."yuuto/arch-updater"]
 panel_placement = "floating"

@@ -15,7 +15,7 @@ hl.config({
       enabled            = true,
       special            = false,
       xray               = false,
-      size               = 10,
+      size               = 8,
       passes             = 4,
       popups             = true,
       popups_ignorealpha = 0.6,
@@ -27,11 +27,11 @@ hl.config({
     },
     shadow = {
       enabled = true,
-      range = 20,
-      offset = { 0, 2 },
-      render_power = 10,
-      color = "rgba(00000020)",
+      range = 4,
+      render_power = 3,
+      color = "0xee1a1a1a",
     },
+
   },
 
 })
