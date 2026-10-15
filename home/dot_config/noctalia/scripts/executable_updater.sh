@@ -9,9 +9,15 @@ echo '
     '
 
 if command -v topgrade >/dev/null 2>&1; then
-  exec topgrade -k --no-self-update --skip-notify "$@"
+  topgrade -k --no-self-update --skip-notify "$@"
 elif command -v yay >/dev/null 2>&1; then
-  exec yay -Syu "$@"
+  yay -Syu "$@"
 else
-  exec sudo pacman -Syu "$@"
+  sudo pacman -Syu "$@"
 fi
+
+status=$?
+if (( status == 0 )); then
+  noctalia msg plugin yuuto/arch-updater:service all check
+fi
+exit "$status"

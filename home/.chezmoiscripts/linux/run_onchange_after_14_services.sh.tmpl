@@ -65,6 +65,20 @@ update_locate_database() {
     return 0
   fi
 
+  local prunenames=""
+  if [[ -f /etc/updatedb.conf ]]; then
+    prunenames=$(awk -F '"' '/^[[:space:]]*PRUNENAMES[[:space:]]*=/ { print $2; exit }' /etc/updatedb.conf) ||
+      die "Failed to read updatedb pruning configuration"
+  fi
+
+  # Exclude Snapper snapshot trees at any location, not just /.snapshots.
+  if [[ ! " $prunenames " =~ [[:space:]]\.snapshots[[:space:]] ]]; then
+    if ! update_config /etc/updatedb.conf PRUNENAMES "\"${prunenames:+$prunenames }.snapshots\""; then
+      die "Failed to exclude snapshots from updatedb: $LAST_ERROR"
+    fi
+    log INFO "Excluded .snapshots directories from the locate database"
+  fi
+
   log INFO "Updating locate database"
 
   if sudo updatedb >/dev/null 2>&1; then

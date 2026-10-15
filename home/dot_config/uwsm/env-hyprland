@@ -6,3 +6,6 @@ export XCURSOR_THEME="macOS-White"
 
 # HYPRLAND VARIABLES
 export HYPRSHOT_DIR="$HOME/Pictures/Screenshots"
+
+# Let Hyprland apply blur instead of GTK opting out via background effects.
+export GDK_WAYLAND_DISABLE=ext_background_effect_manager_v1

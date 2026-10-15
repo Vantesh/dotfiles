@@ -3,9 +3,6 @@
 # --------------------------------------------------------------------
 # COLOR-ENHANCED COMMANDS
 # --------------------------------------------------------------------
-alias grep="ugrep --color=auto"
-alias fgrep="ugrep -F --color=auto"
-alias egrep="ugrep -E --color=auto"
 alias diff="diff --color=auto"
 alias dir="dir --color=auto"
 alias vdir="vdir --color=auto"
@@ -75,7 +72,7 @@ alias mkdir="mkdir -p"
 alias mirror='sudo reflector -f 30 -l 30 --number 10 --verbose --save /etc/pacman.d/mirrorlist'
 alias cleanup='sudo pacman -Rns $(pacman -Qtdq)'
 alias fixpacman='sudo rm /var/lib/pacman/db.lck'
-alias yayf="yay -Slq | fzf --multi --preview 'yay -Sii {1}' --preview-window=down:75% | xargs -ro yay -S"
+alias yayf="yay -Slq | tv --preview-command 'yay -Sii {}' --layout portrait --preview-size 75 | xargs -ro yay -S"
 
 
 {{- end }}
