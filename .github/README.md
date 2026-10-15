@@ -37,13 +37,13 @@ chezmoi destroy ~/.bashrc       # remove from machine and repo
 
 Normally, edit the managed source rather than the live `~/.config` copies. If I edit a live file, use `chezmoi add` to bring it back into the repo. For `.tmpl` files, edit the template directly instead.
 
-
 ## Reminders
 
 - **Super + F2:** keybinding cheat sheet.
 - **Super + W:** wallpaper picker. My wallpapers live in `~/Pictures/Wallpapers`.
 - **Super + U:** system update.
 - **Super + B:** Open browser.
+- **Bash history:** move `~/.bash_history` to `~/.local/state/bash/history` manually if needed; don't overwrite existing history.
 - **Laptop power:** auto-cpufreq handles AC/battery automatically. Check with `auto-cpufreq --stats`.
 
 Based on [END4's dotfiles](https://github.com/end-4/dots-hyprland), with Noctalia for the shell and theming.
