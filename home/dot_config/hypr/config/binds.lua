@@ -220,9 +220,6 @@ hl.bind("ALT + mouse:272", hl.dsp.window.drag(), { mouse = true, description = "
 hl.bind("ALT + mouse:273", hl.dsp.window.resize(), { mouse = true, description = "Hold to resize window" })
 
 -- === Help & Utilities ===
-hl.bind("SUPER + F2", hl.dsp.exec_cmd(ipc .. "panel-toggle kenn/keybind-cheatsheet:cheatsheet"),
-  { description = "Open keybinds help" })
-
 hl.bind("CTRL + ALT + DELETE", hl.dsp.exec_cmd(ipc .. "panel-toggle control-center system"),
   { description = "Open system monitor panel" })
 

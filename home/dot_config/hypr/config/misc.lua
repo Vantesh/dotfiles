@@ -20,5 +20,8 @@ hl.config({
     workspace_back_and_forth = true,
   },
 
+  xwayland = {
+    force_zero_scaling = true,
+  },
 
 })
