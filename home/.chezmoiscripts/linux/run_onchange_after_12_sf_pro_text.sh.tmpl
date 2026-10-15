@@ -6,6 +6,11 @@ set -euo pipefail
 readonly url="https://devimages-cdn.apple.com/design/resources/download/SF-Pro.dmg"
 readonly fonts_dir="$HOME/.local/share/fonts/SF-Pro-Text"
 
+if [[ -d "$fonts_dir" ]] && [[ -n "$(find "$fonts_dir" -mindepth 1 -maxdepth 1 -print -quit)" ]]; then
+  log SKIP "SF Pro Text font directory already exists and is not empty"
+  exit 0
+fi
+
 for dependency in 7z cmp fc-cache curl bsdtar; do
   command_exists "$dependency" || die "Required command not found: $dependency"
 done
