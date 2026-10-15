@@ -1,0 +1,357 @@
+#!/usr/bin/env bash
+# Hibernation helpers; include after common.sh and snapboot.sh.
+
+readonly SWAP_SUBVOL="@swap"
+readonly SWAP_MOUNT_POINT="/swap"
+readonly SWAP_FILE_PATH="/swap/swapfile"
+
+# Calculates optimal swap size based on RAM.
+#
+# Uses formula: swap = sqrt(ram) + ram, minimum 2GB.
+# Formula is based on ubuntu hibernation recommendations.
+#
+# Outputs:
+#   Swap size in format "XG" to stdout
+# Returns:
+#   0 on success
+calculate_swap_size() {
+  local ram_gb
+  ram_gb=$(get_ram_size)
+
+  local sqrt_ram
+  sqrt_ram=$(awk "BEGIN {printf \"%.0f\", sqrt($ram_gb)}")
+
+  local swap_gb=$((sqrt_ram + ram_gb))
+
+  [[ $swap_gb -lt 2 ]] && swap_gb=2
+
+  printf '%dG\n' "$swap_gb"
+}
+
+# Gets total system RAM in gigabytes.
+#
+# Outputs:
+#   RAM size in GB (rounded up) to stdout
+# Returns:
+#   0 on success
+get_ram_size() {
+  awk '/MemTotal/ {printf "%d", ($2 + 1048575) / 1048576}' /proc/meminfo
+}
+
+get_gpu_info() {
+  lspci -nn 2>/dev/null | grep -Ei "VGA compatible controller|3D controller|Display controller" || printf ''
+}
+
+# Gets NVIDIA GPU PCI address.
+#
+# First tries vendor ID lookup, then falls back to string matching.
+#
+# Outputs:
+#   PCI address (e.g., "0000:01:00.0") to stdout, empty if not found
+# Returns:
+#   0 on success
+get_nvidia_pci_address() {
+  local nvidia_pci
+
+  nvidia_pci=$(lspci -Dnnd 10de: 2>/dev/null | awk '{print $1}' | head -n1)
+
+  if [[ -z "$nvidia_pci" ]]; then
+    nvidia_pci=$(lspci -D 2>/dev/null | grep -iE "NVIDIA.*(VGA|3D|Display)" | awk '{print $1}' | head -n1)
+  fi
+
+  printf '%s\n' "$nvidia_pci"
+}
+
+# Adds a hibernation fstab entry with invocation-local rollback tracking.
+#
+# Snapshots only before the first missing entry. Tracks expected append results
+# so rollback does not overwrite unrelated changes.
+#
+# Arguments:
+#   $1 - fstab entry line
+#   $2 - Description for error messages
+# Globals:
+#   LAST_ERROR - Set on failure
+#   fstab_snapshot_dir - Transaction snapshot directory
+#   fstab_changed - Set when an append is confirmed
+# Returns:
+#   0 on success, 1 on failure
+_add_hibernation_fstab_entry() {
+  local entry="$1"
+  local description="$2"
+
+  LAST_ERROR=""
+
+  if grep -qxF -- "$entry" /etc/fstab 2>/dev/null; then
+    return 0
+  fi
+
+  if [[ -z "$fstab_snapshot_dir" ]]; then
+    if ! fstab_snapshot_dir="$(mktemp -d)"; then
+      LAST_ERROR="Failed to create temporary fstab snapshot directory"
+      return 1
+    fi
+
+    if ! cp -- /etc/fstab "$fstab_snapshot_dir/before" ||
+      ! cp -- "$fstab_snapshot_dir/before" "$fstab_snapshot_dir/expected"; then
+      LAST_ERROR="Failed to snapshot /etc/fstab"
+      return 1
+    fi
+  fi
+
+  if ! cmp -s -- "$fstab_snapshot_dir/expected" /etc/fstab; then
+    LAST_ERROR="/etc/fstab changed before append; refusing to overwrite unrelated changes"
+    return 1
+  fi
+
+  if ! cp -- "$fstab_snapshot_dir/expected" "$fstab_snapshot_dir/next" ||
+    ! printf '\n%s\n' "$entry" >>"$fstab_snapshot_dir/next"; then
+    LAST_ERROR="Failed to prepare expected fstab contents"
+    return 1
+  fi
+
+  local append_result=0
+  add_fstab_entry "$entry" "$description" || append_result="$?"
+  local error_msg="$LAST_ERROR"
+
+  if cmp -s -- "$fstab_snapshot_dir/next" /etc/fstab; then
+    fstab_changed=true
+    if ! cp -- "$fstab_snapshot_dir/next" "$fstab_snapshot_dir/expected"; then
+      LAST_ERROR="Failed to record updated fstab contents"
+      return 1
+    fi
+  elif ! cmp -s -- "$fstab_snapshot_dir/expected" /etc/fstab; then
+    LAST_ERROR="/etc/fstab changed unexpectedly; refusing to roll back unrelated changes"
+    return 1
+  fi
+
+  LAST_ERROR="$error_msg"
+  return "$append_result"
+}
+
+# Creates btrfs swap subvolume and swapfile.
+#
+# Creates @swap subvolume if missing, mounts it, creates swapfile with
+# optimal size, and updates fstab entries.
+#
+# Globals:
+#   LAST_ERROR - Set on failure
+#   temp_mount - Temporary root mount cleaned up by the setup transaction
+# Returns:
+#   0 on success, 1 on failure
+create_btrfs_swap() {
+  local btrfs_root
+  local uuid
+  local swap_size
+
+  LAST_ERROR=""
+
+  if ! btrfs_root=$(get_btrfs_root_device); then
+    local error_msg="$LAST_ERROR"
+    LAST_ERROR="Failed to get btrfs root device: $error_msg"
+    return 1
+  fi
+
+  if ! sudo btrfs subvolume list / 2>/dev/null | grep -qE "(^|[[:space:]])${SWAP_SUBVOL}([[:space:]]|$)"; then
+    if ! temp_mount="$(mktemp -d)"; then
+      LAST_ERROR="Failed to create temporary root mount directory"
+      return 1
+    fi
+
+    if ! sudo mount "$btrfs_root" "$temp_mount" >/dev/null 2>&1; then
+      LAST_ERROR="Failed to mount btrfs root device"
+      return 1
+    fi
+
+    if ! sudo btrfs subvolume create "$temp_mount/$SWAP_SUBVOL" >/dev/null 2>&1; then
+      LAST_ERROR="Failed to create btrfs swap subvolume"
+      return 1
+    fi
+  fi
+
+  if ! mountpoint -q "$SWAP_MOUNT_POINT"; then
+    if ! sudo mkdir -p "$SWAP_MOUNT_POINT" 2>/dev/null; then
+      LAST_ERROR="Failed to create swap mount point directory"
+      return 1
+    fi
+
+    if ! sudo mount -o subvol="$SWAP_SUBVOL" "$btrfs_root" "$SWAP_MOUNT_POINT" >/dev/null 2>&1; then
+      LAST_ERROR="Failed to mount btrfs swap subvolume"
+      return 1
+    fi
+  fi
+
+  # Create swapfile if it doesn't exist
+  if [[ ! -f "$SWAP_FILE_PATH" ]]; then
+    swap_size=$(calculate_swap_size)
+
+    if ! sudo btrfs filesystem mkswapfile --size "$swap_size" --uuid clear "$SWAP_FILE_PATH" >/dev/null 2>&1; then
+      LAST_ERROR="Failed to create btrfs swapfile"
+      return 1
+    fi
+
+    log INFO "Created btrfs swapfile ($swap_size)"
+  fi
+
+  # Activate swapfile if not already active
+  if ! swapon --show 2>/dev/null | grep -qF "$SWAP_FILE_PATH"; then
+    if ! sudo swapon "$SWAP_FILE_PATH" >/dev/null 2>&1; then
+      LAST_ERROR="Failed to activate swapfile"
+      return 1
+    fi
+  fi
+
+  if ! uuid=$(lsblk -fno UUID "$btrfs_root" 2>/dev/null); then
+    LAST_ERROR="Failed to get UUID of btrfs root device: $btrfs_root"
+    return 1
+  fi
+
+  if ! _add_hibernation_fstab_entry "UUID=$uuid $SWAP_MOUNT_POINT btrfs defaults,noatime,nodatacow,subvol=$SWAP_SUBVOL 0 0" "swap subvolume mount"; then
+    local error_msg="$LAST_ERROR"
+    LAST_ERROR="Failed to add swap subvolume to fstab: $error_msg"
+    return 1
+  fi
+
+  if ! _add_hibernation_fstab_entry "$SWAP_FILE_PATH none swap defaults 0 0" "swapfile"; then
+    local error_msg="$LAST_ERROR"
+    LAST_ERROR="Failed to add swapfile to fstab: $error_msg"
+    return 1
+  fi
+
+  log INFO "Ensured swapfile entry in /etc/fstab"
+
+  return 0
+}
+
+get_swap_path() {
+  swapon --show=NAME --noheadings 2>/dev/null | awk '$1 !~ /\/dev\/zram/ {print; exit}'
+}
+
+# Sets up hibernation support.
+#
+# Creates swap if needed, configures kernel parameters for resume,
+# updates bootloader configuration, and configures initramfs.
+#
+# Globals:
+#   LAST_ERROR - Set on failure
+# Returns:
+#   0 on success (hibernation fully configured)
+#   2 on graceful skip (swap creation failed)
+#   1 on error (roll back this invocation's fstab edits)
+setup_hibernation() {
+  local swap_path
+  local hibernation_params
+  local resume_uuid
+  local resume_offset
+  local btrfs_root
+
+  LAST_ERROR=""
+
+  if ! swap_path="$(get_swap_path)"; then
+    LAST_ERROR="Failed to detect swap path"
+    return 1
+  fi
+
+  if [[ -z "$swap_path" ]] || [[ "$swap_path" = "$SWAP_FILE_PATH" ]]; then
+    if [[ -z "$swap_path" ]]; then
+      log INFO "No swap found, creating btrfs swapfile"
+    fi
+
+    if ! create_btrfs_swap; then
+      log WARN "Failed to create btrfs swap: $LAST_ERROR"
+      log WARN "Skipping hibernation setup due to swap creation failure"
+      return 2
+    fi
+
+    if ! swap_path="$(get_swap_path)"; then
+      LAST_ERROR="Failed to detect swap path after creation"
+      return 1
+    fi
+
+    if [[ -z "$swap_path" ]]; then
+      log WARN "Swap still not detected after creation"
+      return 2
+    fi
+  fi
+
+  hibernation_params=("hibernate.compressor=lz4")
+
+  if [[ -n "$swap_path" ]]; then
+    if [[ -b "$swap_path" ]]; then
+      if ! resume_uuid=$(lsblk -fno UUID "$swap_path" 2>/dev/null); then
+        LAST_ERROR="Failed to get UUID for swap device: $swap_path"
+        return 1
+      fi
+
+      hibernation_params+=("resume=UUID=$resume_uuid")
+
+    elif [[ -f "$swap_path" ]]; then
+      if ! btrfs_root=$(get_btrfs_root_device); then
+        local error_msg="$LAST_ERROR"
+        LAST_ERROR="Failed to get btrfs root device: $error_msg"
+        return 1
+      fi
+
+      if ! resume_uuid=$(lsblk -fno UUID "$btrfs_root" 2>/dev/null); then
+        LAST_ERROR="Failed to get UUID for btrfs root device"
+        return 1
+      fi
+
+      if ! resume_offset=$(sudo btrfs inspect-internal map-swapfile -r "$swap_path" 2>/dev/null); then
+        LAST_ERROR="Failed to get offset for swapfile: $swap_path"
+        return 1
+      fi
+
+      hibernation_params+=("resume=UUID=$resume_uuid" "resume_offset=$resume_offset")
+
+    else
+      log WARN "Swap path $swap_path is neither block device nor file"
+    fi
+  fi
+
+  if [[ ! -f /etc/limine-entry-tool.d/01-default.conf ]]; then
+    if [[ -r /proc/cmdline ]]; then
+      local cleaned_params
+      if ! cleaned_params="$(sed -E 's/\b(hibernate\.compressor=[a-z0-9]+|resume=UUID=[a-zA-Z0-9-]+|resume_offset=[0-9]+|quiet|splash|loglevel=[0-9]+|systemd\.show_status=[a-z]+|rd\.udev\.log_level=[0-9]+|vt\.global_cursor_default=[0-9]+)\b//g; s/[[:space:]]+/ /g; s/^[[:space:]]+//; s/[[:space:]]+$//' /proc/cmdline)"; then
+        LAST_ERROR="Failed to clean current kernel parameters from /proc/cmdline"
+        return 1
+      fi
+
+      if [[ -n "$cleaned_params" ]]; then
+        if ! update_limine_cmdline "01-default.conf" "$cleaned_params"; then
+          local error_msg="$LAST_ERROR"
+          LAST_ERROR="Failed to create default Limine config: $error_msg"
+          return 1
+        fi
+      fi
+    else
+      LAST_ERROR="/proc/cmdline not readable; cannot create default Limine drop-in"
+      return 1
+    fi
+  fi
+
+  if ! update_limine_cmdline "50-hibernation.conf" --append "${hibernation_params[@]}"; then
+    local error_msg="$LAST_ERROR"
+    LAST_ERROR="Failed to write Limine hibernation config: $error_msg"
+    return 1
+  fi
+  log INFO "Updated Limine kernel parameters"
+
+  # shellcheck disable=SC2016
+  local mkinitcpio_content='if [[ -n "${HOOKS:-}" && "${HOOKS@a}" != *a* ]]; then
+  read -r -a HOOKS <<< "$HOOKS"
+fi
+if [[ " ${HOOKS[*]:-} " != *" systemd "* && " ${HOOKS[*]:-} " != *" resume "* ]]; then
+  HOOKS+=(resume)
+fi'
+
+  if ! write_mkinitcpio_dropin 'hibernation.conf' "$mkinitcpio_content"; then
+    local error_msg="$LAST_ERROR"
+    LAST_ERROR="Failed to write mkinitcpio hibernation drop-in: $error_msg"
+    return 1
+  fi
+
+  log INFO "Configured mkinitcpio hibernation drop-in"
+
+  return 0
+}

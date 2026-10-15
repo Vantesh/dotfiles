@@ -1,0 +1,180 @@
+#!/usr/bin/env bash
+# 08_theming.sh - Configure Limine appearance
+# GTK theme and color scheme are applied by Noctalia's enabled GTK templates.
+# Exit codes: 0 (success), 1 (failure)
+
+set -euo pipefail
+
+{{ include ".chezmoitemplates/lib/common.sh" }}
+
+readonly -a LIMINE_OPTIONS=(
+  "timeout=0.5"
+  "terse=yes"
+  "quiet=yes"
+  "firmware_logo=yes"
+  "interface_help_hidden=yes"
+  "mouse=no"
+)
+
+configure_limine_options() {
+  local limine_conf="/boot/limine.conf"
+  local temp_file
+  local limine_options
+
+  LAST_ERROR=""
+
+  if ! command_exists limine-entry-tool; then
+    LAST_ERROR="limine-entry-tool is not installed"
+    return 2
+  fi
+
+  if ! sudo test -f "$limine_conf"; then
+    LAST_ERROR="Limine config not found: $limine_conf"
+    return 2
+  fi
+
+
+  temp_file=$(mktemp)
+  trap '[[ -f "${temp_file:-}" ]] && rm -f "${temp_file}"' RETURN
+
+  limine_options="$(printf '%s\n' "${LIMINE_OPTIONS[@]}")"
+
+  if ! sudo awk -v "limine_options=$limine_options" '
+    function emit_missing_options( option_index, option_parts, option_name) {
+      for (option_index = 1; option_index <= limine_option_count; option_index++) {
+        split(limine_option[option_index], option_parts, "=")
+        option_name = option_parts[1]
+        if (!(option_name in emitted_options)) {
+          print option_name ": " desired_values[option_name]
+          emitted_options[option_name] = 1
+        }
+      }
+    }
+
+    function emit_entry_spacing() {
+      print ""
+      print ""
+      print ""
+    }
+
+    BEGIN {
+      entry_seen = 0
+      trim_entry_padding = 0
+      limine_option_count = split(limine_options, limine_option, "\n")
+      if (limine_option[limine_option_count] == "") {
+        limine_option_count--
+      }
+
+      for (option_index = 1; option_index <= limine_option_count; option_index++) {
+        split(limine_option[option_index], option_parts, "=")
+        desired_options[option_parts[1]] = 1
+        desired_values[option_parts[1]] = substr(limine_option[option_index], length(option_parts[1]) + 2)
+      }
+    }
+
+    {
+      if (trim_entry_padding && $0 ~ /^[[:space:]]*$/) {
+        next
+      }
+      trim_entry_padding = 0
+
+      if (!entry_seen && $0 ~ /^[[:space:]]*$/) {
+        pending_blank_lines++
+        next
+      }
+
+      if (!entry_seen && $0 ~ /^\//) {
+        emit_missing_options()
+        emit_entry_spacing()
+        pending_blank_lines = 0
+        entry_seen = 1
+        trim_entry_padding = 1
+        print
+        next
+      }
+
+      if (pending_blank_lines > 0) {
+        for (blank_index = 0; blank_index < pending_blank_lines; blank_index++) {
+          print ""
+        }
+        pending_blank_lines = 0
+      }
+
+      normalized_line = $0
+      sub(/^[[:space:]]*#?[[:space:]]*/, "", normalized_line)
+      split(normalized_line, fields, ":")
+      option_name = fields[1]
+      sub(/[[:space:]]+$/, "", option_name)
+
+      if (option_name in desired_options) {
+        if (entry_seen || (option_name in emitted_options)) {
+          next
+        }
+
+        print option_name ": " desired_values[option_name]
+        emitted_options[option_name] = 1
+        next
+      }
+
+      print
+    }
+
+    END {
+      emit_missing_options()
+    }
+  ' "$limine_conf" >"$temp_file"; then
+    LAST_ERROR="Failed to transform Limine config"
+    return 1
+  fi
+
+  # A lifecycle/content change must not rewrite an already configured boot file.
+  if sudo cmp -s -- "$temp_file" "$limine_conf"; then
+    return 0
+  fi
+
+  if ! create_backup "$limine_conf"; then
+    local error_msg="$LAST_ERROR"
+    LAST_ERROR="Failed to backup limine config: $error_msg"
+    return 1
+  fi
+
+  if ! sudo mv "$temp_file" "$limine_conf" 2>/dev/null; then
+    local error_msg="Failed to write Limine options"
+    if ! restore_backup "$limine_conf"; then
+      LAST_ERROR="$error_msg and restore backup failed: $LAST_ERROR"
+    else
+      LAST_ERROR="$error_msg (backup restored)"
+    fi
+    return 1
+  fi
+
+  return 0
+}
+
+main() {
+  print_box "Theming"
+  log STEP "Limine Appearance"
+
+  if [[ -x /usr/bin/limine ]]; then
+    if ! keep_sudo_alive; then
+      die "Failed to keep sudo alive"
+    fi
+
+    local limine_result=0
+    configure_limine_options || limine_result=$?
+    if [[ "$limine_result" -eq 2 ]]; then
+      log SKIP "Limine configuration skipped: $LAST_ERROR"
+    elif [[ "$limine_result" -ne 0 ]]; then
+      log WARN "Failed to configure Limine options: $LAST_ERROR"
+    else
+      log INFO "Configured Limine options"
+    fi
+  else
+    log WARN "Unsupported bootloader (only Limine is supported), skipping bootloader theming"
+  fi
+
+
+  log INFO "Limine appearance setup complete"
+}
+
+main "$@"

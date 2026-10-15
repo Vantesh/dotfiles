@@ -7,6 +7,7 @@
 "aur:xdg-autostart" = { env = "packages" }
 "pacman:gnome-keyring" = { env = "packages" }
 "pacman:networkmanager" = { env = "packages" }
+"aur:warp-cli" = { env = "packages" }
 "pacman:bluez" = { env = "packages" }
 "pacman:bluez-utils" = { env = "packages" }
 "pacman:bluez-tools" = { env = "packages" }
@@ -77,7 +78,7 @@
 "pacman:shellcheck" = { env = "packages" }
 "pacman:television" = { env = "packages" }
 "pacman:lazygit" = { env = "packages" }
-"aur:herdr" = {env = "packages"}
+
 
 # Personal shell history sync
 "pacman:atuin" = { env = "personal" }
@@ -110,6 +111,7 @@
 "pacman:go" = { env = "packages" }
 "pacman:cava" = { env = "packages" }
 "pacman:zed" = { env = "packages" }
+"pacman:obsidian" = { env = "packages" }
 "pacman:qbittorrent" = { env = "packages" }
 "aur:brave-bin" = { env = "packages" }
 "aur:spotifast-bin" = { env = "packages" }
@@ -154,7 +156,6 @@
 "aur:libfprint-goodix53x5" = { env = "fingerprint-goodix" }
 
 # Laptop utilities
-"pacman:power-profiles-daemon" = { env = "laptop" }
 "pacman:upower" = { env = "laptop" }
 "pacman:powertop" = { env = "laptop" }
 

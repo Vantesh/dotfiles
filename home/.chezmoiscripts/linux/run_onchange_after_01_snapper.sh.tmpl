@@ -1,0 +1,283 @@
+#!/usr/bin/env bash
+# 01_snapper.sh - Set up snapper for btrfs snapshots
+# Exit codes: 0 (success), 1 (failure)
+
+# setup-snapper: {{ .setupSnapper }}
+# distro: {{ .chezmoi.osRelease.id | quote }}
+# distro-family: {{ .distroFamily | quote }}
+
+
+set -euo pipefail
+
+shopt -s nullglob globstar
+
+{{ include ".chezmoitemplates/lib/common.sh" }}
+
+{{ include ".chezmoitemplates/lib/snapboot.sh" }}
+
+readonly LIMINE_CONFIG="/etc/default/limine"
+readonly LIMINE_ENTRY_TEMPLATE="/etc/limine-entry-tool.conf"
+readonly LIMINE_SNAPPER_TEMPLATE="/etc/limine-snapper-sync.conf"
+
+
+enable_snapper_services() {
+  local -a services=(
+    snapper-cleanup.timer
+    limine-snapper-sync.service
+  )
+
+  local service
+  for service in "${services[@]}"; do
+    if ! enable_service "$service"; then
+      log WARN "Failed to enable $service: $LAST_ERROR"
+    else
+      log INFO "${COLOR_GREEN}${service}${COLOR_RESET} enabled"
+    fi
+  done
+
+  return 0
+}
+
+# Preserves existing Limine configuration and updates Snapper-owned settings.
+# Globals: LIMINE_* - Configuration and package template paths.
+# Outputs: Result and error logs to stderr.
+# Returns: 0 on success, 1 on failure.
+configure_limine_snapper() {
+  if ! request_initramfs_rebuild; then
+    log ERROR "Failed to queue Limine configuration rebuild: $LAST_ERROR"
+    return 1
+  fi
+
+  if [[ ! -e "$LIMINE_CONFIG" ]]; then
+    if [[ ! -f "$LIMINE_ENTRY_TEMPLATE" ]] || [[ ! -f "$LIMINE_SNAPPER_TEMPLATE" ]]; then
+      log ERROR "Limine templates not found"
+      return 1
+    fi
+
+    if ! {
+      cat "$LIMINE_ENTRY_TEMPLATE"
+      printf '\n\n'
+      cat "$LIMINE_SNAPPER_TEMPLATE"
+    } | sudo tee "$LIMINE_CONFIG" >/dev/null 2>&1; then
+      log ERROR "Failed to create Limine configuration"
+      return 1
+    fi
+
+    log INFO "Created Limine configuration from templates"
+  fi
+
+  declare -A settings=(
+    ["MAX_SNAPSHOT_ENTRIES"]="10"
+    ["TERMINAL"]="xdg-terminal-exec"
+    ["TERMINAL_ARG"]="--title=FloatingTerm"
+    ["SNAPSHOT_FORMAT_CHOICE"]="0"
+    ["QUIET_MODE"]="yes"
+    ["ENABLE_LIMINE_FALLBACK"]="no"
+
+  )
+
+  if [[ -f /etc/kernel/cmdline ]]; then
+    settings["ENABLE_UKI"]="yes"
+  fi
+
+  local key value
+  for key in "${!settings[@]}"; do
+    value="${settings[$key]}"
+
+    if ! update_config "$LIMINE_CONFIG" "$key" "$value"; then
+      log ERROR "Failed to update $key in Limine config: $LAST_ERROR"
+      return 1
+    fi
+  done
+
+  log INFO "Configured Limine snapper settings"
+  return 0
+}
+
+# Creates the root Snapper config when absent and applies snapshot settings.
+# Outputs: Result and error logs to stderr.
+# Returns: 0 on success, 1 on missing snapper or configuration failure.
+configure_snapper() {
+  if ! command_exists snapper; then
+    log ERROR "snapper command not found"
+    return 1
+  fi
+
+  if ! sudo snapper list-configs 2>/dev/null | grep -q "^root"; then
+    if ! sudo snapper -c root create-config / >/dev/null 2>&1; then
+      log ERROR "Failed to create snapper config for root"
+      return 1
+    fi
+
+    sleep 0.5
+
+    local retries=0
+    while [[ "$retries" -lt 10 ]]; do
+      if sudo snapper -c root get-config >/dev/null 2>&1; then
+        break
+      fi
+      sleep 0.1
+      retries=$((retries + 1))
+    done
+
+    if [[ "$retries" -eq 10 ]]; then
+      log ERROR "Snapper config 'root' not readable after waiting"
+      return 1
+    fi
+  fi
+
+  declare -A settings=(
+    ["NUMBER_CLEANUP"]="yes"
+    ["NUMBER_LIMIT"]="10"
+    ["TIMELINE_CREATE"]="no"
+    ["EMPTY_PRE_POST_CLEANUP"]="yes"
+    ["EMPTY_PRE_POST_MIN_AGE"]="1800"
+  )
+
+  local key value
+  for key in "${!settings[@]}"; do
+    value="${settings[$key]}"
+
+    if ! sudo snapper -c root set-config "${key}=${value}" >/dev/null 2>&1; then
+      log ERROR "Failed to set $key in snapper config 'root'"
+      return 1
+    fi
+  done
+
+  log INFO "Configured snapper settings"
+  return 0
+}
+
+# Adds the overlay hook matching the user's initramfs through a managed drop-in.
+# Selects the hook when mkinitcpio reads its configuration, preserving earlier hooks.
+# Globals: LAST_ERROR - Error from writing the drop-in or requesting a rebuild.
+# Outputs: Result and error logs to stderr.
+# Returns: 0 on success, 1 on configuration or rebuild request failure.
+add_mkinitcpio_overlay_hook() {
+  # shellcheck disable=SC2016
+  local content='if [[ -n "${HOOKS:-}" && "${HOOKS@a}" != *a* ]]; then
+  read -r -a HOOKS <<< "$HOOKS"
+fi
+
+case " ${HOOKS[*]:-} " in
+  *" systemd "*)
+    if [[ " ${HOOKS[*]:-} " != *" sd-btrfs-overlayfs "* ]]; then
+      HOOKS+=(sd-btrfs-overlayfs)
+    fi
+    ;;
+  *)
+    if [[ " ${HOOKS[*]:-} " != *" btrfs-overlayfs "* ]]; then
+      HOOKS+=(btrfs-overlayfs)
+    fi
+    ;;
+esac'
+
+  if ! write_mkinitcpio_dropin "snapper.conf" "$content"; then
+    log ERROR "Failed to configure mkinitcpio snapshot overlay: $LAST_ERROR"
+    return 1
+  fi
+
+
+  log INFO "Configured mkinitcpio snapshot overlay drop-in"
+  return 0
+}
+
+optimize_btrfs_fstab() {
+  if ! grep -q 'btrfs.*relatime' /etc/fstab; then
+    log SKIP "Btrfs fstab already optimized or not using relatime"
+    return 0
+  fi
+
+  if ! create_backup "/etc/fstab"; then
+    LAST_ERROR="Failed to backup fstab: $LAST_ERROR"
+    return 1
+  fi
+
+  if ! sudo sed -i -E '/btrfs/ { s/\brelatime\b/noatime/g; s/\bdefaults\b/defaults,noatime/g; s/(,noatime){2,}/,noatime/g; s/,+/,/g; }' /etc/fstab; then
+    local error_msg="Failed to update fstab with noatime"
+    if ! restore_backup "/etc/fstab"; then
+      LAST_ERROR="$error_msg and restore backup failed: $LAST_ERROR"
+    else
+      LAST_ERROR="$error_msg (backup restored)"
+    fi
+    return 1
+  fi
+
+  if ! reload_systemd_daemon; then
+    local error_msg="$LAST_ERROR"
+    if ! restore_backup "/etc/fstab"; then
+      LAST_ERROR="Failed to reload systemd daemon: $error_msg (backup restore also failed)"
+    else
+      LAST_ERROR="Failed to reload systemd daemon: $error_msg (backup restored)"
+    fi
+    return 1
+  fi
+
+  log INFO "Optimized btrfs mounts in fstab (relatime → noatime)"
+  return 0
+}
+
+main() {
+  if [[ "${SETUP_SNAPPER:-1}" != "1" ]]; then
+    log INFO "Skipping snapper setup (SETUP_SNAPPER != 1)"
+    return 0
+  fi
+
+  if [[ ! -x /usr/bin/limine ]]; then
+    log WARN "Unsupported bootloader (only Limine is supported), skipping Snapper setup"
+    return 0
+  fi
+
+  if ! command_exists mkinitcpio; then
+    log WARN "mkinitcpio not found, skipping Snapper setup"
+    return 0
+  fi
+
+  case "${DISTRO,,}" in
+  garuda | cachyos)
+    log SKIP "${DISTRO} already has snapper pre-configured"
+    return 0
+    ;;
+  esac
+
+  if ! check_btrfs; then
+    log WARN "Root filesystem is not btrfs, skipping snapper setup"
+    return 0
+  fi
+
+  if ! keep_sudo_alive; then
+    die "Failed to keep sudo alive"
+  fi
+
+  if ! validate_mkinitcpio_dropins; then
+    die "Cannot configure snapshot overlay hooks: $LAST_ERROR"
+  fi
+
+  print_box "Snapper"
+
+  log STEP "Configuring Snapper"
+
+  if ! enable_snapper_services; then
+    log WARN "Some services failed to enable, continuing anyway"
+  fi
+
+  if ! configure_limine_snapper; then
+    die "Failed to configure Limine snapper integration"
+  fi
+
+  if ! configure_snapper; then
+    die "Failed to configure snapper"
+  fi
+
+  if ! add_mkinitcpio_overlay_hook; then
+    die "Failed to configure mkinitcpio snapshot overlay"
+  fi
+
+  if ! optimize_btrfs_fstab; then
+    log WARN "Failed to optimize btrfs fstab: $LAST_ERROR"
+  fi
+
+  log INFO "Snapper configuration complete"
+}
+
+main "$@"
