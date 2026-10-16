@@ -4,6 +4,7 @@ enabled = [
   "noctalia/screen_recorder",
   "noctalia/notes",
   "levi/warp",
+  "vantesh/hyprbinds",
 ]
 
 [plugin_settings."levi/warp"]
@@ -16,3 +17,18 @@ terminal = 'xdg-terminal-exec --title=\"System Update\" --hold'
 update_cmd = "~/.config/noctalia/scripts/updater.sh"
 auto_check_hours = 3
 show_changelog_after_update = false
+
+[[plugins.source]]
+name = "official"
+kind = "git"
+location = "https://github.com/noctalia-dev/official-plugins"
+
+[[plugins.source]]
+name = "community"
+kind = "git"
+location = "https://github.com/noctalia-dev/community-plugins"
+
+[[plugins.source]]
+name = "Personal"
+kind = "git"
+location = "https://github.com/Vantesh/noctalia-plugins"
