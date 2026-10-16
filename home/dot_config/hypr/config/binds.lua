@@ -1,6 +1,4 @@
--- =============================================================================
--- binds.lua — Hyprland Lua keybinds (Hyprland 0.55+)
--- =============================================================================
+-- Hyprland keybinds (0.55+)
 
 local apps = require("config.apps")
 
@@ -11,76 +9,53 @@ end
 local ipc = apps.launcher .. " -- " .. apps.desktopShell .. " msg "
 
 -- === Applications ===
--- --- Launchers ---
+hl.bind("SUPER + SPACE", hl.dsp.exec_cmd(ipc .. "panel-toggle launcher"), { description = "Open app launcher" })
+hl.bind("ALT + SPACE", hl.dsp.exec_cmd(ipc .. "panel-toggle launcher"), { description = "Open app launcher" })
+
 hl.bind("SUPER + RETURN", hl.dsp.exec_cmd(terminal), { description = "Open terminal" })
 hl.bind("SUPER + B", hl.dsp.exec_cmd(apps.launcher .. " -- " .. apps.browser), { description = "Open web browser" })
 hl.bind("SUPER + E", hl.dsp.exec_cmd(apps.launcher .. " -- " .. apps.fileManager), { description = "Open file manager" })
-hl.bind("SUPER + SPACE", hl.dsp.exec_cmd(ipc .. "panel-toggle launcher"), { description = "Open app launcher" })
-hl.bind("ALT + space", hl.dsp.exec_cmd(ipc .. "panel-toggle launcher"), { description = "Open app launcher" })
-hl.bind("SUPER + ALT + SPACE", hl.dsp.exec_cmd(ipc .. "panel-toggle control-center"),
-  { description = "Open control center" })
 hl.bind("SUPER + C", hl.dsp.exec_cmd(apps.launcher .. " -- " .. apps.editor), { description = "Open code editor" })
-hl.bind("SUPER + N", hl.dsp.exec_cmd(ipc .. "panel-toggle noctalia/notes:panel"),
-    { description = "Open notes" })
+hl.bind("SUPER + M", hl.dsp.exec_cmd(apps.launcher .. " -- " .. apps.music), { description = "Open music player" })
 
-hl.bind("SUPER + M", hl.dsp.exec_cmd(apps.launcher .. " -- " .. apps.music), {description = "Open Music player"})
 
--- --- Tools & Pickers ---
-hl.bind("SUPER + comma", hl.dsp.exec_cmd(ipc .. "panel-toggle launcher /emo "), { description = "Open emoji picker" })
-
-hl.bind("SUPER + V", hl.dsp.exec_cmd(ipc .. "panel-toggle clipboard"), { description = "Open clipboard manager" })
-hl.bind("SUPER + W", hl.dsp.exec_cmd(ipc .. "panel-toggle wallpaper"), { description = "Open wallpaper picker" })
-hl.bind("SUPER + K", hl.dsp.exec_cmd(apps.launcher .. " -- " .. apps.passwordManager), { description = "Open password manager" })
-hl.bind("SUPER + SHIFT + N", hl.dsp.exec_cmd(ipc .. "nightlight-force-toggle"), { description = "Toggle forced night light" })
-
--- --- Noctalia Panels & Controls ---
-hl.bind("SUPER + CTRL + M", hl.dsp.exec_cmd(ipc .. "panel-toggle control-center media"),
-  { description = "Open music panel" })
-hl.bind("SUPER + CTRL + SPACE", hl.dsp.exec_cmd(ipc .. "panel-toggle wallpaper"),
-  { description = "Open wallpaper picker" })
-hl.bind("SUPER + CTRL + V", hl.dsp.exec_cmd(ipc .. "panel-toggle clipboard"),
-  { description = "Open clipboard manager" })
-hl.bind("SUPER + CTRL + B", hl.dsp.exec_cmd(ipc .. "panel-toggle control-center bluetooth"),
-  { description = "Open Bluetooth panel" })
-hl.bind("SUPER + CTRL + N", hl.dsp.exec_cmd(ipc .. "panel-toggle control-center network"),
-  { description = "Open network panel" })
-hl.bind("SUPER + CTRL + W", hl.dsp.exec_cmd(ipc .. "panel-toggle control-center weather"),
-  { description = "Open weather panel" })
-hl.bind("SUPER + CTRL + SHIFT + B", hl.dsp.exec_cmd(ipc .. "bluetooth-toggle"),
-  { description = "Toggle Bluetooth" })
-hl.bind("SUPER + CTRL + SHIFT + W", hl.dsp.exec_cmd(ipc .. "wifi-toggle"),
-  { description = "Toggle Wi-Fi" })
-hl.bind("SUPER + CTRL + SHIFT + D", hl.dsp.exec_cmd(ipc .. "clipboard-clear"),
-  { description = "Clear clipboard history" })
-hl.bind("SUPER + CTRL + I", hl.dsp.exec_cmd(ipc .. "caffeine-toggle"),
-  { description = "Toggle idle inhibitor" })
-hl.bind("SUPER + CTRL + SHIFT + SPACE", hl.dsp.exec_cmd(ipc .. "wallpaper-random"),
-  { description = "Set random wallpaper" })
-
--- --- Scratchpads & Special ---
 hl.bind("SUPER + SHIFT + RETURN", hl.dsp.exec_cmd(floating_terminal("FloatingTerm")),
   { description = "Toggle floating terminal" })
 hl.bind("SUPER + SHIFT + E", hl.dsp.exec_cmd(floating_terminal("Yazi") .. " -- yazi"),
   { description = "Toggle Yazi" })
-hl.bind("SUPER + TAB", hl.dsp.exec_cmd(ipc .. "window-switcher hold"), { description = "Open window switcher" })
-hl.bind("ALT + TAB", hl.dsp.exec_cmd(ipc .. "window-switcher hold"), { description = "Switch windows" })
-hl.bind("SUPER + U", hl.dsp.exec_cmd(floating_terminal("System Update") .. " -- ~/.config/noctalia/scripts/updater.sh"),
-  { description = "Update system" })
+
+-- === Desktop Shell ===
+hl.bind("SUPER + ALT + SPACE", hl.dsp.exec_cmd(ipc .. "panel-toggle control-center"),
+  { description = "Open control center" })
+hl.bind("SUPER + N", hl.dsp.exec_cmd(ipc .. "panel-toggle noctalia/notes:panel"),
+  { description = "Open notes" })
+hl.bind("SUPER + comma", hl.dsp.exec_cmd(ipc .. "panel-toggle launcher /emo "), { description = "Open emoji picker" })
+hl.bind("SUPER + V", hl.dsp.exec_cmd(ipc .. "panel-toggle clipboard"), { description = "Open clipboard manager" })
+hl.bind("SUPER + W", hl.dsp.exec_cmd(ipc .. "panel-toggle wallpaper"), { description = "Open wallpaper picker" })
+
+
+hl.bind("SUPER + CTRL + SHIFT + D", hl.dsp.exec_cmd(ipc .. "clipboard-clear"),
+  { description = "Clear clipboard history" })
+hl.bind("SUPER + CTRL + SHIFT + SPACE", hl.dsp.exec_cmd(ipc .. "wallpaper-random"),
+  { description = "Set random wallpaper" })
 
 -- === Window Management ===
--- --- Focus ---
+hl.bind("SUPER + TAB", hl.dsp.exec_cmd(ipc .. "window-switcher hold"), { description = "Open window switcher" })
+hl.bind("ALT + TAB", hl.dsp.exec_cmd(ipc .. "window-switcher hold"), { description = "Switch windows" })
+
+
 hl.bind("SUPER + LEFT", hl.dsp.focus({ direction = "l" }), { description = "Move focus left" })
 hl.bind("SUPER + RIGHT", hl.dsp.focus({ direction = "r" }), { description = "Move focus right" })
 hl.bind("SUPER + UP", hl.dsp.focus({ direction = "u" }), { description = "Move focus up" })
 hl.bind("SUPER + DOWN", hl.dsp.focus({ direction = "d" }), { description = "Move focus down" })
 
--- --- Movement ---
+
 hl.bind("SUPER + SHIFT + LEFT", hl.dsp.window.move({ direction = "l" }), { description = "Move window left" })
 hl.bind("SUPER + SHIFT + RIGHT", hl.dsp.window.move({ direction = "r" }), { description = "Move window right" })
 hl.bind("SUPER + SHIFT + UP", hl.dsp.window.move({ direction = "u" }), { description = "Move window up" })
 hl.bind("SUPER + SHIFT + DOWN", hl.dsp.window.move({ direction = "d" }), { description = "Move window down" })
 
--- --- Resizing ---
+
 hl.bind("SUPER + ALT + RIGHT", hl.dsp.window.resize({ x = 30, y = 0, relative = true }),
   { repeating = true, description = "Resize window right" })
 hl.bind("SUPER + ALT + LEFT", hl.dsp.window.resize({ x = -30, y = 0, relative = true }),
@@ -90,7 +65,7 @@ hl.bind("SUPER + ALT + UP", hl.dsp.window.resize({ x = 0, y = -30, relative = tr
 hl.bind("SUPER + ALT + DOWN", hl.dsp.window.resize({ x = 0, y = 30, relative = true }),
   { repeating = true, description = "Resize window down" })
 
--- --- Layout & State ---
+
 hl.bind("SUPER + F", hl.dsp.window.fullscreen({ mode = "maximized", action = "toggle" }),
   { description = "Toggle fake fullscreen" })
 hl.bind("SUPER + SHIFT + F", hl.dsp.window.fullscreen({ mode = "fullscreen", action = "toggle" }),
@@ -99,17 +74,27 @@ hl.bind("SUPER + A", require("scripts.toggle_float").toggle, { description = "Fl
 hl.bind("SUPER + SHIFT + C", hl.dsp.window.center(), { description = "Center window" })
 hl.bind("SUPER + Y", hl.dsp.window.pin(), { description = "Pin floating window" })
 
--- --- Zoom ---
-hl.bind("SUPER + equal", require("scripts.zoom").zoom_in, { repeating = true, description = "Zoom in" })
-hl.bind("SUPER + minus", require("scripts.zoom").zoom_out, { repeating = true, description = "Zoom out" })
-hl.bind("SUPER + BackSpace", require("scripts.zoom").reset, { repeating = true, description = "Reset zoom" })
 
--- --- Close & Kill ---
 hl.bind("SUPER + Q", hl.dsp.window.close(), { description = "Close active window" })
 hl.bind("SUPER + SHIFT + Q", hl.dsp.window.kill(), { description = "Force-close active window" })
 
--- === Workspace Navigation ===
--- --- Switch Workspaces ---
+
+hl.bind("SUPER + SHIFT + CTRL + LEFT", hl.dsp.window.move({ monitor = "l" }),
+  { description = "Move window to left monitor" })
+hl.bind("SUPER + SHIFT + CTRL + RIGHT", hl.dsp.window.move({ monitor = "r" }),
+  { description = "Move window to right monitor" })
+hl.bind("SUPER + SHIFT + CTRL + UP", hl.dsp.window.move({ monitor = "u" }),
+  { description = "Move window to upper monitor" })
+hl.bind("SUPER + SHIFT + CTRL + DOWN", hl.dsp.window.move({ monitor = "d" }),
+  { description = "Move window to lower monitor" })
+
+
+hl.bind("SUPER + mouse:272", hl.dsp.window.drag(), { mouse = true, description = "Hold to move window" })
+hl.bind("SUPER + mouse:273", hl.dsp.window.resize(), { mouse = true, description = "Hold to resize window" })
+hl.bind("ALT + mouse:272", hl.dsp.window.drag(), { mouse = true, description = "Hold to move window" })
+hl.bind("ALT + mouse:273", hl.dsp.window.resize(), { mouse = true, description = "Hold to resize window" })
+
+-- === Workspaces ===
 hl.bind("SUPER + 1", hl.dsp.focus({ workspace = "1" }), { description = "Switch to workspace 1" })
 hl.bind("SUPER + 2", hl.dsp.focus({ workspace = "2" }), { description = "Switch to workspace 2" })
 hl.bind("SUPER + 3", hl.dsp.focus({ workspace = "3" }), { description = "Switch to workspace 3" })
@@ -121,13 +106,13 @@ hl.bind("SUPER + 8", hl.dsp.focus({ workspace = "8" }), { description = "Switch 
 hl.bind("SUPER + 9", hl.dsp.focus({ workspace = "9" }), { description = "Switch to workspace 9" })
 hl.bind("SUPER + 0", hl.dsp.focus({ workspace = "10" }), { description = "Switch to workspace 10" })
 
--- --- Relative Workspace Navigation ---
+
 hl.bind("SUPER + CTRL + LEFT", hl.dsp.focus({ workspace = "m-1" }), { description = "Previous workspace" })
 hl.bind("SUPER + CTRL + RIGHT", hl.dsp.focus({ workspace = "m+1" }), { description = "Next workspace" })
 hl.bind("SUPER + mouse_down", hl.dsp.focus({ workspace = "e+1" }), { description = "Next workspace (scroll)" })
 hl.bind("SUPER + mouse_up", hl.dsp.focus({ workspace = "e-1" }), { description = "Previous workspace (scroll)" })
 
--- --- Move Windows to Workspaces ---
+
 hl.bind("SUPER + SHIFT + 1", hl.dsp.window.move({ workspace = "1" }), { description = "Move window to workspace 1" })
 hl.bind("SUPER + SHIFT + 2", hl.dsp.window.move({ workspace = "2" }), { description = "Move window to workspace 2" })
 hl.bind("SUPER + SHIFT + 3", hl.dsp.window.move({ workspace = "3" }), { description = "Move window to workspace 3" })
@@ -139,7 +124,7 @@ hl.bind("SUPER + SHIFT + 8", hl.dsp.window.move({ workspace = "8" }), { descript
 hl.bind("SUPER + SHIFT + 9", hl.dsp.window.move({ workspace = "9" }), { description = "Move window to workspace 9" })
 hl.bind("SUPER + SHIFT + 0", hl.dsp.window.move({ workspace = "10" }), { description = "Move window to workspace 10" })
 
--- --- Move Windows (Silent) ---
+
 hl.bind("SUPER + ALT + 1", hl.dsp.window.move({ workspace = "1", follow = false }),
   { description = "Move to workspace 1 (silent)" })
 hl.bind("SUPER + ALT + 2", hl.dsp.window.move({ workspace = "2", follow = false }),
@@ -161,39 +146,53 @@ hl.bind("SUPER + ALT + 9", hl.dsp.window.move({ workspace = "9", follow = false 
 hl.bind("SUPER + ALT + 0", hl.dsp.window.move({ workspace = "10", follow = false }),
   { description = "Move to workspace 10 (silent)" })
 
--- --- Relative Movement ---
+
 hl.bind("SUPER + CTRL + ALT + Right", hl.dsp.window.move({ workspace = "r+1" }),
   { description = "Move window to next relative workspace" })
 hl.bind("SUPER + CTRL + ALT + Left", hl.dsp.window.move({ workspace = "r-1" }),
   { description = "Move window to previous relative workspace" })
 
--- === System Controls ===
--- --- Session Management ---
+-- === System & Session ===
 hl.bind("SUPER + L", hl.dsp.exec_cmd(apps.launcher .. " -- loginctl lock-session $XDG_SESSION_ID"), { description = "Lock screen" })
 hl.bind("SUPER + ALT + DELETE", hl.dsp.exec_cmd(apps.launcher .. " -- ~/.config/hypr/scripts/logout.sh"), { description = "Logout" })
 hl.bind("XF86PowerOff", hl.dsp.exec_cmd(ipc .. "panel-toggle session"), { description = "Open power menu" })
 hl.bind("SUPER + Escape", hl.dsp.exec_cmd(ipc .. "panel-toggle session"), { description = "Open session menu" })
 
--- --- Display ---
+hl.bind("SUPER + F1", require("scripts.gamemode").toggle, { description = "Toggle game mode" })
 hl.bind("SUPER + F12", require("scripts.movie_mode").toggle, { description = "Toggle movie mode" })
+hl.bind("SUPER + CTRL + I", hl.dsp.exec_cmd(ipc .. "caffeine-toggle"),
+  { description = "Toggle idle inhibitor" })
+hl.bind("SUPER + SHIFT + N", hl.dsp.exec_cmd(ipc .. "nightlight-force-toggle"), { description = "Toggle forced night light" })
+
+-- === Display ===
 hl.bind("XF86MonBrightnessUp", hl.dsp.exec_cmd(ipc .. "brightness-up current 5"),
   { repeating = true, locked = true, description = "Increase brightness" })
 hl.bind("XF86MonBrightnessDown", hl.dsp.exec_cmd(ipc .. "brightness-down current 5"),
   { repeating = true, locked = true, description = "Decrease brightness" })
 
--- --- Screenshots ---
+
+hl.bind("SUPER + equal", require("scripts.zoom").zoom_in, { repeating = true, description = "Zoom in" })
+hl.bind("SUPER + minus", require("scripts.zoom").zoom_out, { repeating = true, description = "Zoom out" })
+hl.bind("SUPER + BackSpace", require("scripts.zoom").reset, { repeating = true, description = "Reset zoom" })
+
+-- === Screenshots & Recording ===
 -- Saving and clipboard copying follow Noctalia's shared screenshot settings.
 hl.bind("Print", hl.dsp.exec_cmd(ipc .. "screenshot-region"), { description = "Screenshot region" })
-hl.bind("SHIFT + Print", hl.dsp.exec_cmd(ipc .. "screenshot-region"), { description = "Screenshot region" })
 hl.bind("SUPER + S", hl.dsp.exec_cmd(ipc .. "screenshot-region"), { description = "Screenshot region" })
 hl.bind("SUPER + Print", hl.dsp.exec_cmd(ipc .. "screenshot-fullscreen"), { description = "Screenshot focused monitor" })
+hl.bind("CTRL + Print", hl.dsp.exec_cmd(ipc .. "screenshot-fullscreen pick"),
+  { description = "Pick monitor to screenshot" })
+hl.bind("SHIFT + Print", hl.dsp.exec_cmd(ipc .. "screenshot-fullscreen all"),
+  { description = "Screenshot all monitors" })
+hl.bind("ALT + Print", hl.dsp.exec_cmd(ipc .. "screenshot-annotate"),
+  { description = "Freeze screen and annotate screenshot" })
+hl.bind("SUPER + SHIFT + S", hl.dsp.exec_cmd(ipc .. "screenshot-annotate"),
+  { description = "Freeze screen and annotate screenshot" })
 
--- --- Screen Recording ---
 hl.bind("SUPER + G", hl.dsp.exec_cmd(ipc .. "plugin noctalia/screen_recorder:service all toggle"),
   { description = "Toggle screen recorder" })
 
-
--- --- Audio ---
+-- === Audio & Media ===
 hl.bind("XF86AudioRaiseVolume", hl.dsp.exec_cmd(ipc .. "volume-up 5"),
   { repeating = true, locked = true, description = "Increase volume" })
 hl.bind("XF86AudioLowerVolume", hl.dsp.exec_cmd(ipc .. "volume-down 5"),
@@ -203,7 +202,7 @@ hl.bind("XF86AudioMute", hl.dsp.exec_cmd(ipc .. "volume-mute"),
 hl.bind("XF86AudioMicMute", hl.dsp.exec_cmd(ipc .. "mic-mute"),
   { repeating = true, locked = true, description = "Toggle microphone mute" })
 
--- --- Media ---
+
 hl.bind("XF86AudioNext", hl.dsp.exec_cmd(ipc .. "media next"), { locked = true, description = "Next media track" })
 hl.bind("XF86AudioPause", hl.dsp.exec_cmd(ipc .. "media toggle"),
   { locked = true, description = "Pause/play media" })
@@ -212,32 +211,16 @@ hl.bind("XF86AudioPrev", hl.dsp.exec_cmd(ipc .. "media previous"),
   { locked = true, description = "Previous media track" })
 hl.bind("XF86AudioStop", hl.dsp.exec_cmd(ipc .. "media stop"), { locked = true, description = "Stop media" })
 
-
--- === Mouse Bindings ===
-hl.bind("SUPER + mouse:272", hl.dsp.window.drag(), { mouse = true, description = "Hold to move window" })
-hl.bind("SUPER + mouse:273", hl.dsp.window.resize(), { mouse = true, description = "Hold to resize window" })
-hl.bind("ALT + mouse:272", hl.dsp.window.drag(), { mouse = true, description = "Hold to move window" })
-hl.bind("ALT + mouse:273", hl.dsp.window.resize(), { mouse = true, description = "Hold to resize window" })
-
 -- === Help & Utilities ===
-hl.bind("CTRL + ALT + DELETE", hl.dsp.exec_cmd(ipc .. "panel-toggle control-center system"),
-  { description = "Open system monitor panel" })
-
-hl.bind("SUPER + F1", require("scripts.gamemode").toggle, { description = "Toggle game mode" })
-
+hl.bind("SUPER + slash", hl.dsp.exec_cmd(ipc .. "settings-open"), { description = "Open Noctalia settings" })
 hl.bind("XF86RFKill",
   hl.dsp.exec_cmd(
     apps.launcher .. [[ -- sh -c 'case "$(rfkill list)" in *"Soft blocked: yes"*) notify-send "rfkill" "Airplane mode is on" -u critical --icon wifi;; esac']]),
   { repeating = true, locked = true, description = "Toggle airplane mode" })
 
-
-
--- === Move to Monitor ===
-hl.bind("SUPER + SHIFT + CTRL + left", hl.dsp.window.move({ monitor = "l" }),
-  { description = "Move window to left monitor" })
-hl.bind("SUPER + SHIFT + CTRL + right", hl.dsp.window.move({ monitor = "r" }),
-  { description = "Move window to right monitor" })
-hl.bind("SUPER +SHIFT + CTRL + up", hl.dsp.window.move({ monitor = "u" }),
-  { description = "Move window to upper monitor" })
-hl.bind("SUPER + SHIFT + CTRL + down", hl.dsp.window.move({ monitor = "d" }),
-  { description = "Move window to lower monitor" })
+hl.bind("SUPER + U", hl.dsp.exec_cmd(floating_terminal("System Update") .. " -- ~/.config/noctalia/scripts/updater.sh"),
+  { description = "Update system" })
+hl.bind("CTRL + ALT + DELETE", hl.dsp.exec_cmd(ipc .. "panel-toggle control-center system"),
+  { description = "Open system monitor panel" })
+hl.bind("SUPER + F2", hl.dsp.exec_cmd(ipc .. "panel-toggle vantesh/hyprbinds:cheatsheet"),
+  { description = "Open keybinds help" })

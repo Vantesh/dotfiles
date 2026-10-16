@@ -4,7 +4,7 @@ return {
   browser = "brave",
   fileManager = "nautilus",
   editor = "zeditor",
-  passwordManager = "bitwarden.desktop",
+
   desktopShell = "noctalia",
   music = "spotifast",
 }
