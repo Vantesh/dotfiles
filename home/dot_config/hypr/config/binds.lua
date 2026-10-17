@@ -218,7 +218,7 @@ hl.bind("XF86RFKill",
     apps.launcher .. [[ -- sh -c 'case "$(rfkill list)" in *"Soft blocked: yes"*) notify-send "rfkill" "Airplane mode is on" -u critical --icon wifi;; esac']]),
   { repeating = true, locked = true, description = "Toggle airplane mode" })
 
-hl.bind("SUPER + U", hl.dsp.exec_cmd(floating_terminal("System Update") .. " -- ~/.config/noctalia/scripts/updater.sh"),
+hl.bind("SUPER + U", hl.dsp.exec_cmd(ipc .. "plugin vantesh/topgrade-updater:service all update"),
   { description = "Update system" })
 hl.bind("CTRL + ALT + DELETE", hl.dsp.exec_cmd(ipc .. "panel-toggle control-center system"),
   { description = "Open system monitor panel" })

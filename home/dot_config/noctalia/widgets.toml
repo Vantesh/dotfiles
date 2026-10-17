@@ -32,7 +32,7 @@ only_active_workspace = true
 match_adjacent_spacing = true
 
 [widget.widget]
-type = "yuuto/arch-updater:widget"
+type = "vantesh/topgrade-updater:topgrade-updater"
 hide_on_empty = true
 glyph = "pacman"
 
