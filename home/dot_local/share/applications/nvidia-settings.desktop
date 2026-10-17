@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=NVIDIA X Server Settings
+Comment=Configure NVIDIA X Server Settings
+Exec=sh -c "mkdir -p \\"\\$XDG_CONFIG_HOME/nvidia\\" && exec nvidia-settings --config=\\"\\$XDG_CONFIG_HOME/nvidia/settings\\""
+TryExec=nvidia-settings
+Icon=nvidia-settings
+Categories=Settings;HardwareSettings;
+Terminal=false

@@ -77,6 +77,11 @@ Pictures/**
 .local/share/*
 !.local/share/{icons,fonts,themes}
 !.local/bin
+{{ if lookPath "nvidia-settings" -}}
+!.local/share/applications
+.local/share/applications/*
+!.local/share/applications/nvidia-settings.desktop
+{{ end -}}
 
 # Generated theme files
 .config/**/{themes,Themes}/**
@@ -104,6 +109,10 @@ Pictures/**
 {{ end }}
 
 # Conditional tools
+{{ if not (lookPath "nvidia-settings") -}}
+.config/fish/functions/nvidia-settings.fish
+.local/share/applications/nvidia-settings.desktop
+{{ end -}}
 {{ if not (lookPath "hypridle") -}}
 .config/hypr/hypridle.conf
 {{ end -}}
