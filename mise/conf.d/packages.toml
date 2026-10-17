@@ -86,11 +86,9 @@
 # Theming
 "pacman:nwg-look" = { env = "packages" }
 "pacman:adw-gtk-theme" = { env = "packages" }
-"aur:apple_cursor" = { env = "packages" }
 "pacman:frameworkintegration" = { env = "packages" }
 "aur:qtengine" = { env = "packages" }
 "aur:darkly-bin" = { env = "packages" }
-"pacman:tela-circle-icon-theme-all" = { env = "packages" }
 "pacman:layer-shell-qt" = { env = "packages" }
 "pacman:qt6-multimedia" = { env = "packages" }
 "pacman:qt6-positioning" = { env = "packages" }
