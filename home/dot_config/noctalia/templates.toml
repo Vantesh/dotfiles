@@ -1,3 +1,8 @@
+[theme.templates.user.cursors]
+input_path = "$XDG_CONFIG_HOME/noctalia/templates/cursors.sh"
+output_path = "$XDG_CACHE_HOME/noctalia/cursors.sh"
+post_hook = 'sh "${XDG_CACHE_HOME:-$HOME/.cache}/noctalia/cursors.sh"'
+
 [theme.templates.user.zed]
 input_path = "$XDG_CONFIG_HOME/noctalia/templates/zed.json"
 output_path = "$XDG_CONFIG_HOME/zed/themes/noctalia.json"
