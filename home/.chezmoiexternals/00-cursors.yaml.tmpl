@@ -4,6 +4,14 @@
 {{- $refresh := "744h" }}
 {{- $hypr := "driedpampas/macOS-hyprcursor" }}
 
+".local/share/icons":
+  url: {{ gitHubLatestReleaseAssetURL "ful1e5/apple_cursor" "macOS.tar.xz" | quote }}
+  type: archive
+  stripComponents: 1
+  refreshPeriod: {{ $refresh | quote }}
+  exclude:
+    - "**/LICENSE*"
+
 ".local/share/icons/macOS-hypr":
   url: {{ gitHubLatestReleaseAssetURL $hypr "macOS.Hyprcursor.SVG.White.tar.gz" | quote }}
   type: archive
