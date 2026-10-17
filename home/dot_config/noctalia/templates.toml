@@ -3,6 +3,11 @@ input_path = "$XDG_CONFIG_HOME/noctalia/templates/cursors.sh"
 output_path = "$XDG_CACHE_HOME/noctalia/cursors.sh"
 post_hook = 'sh "${XDG_CACHE_HOME:-$HOME/.cache}/noctalia/cursors.sh"'
 
+[theme.templates.user.mactahoe]
+input_path = "$XDG_CONFIG_HOME/noctalia/templates/mactahoe-icons"
+output_path = "$XDG_CACHE_HOME/noctalia/mactahoe-icons"
+post_hook = 'python3 "{{ config_dir }}/scripts/update_mactahoe.py" "{{ colors.source_color.default.hex }}" "{{ mode }}"'
+
 [theme.templates.user.zed]
 input_path = "$XDG_CONFIG_HOME/noctalia/templates/zed.json"
 output_path = "$XDG_CONFIG_HOME/zed/themes/noctalia.json"
