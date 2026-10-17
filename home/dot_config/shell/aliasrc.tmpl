@@ -60,6 +60,10 @@ alias ln="ln -i"
 # --------------------------------------------------------------------
 alias ping="ping -c 10"
 alias wget='wget --hsts-file="$XDG_DATA_HOME/wget-hsts" -c'
+alias adb='command mkdir -p "$XDG_DATA_HOME/android" && HOME="$XDG_DATA_HOME"/android adb'
+{{ if lookPath "nvidia-settings" -}}
+alias nvidia-settings='command mkdir -p "$XDG_CONFIG_HOME/nvidia" && nvidia-settings --config="$XDG_CONFIG_HOME"/nvidia/settings'
+{{ end -}}
 alias jtcl="journalctl -p 3 -xb"
 alias h="history"
 alias mkdir="mkdir -p"
