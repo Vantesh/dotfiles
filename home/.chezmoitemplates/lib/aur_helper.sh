@@ -5,7 +5,11 @@ export LAST_ERROR="${LAST_ERROR:-}"
 
 readonly CHAOTIC_AUR_REPO="chaotic-aur"
 readonly CHAOTIC_AUR_KEY="FBA220DFC880C036C0E31AA93056513887B78AEB"
-readonly CHAOTIC_AUR_KEYSERVER="keyserver.ubuntu.com"
+readonly CHAOTIC_AUR_KEYSERVERS=(
+  "hkps://keyserver.ubuntu.com"
+  "hkp://keyserver.ubuntu.com:80"
+  "hkps://keys.openpgp.org"
+)
 readonly CHAOTIC_AUR_URL="https://cdn-mirror.chaotic.cx/$CHAOTIC_AUR_REPO"
 readonly CHAOTIC_AUR_MIRRORLIST="/etc/pacman.d/chaotic-mirrorlist"
 readonly CHAOTIC_AUR_HELPER="yay"
@@ -42,13 +46,20 @@ setup_chaotic_aur() {
   print_box "Chaotic-AUR"
 
   if [[ "$install_trust" == true ]]; then
-    local package package_urls=()
+    local package keyserver package_urls=()
+    local key_imported=false
     for package in "${CHAOTIC_AUR_PACKAGES[@]}"; do
       package_urls+=("$CHAOTIC_AUR_URL/$package.pkg.tar.zst")
     done
 
     log INFO "Installing the Chaotic-AUR keyring and mirrorlist"
-    if ! sudo pacman-key --recv-key "$CHAOTIC_AUR_KEY" --keyserver "$CHAOTIC_AUR_KEYSERVER" ||
+    for keyserver in "${CHAOTIC_AUR_KEYSERVERS[@]}"; do
+      if sudo pacman-key --recv-keys "$CHAOTIC_AUR_KEY" --keyserver "$keyserver"; then
+        key_imported=true
+        break
+      fi
+    done
+    if [[ "$key_imported" == false ]] ||
       ! sudo pacman-key --lsign-key "$CHAOTIC_AUR_KEY" ||
       ! sudo pacman -U --needed --noconfirm "${package_urls[@]}"; then
       LAST_ERROR="Failed to install the Chaotic-AUR trust and mirror configuration"
