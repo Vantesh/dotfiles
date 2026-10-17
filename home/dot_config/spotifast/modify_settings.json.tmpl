@@ -2,6 +2,7 @@
 # Manage selected Spotifast settings while preserving application-owned state.
 
 import json
+import subprocess
 import sys
 
 
@@ -12,10 +13,6 @@ MANAGED_SETTINGS = {
     "download_updates_automatically": False,
     "lyrics_width": 600,
     "accent_from_art": False,
-
-{{- if .personal }}
-    "web_client_id": {{ (rbwFields "spotify").client_id.value | toJson }},
-{{- end }}
 }
 
 
@@ -25,9 +22,19 @@ def main():
         current = json.loads(original) if original.strip() else {}
         if not isinstance(current, dict):
             raise ValueError("settings must be a JSON object")
-        changed = any(current.get(key) != value for key, value in MANAGED_SETTINGS.items())
-        current.update(MANAGED_SETTINGS)
-    except (ValueError, RecursionError) as error:
+        managed_settings = MANAGED_SETTINGS.copy()
+{{- if .personal }}
+        if not current.get("web_client_id"):
+            client_id = subprocess.check_output(
+                ["rbw", "get", "--field", "client_id", "spotify"], text=True
+            ).strip()
+            if not client_id:
+                raise ValueError("Spotify client_id from rbw is empty")
+            managed_settings["web_client_id"] = client_id
+{{- end }}
+        changed = any(current.get(key) != value for key, value in managed_settings.items())
+        current.update(managed_settings)
+    except (ValueError, RecursionError, OSError, subprocess.CalledProcessError) as error:
         print(f"Cannot update Spotifast settings: {error}", file=sys.stderr)
         return 1
 
