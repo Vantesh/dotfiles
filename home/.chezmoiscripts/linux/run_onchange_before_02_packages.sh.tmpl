@@ -37,14 +37,12 @@ if ! setup_xdg; then
   die "XDG setup failed: $LAST_ERROR"
 fi
 
-# AUR helper installation
-if ! command_exists yay; then
-  log STEP "AUR helper"
-  log INFO "Installing AUR helper (yay-bin)... this may take a while"
+if ! setup_chaotic_aur; then
+  die "Failed to set up Chaotic-AUR: $LAST_ERROR"
+fi
 
-  if ! install_aur_helper; then
-    die "Failed to install AUR helper: $LAST_ERROR"
-  fi
+if ! install_aur_helper; then
+  die "Failed to install AUR helper: $LAST_ERROR"
 fi
 
 print_box "Packages"
@@ -153,7 +151,6 @@ else
 fi
 
 # Fingerprint packages are independent of graphics driver provisioning.
-fingerprint_build=false
 fingerprint_goodix=false
 for usb_device in /sys/bus/usb/devices/*; do
   [[ -r "$usb_device/idVendor" && -r "$usb_device/idProduct" ]] || continue
@@ -163,26 +160,7 @@ for usb_device in /sys/bus/usb/devices/*; do
   fi
 done
 if [[ "$fingerprint_goodix" == true ]]; then
-  fingerprint_packages=$(pacman -Qq) || die "Failed to query installed fingerprint packages"
-  fingerprint_missing=$(pacman -T libfprint libfprint-2 libfprint-2.so fprintd) || [[ $? -eq 127 ]] || die "Failed to inspect installed fingerprint providers"
-  fingerprint_other=$(awk '/^(libfprint|fprintd)($|-)/ && $0 != "libfprint-goodix53x5" && $0 != "fprintd" {print}' <<< "$fingerprint_packages")
-
-  if grep -Fxq libfprint-goodix53x5 <<< "$fingerprint_packages" && [[ -z "$fingerprint_other" ]]; then
-    # Accept only the named patched library with the ABI required by Arch fprintd.
-    # An alternate daemon provider is user-managed too, even if unusually named.
-    if pacman -T libfprint 'libfprint-2.so=2-64' >/dev/null &&
-      { grep -Fxq fprintd <<< "$fingerprint_packages" || grep -Fxq fprintd <<< "$fingerprint_missing"; }; then
-      package_envs+=",fingerprint-goodix"
-    else
-      log WARN "Unverified Goodix library or alternate fingerprint daemon; preserving the existing fingerprint stack"
-    fi
-  elif grep -Eq '^(libfprint|fprintd)($|-)' <<< "$fingerprint_packages" ||
-    [[ "$fingerprint_missing" != $'libfprint\nlibfprint-2\nlibfprint-2.so\nfprintd' ]]; then
-    log WARN "Existing unfamiliar or conflicting fingerprint stack; skipping Goodix packages without replacing it"
-  else
-    fingerprint_build=true
-    package_envs+=",fingerprint-goodix"
-  fi
+  package_envs+=",fingerprint-goodix"
 fi
 
 # Laptop packages
@@ -226,23 +204,14 @@ if ! (
   export MISE_AUTO_ENV=false MISE_CEILING_PATHS={{ dir .chezmoi.workingTree | quote }}
   export MISE_TRUSTED_CONFIG_PATHS={{ joinPath .chezmoi.workingTree "mise" | quote }}
 
+
   # Establish the legacy provider before settings and generic helper dependencies.
   # Explicitly stop on failure: this subshell is tested by the enclosing if.
   if [[ "$nvidia_branch" == legacy ]]; then
     log STEP "Installing NVIDIA 580xx utilities"
     mise --env nvidia-legacy-utils bootstrap packages apply --yes || exit 1
   fi
-  if [[ "$package_envs" == *,fingerprint-goodix* ]]; then
-    # fprintd must not pull official libfprint before the patched provider exists.
-    if [[ "$fingerprint_build" == true ]]; then
-      mise --env fingerprint-goodix bootstrap packages apply --yes pacman:glib2-devel pacman:libgudev || exit 1
-      mise --env fingerprint-goodix bootstrap packages apply --yes aur:libfprint-goodix53x5 || exit 1
-    fi
-    pacman -T libfprint 'libfprint-2.so=2-64' >/dev/null || die "Goodix libfprint does not provide the required fprintd ABI; reconcile the fingerprint stack manually."
-    mise --env fingerprint-goodix bootstrap packages apply --yes pacman:fprintd || exit 1
-  fi
-  # Do not reselect the AUR library, especially a repository-installed build.
-  mise --env "${package_envs/,fingerprint-goodix/}" bootstrap packages apply --yes
+  mise --env "$package_envs" bootstrap packages apply --yes
 ); then
   die "Failed to install selected packages with mise"
 fi
