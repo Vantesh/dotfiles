@@ -339,6 +339,59 @@ def select_kde(config_dir):
         )
 
 
+def refresh_gtk_portal():
+    """Refresh an idle portal; never restart when window detection fails."""
+    if not shutil.which("hyprctl") or not os.environ.get("HYPRLAND_INSTANCE_SIGNATURE"):
+        return
+
+    try:
+        result = subprocess.run(
+            [
+                "systemctl",
+                "--user",
+                "show",
+                "xdg-desktop-portal-gtk.service",
+                "--property=MainPID",
+                "--value",
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        pid = int(result.stdout.strip())
+        if pid <= 0:
+            return
+
+        result = subprocess.run(
+            ["hyprctl", "-j", "clients"],
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        clients = json.loads(result.stdout)
+        if not isinstance(clients, list) or any(
+            not isinstance(client, dict) or not isinstance(client.get("pid"), int)
+            for client in clients
+        ):
+            return
+        # Include unfocused, hidden, and other-workspace dialogs too.
+        if any(client["pid"] == pid for client in clients):
+            print("Skipping GTK portal refresh: a portal window is open", flush=True)
+            return
+
+        subprocess.run(
+            ["systemctl", "--user", "try-restart", "xdg-desktop-portal-gtk.service"],
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=15,
+        )
+    except (OSError, ValueError, subprocess.SubprocessError) as error:
+        print(f"Skipping GTK portal refresh: {error}", file=sys.stderr)
+
+
 def main():
     if (
         len(sys.argv) != 3
@@ -403,10 +456,13 @@ def main():
         select_qtengine(config_dir, regenerated)
         select_kde(config_dir)
 
+        if regenerated:
+            refresh_gtk_portal()
+
 
 if __name__ == "__main__":
     try:
         main()
-    except (OSError, TypeError, ValueError, subprocess.CalledProcessError) as error:
+    except (OSError, TypeError, ValueError, subprocess.SubprocessError) as error:
         print(f"Cannot apply MacTahoe theme: {error}", file=sys.stderr)
         sys.exit(1)
