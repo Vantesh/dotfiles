@@ -12,6 +12,7 @@ import stat
 import subprocess
 import sys
 import tempfile
+import xml.etree.ElementTree as ET
 from contextlib import contextmanager
 from pathlib import Path
 
@@ -19,7 +20,18 @@ THEME = "MacTahoe-Noctalia"
 STATE_FILE = ".noctalia-state.json"
 SKIP = frozenset({"icon-theme.cache", ".whitesur-overlay", STATE_FILE})
 
-ACCENTS = ("#006efd", "#88ccf2", "#67b1de", "#7cc1ea", "#56a1d3")
+ACCENTS = (
+    "#006efd",
+    "#88ccf2",
+    "#67b1de",
+    "#7cc1ea",
+    "#56a1d3",
+    # Alternate folder artwork, including Projects, uses this blue palette.
+    "#60c0f0",
+    "#83d4fb",
+    "#46a2d7",
+    "#008ea2",
+)
 BASE_ACCENT = "#7cc1ea"
 
 
@@ -136,6 +148,25 @@ def atomic_write(path, content):
             temporary.unlink(missing_ok=True)
 
 
+def folder_artwork(path):
+    content = path.read_text(encoding="utf-8")
+
+    if path.parent.name != "scalable" or path.resolve().name != "folder-projects.svg":
+        return content
+
+    projects = ET.fromstring(content)
+    emblem = projects[-1]
+    # Only replace the known alternate artwork; retain unfamiliar upstream designs.
+    if emblem.tag != "{http://www.w3.org/2000/svg}path" or emblem.get("class") != "st0":
+        return content
+
+    base = ET.fromstring((path.parent / "folder.svg").read_text(encoding="utf-8"))
+    base.append(emblem)
+    # Some icon loaders require an unprefixed SVG root when detecting the format.
+    ET.register_namespace("", "http://www.w3.org/2000/svg")
+    return ET.tostring(base, encoding="unicode")
+
+
 def generate_theme(source, target, state):
     palette = accent_colors(state["color"])
     matches = 0
@@ -158,7 +189,7 @@ def generate_theme(source, target, state):
                 if source_path.suffix.lower() == ".svg" and source_path.is_file():
                     updated, count = PATTERN.subn(
                         lambda match: palette[match.group().lower()],
-                        source_path.read_text(encoding="utf-8"),
+                        folder_artwork(source_path),
                     )
                     matches += count
 
@@ -349,7 +380,7 @@ def main():
             "mode": mode,
             "source": str(source.resolve()),
             "stamp": source_fingerprint(source),
-            "version": 5,
+            "version": 8,
         }
 
         try:
