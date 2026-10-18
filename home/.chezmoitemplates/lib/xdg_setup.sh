@@ -22,6 +22,10 @@ _export_xdg_base() {
   *":$XDG_BIN_HOME:"*) ;;
   *) export PATH="$XDG_BIN_HOME:$PATH" ;;
   esac
+  case ":$PATH:" in
+  *":/usr/bin/core_perl:"*) ;;
+  *) export PATH="$PATH:/usr/bin/core_perl" ;;
+  esac
   export GOPATH="${GOPATH:-$XDG_DATA_HOME/go}"
 
   case ":$PATH:" in
