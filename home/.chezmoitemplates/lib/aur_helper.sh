@@ -123,7 +123,7 @@ install_aur_helper() {
     fi
   fi
 
-  if command_exists "$CHAOTIC_AUR_HELPER"; then
+  if command_exists "$CHAOTIC_AUR_HELPER" || command_exists paru; then
     return 0
   fi
 
@@ -134,11 +134,6 @@ install_aur_helper() {
     return 0
   fi
 
-  if command_exists paru; then
-    log INFO "Using existing paru installation"
-    return 0
-  fi
-
-  LAST_ERROR="Failed to install $CHAOTIC_AUR_HELPER and no existing paru fallback was found"
+  LAST_ERROR="Failed to install $CHAOTIC_AUR_HELPER"
   return 1
 }
