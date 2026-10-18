@@ -1,8 +1,8 @@
 hl.config({
   general = {
     layout = "dwindle",
-    gaps_in = 5,
-    gaps_out = 5,
+    gaps_in = 3,
+    gaps_out = 3,
     border_size = 2,
     allow_tearing = true,
     no_focus_fallback = true,
@@ -21,7 +21,7 @@ hl.config({
 -- See https://wiki.hypr.land/Configuring/Layouts/Dwindle-Layout/ for more
 hl.config({
   dwindle = {
-    preserve_split = true, -- You probably want this
+    preserve_split = true, -- Preserve the split type instead of choosing it from window proportions.
   },
 })
 
