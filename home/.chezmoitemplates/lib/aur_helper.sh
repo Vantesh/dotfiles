@@ -1,4 +1,3 @@
-
 #!/usr/bin/env bash
 # Configure Chaotic-AUR before installing packages or an AUR helper.
 
