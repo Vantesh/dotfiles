@@ -75,7 +75,25 @@ alias mkdir="mkdir -p"
 # --------------------------------------------------------------------
 alias mirror='sudo reflector -f 30 -l 30 --number 10 --verbose --save /etc/pacman.d/mirrorlist'
 alias cleanup='sudo pacman -Rns $(pacman -Qtdq)'
-alias fixpacman='sudo rm /var/lib/pacman/db.lck'
+unalias fixpacman 2>/dev/null || true
+fixpacman() {
+    sudo -v || return 1
+    local status=0
+    command pgrep -x 'pacman|yay|paru|pamac|pamac-daemon|packagekitd' >/dev/null || status=$?
+    case "$status" in
+        0)
+            echo "A package manager is running; refusing to remove the pacman lock." >&2
+            return 1
+            ;;
+        1)
+            sudo -n rm /var/lib/pacman/db.lck
+            ;;
+        *)
+            echo "Could not check for active package transactions; refusing to remove the pacman lock." >&2
+            return 1
+            ;;
+    esac
+}
 alias yayf="yay -Slq | tv --preview-command 'yay -Sii {}' --layout portrait --preview-size 75 | xargs -ro yay -S"
 
 
