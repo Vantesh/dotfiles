@@ -5,18 +5,19 @@ enabled = [
   "noctalia/notes",
   "levi/warp",
   "vantesh/hyprbinds",
+  "vantesh/topgrade-updater"
 ]
 
 [plugin_settings."levi/warp"]
 panel_layer = "overlay"
 panel_placement = "floating"
 
-[plugin_settings."yuuto/arch-updater"]
+
+[plugin_settings."vantesh/topgrade-updater"]
+panel_layer = "overlay"
 panel_placement = "floating"
-terminal = 'xdg-terminal-exec --title=\"System Update\" --hold'
-update_cmd = "~/.config/noctalia/scripts/updater.sh"
-auto_check_hours = 3
-show_changelog_after_update = false
+terminal_cmd = "xdg-terminal-exec --title=\"System Update\""
+
 
 [[plugins.source]]
 name = "official"
