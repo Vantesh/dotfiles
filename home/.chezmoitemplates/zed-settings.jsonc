@@ -117,9 +117,6 @@
       "auto_open": false,
       "position": "right",
     },
-
-    "favorite_models": [],
-    "model_parameters": [],
   },
   "git_panel": {
     "entry_primary_click_action": "file_diff",

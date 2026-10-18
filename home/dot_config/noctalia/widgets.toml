@@ -34,8 +34,6 @@ match_adjacent_spacing = true
 [widget.widget]
 type = "vantesh/topgrade-updater:topgrade-updater"
 hide_on_empty = true
-panel_layer = "overlay"
-panel_placement = "floating"
 
 [widget.warp]
 type = "levi/warp:warp"

@@ -6,6 +6,7 @@
 set -euo pipefail
 
 {{ include ".chezmoitemplates/lib/common.sh" }}
+{{ include ".chezmoitemplates/lib/snapboot.sh" }}
 
 readonly -a LIMINE_OPTIONS=(
   "timeout=0.5"
@@ -138,6 +139,11 @@ configure_limine_options() {
     return 1
   fi
 
+  # Queue enrollment before writing so an interrupted apply can retry it.
+  if ! request_initramfs_rebuild; then
+    return 1
+  fi
+
   if ! sudo mv "$temp_file" "$limine_conf" 2>/dev/null; then
     local error_msg="Failed to write Limine options"
     if ! restore_backup "$limine_conf"; then
@@ -165,7 +171,7 @@ main() {
     if [[ "$limine_result" -eq 2 ]]; then
       log SKIP "Limine configuration skipped: $LAST_ERROR"
     elif [[ "$limine_result" -ne 0 ]]; then
-      log WARN "Failed to configure Limine options: $LAST_ERROR"
+      die "Failed to configure Limine options: $LAST_ERROR"
     else
       log INFO "Configured Limine options"
     fi

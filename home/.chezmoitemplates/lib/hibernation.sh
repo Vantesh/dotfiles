@@ -158,8 +158,8 @@ create_btrfs_swap() {
       return 1
     fi
 
-    if ! sudo mount "$btrfs_root" "$temp_mount" >/dev/null 2>&1; then
-      LAST_ERROR="Failed to mount btrfs root device"
+    if ! sudo mount -o subvolid=5 "$btrfs_root" "$temp_mount" >/dev/null 2>&1; then
+      LAST_ERROR="Failed to mount btrfs top-level subvolume"
       return 1
     fi
 
@@ -243,7 +243,6 @@ setup_hibernation() {
   local hibernation_params
   local resume_uuid
   local resume_offset
-  local btrfs_root
 
   LAST_ERROR=""
 
@@ -286,14 +285,8 @@ setup_hibernation() {
       hibernation_params+=("resume=UUID=$resume_uuid")
 
     elif [[ -f "$swap_path" ]]; then
-      if ! btrfs_root=$(get_btrfs_root_device); then
-        local error_msg="$LAST_ERROR"
-        LAST_ERROR="Failed to get btrfs root device: $error_msg"
-        return 1
-      fi
-
-      if ! resume_uuid=$(lsblk -fno UUID "$btrfs_root" 2>/dev/null); then
-        LAST_ERROR="Failed to get UUID for btrfs root device"
+      if ! resume_uuid=$(findmnt -n -o UUID --target "$swap_path" 2>/dev/null) || [[ -z "$resume_uuid" ]]; then
+        LAST_ERROR="Failed to get filesystem UUID for swapfile: $swap_path"
         return 1
       fi
 
