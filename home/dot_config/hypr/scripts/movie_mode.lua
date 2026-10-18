@@ -65,7 +65,7 @@ end
 
 -- Never leave the laptop dark when the external monitor is unplugged.
 hl.on("monitor.removed", function(monitor)
-  if monitor and monitor.name == monitors.external then
+  if monitor and "desc:" .. monitor.description == monitors.external then
     wake_laptop()
   end
 end)
