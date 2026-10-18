@@ -69,9 +69,13 @@ scriptEnv:
   INSTALL_DRIVERS: {{ ternary "1" "0" $installDrivers | quote }}
 
 
+edit:
+  command: zeditor
+  args: ["--wait"]
+
 merge:
   command: meld
-  args: ["{{ "{{ .Destination }}" }}", "{{ "{{ .Source }}" }}", "{{ "{{ .Target }}" }}"]
+  args: ["{{ "{{ .Target }}" }}", "{{ "{{ .Destination }}" }}"]
 
 diff:
   pager: delta
