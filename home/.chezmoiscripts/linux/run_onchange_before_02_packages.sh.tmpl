@@ -211,6 +211,7 @@ if ! (
     log STEP "Installing NVIDIA 580xx utilities"
     mise --env nvidia-legacy-utils bootstrap packages apply --yes || exit 1
   fi
+
   mise --env "$package_envs" bootstrap packages apply --yes
 ); then
   die "Failed to install selected packages with mise"

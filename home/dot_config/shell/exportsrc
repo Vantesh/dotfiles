@@ -16,7 +16,7 @@ export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
 # ------------------------------------------------------------------------------
 # PATH
 # ------------------------------------------------------------------------------
-export PATH="$PATH:$CARGO_HOME/bin:$RUSTUP_HOME/bin:$GOPATH/bin:$XDG_BIN_HOME:$XDG_DATA_HOME/npm/bin"
+export PATH="$PATH:$CARGO_HOME/bin:$RUSTUP_HOME/bin:$GOPATH/bin:$XDG_BIN_HOME:$XDG_DATA_HOME/npm/bin:/usr/bin/core_perl"
 
 # ------------------------------------------------------------------------------
 # COLORS

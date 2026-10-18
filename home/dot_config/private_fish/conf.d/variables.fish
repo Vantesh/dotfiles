@@ -19,6 +19,7 @@ fish_add_path $XDG_BIN_HOME
 fish_add_path $CARGO_HOME/bin
 fish_add_path $GOPATH/bin
 fish_add_path $XDG_DATA_HOME/npm/bin
+fish_add_path /usr/bin/core_perl
 
 #--------------------------------------------------
 # MANPAGER
