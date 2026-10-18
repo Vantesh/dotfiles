@@ -38,6 +38,17 @@
     "custom": 2.0,
   },
 
+  "experimental.theme_overrides": {
+    "syntax": {
+      "comment": {
+        "font_style": "italic",
+      },
+      "comment.doc": {
+        "font_style": "italic",
+      },
+    },
+  },
+
   "icon_theme": "Zed (Default)",
   "theme": {
     "mode": "system",

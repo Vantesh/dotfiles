@@ -6,6 +6,14 @@ font:
       - cv02
       - zero
 
+  italic:
+    name: "Maple Mono NF"
+    features:
+      - cv01
+      - cv31
+      - cv34
+      - ss06
+
   terminal:
     size: 12
 
