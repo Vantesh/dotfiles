@@ -1,5 +1,6 @@
 -- Override only custom settings; NvChad supplies the built-in plugin specs.
 return {
+  { "lukas-reineke/indent-blankline.nvim", enabled = false },
   {
     "hrsh7th/nvim-cmp",
     opts = function()

@@ -1,3 +1,7 @@
 function history
-    builtin history --show-time='%F %T ' --reverse
+    if test (count $argv) -eq 0
+        builtin history --show-time='%F %T ' --reverse
+    else
+        builtin history $argv
+    end
 end

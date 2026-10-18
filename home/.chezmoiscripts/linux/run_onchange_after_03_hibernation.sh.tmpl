@@ -133,14 +133,19 @@ EOF
   fi
   log INFO "Configured systemd logind"
 
-  if ! write_system_config "/etc/tmpfiles.d/disable-usb-wake.conf" <<'EOF'; then
-# Disable USB wakeup devices
-#    Path                  Mode UID  GID  Age Argument
-w    /proc/acpi/wakeup     -    -    -    -   XHC
+  if ! write_system_config "/etc/udev/rules.d/90-disable-usb-wake.rules" <<'EOF'; then
+# Disable wakeup on USB host controllers, independent of ACPI device names.
+ACTION=="add|change", SUBSYSTEM=="pci", ATTR{class}=="0x0c03*", TEST=="power/wakeup", ATTR{power/wakeup}="disabled"
 EOF
     die "Failed to write USB wakeup config: $LAST_ERROR"
   fi
-  log INFO "Configured USB wakeup disable"
+
+  if ! sudo udevadm control --reload-rules ||
+    ! sudo udevadm trigger --action=change --subsystem-match=pci --attr-match='class=0x0c03*' ||
+    ! sudo udevadm settle; then
+    die "Failed to apply USB wakeup rules"
+  fi
+  log INFO "Disabled USB controller wakeup"
 
   ram_size=$(get_ram_size)
   if [[ "$ram_size" -gt 30 ]]; then
