@@ -88,7 +88,7 @@
 "pacman:adw-gtk-theme" = { env = "packages" }
 "pacman:frameworkintegration" = { env = "packages" }
 "aur:qtengine" = { env = "packages" }
-"aur:darkly-bin" = { env = "packages" }
+"pacman:darkly-qt6-git" = { env = "packages" }
 "pacman:layer-shell-qt" = { env = "packages" }
 "pacman:qt6-multimedia" = { env = "packages" }
 "pacman:qt6-positioning" = { env = "packages" }
