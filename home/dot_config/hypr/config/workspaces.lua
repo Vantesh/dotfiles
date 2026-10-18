@@ -32,6 +32,7 @@ add_placement_rule({
   workspace = tostring(LAPTOP_WORKSPACE),
   monitor = monitors.laptop,
   layout = "scrolling",
+  layout_opts = { direction = "left" },
   default = true,
   persistent = true,
 })
@@ -192,6 +193,8 @@ hl.on("hyprland.start", function()
       center_cursor(external_monitor)
     end
 
-    hl.exec_cmd(apps.launcher .. " -- " .. apps.music)
+    hl.timer(function()
+      hl.exec_cmd(apps.launcher .. " -- " .. apps.music)
+    end, { timeout = 5000, type = "oneshot" })
   end)
 end)
