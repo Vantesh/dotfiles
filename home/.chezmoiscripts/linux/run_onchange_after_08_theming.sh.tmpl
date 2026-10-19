@@ -21,6 +21,7 @@ configure_limine_options() {
   local limine_conf="/boot/limine.conf"
   local temp_file
   local limine_options
+  local original_entries generated_entries
 
   LAST_ERROR=""
 
@@ -36,10 +37,11 @@ configure_limine_options() {
 
 
   temp_file=$(mktemp)
-  trap '[[ -f "${temp_file:-}" ]] && rm -f "${temp_file}"' RETURN
+
 
   limine_options="$(printf '%s\n' "${LIMINE_OPTIONS[@]}")"
 
+  # shellcheck disable=SC2024  # temp file is user-owned; only the read needs sudo
   if ! sudo awk -v "limine_options=$limine_options" '
     function emit_missing_options( option_index, option_parts, option_name) {
       for (option_index = 1; option_index <= limine_option_count; option_index++) {
@@ -125,35 +127,59 @@ configure_limine_options() {
     }
   ' "$limine_conf" >"$temp_file"; then
     LAST_ERROR="Failed to transform Limine config"
+    rm -f "$temp_file"
+    return 1
+  fi
+
+  # Limine entry headers start with /; the transform must preserve their count.
+  # grep -c returns 1 for no matches. Reject zero counts and read errors alike.
+  original_entries=$(sudo grep -c '^/' "$limine_conf") || original_entries=0
+  generated_entries=$(grep -c '^/' "$temp_file") || generated_entries=0
+  if [[ ! -s "$temp_file" || "$generated_entries" -eq 0 || "$original_entries" -ne "$generated_entries" ]]; then
+    LAST_ERROR="Generated Limine config is empty or has inconsistent boot entries"
+    rm -f "$temp_file"
     return 1
   fi
 
   # A lifecycle/content change must not rewrite an already configured boot file.
   if sudo cmp -s -- "$temp_file" "$limine_conf"; then
+    rm -f "$temp_file"
     return 0
   fi
 
-  if ! create_backup "$limine_conf"; then
+  if ! create_backup "$limine_conf" force; then
     local error_msg="$LAST_ERROR"
     LAST_ERROR="Failed to backup limine config: $error_msg"
+    rm -f "$temp_file"
     return 1
   fi
 
   # Queue enrollment before writing so an interrupted apply can retry it.
   if ! request_initramfs_rebuild; then
+    rm -f "$temp_file"
     return 1
   fi
 
-  if ! sudo mv "$temp_file" "$limine_conf" 2>/dev/null; then
+  # Stage on the boot filesystem; .conf.new does not match *.conf consumers.
+  # shellcheck disable=SC2024  # temp input is user-owned; only the write needs sudo
+  if ! sudo tee -- "${limine_conf}.new" <"$temp_file" >/dev/null ||
+    ! sudo mv -- "${limine_conf}.new" "$limine_conf"; then
+    sudo rm -f -- "${limine_conf}.new" || true
     local error_msg="Failed to write Limine options"
-    if ! restore_backup "$limine_conf"; then
-      LAST_ERROR="$error_msg and restore backup failed: $LAST_ERROR"
-    else
-      LAST_ERROR="$error_msg (backup restored)"
+    LAST_ERROR="$error_msg"
+    # Staging/rename failures normally leave the original intact.
+    if ! sudo test -s "$limine_conf"; then
+      if ! restore_backup "$limine_conf"; then
+        LAST_ERROR="$error_msg and restore backup failed: $LAST_ERROR"
+      else
+        LAST_ERROR="$error_msg (backup restored)"
+      fi
     fi
+    rm -f "$temp_file"
     return 1
   fi
 
+  rm -f "$temp_file"
   return 0
 }
 

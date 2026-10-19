@@ -124,7 +124,7 @@ Pictures/**
 .config/{zsh,fsh}
 
 # personal files
-{{- if not .personal }}
+{{- if not (get . "personal") }}
 .config/atuin
 .config/fish/conf.d/atuin.fish
 .config/git

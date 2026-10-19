@@ -37,6 +37,17 @@ chezmoi destroy ~/.bashrc       # remove from machine and repo
 
 Normally, edit the managed source rather than the live `~/.config` copies. If I edit a live file, use `chezmoi add` to bring it back into the repo. For `.tmpl` files, edit the template directly instead.
 
+## Script tests
+
+Tests cover only chezmoi setup scripts and their shared helpers, not application
+dotfiles. Requires Python 3.11+ and Bash. Run manually with:
+
+```sh
+python3 -B -m unittest discover -s .github/tests -v
+```
+
+CI runs the tests only for pull requests targeting `main`.
+
 ## Reminders
 
 - **Super + F2:** keybinding cheat sheet.

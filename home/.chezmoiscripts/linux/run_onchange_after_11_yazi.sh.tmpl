@@ -10,7 +10,33 @@ if ! command -v ya >/dev/null 2>&1; then
   exit 0
 fi
 
-if ! ya pkg add ahkohd/eza-preview yazi-rs/plugins:full-border; then
+package_file="${YAZI_CONFIG_HOME:-${XDG_CONFIG_HOME:-$HOME/.config}/yazi}/package.toml"
+if ! missing_plugins=$(python3 - "$package_file" <<'PY'
+from pathlib import Path
+import sys
+import tomllib
+
+path = Path(sys.argv[1])
+data = tomllib.loads(path.read_text()) if path.exists() else {}
+registered = {dependency["use"] for dependency in data.get("plugin", {}).get("deps", [])}
+for plugin in ("ahkohd/eza-preview", "yazi-rs/plugins:full-border"):
+    if plugin not in registered:
+        print(plugin)
+PY
+); then
+  printf 'ERROR: Failed to read Yazi plugin declarations\n' >&2
+  exit 1
+fi
+
+if [[ -n "$missing_plugins" ]]; then
+  mapfile -t plugins <<<"$missing_plugins"
+  if ! ya pkg add "${plugins[@]}"; then
+    printf 'ERROR: Failed to register Yazi plugins\n' >&2
+    exit 1
+  fi
+fi
+
+if ! ya pkg install; then
   printf 'ERROR: Failed to install Yazi plugins\n' >&2
   exit 1
 fi
