@@ -193,8 +193,7 @@ hl.on("hyprland.start", function()
       center_cursor(external_monitor)
     end
 
-    hl.timer(function()
-      hl.exec_cmd(apps.launcher .. " -- " .. apps.music)
-    end, { timeout = 5000, type = "oneshot" })
+    -- Config reloads cancel Lua timers; keep the login delay outside them.
+    hl.exec_cmd("sleep 5 && exec " .. apps.launcher .. " -- " .. apps.music)
   end)
 end)
