@@ -13,6 +13,17 @@ sudo pacman -S --needed chezmoi
 chezmoi init --apply vantesh
 ```
 
+### Yazi plugins (manual)
+
+After applying, install the Yazi plugins manually; chezmoi does not install them.
+Run each `add` command only if that plugin is not already registered:
+
+```sh
+ya pkg add ahkohd/eza-preview
+ya pkg add yazi-rs/plugins:full-border
+ya pkg install
+```
+
 ## Usual commands
 
 ```sh
@@ -36,6 +47,17 @@ chezmoi destroy ~/.bashrc       # remove from machine and repo
 ```
 
 Normally, edit the managed source rather than the live `~/.config` copies. If I edit a live file, use `chezmoi add` to bring it back into the repo. For `.tmpl` files, edit the template directly instead.
+
+## Script tests
+
+Tests cover only chezmoi setup scripts and their shared helpers, not application
+dotfiles. Requires Python 3.10+ and Bash. Run manually with:
+
+```sh
+python3 -B -m unittest discover -s .github/tests -v
+```
+
+CI runs the tests only for pull requests targeting `main`.
 
 ## Reminders
 

@@ -1,11 +1,8 @@
 name: dotfiles CI
 
 on:
-  push:
-    branches: [main]
   pull_request:
     branches: [main]
-  workflow_dispatch:
 
 permissions:
   contents: read
@@ -45,6 +42,9 @@ jobs:
             "XDG_CACHE_HOME=$CI_HOME/.cache" \
             "XDG_DATA_HOME=$CI_HOME/.local/share" \
             "XDG_STATE_HOME=$CI_HOME/.local/state" >> "$GITHUB_ENV"
+
+      - name: Test scripts
+        run: python3 -B -m unittest discover -s .github/tests -v
 
       - name: Apply and verify dotfiles
         run: |
