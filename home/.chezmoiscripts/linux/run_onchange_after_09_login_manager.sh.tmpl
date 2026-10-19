@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # 09_login_manager.sh - Configure Ly display manager
 # Exit codes: 0 (success), 1 (failure)
+# The EXIT callback reads rollback in the same configuration-helper subshell.
+# shellcheck disable=SC2030,SC2031
 
 
 set -euo pipefail
@@ -187,7 +189,18 @@ change_enablement() {
   [[ "$status" == 0 ]] || die "Display-manager enablement command failed: $*"
 }
 
+# The configuration helper's rollback flag is the joint commit decision.
+# shellcheck disable=SC2329
+_finish_ly_migration() {
+  trap '' INT TERM
+  DM_ROLLBACK="$rollback"
+  _finish_config_edits
+  cleanup_dm_migration
+}
+
 _stage_ly_configs() {
+  trap _finish_ly_migration EXIT
+  printf '%s\n' "$BASHPID" > "$DM_STATE_DIR/config-pid" || return 1
   declare -A ly_config=(
     ["allow_empty_password"]="false"
     ["clear_password"]="true"
@@ -214,23 +227,49 @@ EOF
 }
 
 configure_ly() {
-  if ! edit_system_configs _stage_ly_configs : "$LY_CONFIG_FILE" "$LY_SAVE_FILE"; then
-    die "Failed to configure Ly; existing manager enablement was not changed"
+  local status=0 transaction_pid interrupted=0 worker_pid
+  # wait is interruptible, unlike waiting for a foreground shell function.
+  # Forward parent-only cancellation and join the worker, which owns both
+  # configuration and enablement rollback through one commit decision.
+  trap 'interrupted=130' INT
+  trap 'interrupted=143' TERM
+  (
+    trap '' INT TERM
+    edit_system_configs _stage_ly_configs migrate_display_managers "$LY_CONFIG_FILE" "$LY_SAVE_FILE"
+  ) &
+  transaction_pid=$!
+  wait "$transaction_pid" || status=$?
+  if [[ "$interrupted" != 0 ]]; then
+    trap '' INT TERM
+    # An asynchronous subshell function has a waiting shell as well as its
+    # transaction worker. Signal the worker, not the waiter, so wait joins its
+    # joint rollback before the parent's cleanup can remove shared snapshots.
+    while [[ ! -s "$DM_STATE_DIR/config-pid" ]] && kill -0 "$transaction_pid" 2>/dev/null; do
+      sleep 0.01
+    done
+    if [[ -s "$DM_STATE_DIR/config-pid" ]] && read -r worker_pid < "$DM_STATE_DIR/config-pid"; then
+      case "$interrupted" in
+        130) kill -INT "$worker_pid" 2>/dev/null || true ;;
+        143) kill -TERM "$worker_pid" 2>/dev/null || true ;;
+      esac
+    fi
+    wait "$transaction_pid" || true
+    exit "$interrupted"
   fi
+  trap 'exit 130' INT
+  trap 'exit 143' TERM
+  case "$status" in
+    0) ;;
+    130|143) exit "$status" ;;
+    *) die "Failed to configure Ly or migrate display-manager enablement" ;;
+  esac
   log INFO "Configured ly display manager"
 }
 
-main() {
+# Run as the configuration transaction's post-check so its snapshots remain
+# available until every enablement operation and verification has succeeded.
+migrate_display_managers() {
   local unit state
-  print_box "LY"
-  log STEP "Ly Configuration"
-  keep_sudo_alive || die "Failed to keep sudo alive"
-  DM_STATE_DIR=$(mktemp -d) || die "Cannot create migration snapshot directory"
-  add_exit_cleanup cleanup_dm_migration || die "Cannot register migration cleanup"
-  preflight_login_manager
-  configure_ly
-
-  DM_ROLLBACK=true
   change_enablement enable ly@tty2.service
   state=$(unit_state ly@tty2.service) || die "Failed to verify Ly enablement"
   if [[ "$state" != enabled ]] || ! sudo test -L /etc/systemd/system/multi-user.target.wants/ly@tty2.service; then
@@ -239,7 +278,11 @@ main() {
 
   for unit in "${!DM_STATES[@]}"; do
     [[ "$unit" != ly@tty2.service && "$unit" != getty@tty2.service ]] || continue
-    [[ "${DM_STATES[$unit]}" != masked ]] || continue
+    case "${DM_STATES[$unit]}" in
+      enabled|enabled-runtime|alias) ;;
+      disabled|static|indirect|masked|masked-runtime) continue ;;
+      *) die "Unsupported enablement state for $unit: ${DM_STATES[$unit]}" ;;
+    esac
     change_enablement disable "$unit"
     change_enablement --runtime disable "$unit"
     state=$(unit_state "$unit") || die "Cannot verify $unit disablement"
@@ -247,11 +290,25 @@ main() {
       enabled|enabled-runtime) die "$unit is still enabled" ;;
     esac
   done
-  if [[ -n "${DM_STATES[getty@tty2.service]:-}" && "${DM_STATES[getty@tty2.service]}" != masked ]]; then
-    change_enablement disable getty@tty2.service
-    change_enablement --runtime disable getty@tty2.service
-  fi
-  DM_ROLLBACK=false
+  case "${DM_STATES[getty@tty2.service]:-not-found}" in
+    enabled|enabled-runtime|alias)
+      change_enablement disable getty@tty2.service
+      change_enablement --runtime disable getty@tty2.service
+      ;;
+    disabled|static|indirect|masked|masked-runtime|not-found) ;;
+    *) die "Unsupported enablement state for getty@tty2.service: ${DM_STATES[getty@tty2.service]}" ;;
+  esac
+}
+
+main() {
+  print_box "LY"
+  log STEP "Ly Configuration"
+  keep_sudo_alive || die "Failed to keep sudo alive"
+  DM_STATE_DIR=$(mktemp -d) || die "Cannot create migration snapshot directory"
+  add_exit_cleanup cleanup_dm_migration || die "Cannot register migration cleanup"
+  preflight_login_manager
+
+  configure_ly
   log INFO "Ly enabled; previous managers disabled for subsequent boots (no sessions started or stopped)"
 }
 
