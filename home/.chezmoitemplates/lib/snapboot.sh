@@ -300,6 +300,51 @@ get_limine_boot_directory() {
   return 1
 }
 
+# The package manages ESP-root limine.conf, but Limine searches other locations
+# first. Existence/equivalence cannot establish ownership of a recovery config.
+validate_limine_config_location() {
+  local directory="$1" candidate
+  LAST_ERROR=""
+  for candidate in EFI/limine/limine.conf EFI/BOOT/limine.conf boot/limine/limine.conf boot/limine.conf limine/limine.conf; do
+    if sudo test -e "$directory/$candidate" || sudo test -L "$directory/$candidate"; then
+      LAST_ERROR="Preserved $directory/$candidate: ownership and active config are ambiguous; review Limine search precedence and move it manually only if obsolete"
+      return 1
+    fi
+  done
+}
+
+# Never initialize persistent defaults from a possibly temporary running boot.
+# Respect explicit package/drop-in defaults, otherwise use the persistent kernel
+# command line. Missing intent requires an operator decision, not a denylist.
+ensure_limine_cmdline_defaults() {
+  local status=0 params
+  LAST_ERROR=""
+  sudo bash -s <<'BASH' || status="$?"
+set -euo pipefail
+shopt -s nullglob
+for file in /usr/share/limine-entry-tool.d/*.conf /etc/limine-entry-tool.conf /etc/limine-entry-tool.d/*.conf /etc/default/limine; do
+  [[ -f "$file" ]] || continue
+  if grep -Eq '^[[:space:]]*KERNEL_CMDLINE\[default\][[:space:]]*=' "$file"; then
+    exit 0
+  else
+    status=$?
+    [[ "$status" = 1 ]] || exit 1
+  fi
+done
+exit 2
+BASH
+  case "$status" in
+  0) return 0 ;;
+  2) ;;
+  *) LAST_ERROR="Cannot read persistent Limine defaults; refusing to replace them"; return 1 ;;
+  esac
+  if ! params=$(sudo cat -- /etc/kernel/cmdline) || [[ -z "${params//[[:space:]]/}" || "$params" == *$'\n'* ]]; then
+    LAST_ERROR="No single-line persistent kernel command line found; review required boot arguments and set /etc/kernel/cmdline or KERNEL_CMDLINE[default] before retrying (never copy rescue/debug arguments blindly)"
+    return 1
+  fi
+  update_limine_cmdline "01-default.conf" "$params"
+}
+
 # Checks that Limine's UKI options do not disable managed mkinitcpio drop-ins.
 #
 # Explicit -c/--config arguments disable drop-ins even for the default config.
