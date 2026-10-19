@@ -2,26 +2,20 @@
 
 Exercise real chezmoi-rendered setup scripts and shared shell functions in temp
 homes with redirected XDG directories and fail-closed command stubs. Cover call
-ordering, transaction cleanup, resume failures, Limine write/marker safety, and
-Yazi idempotency. Template syntax, externals, and tool guards live in test_templates.
+ordering, transaction cleanup, resume failures, and Limine write/marker safety.
+Template syntax, externals, and tool guards live in test_templates.
 No production script is run with extra shell options not present in its shebang
 or prologue; extracted function fixtures deliberately have no implicit set -e.
 """
 
 import io
 import shlex
-import sys
 import unittest
 from pathlib import Path
 from subprocess import TimeoutExpired
 from unittest.mock import patch
 
-try:
-    import tomllib
-except ImportError:  # unittest must still discover non-Yazi tests on Python < 3.11.
-    tomllib = None
-
-from script_helpers import CHEZMOI, LIB, PYTHON3, SCRIPTS, ScriptCase
+from script_helpers import CHEZMOI, LIB, SCRIPTS, ScriptCase
 
 
 class ScriptTests(ScriptCase):
@@ -628,116 +622,6 @@ write_mkinitcpio_dropin() { write-dropin "$@"; }
                     )
                     self.assertEqual(len(calls), 4)
                     self.assertEqual(calls[3][:2], ["write-dropin", "hibernation.conf"])
-
-    def yazi_fixture(self, scenario):
-        required = ["ahkohd/eza-preview", "yazi-rs/plugins:full-border"]
-        registered = {
-            "missing_file": [],
-            "empty_deps": [],
-            "unrelated_deps": [],
-            "partial": required[:1],
-            "all_registered": required,
-        }[scenario]
-        config = self.directory / "custom-yazi"
-        config.mkdir(exist_ok=True)
-        self.package = config / "package.toml"
-        if scenario == "missing_file":
-            self.package.unlink(missing_ok=True)
-        else:
-            entries = [] if scenario == "empty_deps" else ["example/keep", *registered]
-            self.package.write_text(
-                "[plugin]\ndeps = [\n"
-                + "".join(
-                    f'{{ use = "{plugin}", rev = "keep-revision" }},\n'
-                    for plugin in entries
-                )
-                + ']\n[flavor]\ndeps = [{ use = "example/theme", rev = "keep-theme" }]\n'
-            )
-        self.calls.unlink(missing_ok=True)
-        self.env.update(YAZI_CONFIG_HOME=str(config), PACKAGE_FILE=str(self.package))
-        self.stub(
-            "ya",
-            """exec python3 - "$@" <<'PY'
-import json, os, sys, tomllib
-from pathlib import Path
-path = Path(os.environ["PACKAGE_FILE"])
-
-if os.environ.get("FAIL_YA") == sys.argv[2]:
-    sys.exit(23)
-if sys.argv[1:3] == ["pkg", "add"]:
-    content = path.read_text() if path.exists() else "[plugin]" + chr(10) + "deps = []" + chr(10)
-    registered = {dep["use"] for dep in tomllib.loads(content)["plugin"]["deps"]}
-    for plugin in sys.argv[3:]:
-        assert plugin not in registered, "Package already exists"
-        content = content.replace("deps = [", 'deps = [\\n{ use = ' + json.dumps(plugin) + ', rev = "added" },', 1)
-    path.write_text(content)
-else:
-    assert sys.argv[1:] == ["pkg", "install"]
-PY""",
-            log=True,
-        )
-        return self.render(SCRIPTS / "run_onchange_after_11_yazi.sh.tmpl"), registered
-
-    @unittest.skipUnless(CHEZMOI, "chezmoi is required to render Yazi setup")
-    @unittest.skipUnless(
-        sys.version_info >= (3, 11), "Yazi fixtures require Python >= 3.11 (tomllib)"
-    )
-    @unittest.skipUnless(PYTHON3, "python3 is required by the ya fixture stub")
-    def test_yazi_adds_only_missing_plugins_and_succeeds_twice(self):
-        """Yazi: repeat setup safely and preserve existing plugins."""
-        required = ["ahkohd/eza-preview", "yazi-rs/plugins:full-border"]
-        for scenario in (
-            "missing_file",
-            "empty_deps",
-            "unrelated_deps",
-            "partial",
-            "all_registered",
-        ):
-            with self.subTest(scenario=scenario):
-                source, registered = self.yazi_fixture(scenario)
-                for attempt in (1, 2):
-                    result = self.shell(
-                        source, name=f"Yazi {scenario} attempt {attempt}"
-                    )
-                    self.assertEqual(result.returncode, 0, result.stderr)
-                calls = self.logged_calls()
-                missing = [p for p in required if p not in registered]
-                expected = [["ya", "pkg", "add", *missing]] if missing else []
-                self.assertEqual(calls, expected + [["ya", "pkg", "install"]] * 2)
-                data = tomllib.loads(self.package.read_text())
-                self.assertEqual(
-                    {p["use"] for p in data["plugin"]["deps"]} & set(required),
-                    set(required),
-                )
-                if scenario not in ("missing_file", "empty_deps"):
-                    self.assertIn(
-                        {"use": "example/keep", "rev": "keep-revision"},
-                        data["plugin"]["deps"],
-                    )
-                    self.assertEqual(
-                        data["flavor"]["deps"],
-                        [{"use": "example/theme", "rev": "keep-theme"}],
-                    )
-
-    @unittest.skipUnless(CHEZMOI, "chezmoi is required to render Yazi setup")
-    @unittest.skipUnless(
-        sys.version_info >= (3, 11), "Yazi fixtures require Python >= 3.11 (tomllib)"
-    )
-    @unittest.skipUnless(PYTHON3, "python3 is required by the ya fixture stub")
-    def test_yazi_package_errors_are_not_suppressed(self):
-        """Yazi: report plugin registration and installation failures."""
-        for failure in ("add", "install"):
-            with self.subTest(command=failure):
-                source, _ = self.yazi_fixture("empty_deps")
-                self.env["FAIL_YA"] = failure
-                result = self.shell(source, name=f"Yazi failed {failure}")
-                self.assertEqual(result.returncode, 1, result.stderr)
-                self.assertNotIn("INFO: Installed Yazi plugins", result.stderr)
-                calls = self.logged_calls()
-                self.assertEqual(
-                    [call[2] for call in calls],
-                    ["add"] if failure == "add" else ["add", "install"],
-                )
 
     @unittest.skipUnless(CHEZMOI, "chezmoi is required to render services setup")
     def test_service_failures_propagate(self):
