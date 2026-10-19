@@ -23,7 +23,6 @@ class ScriptTests(ScriptCase):
         class OutputFixture(ScriptCase):
             def test_sample_success(self):
                 """A duplicate description should not appear in the output."""
-                pass
 
             def test_sample_failure(self):
                 with self.subTest(scenario="example"):
@@ -132,7 +131,7 @@ esac""",
         function = self.function(
             SCRIPTS / "run_onchange_after_08_theming.sh.tmpl",
             "configure_limine_options",
-        ).replace("/boot/limine.conf", str(self.item))
+        ).replace("$boot_directory/limine.conf", str(self.item))
         overrides = {
             "backup": 'create_backup() { LAST_ERROR="fixture backup failed"; return 1; }\n',
             "marker": 'request_initramfs_rebuild() { LAST_ERROR="fixture marker failed"; return 1; }\n',
@@ -149,6 +148,8 @@ esac""",
             "  fi\n"
             '  fixture_restore_backup "$@"\n'
             "}\n"
+            + 'get_limine_boot_directory() { echo "$HOME"; }\n'
+            + "validate_limine_config_location() { return 0; }\n"
             + "LIMINE_OPTIONS=(timeout=0.5)\n"
             + overrides.get(failure, "")
             + function
@@ -502,8 +503,39 @@ esac""",
         )
         self.stub("mountpoint", "exit 0", log=True)
         self.stub("limine", "exit 97")
+        fstab = self.directory / "fstab"
+        fstab.write_text("")
+        swap_mount = self.directory / "swap"
+
+        def redirect_paths(source):
+            return source.replace("/etc/fstab", str(fstab)).replace(
+                'readonly SWAP_MOUNT_POINT="/swap"',
+                f'readonly SWAP_MOUNT_POINT="{swap_mount}"',
+            ).replace(
+                'readonly SWAP_FILE_PATH="/swap/swapfile"',
+                f'readonly SWAP_FILE_PATH="{swap_mount}/swapfile"',
+            )
+
+        self.stub(
+            "lsblk",
+            r"""[ "$*" = '-dnro UUID /dev/fixture' ] || exit 97
+printf '%s\n' aaaabbbb-2222-3333-4444-555555555555""",
+        )
+        self.stub(
+            "findmnt",
+            r"""case "$*" in
+    '--fstab --tab-file '*) exit 1 ;;
+    '-rn -o FSTYPE,UUID --mountpoint /')
+        echo 'btrfs aaaabbbb-2222-3333-4444-555555555555' ;;
+    '-rn -o TARGET,FSTYPE,UUID,FSROOT --mountpoint '*)
+        printf '%s btrfs aaaabbbb-2222-3333-4444-555555555555 /\n' "$5" ;;
+    *) exit 97 ;;
+esac""",
+        )
         path = SCRIPTS / "run_onchange_after_03_hibernation.sh.tmpl"
-        source = self.render(path).replace("/usr/bin/limine", str(self.bin / "limine"))
+        source = redirect_paths(self.render(path)).replace(
+            "/usr/bin/limine", str(self.bin / "limine")
+        )
         # Bypass platform/privilege prerequisites, not the transaction or its traps.
         source = self.before_main(
             source,
@@ -512,6 +544,7 @@ check_btrfs() { return 0; }
 is_laptop() { return 0; }
 keep_sudo_alive() { return 0; }
 validate_mkinitcpio_dropins() { return 0; }
+ensure_limine_cmdline_defaults() { return 0; }
 get_swap_path() { printf ''; }
 get_btrfs_root_device() { echo /dev/fixture; }
 """,
@@ -542,7 +575,7 @@ get_btrfs_root_device() { echo /dev/fixture; }
         # Keep the original helper's claim: creation failure itself is nonzero.
         self.calls.unlink()
         result = self.shell(
-            self.libraries("hibernation.sh")
+            redirect_paths((LIB / "hibernation.sh").read_text())
             + "get_btrfs_root_device() { echo /dev/fixture; }\ncreate_btrfs_swap",
             name="create_btrfs_swap",
         )
@@ -558,6 +591,7 @@ get_btrfs_root_device() { echo /dev/fixture; }
         script = (
             self.libraries("common.sh", "hibernation.sh")
             + """
+ensure_limine_cmdline_defaults() { return 0; }
 get_swap_path() { echo "$ITEM"; }
 update_limine_cmdline() { update-limine "$@"; }
 write_mkinitcpio_dropin() { write-dropin "$@"; }
@@ -731,13 +765,15 @@ write_mkinitcpio_dropin() { write-dropin "$@"; }
         self.assertEqual(result.stdout, "selected interpreter")
 
     def test_shell_timeout_names_the_script(self):
-        with patch(
-            "script_helpers.subprocess.run", side_effect=TimeoutExpired("fixture", 15)
-        ):
-            with self.assertRaisesRegex(
+        with (
+            patch(
+                "script_helpers.subprocess.run", side_effect=TimeoutExpired("fixture", 15)
+            ),
+            self.assertRaisesRegex(
                 AssertionError, "fixture-timeout.sh timed out after 15s"
-            ):
-                self.shell("true", name="fixture-timeout.sh")
+            ),
+        ):
+            self.shell("true", name="fixture-timeout.sh")
 
     def test_function_extraction_supports_shell_declaration_forms(self):
         for declaration in (
