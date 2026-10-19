@@ -11,8 +11,9 @@ import os
 import re
 import struct
 import subprocess
-import tempfile
 import sys
+import tempfile
+from itertools import pairwise
 from pathlib import Path
 
 
@@ -117,7 +118,7 @@ def uki_sections(path):
             sections[name] = data[raw_offset:raw_offset + size]
     for ranges in (raw_ranges, virtual_ranges):
         ranges.sort()
-        require(all(left[1] <= right[0] for left, right in zip(ranges, ranges[1:])),
+        require(all(left[1] <= right[0] for left, right in pairwise(ranges)),
                 f"overlapping PE sections: {path}")
     require(sections.keys() == {b".linux", b".initrd"}, f"missing .linux/.initrd PE section: {path}")
     return sections
@@ -144,7 +145,8 @@ def verify(boot, expected, output, fallback, uki):
 
     def resource(value):
         match = re.fullmatch(r"boot\(\):(/[^#]+)(?:#([0-9a-fA-F]{128}))?", value)
-        require(match and not any(char in value for char in "$%{}"), f"unsupported resource: {value}")
+        if match is None or any(char in value for char in "$%{}"):
+            raise ValueError(f"unsupported resource: {value}")
         path = (boot / match[1].lstrip("/")).resolve()
         require(path.is_relative_to(boot) and path.is_file() and path.stat().st_size,
                 f"missing, empty, or out-of-ESP artifact: {value}")

@@ -219,6 +219,8 @@ _add_hibernation_fstab_entry() {
   local error_msg="$LAST_ERROR"
 
   if cmp -s -- "$fstab_snapshot_dir/next" /etc/fstab; then
+    # Read by the calling hibernation transaction's rollback path (Bash dynamic scope).
+    # shellcheck disable=SC2034
     fstab_changed=true
     if ! cp -- "$fstab_snapshot_dir/next" "$fstab_snapshot_dir/expected"; then
       LAST_ERROR="Failed to record updated fstab contents"
