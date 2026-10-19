@@ -1,6 +1,5 @@
 [plugins]
 enabled = [
-  "yuuto/arch-updater",
   "noctalia/screen_recorder",
   "noctalia/notes",
   "levi/warp",

@@ -5,7 +5,8 @@ right_format = '$time$cmd_duration'
 [character]
   error_symbol              = '[➜](bold red)'
   success_symbol            = '[➜](bold green)'
-  vimcmd_replace_one_symbol = '[❮](bold purple)'
+  vimcmd_replace_one_symbol = '[❮](bold magenta)'
+  vimcmd_replace_symbol     = '[❮](bold magenta)'
   vimcmd_symbol             = '[❮](bold green)'
   vimcmd_visual_symbol      = '[❮](bold yellow)'
 
@@ -19,6 +20,7 @@ right_format = '$time$cmd_duration'
 
 [git_branch]
   symbol = ' '
+  style = 'bold magenta'
 
 [git_metrics]
   added_style   = 'green'
