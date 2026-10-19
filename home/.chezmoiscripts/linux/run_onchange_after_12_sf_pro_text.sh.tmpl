@@ -5,19 +5,24 @@ set -euo pipefail
 
 readonly url="https://devimages-cdn.apple.com/design/resources/download/SF-Pro.dmg"
 readonly fonts_dir="$HOME/.local/share/fonts/SF-Pro-Text"
+readonly completion_file="$fonts_dir/.installed.sha256"
 
-if [[ -d "$fonts_dir" ]] && [[ -n "$(find "$fonts_dir" -mindepth 1 -maxdepth 1 -print -quit)" ]]; then
-  log SKIP "SF Pro Text font directory already exists and is not empty"
+if [[ -f "$completion_file" ]] && (cd "$fonts_dir" && sha256sum --check --status -- "$completion_file"); then
+  log SKIP "SF Pro Text installation is complete"
   exit 0
 fi
 
-for dependency in 7z cmp fc-cache curl bsdtar; do
+for dependency in 7z cmp fc-cache curl bsdtar sha256sum; do
   command_exists "$dependency" || die "Required command not found: $dependency"
 done
 
+# An invalid old record must not become valid again after copies but before a
+# failed cache refresh. Only publish a new record after the entire run succeeds.
+rm -f -- "$completion_file"
 log STEP "Installing SF Pro Text"
 temp_dir=$(mktemp -d)
-trap 'rm -rf -- "$temp_dir"' EXIT
+manifest_stage=''
+trap 'rm -rf -- "$temp_dir"; if [[ -n "$manifest_stage" ]]; then rm -f -- "$manifest_stage"; fi' EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
 
@@ -44,5 +49,9 @@ for font in "${fonts[@]}"; do
   fi
 done
 
-fc-cache "$fonts_dir"
+fc-cache "$fonts_dir" || die "Failed to refresh SF Pro Text font cache; rerun chezmoi apply to retry"
+manifest_stage=$(mktemp "$fonts_dir/.installed.sha256.XXXXXX")
+(cd "$fonts_dir" && sha256sum -- "${fonts[@]##*/}") > "$manifest_stage"
+mv -Tf -- "$manifest_stage" "$completion_file"
+manifest_stage=''
 log INFO "Installed ${#fonts[@]} SF Pro Text fonts in $fonts_dir"
