@@ -427,8 +427,6 @@ setup_hibernation() {
 
   LAST_ERROR=""
 
-  ensure_limine_cmdline_defaults || return 1
-
   if ! swap_path="$(get_swap_path)"; then
     LAST_ERROR="Failed to detect swap path"
     return 1
@@ -484,6 +482,8 @@ setup_hibernation() {
       log WARN "Swap path $swap_path is neither block device nor file"
     fi
   fi
+
+  ensure_limine_cmdline_defaults || return 1
 
   if ! update_limine_cmdline "50-hibernation.conf" --append "${hibernation_params[@]}"; then
     local error_msg="$LAST_ERROR"

@@ -46,7 +46,7 @@ class ScriptTests(ScriptCase):
         self.assertEqual(len(result.failures), 1)
         self.assertEqual(len(result.skipped), 1)
 
-    def test_limine_deployment_uses_skip_uefi_and_fallback(self):
+    def test_limine_deployment_skips_only_efi_registration(self):
         path = SCRIPTS / "run_after_13_initramfs.sh.tmpl"
         deployment = next(
             line.strip() for line in path.read_text().splitlines()
@@ -55,7 +55,7 @@ class ScriptTests(ScriptCase):
         self.stub("sudo", 'exec "$@"')
         self.stub(
             "limine-install",
-            '[ "$#" = 2 ] && [ "$1" = --skip-uefi ] && [ "$2" = --fallback ]',
+            '[ "$#" = 1 ] && [ "$1" = --no-efi-register ]',
             log=True,
         )
         result = self.shell(
@@ -67,7 +67,7 @@ class ScriptTests(ScriptCase):
         )
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(
-            self.logged_calls(), [["limine-install", "--skip-uefi", "--fallback"]]
+            self.logged_calls(), [["limine-install", "--no-efi-register"]]
         )
 
     def test_limine_defaults_accept_external_appends_not_managed_fragments(self):
@@ -651,6 +651,67 @@ get_btrfs_root_device() { echo /dev/fixture; }
             name="create_btrfs_swap",
         )
         self.assertNotEqual(result.returncode, 0)
+
+    def test_swap_failures_do_not_publish_limine_defaults_or_rebuild_requests(self):
+        defaults = self.directory / "01-default.conf"
+        marker = self.directory / "initramfs.pending"
+        created = self.directory / "swap-created"
+        self.env.update(DEFAULTS=str(defaults), MARKER=str(marker))
+        self.stub(
+            "ensure-defaults",
+            'printf "new baseline\\n" > "$DEFAULTS"; printf "new request\\n" > "$MARKER"',
+            log=True,
+        )
+        self.stub("update-limine", "exit 0", log=True)
+        self.stub("write-dropin", "exit 0", log=True)
+        script = self.libraries("common.sh", "hibernation.sh") + """
+ensure_limine_cmdline_defaults() { ensure-defaults; }
+update_limine_cmdline() { update-limine "$@"; }
+write_mkinitcpio_dropin() { write-dropin "$@"; }
+get_swap_path() {
+  case "$FAILURE" in
+    detect) return 1 ;;
+    create|redetect|undetected)
+      if [[ -f "$HOME/swap-created" && "$FAILURE" == redetect ]]; then return 1; fi
+      printf '' ;;
+    *) printf '%s\n' "$ITEM" ;;
+  esac
+}
+create_btrfs_swap() {
+  [[ "$FAILURE" != create ]] || return 1
+  touch "$HOME/swap-created"
+}
+setup_hibernation
+"""
+        for failure, status in (
+            ("detect", 1), ("create", 2), ("redetect", 1), ("undetected", 2),
+            ("uuid", 1), ("offset", 1), ("success", 0),
+        ):
+            for pending in (False, True):
+                with self.subTest(failure=failure, pending=pending):
+                    self.env["FAILURE"] = failure
+                    self.calls.unlink(missing_ok=True)
+                    created.unlink(missing_ok=True)
+                    defaults.unlink(missing_ok=True)
+                    marker.unlink(missing_ok=True)
+                    if pending:
+                        marker.write_text("existing request\n")
+                    self.stub("findmnt", "exit 23" if failure == "uuid" else "echo swap-uuid")
+                    self.stub("sudo", "exit 23" if failure == "offset" else "echo 123")
+                    result = self.shell(script, name="hibernation defaults ordering")
+                    self.assertEqual(result.returncode, status, result.stderr)
+                    calls = self.logged_calls()
+                    if failure == "success":
+                        self.assertTrue(defaults.exists())
+                        self.assertTrue(marker.exists())
+                        self.assertEqual([call[0] for call in calls],
+                                         ["ensure-defaults", "update-limine", "write-dropin"])
+                    else:
+                        self.assertFalse(defaults.exists())
+                        self.assertEqual(marker.exists(), pending)
+                        if pending:
+                            self.assertEqual(marker.read_text(), "existing request\n")
+                        self.assertEqual(calls, [])
 
     def test_resume_uses_the_swapfiles_filesystem(self):
         """Hibernation: exact swapfile UUID/offset arguments and early failures."""
