@@ -5,7 +5,6 @@ import json
 import re
 import subprocess
 from gettext import gettext as _
-from pathlib import Path
 from subprocess import PIPE, run
 
 from kittens.tui.handler import Handler
@@ -52,9 +51,6 @@ def reindex(
         raise ValueError
 
     return m.span()
-
-
-SCROLLMARK_FILE = Path(__file__).parent.absolute() / "scroll_mark.py"
 
 
 class Search(Handler):
@@ -257,10 +253,10 @@ class Search(Handler):
             self.refresh()
         elif key_event.matches("up") or key_event.matches("f3"):
             for match_arg in self.match_args():
-                call_remote_control(["kitten", match_arg, str(SCROLLMARK_FILE)])
+                call_remote_control(["action", match_arg, "scroll_to_mark prev"])
         elif key_event.matches("down") or key_event.matches("shift+f3"):
             for match_arg in self.match_args():
-                call_remote_control(["kitten", match_arg, str(SCROLLMARK_FILE), "next"])
+                call_remote_control(["action", match_arg, "scroll_to_mark next"])
         elif key_event.matches("enter"):
             self.quit(0)
         elif key_event.matches("esc"):
