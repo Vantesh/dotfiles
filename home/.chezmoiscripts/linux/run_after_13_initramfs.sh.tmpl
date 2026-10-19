@@ -96,7 +96,7 @@ PYTHON
   fi
 
   log INFO "Deploying Limine"
-  checked_limine_command limine-install --no-efi-register >/dev/null || die "Failed to deploy Limine; rebuild remains pending"
+  checked_limine_command limine-install --skip-uefi --fallback >/dev/null || die "Failed to deploy Limine; rebuild remains pending"
 
   log INFO "Regenerating initramfs"
   local update_output

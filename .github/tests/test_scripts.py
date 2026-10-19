@@ -46,6 +46,77 @@ class ScriptTests(ScriptCase):
         self.assertEqual(len(result.failures), 1)
         self.assertEqual(len(result.skipped), 1)
 
+    def test_limine_deployment_uses_skip_uefi_and_fallback(self):
+        path = SCRIPTS / "run_after_13_initramfs.sh.tmpl"
+        deployment = next(
+            line.strip() for line in path.read_text().splitlines()
+            if line.strip().startswith("checked_limine_command limine-install ")
+        )
+        self.stub("sudo", 'exec "$@"')
+        self.stub(
+            "limine-install",
+            '[ "$#" = 2 ] && [ "$1" = --skip-uefi ] && [ "$2" = --fallback ]',
+            log=True,
+        )
+        result = self.shell(
+            "set -euo pipefail\n"
+            + self.libraries("common.sh")
+            + self.function(path, "checked_limine_command")
+            + "\n" + deployment,
+            name="Limine deployment arguments",
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(
+            self.logged_calls(), [["limine-install", "--skip-uefi", "--fallback"]]
+        )
+
+    def test_limine_defaults_accept_external_appends_not_managed_fragments(self):
+        paths = (
+            ("/etc/default/limine", False),
+            ("/etc/limine-entry-tool.conf", False),
+            ("/etc/limine-entry-tool.d/30-custom.conf", False),
+            ("/usr/share/limine-entry-tool.d/20-quiet-boot.conf", False),
+            ("/etc/limine-entry-tool.d/01-default.conf", True),
+            ("/etc/limine-entry-tool.d/20-quiet-boot.conf", True),
+            ("/etc/limine-entry-tool.d/50-hibernation.conf", True),
+        )
+        self.stub("sudo", 'exec "$@"')
+        self.stub("update-limine", "exit 0", log=True)
+        for index, (path, managed) in enumerate(paths):
+            for operator in ("=", "+="):
+                for has_cmdline in (False, True):
+                    with self.subTest(path=path, operator=operator, cmdline=has_cmdline):
+                        root = self.directory / f"defaults-{index}-{operator}-{has_cmdline}"
+                        config = root / path.lstrip("/")
+                        config.parent.mkdir(parents=True)
+                        config.write_text(f'  KERNEL_CMDLINE[default]{operator}"root=UUID=fixture rw"\n')
+                        if has_cmdline:
+                            cmdline = root / "etc/kernel/cmdline"
+                            cmdline.parent.mkdir(parents=True, exist_ok=True)
+                            cmdline.write_text("root=UUID=fixture rw\n")
+                        function = self.function(LIB / "snapboot.sh", "ensure_limine_cmdline_defaults")
+                        for original in (
+                            "/usr/share/limine-entry-tool.d", "/etc/limine-entry-tool.conf",
+                            "/etc/limine-entry-tool.d", "/etc/default/limine", "/etc/kernel/cmdline",
+                        ):
+                            function = function.replace(original, str(root) + original)
+                        self.calls.unlink(missing_ok=True)
+                        result = self.shell(
+                            "set -euo pipefail\n" + function
+                            + '\nupdate_limine_cmdline() { update-limine "$@"; }\n'
+                            + "ensure_limine_cmdline_defaults\n",
+                            name="persistent Limine defaults",
+                        )
+                        needs_baseline = managed and operator == "+="
+                        self.assertEqual(
+                            result.returncode, int(needs_baseline and not has_cmdline), result.stderr
+                        )
+                        self.assertEqual(
+                            self.logged_calls(),
+                            [["update-limine", "01-default.conf", "root=UUID=fixture rw"]]
+                            if needs_baseline and has_cmdline else [],
+                        )
+
     def libraries(self, *names):
         return "".join(f"source {shlex.quote(str(LIB / name))}\n" for name in names)
 

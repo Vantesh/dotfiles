@@ -324,7 +324,13 @@ set -euo pipefail
 shopt -s nullglob
 for file in /usr/share/limine-entry-tool.d/*.conf /etc/limine-entry-tool.conf /etc/limine-entry-tool.d/*.conf /etc/default/limine; do
   [[ -f "$file" ]] || continue
-  if grep -Eq '^[[:space:]]*KERNEL_CMDLINE\[default\][[:space:]]*=' "$file"; then
+  operator='\+?='
+  case "$file" in
+    /etc/limine-entry-tool.d/01-default.conf|/etc/limine-entry-tool.d/20-quiet-boot.conf|/etc/limine-entry-tool.d/50-hibernation.conf)
+      # Managed += fragments add features, not a persistent boot baseline.
+      operator='=' ;;
+  esac
+  if grep -Eq "^[[:space:]]*KERNEL_CMDLINE\[default\][[:space:]]*$operator" "$file"; then
     exit 0
   else
     status=$?
