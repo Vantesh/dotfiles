@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # 09_login_manager.sh - Configure Ly display manager
 # Exit codes: 0 (success), 1 (failure)
+# The EXIT callback reads rollback in the same configuration-helper subshell.
+# shellcheck disable=SC2030,SC2031
 
 
 set -euo pipefail
@@ -11,31 +13,194 @@ shopt -s nullglob globstar
 readonly LY_CONFIG_FILE="/etc/ly/config.ini"
 readonly LY_SAVE_FILE="/etc/ly/save.ini"
 
-if ! keep_sudo_alive; then
-  die "Failed to keep sudo alive"
-fi
 
-disable_conflicting_dms() {
-  local -r other_dms=(sddm greetd gdm gdm3 lightdm lxdm emptty)
+DM_STATE_DIR=""
+DM_ROLLBACK=false
+declare -a DM_UNITS=(ly@tty2.service getty@tty2.service)
+declare -A DM_STATES=()
 
-  local svc status
-  for svc in "${other_dms[@]}"; do
-    status=$(sudo systemctl is-enabled "${svc}.service" 2>/dev/null || true)
+# Only unit-file links for this migration are saved, including literal relative
+# aliases and both persistent/runtime scopes. systemctl enable is not disable's
+# inverse: either operation can fail after changing some links.
+dm_links() {
+  sudo python3 - "$1" "$DM_STATE_DIR" "${DM_UNITS[@]}" <<'PYTHON'
+import json
+import os
+import sys
+from pathlib import Path
 
-    if [[ "$status" == "enabled" ]]; then
-      if sudo systemctl disable "${svc}.service" >/dev/null 2>&1; then
-        log INFO "Disabled ${svc}.service"
-        reload_systemd_daemon
-        return 0
-      fi
-      log WARN "Failed to disable ${svc}.service"
-    fi
-  done
+mode, directory, *units = sys.argv[1:]
+roots = (Path('/etc/systemd/system'), Path('/run/systemd/system'))
+units = set(units)
+plain_units = {name for name in units if '@' not in name}
+before_file = Path(directory) / 'before.json'
+expected_file = Path(directory) / 'expected.json'
 
-  log SKIP "No conflicting display managers found"
+
+def inventory():
+    result = {}
+    for root in roots:
+        if not root.exists():
+            continue
+        alias = root / 'display-manager.service'
+        if os.path.lexists(alias):
+            if not alias.is_symlink():
+                raise RuntimeError(f'Unsupported non-symlink display-manager alias: {alias}')
+            raw = os.readlink(alias)
+            if Path(raw).name not in units and Path(os.path.realpath(alias)).name not in plain_units:
+                raise RuntimeError(f'Existing display-manager alias is outside the known migration set: {alias}')
+        for parent, directories, files in os.walk(root, followlinks=False):
+            for name in directories + files:
+                path = Path(parent) / name
+                if not path.is_symlink():
+                    continue
+                raw = os.readlink(path)
+                if name in units or Path(raw).name in units or Path(os.path.realpath(path)).name in plain_units:
+                    info = path.lstat()
+                    result[str(path)] = [raw, info.st_uid, info.st_gid]
+    return result
+
+
+try:
+    current = inventory()
+    if mode == 'snapshot':
+        before_file.write_text(json.dumps(current, sort_keys=True))
+        expected_file.write_text(json.dumps(current, sort_keys=True))
+    elif mode == 'check':
+        if current != json.loads(expected_file.read_text()):
+            raise RuntimeError('Enablement links changed before the next operation')
+    elif mode == 'record':
+        expected_file.write_text(json.dumps(current, sort_keys=True))
+    elif mode == 'restore':
+        before = json.loads(before_file.read_text())
+        expected = json.loads(expected_file.read_text())
+        if current != expected:
+            raise RuntimeError('Enablement links changed unexpectedly; rollback refused')
+        paths = set(before) | set(current)
+        ly = {name for name in paths if Path(name).name == 'ly@tty2.service'}
+        errors = []
+        # Recover old managers first. Keep Ly enabled if recovering them fails.
+        for group in (paths - ly, ly):
+            if errors:
+                break
+            for name in sorted(group):
+                path = Path(name)
+                try:
+                    if current.get(name) == before.get(name):
+                        continue
+                    if os.path.lexists(path):
+                        if not path.is_symlink():
+                            raise RuntimeError(f'Refusing to replace non-symlink {path}')
+                        path.unlink()
+                    if name in before:
+                        target, uid, gid = before[name]
+                        path.parent.mkdir(parents=True, exist_ok=True)
+                        path.symlink_to(target)
+                        os.lchown(path, uid, gid)
+                except (OSError, RuntimeError) as error:
+                    errors.append(str(error))
+        if errors:
+            raise RuntimeError('; '.join(errors))
+        if inventory() != before:
+            raise RuntimeError('Restored enablement links do not match this invocation')
+    else:
+        raise RuntimeError(f'Unknown link operation: {mode}')
+except (OSError, ValueError, RuntimeError) as error:
+    print(f'Display-manager enablement: {error}', file=sys.stderr)
+    sys.exit(1)
+PYTHON
 }
 
-configure_ly() {
+cleanup_dm_migration() {
+  if [[ "$DM_ROLLBACK" == true ]]; then
+    dm_links restore || log ERROR "Failed to restore display-manager enablement; inspect unit links before rebooting"
+    sudo systemctl daemon-reload || log ERROR "Failed to reload systemd after enablement recovery"
+  fi
+  if [[ -n "$DM_STATE_DIR" ]]; then
+    sudo rm -rf -- "$DM_STATE_DIR" || true
+    DM_STATE_DIR=""
+  fi
+}
+
+unit_state() {
+  local unit="$1" state status=0
+  state=$(sudo systemctl is-enabled "$unit" 2>/dev/null) || status=$?
+  if [[ "$status" == 4 && -z "$state" ]]; then state=not-found; fi
+  case "$state" in
+    enabled|enabled-runtime|disabled|static|indirect|alias|masked|masked-runtime|not-found)
+      printf '%s\n' "$state" ;;
+    *) log ERROR "Cannot inspect enablement of $unit (exit $status)"; return 1 ;;
+  esac
+}
+
+preflight_login_manager() {
+  local load_state unit state canonical
+  if ! sudo test -x /usr/bin/ly-dm || ! sudo test -f "$LY_CONFIG_FILE"; then
+    die "Ly executable or configuration is missing; complete package installation first"
+  fi
+  load_state=$(sudo systemctl show --property=LoadState --value ly@tty2.service) ||
+    die "Failed to inspect Ly's unit"
+  [[ "$load_state" == loaded ]] || die "Ly unit is not usable: $load_state"
+  state=$(unit_state ly@tty2.service) || die "Cannot inspect Ly enablement"
+  case "$state" in
+    enabled|enabled-runtime|disabled) ;;
+    *) die "Unsupported Ly enablement state: $state" ;;
+  esac
+  for unit in ly@tty2.service getty@tty2.service sddm.service greetd.service gdm.service gdm3.service lightdm.service lxdm.service emptty.service; do
+    state=$(unit_state "$unit") || die "Cannot inspect $unit"
+    [[ "$state" != not-found ]] || continue
+    [[ "$state" != masked-runtime ]] || die "Review runtime-masked $unit before migrating display managers"
+    canonical=$(sudo systemctl show --property=Id --value "$unit") || die "Cannot resolve $unit"
+    [[ -n "$canonical" ]] || die "No canonical unit identity for $unit"
+    [[ -z "${DM_STATES[$canonical]:-}" ]] || continue
+    state=$(unit_state "$canonical") || die "Cannot inspect $canonical"
+    DM_STATES[$canonical]="$state"
+    DM_UNITS+=("$canonical")
+    [[ "$state" != masked ]] || continue
+    # Unit contents are read as root into our private, user-owned work directory.
+    # shellcheck disable=SC2024
+    sudo systemctl cat "$canonical" > "$DM_STATE_DIR/unit" || die "Cannot inspect $canonical installation rules"
+    if awk '/^[[:space:]]*\[/ { install=($0 ~ /^[[:space:]]*\[Install\][[:space:]]*$/) } install && /^[[:space:]]*Also[[:space:]]*=[[:space:]]*[^[:space:]]/ { found=1 } END { exit !found }' "$DM_STATE_DIR/unit"; then
+      die "Review Also= installation side effects for $canonical before migration"
+    fi
+    if [[ "$canonical" == ly@tty2.service ]]; then
+      if grep -Eq '^[[:space:]]*Alias[[:space:]]*=[[:space:]]*[^[:space:]]' "$DM_STATE_DIR/unit" ||
+        ! grep -Eq '^[[:space:]]*WantedBy[[:space:]]*=.*multi-user\.target' "$DM_STATE_DIR/unit"; then
+        die "Ly installation rules differ from the supported multi-user unit; review before migration"
+      fi
+    fi
+  done
+  dm_links snapshot || die "Failed to snapshot display-manager enablement"
+}
+
+change_enablement() {
+  local status=0 interrupted=0
+  dm_links check || die "Enablement changed outside this migration; refusing further changes"
+  # Defer cancellation only until partial systemctl changes have been recorded.
+  trap 'interrupted=130' INT
+  trap 'interrupted=143' TERM
+  sudo systemctl "$@" || status=$?
+  # A failed/interrupted systemctl may already have changed links. Protect this
+  # short inventory from group signals; the parent still records cancellation.
+  (trap '' INT TERM; dm_links record) || die "Cannot record enablement changes for safe recovery"
+  trap 'exit 130' INT
+  trap 'exit 143' TERM
+  if [[ "$interrupted" != 0 ]]; then exit "$interrupted"; fi
+  [[ "$status" == 0 ]] || die "Display-manager enablement command failed: $*"
+}
+
+# The configuration helper's rollback flag is the joint commit decision.
+# shellcheck disable=SC2329
+_finish_ly_migration() {
+  trap '' INT TERM
+  DM_ROLLBACK="$rollback"
+  _finish_config_edits
+  cleanup_dm_migration
+}
+
+_stage_ly_configs() {
+  trap _finish_ly_migration EXIT
+  printf '%s\n' "$BASHPID" > "$DM_STATE_DIR/config-pid" || return 1
   declare -A ly_config=(
     ["allow_empty_password"]="false"
     ["clear_password"]="true"
@@ -48,45 +213,103 @@ configure_ly() {
 
   local key
   for key in "${!ly_config[@]}"; do
-    if ! update_config "$LY_CONFIG_FILE" "$key" "${ly_config[$key]}"; then
-      die "Failed to update ly config: $LAST_ERROR"
+    if ! update_config "$1" "$key" "${ly_config[$key]}"; then
+      return 1
     fi
   done
 
-  write_system_config "$LY_SAVE_FILE" <<EOF || die "Failed to write ly save file: $LAST_ERROR"
+  cat > "$2" <<EOF || return 1
 user=${USER}
 session_index=2
 EOF
 
+  return 0
+}
+
+configure_ly() {
+  local status=0 transaction_pid interrupted=0 worker_pid
+  # wait is interruptible, unlike waiting for a foreground shell function.
+  # Forward parent-only cancellation and join the worker, which owns both
+  # configuration and enablement rollback through one commit decision.
+  trap 'interrupted=130' INT
+  trap 'interrupted=143' TERM
+  (
+    trap '' INT TERM
+    edit_system_configs _stage_ly_configs migrate_display_managers "$LY_CONFIG_FILE" "$LY_SAVE_FILE"
+  ) &
+  transaction_pid=$!
+  wait "$transaction_pid" || status=$?
+  if [[ "$interrupted" != 0 ]]; then
+    trap '' INT TERM
+    # An asynchronous subshell function has a waiting shell as well as its
+    # transaction worker. Signal the worker, not the waiter, so wait joins its
+    # joint rollback before the parent's cleanup can remove shared snapshots.
+    while [[ ! -s "$DM_STATE_DIR/config-pid" ]] && kill -0 "$transaction_pid" 2>/dev/null; do
+      sleep 0.01
+    done
+    if [[ -s "$DM_STATE_DIR/config-pid" ]] && read -r worker_pid < "$DM_STATE_DIR/config-pid"; then
+      case "$interrupted" in
+        130) kill -INT "$worker_pid" 2>/dev/null || true ;;
+        143) kill -TERM "$worker_pid" 2>/dev/null || true ;;
+      esac
+    fi
+    wait "$transaction_pid" || true
+    exit "$interrupted"
+  fi
+  trap 'exit 130' INT
+  trap 'exit 143' TERM
+  case "$status" in
+    0) ;;
+    130|143) exit "$status" ;;
+    *) die "Failed to configure Ly or migrate display-manager enablement" ;;
+  esac
   log INFO "Configured ly display manager"
 }
 
-disable_getty_tty2() {
-  if sudo systemctl disable getty@tty2.service >/dev/null 2>&1; then
-    log INFO "Disabled getty@tty2.service"
-  else
-    log WARN "Failed to disable getty@tty2.service"
+# Run as the configuration transaction's post-check so its snapshots remain
+# available until every enablement operation and verification has succeeded.
+migrate_display_managers() {
+  local unit state
+  change_enablement enable ly@tty2.service
+  state=$(unit_state ly@tty2.service) || die "Failed to verify Ly enablement"
+  if [[ "$state" != enabled ]] || ! sudo test -L /etc/systemd/system/multi-user.target.wants/ly@tty2.service; then
+    die "Ly did not become persistently enabled; old managers were not disabled"
   fi
-}
 
+  for unit in "${!DM_STATES[@]}"; do
+    [[ "$unit" != ly@tty2.service && "$unit" != getty@tty2.service ]] || continue
+    case "${DM_STATES[$unit]}" in
+      enabled|enabled-runtime|alias) ;;
+      disabled|static|indirect|masked|masked-runtime) continue ;;
+      *) die "Unsupported enablement state for $unit: ${DM_STATES[$unit]}" ;;
+    esac
+    change_enablement disable "$unit"
+    change_enablement --runtime disable "$unit"
+    state=$(unit_state "$unit") || die "Cannot verify $unit disablement"
+    case "$state" in
+      enabled|enabled-runtime) die "$unit is still enabled" ;;
+    esac
+  done
+  case "${DM_STATES[getty@tty2.service]:-not-found}" in
+    enabled|enabled-runtime|alias)
+      change_enablement disable getty@tty2.service
+      change_enablement --runtime disable getty@tty2.service
+      ;;
+    disabled|static|indirect|masked|masked-runtime|not-found) ;;
+    *) die "Unsupported enablement state for getty@tty2.service: ${DM_STATES[getty@tty2.service]}" ;;
+  esac
+}
 
 main() {
   print_box "LY"
   log STEP "Ly Configuration"
+  keep_sudo_alive || die "Failed to keep sudo alive"
+  DM_STATE_DIR=$(mktemp -d) || die "Cannot create migration snapshot directory"
+  add_exit_cleanup cleanup_dm_migration || die "Cannot register migration cleanup"
+  preflight_login_manager
 
-  disable_conflicting_dms
   configure_ly
-
-  if ! enable_service "ly@tty2.service" "system"; then
-    die "Failed : $LAST_ERROR"
-  else
-    log INFO "${COLOR_GREEN}ly.service${COLOR_RESET} enabled"
-  fi
-
-  disable_getty_tty2
-
-
-  log INFO "Ly display manager configuration complete"
+  log INFO "Ly enabled; previous managers disabled for subsequent boots (no sessions started or stopped)"
 }
 
 main "$@"
