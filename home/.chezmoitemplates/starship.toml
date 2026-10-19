@@ -4,9 +4,9 @@ right_format = '$time$cmd_duration'
 
 [character]
   error_symbol              = '[➜](bold red)'
-  success_symbol            = '[➜](bold primary)'
+  success_symbol            = '[➜](bold green)'
   vimcmd_replace_one_symbol = '[❮](bold purple)'
-  vimcmd_symbol             = '[❮](bold primary)'
+  vimcmd_symbol             = '[❮](bold green)'
   vimcmd_visual_symbol      = '[❮](bold yellow)'
 
 [cmd_duration]
@@ -21,7 +21,7 @@ right_format = '$time$cmd_duration'
   symbol = ' '
 
 [git_metrics]
-  added_style   = 'primary'
+  added_style   = 'green'
   deleted_style = 'red'
   disabled      = false
 
