@@ -23,7 +23,6 @@ class ScriptTests(ScriptCase):
         class OutputFixture(ScriptCase):
             def test_sample_success(self):
                 """A duplicate description should not appear in the output."""
-                pass
 
             def test_sample_failure(self):
                 with self.subTest(scenario="example"):
@@ -46,6 +45,77 @@ class ScriptTests(ScriptCase):
         self.assertEqual(result.testsRun, 3)
         self.assertEqual(len(result.failures), 1)
         self.assertEqual(len(result.skipped), 1)
+
+    def test_limine_deployment_skips_only_efi_registration(self):
+        path = SCRIPTS / "run_after_13_initramfs.sh.tmpl"
+        deployment = next(
+            line.strip() for line in path.read_text().splitlines()
+            if line.strip().startswith("checked_limine_command limine-install ")
+        )
+        self.stub("sudo", 'exec "$@"')
+        self.stub(
+            "limine-install",
+            '[ "$#" = 1 ] && [ "$1" = --no-efi-register ]',
+            log=True,
+        )
+        result = self.shell(
+            "set -euo pipefail\n"
+            + self.libraries("common.sh")
+            + self.function(path, "checked_limine_command")
+            + "\n" + deployment,
+            name="Limine deployment arguments",
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(
+            self.logged_calls(), [["limine-install", "--no-efi-register"]]
+        )
+
+    def test_limine_defaults_accept_external_appends_not_managed_fragments(self):
+        paths = (
+            ("/etc/default/limine", False),
+            ("/etc/limine-entry-tool.conf", False),
+            ("/etc/limine-entry-tool.d/30-custom.conf", False),
+            ("/usr/share/limine-entry-tool.d/20-quiet-boot.conf", False),
+            ("/etc/limine-entry-tool.d/01-default.conf", True),
+            ("/etc/limine-entry-tool.d/20-quiet-boot.conf", True),
+            ("/etc/limine-entry-tool.d/50-hibernation.conf", True),
+        )
+        self.stub("sudo", 'exec "$@"')
+        self.stub("update-limine", "exit 0", log=True)
+        for index, (path, managed) in enumerate(paths):
+            for operator in ("=", "+="):
+                for has_cmdline in (False, True):
+                    with self.subTest(path=path, operator=operator, cmdline=has_cmdline):
+                        root = self.directory / f"defaults-{index}-{operator}-{has_cmdline}"
+                        config = root / path.lstrip("/")
+                        config.parent.mkdir(parents=True)
+                        config.write_text(f'  KERNEL_CMDLINE[default]{operator}"root=UUID=fixture rw"\n')
+                        if has_cmdline:
+                            cmdline = root / "etc/kernel/cmdline"
+                            cmdline.parent.mkdir(parents=True, exist_ok=True)
+                            cmdline.write_text("root=UUID=fixture rw\n")
+                        function = self.function(LIB / "snapboot.sh", "ensure_limine_cmdline_defaults")
+                        for original in (
+                            "/usr/share/limine-entry-tool.d", "/etc/limine-entry-tool.conf",
+                            "/etc/limine-entry-tool.d", "/etc/default/limine", "/etc/kernel/cmdline",
+                        ):
+                            function = function.replace(original, str(root) + original)
+                        self.calls.unlink(missing_ok=True)
+                        result = self.shell(
+                            "set -euo pipefail\n" + function
+                            + '\nupdate_limine_cmdline() { update-limine "$@"; }\n'
+                            + "ensure_limine_cmdline_defaults\n",
+                            name="persistent Limine defaults",
+                        )
+                        needs_baseline = managed and operator == "+="
+                        self.assertEqual(
+                            result.returncode, int(needs_baseline and not has_cmdline), result.stderr
+                        )
+                        self.assertEqual(
+                            self.logged_calls(),
+                            [["update-limine", "01-default.conf", "root=UUID=fixture rw"]]
+                            if needs_baseline and has_cmdline else [],
+                        )
 
     def libraries(self, *names):
         return "".join(f"source {shlex.quote(str(LIB / name))}\n" for name in names)
@@ -132,7 +202,7 @@ esac""",
         function = self.function(
             SCRIPTS / "run_onchange_after_08_theming.sh.tmpl",
             "configure_limine_options",
-        ).replace("/boot/limine.conf", str(self.item))
+        ).replace("$boot_directory/limine.conf", str(self.item))
         overrides = {
             "backup": 'create_backup() { LAST_ERROR="fixture backup failed"; return 1; }\n',
             "marker": 'request_initramfs_rebuild() { LAST_ERROR="fixture marker failed"; return 1; }\n',
@@ -149,6 +219,8 @@ esac""",
             "  fi\n"
             '  fixture_restore_backup "$@"\n'
             "}\n"
+            + 'get_limine_boot_directory() { echo "$HOME"; }\n'
+            + "validate_limine_config_location() { return 0; }\n"
             + "LIMINE_OPTIONS=(timeout=0.5)\n"
             + overrides.get(failure, "")
             + function
@@ -502,8 +574,39 @@ esac""",
         )
         self.stub("mountpoint", "exit 0", log=True)
         self.stub("limine", "exit 97")
+        fstab = self.directory / "fstab"
+        fstab.write_text("")
+        swap_mount = self.directory / "swap"
+
+        def redirect_paths(source):
+            return source.replace("/etc/fstab", str(fstab)).replace(
+                'readonly SWAP_MOUNT_POINT="/swap"',
+                f'readonly SWAP_MOUNT_POINT="{swap_mount}"',
+            ).replace(
+                'readonly SWAP_FILE_PATH="/swap/swapfile"',
+                f'readonly SWAP_FILE_PATH="{swap_mount}/swapfile"',
+            )
+
+        self.stub(
+            "lsblk",
+            r"""[ "$*" = '-dnro UUID /dev/fixture' ] || exit 97
+printf '%s\n' aaaabbbb-2222-3333-4444-555555555555""",
+        )
+        self.stub(
+            "findmnt",
+            r"""case "$*" in
+    '--fstab --tab-file '*) exit 1 ;;
+    '-rn -o FSTYPE,UUID --mountpoint /')
+        echo 'btrfs aaaabbbb-2222-3333-4444-555555555555' ;;
+    '-rn -o TARGET,FSTYPE,UUID,FSROOT --mountpoint '*)
+        printf '%s btrfs aaaabbbb-2222-3333-4444-555555555555 /\n' "$5" ;;
+    *) exit 97 ;;
+esac""",
+        )
         path = SCRIPTS / "run_onchange_after_03_hibernation.sh.tmpl"
-        source = self.render(path).replace("/usr/bin/limine", str(self.bin / "limine"))
+        source = redirect_paths(self.render(path)).replace(
+            "/usr/bin/limine", str(self.bin / "limine")
+        )
         # Bypass platform/privilege prerequisites, not the transaction or its traps.
         source = self.before_main(
             source,
@@ -512,6 +615,7 @@ check_btrfs() { return 0; }
 is_laptop() { return 0; }
 keep_sudo_alive() { return 0; }
 validate_mkinitcpio_dropins() { return 0; }
+ensure_limine_cmdline_defaults() { return 0; }
 get_swap_path() { printf ''; }
 get_btrfs_root_device() { echo /dev/fixture; }
 """,
@@ -542,11 +646,72 @@ get_btrfs_root_device() { echo /dev/fixture; }
         # Keep the original helper's claim: creation failure itself is nonzero.
         self.calls.unlink()
         result = self.shell(
-            self.libraries("hibernation.sh")
+            redirect_paths((LIB / "hibernation.sh").read_text())
             + "get_btrfs_root_device() { echo /dev/fixture; }\ncreate_btrfs_swap",
             name="create_btrfs_swap",
         )
         self.assertNotEqual(result.returncode, 0)
+
+    def test_swap_failures_do_not_publish_limine_defaults_or_rebuild_requests(self):
+        defaults = self.directory / "01-default.conf"
+        marker = self.directory / "initramfs.pending"
+        created = self.directory / "swap-created"
+        self.env.update(DEFAULTS=str(defaults), MARKER=str(marker))
+        self.stub(
+            "ensure-defaults",
+            'printf "new baseline\\n" > "$DEFAULTS"; printf "new request\\n" > "$MARKER"',
+            log=True,
+        )
+        self.stub("update-limine", "exit 0", log=True)
+        self.stub("write-dropin", "exit 0", log=True)
+        script = self.libraries("common.sh", "hibernation.sh") + """
+ensure_limine_cmdline_defaults() { ensure-defaults; }
+update_limine_cmdline() { update-limine "$@"; }
+write_mkinitcpio_dropin() { write-dropin "$@"; }
+get_swap_path() {
+  case "$FAILURE" in
+    detect) return 1 ;;
+    create|redetect|undetected)
+      if [[ -f "$HOME/swap-created" && "$FAILURE" == redetect ]]; then return 1; fi
+      printf '' ;;
+    *) printf '%s\n' "$ITEM" ;;
+  esac
+}
+create_btrfs_swap() {
+  [[ "$FAILURE" != create ]] || return 1
+  touch "$HOME/swap-created"
+}
+setup_hibernation
+"""
+        for failure, status in (
+            ("detect", 1), ("create", 2), ("redetect", 1), ("undetected", 2),
+            ("uuid", 1), ("offset", 1), ("success", 0),
+        ):
+            for pending in (False, True):
+                with self.subTest(failure=failure, pending=pending):
+                    self.env["FAILURE"] = failure
+                    self.calls.unlink(missing_ok=True)
+                    created.unlink(missing_ok=True)
+                    defaults.unlink(missing_ok=True)
+                    marker.unlink(missing_ok=True)
+                    if pending:
+                        marker.write_text("existing request\n")
+                    self.stub("findmnt", "exit 23" if failure == "uuid" else "echo swap-uuid")
+                    self.stub("sudo", "exit 23" if failure == "offset" else "echo 123")
+                    result = self.shell(script, name="hibernation defaults ordering")
+                    self.assertEqual(result.returncode, status, result.stderr)
+                    calls = self.logged_calls()
+                    if failure == "success":
+                        self.assertTrue(defaults.exists())
+                        self.assertTrue(marker.exists())
+                        self.assertEqual([call[0] for call in calls],
+                                         ["ensure-defaults", "update-limine", "write-dropin"])
+                    else:
+                        self.assertFalse(defaults.exists())
+                        self.assertEqual(marker.exists(), pending)
+                        if pending:
+                            self.assertEqual(marker.read_text(), "existing request\n")
+                        self.assertEqual(calls, [])
 
     def test_resume_uses_the_swapfiles_filesystem(self):
         """Hibernation: exact swapfile UUID/offset arguments and early failures."""
@@ -558,6 +723,7 @@ get_btrfs_root_device() { echo /dev/fixture; }
         script = (
             self.libraries("common.sh", "hibernation.sh")
             + """
+ensure_limine_cmdline_defaults() { return 0; }
 get_swap_path() { echo "$ITEM"; }
 update_limine_cmdline() { update-limine "$@"; }
 write_mkinitcpio_dropin() { write-dropin "$@"; }
@@ -731,13 +897,15 @@ write_mkinitcpio_dropin() { write-dropin "$@"; }
         self.assertEqual(result.stdout, "selected interpreter")
 
     def test_shell_timeout_names_the_script(self):
-        with patch(
-            "script_helpers.subprocess.run", side_effect=TimeoutExpired("fixture", 15)
-        ):
-            with self.assertRaisesRegex(
+        with (
+            patch(
+                "script_helpers.subprocess.run", side_effect=TimeoutExpired("fixture", 15)
+            ),
+            self.assertRaisesRegex(
                 AssertionError, "fixture-timeout.sh timed out after 15s"
-            ):
-                self.shell("true", name="fixture-timeout.sh")
+            ),
+        ):
+            self.shell("true", name="fixture-timeout.sh")
 
     def test_function_extraction_supports_shell_declaration_forms(self):
         for declaration in (

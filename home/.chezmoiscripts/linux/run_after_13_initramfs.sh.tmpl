@@ -3,10 +3,11 @@
 #
 # Runs on every apply, after boot-related configuration scripts, so a pending
 # rebuild is retried even when those scripts are skipped by their execution state.
-# Removes the obsolete fallback config only when the canonical config exists.
-# After rebuilding, explicitly enrolls and signs the final config when enabled.
-# Clears the persistent request only after rebuild and enrollment both succeed.
-# Captures diagnostics and prints them when either command reports a failure.
+# Rejects ambiguous config locations without deleting any config.
+# Package post-hooks enroll and sign after publishing rebuilt artifacts.
+# Verify artifacts and the enrolled checksum before clearing the pending request.
+# Rejects failure diagnostics even when package helpers incorrectly return zero.
+# No second enrollment reopens the completed boot path; power loss is not covered.
 #
 # Globals:
 #   INITRAMFS_PENDING_FILE - Rebuild request created by boot setup scripts
@@ -20,6 +21,18 @@ shopt -s nullglob globstar
 
 {{ include ".chezmoitemplates/lib/common.sh" }}
 {{ include ".chezmoitemplates/lib/snapboot.sh" }}
+
+# Package helpers can report errors while returning zero. Keep their diagnostics.
+checked_limine_command() {
+  local output status=0
+  output="$(sudo env LC_ALL=C NO_COLOR=1 TERM=dumb "$@" 2>&1)" || status="$?"
+  if [[ "$status" -ne 0 ]] || grep -Eiq 'error:|fatal:|failed|exception|traceback|usage:|unsupported|not supported|downgrade skipped|skipping (upgrade|installation)|no kernel found|no Limine EFI binary|not using UEFI|errors were encountered' <<<"$output"; then
+    printf '%s\n' "$output" >&2
+    printf '%s reported failure (exit %s); rebuild remains pending\n' "$1" "$status" >&2
+    return 1
+  fi
+  printf '%s\n' "$output"
+}
 
 main() {
   if [[ ! -x /usr/bin/limine ]]; then
@@ -36,9 +49,10 @@ main() {
     return 0
   fi
 
-  if ! command_exists limine-update; then
-    die 127 "limine-update not found; initramfs rebuild remains pending"
-  fi
+  local dependency
+  for dependency in limine-install limine-mkinitcpio python3 pacman lsinitcpio; do
+    command_exists "$dependency" || die 127 "$dependency not found; initramfs rebuild remains pending"
+  done
 
   if ! keep_sudo_alive; then
     die "Failed to obtain sudo access; initramfs rebuild remains pending: $LAST_ERROR"
@@ -49,43 +63,57 @@ main() {
     die "Limine FAT32 boot partition not mounted; mount it or configure ESP_PATH in /etc/default/limine; rebuild remains pending"
   fi
 
-  local conflicting_config="$boot_directory/EFI/BOOT/limine.conf"
-  if sudo test -e "$conflicting_config" || sudo test -L "$conflicting_config"; then
-    if ! sudo test -f "$boot_directory/limine.conf" || ! sudo test -s "$boot_directory/limine.conf"; then
-      die "Canonical $boot_directory/limine.conf missing or empty; conflicting config preserved and rebuild remains pending"
-    fi
-    log WARN "Removing obsolete Limine config: $conflicting_config"
-    if ! sudo rm -f -- "$conflicting_config"; then
-      die "Failed to remove conflicting Limine config; rebuild remains pending"
-    fi
-    log INFO "Removed obsolete Limine config"
+  if ! validate_limine_config_location "$boot_directory"; then
+    die "Ambiguous Limine config location; rebuild remains pending: $LAST_ERROR"
   fi
+
+  local uki_mode fallback_mode
+  uki_mode="$(get_limine_config_value ENABLE_UKI)" || die "Failed to read ENABLE_UKI; rebuild remains pending"
+  fallback_mode="$(get_limine_config_value MKINITCPIO_FALLBACK)" || die "Failed to read MKINITCPIO_FALLBACK; rebuild remains pending"
+
+  local verifier inventory
+  verifier="$(cat <<'PYTHON'
+{{ include ".chezmoitemplates/lib/verify_limine_rebuild.py" }}
+PYTHON
+)"
+  inventory="$(sudo python3 -I -B -c "$verifier" inventory "$boot_directory" "$fallback_mode" "$uki_mode")" || die "Failed to inventory installed kernels; rebuild remains pending"
 
   local enroll_config
   if ! enroll_config="$(get_limine_config_value ENABLE_ENROLL_LIMINE_CONFIG)"; then
     die "Failed to read Limine checksum enrollment setting; rebuild remains pending"
   fi
-  if [[ "$enroll_config" = "yes" ]] && ! command_exists limine-enroll-config; then
-    die 127 "limine-enroll-config not found; rebuild remains pending"
+  if [[ "$enroll_config" = "yes" ]]; then
+    for dependency in limine-enroll-config sbctl jq; do
+      command_exists "$dependency" || die 127 "$dependency not found; enrollment/signing remains pending"
+    done
+    local enroll_hook=/etc/boot/hooks/post.d/90-limine-enroll-config
+    if ! sudo test -x "$enroll_hook" || ! sudo cmp -s -- "$enroll_hook" "$(command -v limine-enroll-config)"; then
+      die "Required Limine enrollment post-hook is missing or differs from the installed helper; rebuild remains pending"
+    fi
+    if ! sudo sbctl setup --print-state --json | jq -e '.installed == true' >/dev/null; then
+      die "sbctl signing setup is unavailable; complete the opt-in Secure Boot setup before retrying; rebuild remains pending"
+    fi
   fi
 
+  log INFO "Deploying Limine"
+  # limine-mkinitcpio-hook 1.40 supports skipping NVRAM registration without skipping UEFI checks.
+  checked_limine_command limine-install --no-efi-register >/dev/null || die "Failed to deploy Limine; rebuild remains pending"
+
   log INFO "Regenerating initramfs"
-  local update_output update_status=0
-  update_output="$(sudo env LC_ALL=C NO_COLOR=1 TERM=dumb limine-update 2>&1)" || update_status="$?"
-  if [[ "$update_status" -ne 0 ]]; then
+  local update_output
+  update_output="$(checked_limine_command limine-mkinitcpio)" || die "Failed to regenerate initramfs; rebuild remains pending"
+  uki_mode="$(get_limine_config_value ENABLE_UKI)" || die "Failed to re-read ENABLE_UKI; rebuild remains pending"
+  fallback_mode="$(get_limine_config_value MKINITCPIO_FALLBACK)" || die "Failed to re-read MKINITCPIO_FALLBACK; rebuild remains pending"
+  if ! sudo python3 -I -B -c "$verifier" verify "$boot_directory" "$fallback_mode" "$uki_mode" "$inventory" <<<"$update_output"; then
     printf '%s\n' "$update_output" >&2
-    die "Failed to regenerate initramfs (exit $update_status); rebuild remains pending"
+    die "Failed to verify rebuilt boot artifacts; rebuild remains pending"
   fi
 
   if [[ "$enroll_config" = "yes" ]]; then
-    log INFO "Enrolling Limine config checksum and signing EFI binary"
-    local enroll_output enroll_status=0
-    enroll_output="$(sudo env LC_ALL=C NO_COLOR=1 TERM=dumb limine-enroll-config 2>&1)" || enroll_status="$?"
-    if [[ "$enroll_status" -ne 0 ]]; then
-      printf '%s\n' "$enroll_output" >&2
-      die "Failed to enroll and sign Limine config (exit $enroll_status); rebuild remains pending"
-    fi
-    log INFO "Enrolled Limine config checksum and signed EFI binary"
+    # limine-mkinitcpio's post-hook already enrolled and signed the final config.
+    # Check its result without restoring or modifying the live EFI image again.
+    sudo python3 -I -B -c "$verifier" enrollment "$boot_directory" ||
+      die "Failed to verify the enrolled Limine checksum; rebuild remains pending"
   fi
 
   if ! rm -f -- "$INITRAMFS_PENDING_FILE"; then
