@@ -1,0 +1,10 @@
+[metadata]
+name = "fish-history"
+description = "Select a command from saved Fish history"
+requirements = ["fish"]
+
+[source]
+# Noninteractive Fish needs an explicit history session to read saved commands.
+command = "fish --no-config -c 'set -g fish_history fish; history'"
+no_sort = true
+frecency = false
