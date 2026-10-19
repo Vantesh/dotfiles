@@ -1,9 +1,9 @@
-set --query _fisher_path_initialized && exit
+set --query _fisher_path_initialized && return
 set --global _fisher_path_initialized
 set --global fisher_path $HOME/.local/share/fisher
 
 if test -z "$fisher_path" || test "$fisher_path" = "$__fish_config_dir"
-    exit
+    return
 end
 
 set fish_complete_path $fish_complete_path[1] $fisher_path/completions $fish_complete_path[2..]

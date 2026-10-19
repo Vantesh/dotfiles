@@ -4,10 +4,15 @@ description = "Browse systemd journal log identifiers and their logs"
 requirements = ["journalctl"]
 
 [source]
-command = "journalctl --field SYSLOG_IDENTIFIER 2>/dev/null | sort -f"
+shell = "fish"
+command = "journalctl --field SYSLOG_IDENTIFIER 2>/dev/null | sort -f | __tv_entries"
+entry_delimiter = "\u0000"
+display = '{split:\t:1..}'
+output = '{split:\t:1..}'
 
 [preview]
-command = "journalctl -b --no-pager -o short-iso -n 50 SYSLOG_IDENTIFIER='{}' 2>/dev/null"
+shell = "fish"
+command = 'journalctl -b --no-pager -o short-iso -n 50 SYSLOG_IDENTIFIER={split:\t:0} 2>/dev/null'
 
 [ui]
 layout = "portrait"
@@ -15,10 +20,14 @@ preview_panel = { size = 70 }
 
 [actions.logs]
 description = "Follow live logs for the selected identifier"
-command = "journalctl -f SYSLOG_IDENTIFIER={}"
+shell = "fish"
+separator = "\u0000"
+command = "journalctl -f {split:\u0000:..|map:{split:\\t:0|prepend:SYSLOG_IDENTIFIER=}|join: }"
 mode = "execute"
 
 [actions.full]
 description = "View all logs for the selected identifier in a pager"
-command = "journalctl -b --no-pager -o short-iso SYSLOG_IDENTIFIER={} | less"
+shell = "fish"
+separator = "\u0000"
+command = "journalctl -b --no-pager -o short-iso {split:\u0000:..|map:{split:\\t:0|prepend:SYSLOG_IDENTIFIER=}|join: } | less"
 mode = "fork"

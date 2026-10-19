@@ -1,5 +1,5 @@
 if not status is-interactive
-    exit
+    return
 end
 
 abbr -a -- sysu 'systemctl --user'

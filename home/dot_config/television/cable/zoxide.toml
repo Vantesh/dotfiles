@@ -4,12 +4,17 @@ description = "Browse zoxide directory history"
 requirements = ["zoxide", "eza"]
 
 [source]
-command = "zoxide query -l"
+shell = "fish"
+command = "zoxide query -l | __tv_entries"
+entry_delimiter = "\u0000"
+display = '{split:\t:1..}'
+output = '{split:\t:1..}'
 no_sort = true
 frecency = false
 
 [preview]
-command = "eza --long --all --header --icons=always --color=always --group-directories-first -- '{}'"
+shell = "fish"
+command = 'eza --long --all --header --icons=always --color=always --group-directories-first -- {split:\t:0}'
 
 [keybindings]
 enter = "actions:cd"
@@ -17,10 +22,14 @@ ctrl-d = "actions:remove"
 
 [actions.cd]
 description = "Change to the selected directory"
-command = "cd '{}' && fish"
+shell = "fish"
+separator = "\u0000"
+command = "cd -- {split:\u0000:..|map:{split:\\t:0}|join: }; and fish"
 mode = "execute"
 
 [actions.remove]
 description = "Remove the selected directory from zoxide"
-command = "zoxide remove '{}'"
+shell = "fish"
+separator = "\u0000"
+command = "zoxide remove -- {split:\u0000:..|map:{split:\\t:0}|join: }"
 mode = "fork"
