@@ -30,7 +30,9 @@ else
   readonly COLOR_MAGENTA="\033[0;35m"
 fi
 
-trap 'printf "%b" "$COLOR_RESET"' EXIT ERR INT TERM
+trap 'printf "%b" "$COLOR_RESET"' EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
 export NOCONFIRM="${NOCONFIRM:-0}"
 
@@ -245,38 +247,195 @@ is_laptop() {
 # Returns:
 #   0 on success, 1 on failure
 
+# Compose trusted cleanup functions without losing the previous EXIT status/trap.
+_run_exit_cleanup() {
+  local status="$1"
+  "$2" || true
+  return "$status"
+}
+
+add_exit_cleanup() {
+  local callback="$1" saved body='' head
+  [[ "$callback" =~ ^[a-zA-Z_][a-zA-Z0-9_]*$ ]] || return 2
+  declare -F "$callback" >/dev/null || return 2
+  saved=$(trap -p EXIT)
+  if [[ -n "$saved" ]]; then
+    # Decode only Bash's own quoted trap output, never caller-supplied shell text.
+    eval "set -- ${saved#trap -- }"
+    body="$1"
+  fi
+  head='if _run_exit_cleanup "$?" '"$callback"'; then'
+  [[ "$body" == "$head"$'\n'* || "$body" == *$'\n'"$head"$'\n'* ]] && return 0
+  # Expand the saved trap body now; its own runtime expansions stay literal.
+  # shellcheck disable=SC2064
+  trap "$head
+${body:-:}
+else
+${body:-:}
+fi" EXIT
+}
+
 keep_sudo_alive() {
   LAST_ERROR=""
-
   if ! sudo -v; then
     LAST_ERROR="Failed to obtain sudo access"
     return 1
   fi
-
+  add_exit_cleanup _kill_sudo_keepalive || return
   if [[ -n "${_SUDO_KEEPALIVE_PID:-}" ]] && kill -0 "$_SUDO_KEEPALIVE_PID" 2>/dev/null; then
     return 0
   fi
-
+  _SUDO_KEEPALIVE_OWNER=$BASHPID
   (
+    # Invoked by the worker EXIT trap.
+    # shellcheck disable=SC2329
+    _stop_keepalive_sleep() {
+      local sleep_pid
+      for sleep_pid in $(jobs -pr); do
+        kill "$sleep_pid" 2>/dev/null || true
+      done
+      wait 2>/dev/null || true
+    }
+    trap _stop_keepalive_sleep EXIT
+    trap 'exit 130' INT
+    trap 'exit 143' TERM
     while true; do
-      sleep 60
+      sleep 60 &
+      wait "$!" || exit
       sudo -n true 2>/dev/null || exit
     done
   ) &
-
-  export _SUDO_KEEPALIVE_PID=$!
-
-  trap '_kill_sudo_keepalive' EXIT INT TERM
-
+  _SUDO_KEEPALIVE_PID=$!
   return 0
 }
 
 _kill_sudo_keepalive() {
-  if [[ -n "${_SUDO_KEEPALIVE_PID:-}" ]] && kill -0 "$_SUDO_KEEPALIVE_PID" 2>/dev/null; then
+  [[ "${_SUDO_KEEPALIVE_OWNER:-$BASHPID}" == "$BASHPID" ]] || return 0
+  if [[ -n "${_SUDO_KEEPALIVE_PID:-}" ]]; then
     kill "$_SUDO_KEEPALIVE_PID" 2>/dev/null || true
-    unset _SUDO_KEEPALIVE_PID
+    wait "$_SUDO_KEEPALIVE_PID" 2>/dev/null || true
+    unset _SUDO_KEEPALIVE_PID _SUDO_KEEPALIVE_OWNER
   fi
 }
+
+# Edit private copies, atomically publish them, and undo only this invocation's
+# published contents if editing/post-validation fails. Persistent .bak files are
+# deliberately unrelated. Callbacks receive staged paths, not live system paths.
+edit_system_configs() (
+  local edit="$1" verify="$2"
+  shift 2
+  local -a targets=("$@") existed=() initial=() expected=() changed=() stages=() root_stages=()
+  local work_dir='' rollback=true i path stage
+
+  _config_state() {
+    sudo stat -c '%d:%i:%f:%u:%g:%s:%y' -- "$1"
+  }
+
+  _config_matches() {
+    local file="$1" stamp="$2" contents="$3" current
+    current=$(_config_state "$file" 2>/dev/null) || return 1
+    [[ "$current" == "$stamp" ]] && sudo cmp -s -- "$contents" "$file"
+  }
+
+  # Invoked by this operation subshell's EXIT trap.
+  # shellcheck disable=SC2329
+  _finish_config_edits() {
+    local index target restore
+    if [[ "$rollback" == true ]]; then
+      for ((index=${#targets[@]}-1; index>=0; index--)); do
+        [[ "${changed[index]:-false}" == true ]] || continue
+        target="${targets[index]}"
+        if [[ "${existed[index]}" == true ]] &&
+          _config_matches "$target" "${initial[index]}" "$work_dir/$index.before"; then
+          continue
+        fi
+        if ! _config_matches "$target" "${expected[index]}" "${stages[index]}"; then
+          log ERROR "Skipped rollback of $target: it changed unexpectedly"
+          continue
+        fi
+        if [[ "${existed[index]}" == true ]]; then
+          restore=$(sudo mktemp -- "$target.rollback.XXXXXX") || continue
+          if ! sudo cp -a -- "$work_dir/$index.before" "$restore" ||
+            ! _config_matches "$target" "${expected[index]}" "${stages[index]}" ||
+            ! sudo mv -Tf -- "$restore" "$target"; then
+            log ERROR "Failed to restore this invocation's snapshot of $target"
+            sudo rm -f -- "$restore" || true
+            continue
+          fi
+        elif ! sudo rm -f -- "$target"; then
+          log ERROR "Failed to remove this invocation's new file: $target"
+          continue
+        fi
+        log INFO "Rolled back $target from this invocation"
+      done
+    fi
+    for stage in "${root_stages[@]}"; do
+      sudo rm -f -- "$stage" || true
+    done
+    [[ -z "$work_dir" ]] || rm -rf -- "$work_dir"
+  }
+
+  # This subshell owns only its snapshots, not the parent script's resources.
+  trap _finish_config_edits EXIT
+  trap 'exit 130' INT
+  trap 'exit 143' TERM
+  work_dir=$(mktemp -d) || exit 1
+  for i in "${!targets[@]}"; do
+    path="${targets[i]}"
+    if sudo test -L "$path" || { sudo test -e "$path" && ! sudo test -f "$path"; }; then
+      log ERROR "Refusing to edit non-regular configuration: $path"
+      exit 1
+    fi
+    stages[i]="$work_dir/$i.next"
+    existed[i]=false
+    if sudo test -e "$path"; then
+      existed[i]=true
+      initial[i]=$(_config_state "$path") || exit 1
+      sudo cp -a -- "$path" "$work_dir/$i.before" || exit 1
+      # The snapshot may be root-only; the staged output must be user-owned.
+      # shellcheck disable=SC2024
+      sudo cat -- "$work_dir/$i.before" > "${stages[i]}" || exit 1
+      _config_matches "$path" "${initial[i]}" "$work_dir/$i.before" || exit 1
+    else
+      : > "${stages[i]}"
+    fi
+  done
+  if ! "$edit" "${stages[@]}"; then
+    log ERROR "Failed to prepare configuration edits; live files were not changed"
+    exit 1
+  fi
+  for i in "${!targets[@]}"; do
+    path="${targets[i]}"
+    if [[ "${existed[i]}" == true ]]; then
+      _config_matches "$path" "${initial[i]}" "$work_dir/$i.before" || {
+        log ERROR "$path changed before publication; refusing to overwrite it"
+        exit 1
+      }
+      sudo cmp -s -- "$work_dir/$i.before" "${stages[i]}" && continue
+    elif sudo test -e "$path" || sudo test -L "$path"; then
+      log ERROR "$path was created by another actor; refusing to overwrite it"
+      exit 1
+    fi
+    stage=$(sudo mktemp -- "$path.chezmoi.XXXXXX") || exit 1
+    root_stages+=("$stage")
+    sudo cp -- "${stages[i]}" "$stage" || exit 1
+    if [[ "${existed[i]}" == true ]]; then
+      sudo cp --attributes-only --preserve=all -- "$work_dir/$i.before" "$stage" || exit 1
+      _config_matches "$path" "${initial[i]}" "$work_dir/$i.before" || exit 1
+    else
+      sudo chmod 644 -- "$stage" || exit 1
+      if sudo test -e "$path" || sudo test -L "$path"; then exit 1; fi
+    fi
+    expected[i]=$(_config_state "$stage") || exit 1
+    changed[i]=true
+    sudo mv -Tf -- "$stage" "$path" || exit 1
+  done
+  if ! "$verify"; then
+    log ERROR "Configuration post-check failed: ${LAST_ERROR:-see diagnostics}"
+    exit 1
+  fi
+  rollback=false
+)
 
 # Writes content to system config file with proper permissions.
 #

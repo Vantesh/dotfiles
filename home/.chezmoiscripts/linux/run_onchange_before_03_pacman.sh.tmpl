@@ -28,7 +28,7 @@ _configure_pacman_options() {
 
   for option in "${options[@]}"; do
     if grep -q "^#[[:space:]]*${option}" "$pacman_conf"; then
-      sudo sed -i "s/^#[[:space:]]*${option}/${option}/" "$pacman_conf"
+      sed -i "s/^#[[:space:]]*${option}/${option}/" "$pacman_conf" || return 1
       log INFO "Enabled ${COLOR_CYAN}${option}${COLOR_RESET}"
     elif grep -q "^${option}" "$pacman_conf"; then
       log SKIP "${COLOR_CYAN}${option}${COLOR_RESET} already enabled"
@@ -42,7 +42,7 @@ _add_ilovecandy() {
   local pacman_conf="$1"
 
   if grep -q "^ParallelDownloads" "$pacman_conf" && ! grep -q "^ILoveCandy" "$pacman_conf"; then
-    sudo sed -i "/^ParallelDownloads/a ILoveCandy" "$pacman_conf"
+    sed -i "/^ParallelDownloads/a ILoveCandy" "$pacman_conf" || return 1
     log INFO "Enabled ${COLOR_CYAN}ILoveCandy${COLOR_RESET}"
   elif grep -q "^ILoveCandy" "$pacman_conf"; then
     log SKIP "${COLOR_CYAN}ILoveCandy${COLOR_RESET} already enabled"
@@ -50,13 +50,20 @@ _add_ilovecandy() {
 }
 
 _configure_paccache() {
-  if ! update_config "$PACCACHE_CONFIG" "PACCACHE_ARGS" "'-k2'"; then
+  if ! update_config "$1" "PACCACHE_ARGS" "'-k2'"; then
     log WARN "Failed to configure paccache: $LAST_ERROR"
     return 1
   fi
 
   log INFO "Configured paccache (keep 2 versions)"
   return 0
+}
+
+_stage_pacman_configs() {
+  _configure_pacman_options "$1" && _add_ilovecandy "$1" || return 1
+  if [[ $# -gt 1 ]]; then
+    _configure_paccache "$2" || return 1
+  fi
 }
 
 setup_pacman() {
@@ -72,17 +79,10 @@ setup_pacman() {
     log SKIP "pacman-contrib not installed and package installation is disabled; skipping cache configuration"
   fi
 
-  if ! create_backup "$PACMAN_CONF"; then
-    die "Failed to create backup of $PACMAN_CONF"
-  fi
-
-  if ! {
-    _configure_pacman_options "$PACMAN_CONF" &&
-      _add_ilovecandy "$PACMAN_CONF" &&
-      { [[ "$configure_cache" == false ]] || _configure_paccache; }
-  }; then
-    restore_backup "$PACMAN_CONF" 2>/dev/null || true
-    die "Failed to configure pacman (backup restored)"
+  local -a files=("$PACMAN_CONF")
+  [[ "$configure_cache" == false ]] || files+=("$PACCACHE_CONFIG")
+  if ! edit_system_configs _stage_pacman_configs : "${files[@]}"; then
+    die "Failed to configure pacman; see invocation rollback diagnostics"
   fi
 
   # Apply only system files; standalone files apply can also offer service changes.
