@@ -97,6 +97,7 @@ class ScriptCase(unittest.TestCase):
                 input=input,
                 capture_output=True,
                 text=True,
+                check=False,
                 timeout=15,
             )
         except subprocess.TimeoutExpired as error:
@@ -118,7 +119,9 @@ class ScriptCase(unittest.TestCase):
             rf"{re.escape(name)}\s*\(\s*\))\s*\{{\n.*?^\}}"
         )
         match = re.search(
-            pattern, path.read_text() if source is None else source, re.M | re.S
+            pattern,
+            path.read_text() if source is None else source,
+            re.MULTILINE | re.DOTALL,
         )
         if match is None:
             self.fail(
