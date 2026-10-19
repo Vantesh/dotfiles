@@ -13,6 +13,17 @@ sudo pacman -S --needed chezmoi
 chezmoi init --apply vantesh
 ```
 
+**Personal setup limitation:** Bitwarden installation and login remain in the
+normal prerequisite script. Chezmoi can render secret-backed templates before
+that phase, so the original bootstrap-ordering issue is not solved here.
+Personal secret rendering requires `rbw` to be installed and authenticated in
+advance, or `CHEZMOI_GITHUB_ACCESS_TOKEN` for the GitHub token lookup only. Other
+personal workflows still require the vault. Non-personal setup does not use it.
+
+If you generated a config from the discarded source-state-hook proposal, run
+plain `chezmoi init` **without `--apply`** once to remove the saved hook. No new
+bootstrap mode or replacement hook is provided.
+
 ### Yazi plugins (manual)
 
 After applying, install the Yazi plugins manually; chezmoi does not install them.
