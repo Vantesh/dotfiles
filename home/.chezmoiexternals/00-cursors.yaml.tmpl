@@ -4,6 +4,7 @@
 {{- $refresh := "744h" }}
 {{- $hypr := "driedpampas/macOS-hyprcursor" }}
 
+# Nested Hyprcursor targets rely on apple_cursor not shipping macOS-hypr*.
 ".local/share/icons":
   url: {{ gitHubLatestReleaseAssetURL "ful1e5/apple_cursor" "macOS.tar.xz" | quote }}
   type: archive

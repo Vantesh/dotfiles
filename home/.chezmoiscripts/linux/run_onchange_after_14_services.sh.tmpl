@@ -34,8 +34,8 @@ converge_packaged_user_services() {
 
   for service in "${USER_SERVICES[@]}"; do
     if ! load_state=$(systemctl --user show --property=LoadState --value -- "$service"); then
-      log WARN "Failed to inspect $service (user)"
-      continue
+      log ERROR "Failed to inspect $service (user)"
+      return 1
     fi
     case "$load_state" in
       not-found)
@@ -44,8 +44,8 @@ converge_packaged_user_services() {
         ;;
       loaded|masked) ;;
       *)
-        log WARN "Cannot apply $service (user): unexpected LoadState=$load_state"
-        continue
+        log ERROR "Cannot apply $service (user): unexpected LoadState=$load_state"
+        return 1
         ;;
     esac
 
@@ -53,7 +53,8 @@ converge_packaged_user_services() {
       systemctl --user enable --now -- "$service"; then
       log INFO "${COLOR_GREEN}${service}${COLOR_RESET} enabled and running (user)"
     else
-      log WARN "Failed to converge $service (user)"
+      log ERROR "Failed to converge $service (user)"
+      return 1
     fi
   done
 }
@@ -94,7 +95,7 @@ main() {
   print_box "Services"
   log STEP "Configuring services"
 
-  converge_packaged_user_services
+  converge_packaged_user_services || die "Failed to apply packaged user services"
   update_locate_database
 
   # Packages and database initialization precede native service convergence.
