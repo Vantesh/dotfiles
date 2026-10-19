@@ -53,6 +53,8 @@ def entries(config):
         line = line.strip()
         if not line or line.startswith("#"):
             continue
+        require(not re.match(r"global_dtb\s*:", line, re.IGNORECASE),
+                "unsupported global_dtb resource layout")
         heading = re.fullmatch(r"(/+)(.+)", line)
         if heading:
             depth = len(heading[1])
@@ -168,6 +170,7 @@ def verify(boot, expected, output, fallback, uki):
             require(len(matches) == 1, f"missing or ambiguous generated kernel entry: {variant}")
             options = matches[0]
             uki = expected["uki"]
+            # Options retain repeated values; require exactly one supported protocol.
             protocols = (["efi"], ["efi_chainload"], ["uefi"]) if uki else (["linux"],)
             require(options.get("protocol") in protocols, f"unsupported protocol for {variant}")
             allowed_paths = ("image_path",) if uki else ("kernel_path", "module_path")

@@ -96,6 +96,7 @@ PYTHON
   fi
 
   log INFO "Deploying Limine"
+  # limine-mkinitcpio-hook 1.40 supports skipping NVRAM registration without skipping UEFI checks.
   checked_limine_command limine-install --no-efi-register >/dev/null || die "Failed to deploy Limine; rebuild remains pending"
 
   log INFO "Regenerating initramfs"
