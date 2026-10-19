@@ -1,5 +1,6 @@
 """Exercise the actual rebuild verifier with isolated kernel and ESP fixtures."""
 
+import ast
 import hashlib
 import json
 import struct
@@ -54,14 +55,15 @@ class LimineVerifierTests(ScriptCase):
             data[raw_offset:raw_offset + len(payload)] = payload
         return data
 
-    def verify(self, *, uki, protocols, global_options=""):
+    def verify(self, *, uki, protocols, global_options="", extra_entries="", include_current=True):
         options = [f"protocol: {protocol}" for protocol in protocols]
         options += (["path: boot():/linux.efi"] if uki else [
             "kernel_path: boot():/vmlinuz", "module_path: boot():/initramfs.img"
         ])
+        current = "//Kernel\ncomment: kernel-id=linux\n" + "\n".join(options) + "\n"
         (self.boot / "limine.conf").write_text(
-            global_options + f"/+Fixture\ncomment: machine-id={self.machine}\n"
-            + "//Kernel\ncomment: kernel-id=linux\n" + "\n".join(options) + "\n"
+            global_options + f"/+Fixture\ncomment: Fixture OS\ncomment: machine-id={self.machine}\n"
+            + (current if include_current else "") + extra_entries
         )
         expected = {
             "machine": self.machine,
@@ -92,6 +94,88 @@ class LimineVerifierTests(ScriptCase):
                 result = self.verify(uki=True, protocols=[protocol])
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertIn("Verified generated boot entries", result.stdout)
+
+    def snapshot_entries(self, *, uki, menu="Snapshots"):
+        options = (
+            "protocol: efi\npath: boot():/old/limine_history/kernel.efi\n"
+            if uki
+            else "protocol: linux\nkernel_path: boot():/old/limine_history/vmlinuz\n"
+            "module_path: boot():/old/limine_history/initramfs.img\n"
+        )
+        return f"//{menu}\ncomment: 10 / 10 snapshots\n" + "".join(
+            f"///Snapshot {index}\ncomment: historical snapshot\n"
+            f"////Kernel\ncomment: Kernel version: old\ncomment: kernel-id={kernel}\n"
+            + options
+            for index, kernel in enumerate(["linux"] * 10 + ["linux-fallback"])
+        )
+
+    def test_parser_marks_nested_snapshot_descendants_but_not_siblings(self):
+        # Load definitions without executing the verifier's command-line entrypoint.
+        module = ast.parse(self.verifier)
+        module.body = [node for node in module.body
+                       if isinstance(node, (ast.Import, ast.ImportFrom, ast.FunctionDef))]
+        namespace = {}
+        exec(compile(module, "verify_limine_rebuild.py", "exec"), namespace)
+        for menu in ("Snapshots", "+Snapshots"):
+            with self.subTest(menu=menu):
+                parsed = namespace["entries"](
+                    f"/+OS\ncomment: machine-id={self.machine}\n"
+                    "//Profiles\n"
+                    f"///{menu}\n"
+                    "////Historical snapshot\n"
+                    "/////Kernel\ncomment: kernel-id=linux\n"
+                    "///Live sibling\ncomment: kernel-id=linux\n"
+                    "//Root sibling\ncomment: kernel-id=linux\n"
+                )
+                self.assertEqual([entry["snapshot"] for entry in parsed],
+                                 [False, False, True, True, True, False, False])
+                self.assertTrue(all(entry["machine"] == self.machine for entry in parsed))
+                self.assertEqual([entry.get("kernel") for entry in parsed[4:]],
+                                 ["linux", "linux", "linux"])
+        self.assertFalse(namespace["is_snapshot_menu"]("Snapshots backup"))
+
+    def test_snapshot_history_does_not_count_as_current_entries(self):
+        for uki, protocol in ((False, "linux"), (True, "efi")):
+            for menu in ("Snapshots", "+Snapshots"):
+                with self.subTest(uki=uki, menu=menu):
+                    result = self.verify(
+                        uki=uki,
+                        protocols=[protocol],
+                        extra_entries=self.snapshot_entries(uki=uki, menu=menu),
+                    )
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    self.assertIn("Verified generated boot entries", result.stdout)
+
+    def test_snapshot_history_cannot_replace_missing_current_entry(self):
+        for uki, protocol in ((False, "linux"), (True, "efi")):
+            with self.subTest(uki=uki):
+                result = self.verify(
+                    uki=uki,
+                    protocols=[protocol],
+                    include_current=False,
+                    extra_entries=self.snapshot_entries(uki=uki),
+                )
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn(
+                    "missing or ambiguous generated kernel entry: linux", result.stderr
+                )
+
+    def test_duplicate_current_entries_remain_an_error(self):
+        for uki, protocol in ((False, "linux"), (True, "efi")):
+            with self.subTest(uki=uki):
+                result = self.verify(
+                    uki=uki,
+                    protocols=[protocol],
+                    extra_entries=(
+                        "//Other current kernel\ncomment: kernel-id=linux\n"
+                        + f"protocol: {protocol}\n"
+                        + self.snapshot_entries(uki=uki)
+                    ),
+                )
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn(
+                    "missing or ambiguous generated kernel entry: linux", result.stderr
+                )
 
     def test_duplicate_protocols_are_rejected(self):
         for uki, protocol in ((False, "linux"), (True, "efi")):

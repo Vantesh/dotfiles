@@ -46,6 +46,11 @@ def inventory(fallback, uki):
     return {"machine": machine, "kernels": kernels, "fallback": fallback, "uki": uki == "yes"}
 
 
+def is_snapshot_menu(name):
+    """Recognize limine-snapper-sync's menu, including expanded headings."""
+    return name.lstrip("+").strip() == "Snapshots"
+
+
 def entries(config):
     stack = []
     result = []
@@ -60,7 +65,11 @@ def entries(config):
             depth = len(heading[1])
             stack = stack[:depth - 1]
             require(depth == len(stack) + 1, "unsupported menu nesting")
-            entry = {"options": {}, "machine": stack[-1]["machine"] if stack else ""}
+            # limine-snapper-sync repeats kernel IDs beneath its Snapshots menu.
+            # Those historical entries are not targets of the current rebuild.
+            snapshot = is_snapshot_menu(heading[2])
+            entry = {"options": {}, "machine": stack[-1]["machine"] if stack else "",
+                     "snapshot": snapshot or bool(stack and stack[-1]["snapshot"])}
             stack.append(entry)
             result.append(entry)
         elif stack and ":" in line:
@@ -141,7 +150,7 @@ def verify(boot, expected, output, fallback, uki):
     require(inventory(fallback, uki) == expected, "installed kernel inventory or rebuild mode changed during rebuild")
     config = boot / "limine.conf"
     require(config.is_file() and config.stat().st_size, f"missing or empty config: {config}")
-    generated = entries(config.read_text())
+    generated = [item for item in entries(config.read_text()) if not item["snapshot"]]
     output = re.sub(r"\x1b\[[0-9;]*[A-Za-z]", "", output)
     builds = re.split(r"(?m)^Building (initramfs|fallback initramfs|UKI|UKI fallback) for ", output)
 
@@ -167,7 +176,8 @@ def verify(boot, expected, output, fallback, uki):
         for variant in variants:
             matches = [item["options"] for item in generated
                        if item["machine"] == expected["machine"] and item.get("kernel") == variant]
-            require(len(matches) == 1, f"missing or ambiguous generated kernel entry: {variant}")
+            require(len(matches) == 1,
+                    f"missing or ambiguous generated kernel entry: {variant} (found {len(matches)} current entries)")
             options = matches[0]
             uki = expected["uki"]
             # Options retain repeated values; require exactly one supported protocol.
