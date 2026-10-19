@@ -74,6 +74,7 @@
 "pacman:7zip" = { env = "packages" }
 "pacman:neovim" = { env = "packages" }
 "pacman:stylua" = { env = "packages" }
+"pacman:lua-language-server" = { env = "packages" }
 "pacman:vscode-html-languageserver" = { env = "packages" }
 "pacman:vscode-css-languageserver" = { env = "packages" }
 "pacman:git-delta" = { env = "packages" }
