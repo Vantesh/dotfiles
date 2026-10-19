@@ -3,6 +3,8 @@
 # Exit codes: 0 (success or skipped), 1 (failure)
 
 # setup-hibernation: {{ .setupHibernation }}
+{{ $stateHome := env "XDG_STATE_HOME" | default (joinPath .chezmoi.homeDir ".local/state") -}}
+# retry-generation: {{ with stat (joinPath $stateHome "chezmoi/hibernation.pending") }}{{ .size }}{{ else }}0{{ end }}
 
 set -euo pipefail
 
@@ -12,6 +14,24 @@ shopt -s nullglob globstar
 {{ include ".chezmoitemplates/lib/snapboot.sh" }}
 {{ include ".chezmoitemplates/lib/hibernation.sh" }}
 
+readonly HIBERNATION_PENDING_FILE="${XDG_STATE_HOME:-$HOME/.local/state}/chezmoi/hibernation.pending"
+
+clear_hibernation_retry() {
+  rm -f -- "$HIBERNATION_PENDING_FILE" || die "Failed to clear hibernation retry state"
+}
+
+defer_hibernation_setup() {
+  # One byte per deferral changes the rendered onchange hash on the next apply,
+  # including consecutive failures. A stable boolean marker would retry only once.
+  if ! (
+    umask 077
+    mkdir -p -- "${HIBERNATION_PENDING_FILE%/*}" && printf '.' >> "$HIBERNATION_PENDING_FILE"
+  ); then
+    die "Failed to record pending hibernation setup"
+  fi
+  log INFO "Hibernation setup remains pending; the next apply will retry"
+}
+
 main() {
   local gpu_info
   local ram_size
@@ -19,26 +39,31 @@ main() {
   # Exit early if hibernation setup is disabled
   if [[ "${SETUP_HIBERNATION:-1}" != "1" ]]; then
     log INFO "Skipping hibernation setup (disabled in configuration)"
+    clear_hibernation_retry
     return 0
   fi
 
   if [[ ! -x /usr/bin/limine ]]; then
     log WARN "Unsupported bootloader (only Limine is supported), skipping hibernation setup"
-    return 0
-  fi
-
-  if ! command_exists mkinitcpio; then
-    log WARN "mkinitcpio not found, skipping hibernation setup"
+    clear_hibernation_retry
     return 0
   fi
 
   if ! check_btrfs; then
     log SKIP "Root filesystem is not btrfs, skipping hibernation setup"
+    clear_hibernation_retry
     return 0
   fi
 
   if ! is_laptop; then
     log SKIP "Not a laptop, skipping hibernation setup"
+    clear_hibernation_retry
+    return 0
+  fi
+
+  if ! command_exists mkinitcpio; then
+    log WARN "mkinitcpio not found, deferring hibernation setup"
+    defer_hibernation_setup
     return 0
   fi
 
@@ -105,7 +130,7 @@ main() {
 
   case "$setup_result" in
   0) ;;
-  2) return 0 ;;
+  2) defer_hibernation_setup; return 0 ;;
   *) return "$setup_result" ;;
   esac
 
@@ -179,6 +204,7 @@ EOF
 
   fi
 
+  clear_hibernation_retry
   log INFO "Hibernation setup completed"
 }
 

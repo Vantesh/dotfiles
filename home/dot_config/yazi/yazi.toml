@@ -5,3 +5,7 @@
 	sixel_fraction  = 10
 	ueberzug_scale  = 1
 	ueberzug_offset = [0, 0, 0, 0]
+
+[[plugin.prepend_previewers]]
+url = "*/"
+run = "eza-preview"
