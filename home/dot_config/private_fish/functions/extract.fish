@@ -9,7 +9,7 @@ function extract --description "Expand or extract bundled & compressed files"
                 case "*.bz2"
                     bunzip2 $file
                 case "*.rar"
-                    rar x $file
+                    7z x $file
                 case "*.gz"
                     gunzip $file
                 case "*.tar"
