@@ -1,5 +1,6 @@
 """Exercise the actual rebuild verifier with isolated kernel and ESP fixtures."""
 
+import ast
 import hashlib
 import json
 import struct
@@ -107,6 +108,31 @@ class LimineVerifierTests(ScriptCase):
             + options
             for index, kernel in enumerate(["linux"] * 10 + ["linux-fallback"])
         )
+
+    def test_parser_marks_nested_snapshot_descendants_but_not_siblings(self):
+        # Load definitions without executing the verifier's command-line entrypoint.
+        module = ast.parse(self.verifier)
+        module.body = [node for node in module.body
+                       if isinstance(node, (ast.Import, ast.ImportFrom, ast.FunctionDef))]
+        namespace = {}
+        exec(compile(module, "verify_limine_rebuild.py", "exec"), namespace)
+        for menu in ("Snapshots", "+Snapshots"):
+            with self.subTest(menu=menu):
+                parsed = namespace["entries"](
+                    f"/+OS\ncomment: machine-id={self.machine}\n"
+                    "//Profiles\n"
+                    f"///{menu}\n"
+                    "////Historical snapshot\n"
+                    "/////Kernel\ncomment: kernel-id=linux\n"
+                    "///Live sibling\ncomment: kernel-id=linux\n"
+                    "//Root sibling\ncomment: kernel-id=linux\n"
+                )
+                self.assertEqual([entry["snapshot"] for entry in parsed],
+                                 [False, False, True, True, True, False, False])
+                self.assertTrue(all(entry["machine"] == self.machine for entry in parsed))
+                self.assertEqual([entry.get("kernel") for entry in parsed[4:]],
+                                 ["linux", "linux", "linux"])
+        self.assertFalse(namespace["is_snapshot_menu"]("Snapshots backup"))
 
     def test_snapshot_history_does_not_count_as_current_entries(self):
         for uki, protocol in ((False, "linux"), (True, "efi")):

@@ -46,6 +46,11 @@ def inventory(fallback, uki):
     return {"machine": machine, "kernels": kernels, "fallback": fallback, "uki": uki == "yes"}
 
 
+def is_snapshot_menu(name):
+    """Recognize limine-snapper-sync's menu, including expanded headings."""
+    return name.lstrip("+").strip() == "Snapshots"
+
+
 def entries(config):
     stack = []
     result = []
@@ -62,7 +67,7 @@ def entries(config):
             require(depth == len(stack) + 1, "unsupported menu nesting")
             # limine-snapper-sync repeats kernel IDs beneath its Snapshots menu.
             # Those historical entries are not targets of the current rebuild.
-            snapshot = heading[2].lstrip("+").strip() == "Snapshots"
+            snapshot = is_snapshot_menu(heading[2])
             entry = {"options": {}, "machine": stack[-1]["machine"] if stack else "",
                      "snapshot": snapshot or bool(stack and stack[-1]["snapshot"])}
             stack.append(entry)
