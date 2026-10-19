@@ -7,6 +7,7 @@ failed builds. Paths come from generated entries, never assumed output filenames
 
 import hashlib
 import json
+import os
 import re
 import struct
 import subprocess
@@ -198,13 +199,37 @@ def verify(boot, expected, output, fallback, uki):
     print("Verified generated boot entries, kernel payloads, and initramfs archives")
 
 
+def verify_enrollment(boot):
+    # Match the integration's architecture-based target, never a firmware setting.
+    arch = os.uname().machine
+    suffix = {"x86_64": "x64", "aarch64": "aa64", "riscv64": "riscv64",
+              "loongarch64": "loongarch64"}.get(arch)
+    if re.fullmatch(r"i.86", arch):
+        suffix = "ia32"
+    require(suffix, "unsupported Limine EFI architecture")
+    image = boot / "EFI/limine" / f"limine_{suffix}.efi"
+    data = image.read_bytes()
+    marker = b"++CONFIG_B2SUM_SIGNATURE++"
+    require(data.count(marker) == 1, f"missing or ambiguous checksum slot: {image}")
+    start = data.index(marker) + len(marker)
+    enrolled = data[start:start + 128].decode("ascii")
+    require(re.fullmatch(r"[0-9a-fA-F]{128}", enrolled), f"invalid checksum slot: {image}")
+    require(enrolled != "0" * 128 and enrolled.lower() == digest(boot / "limine.conf"),
+            "deployed EFI checksum does not match the final Limine config")
+    print("Verified the final Limine config checksum without modifying the EFI image")
+
+
 try:
-    mode, directory, fallback, uki = sys.argv[1:5]
-    if mode == "inventory":
-        print(json.dumps(inventory(fallback, uki)))
+    mode, directory = sys.argv[1:3]
+    if mode == "enrollment":
+        verify_enrollment(Path(directory).resolve())
     else:
-        require(mode == "verify", "unknown verification mode")
-        verify(Path(directory).resolve(), json.loads(sys.argv[5]), sys.stdin.read(), fallback, uki)
+        fallback, uki = sys.argv[3:5]
+        if mode == "inventory":
+            print(json.dumps(inventory(fallback, uki)))
+        else:
+            require(mode == "verify", "unknown verification mode")
+            verify(Path(directory).resolve(), json.loads(sys.argv[5]), sys.stdin.read(), fallback, uki)
 except (OSError, ValueError, subprocess.CalledProcessError) as error:
     if isinstance(error, subprocess.CalledProcessError) and error.stderr:
         print(error.stderr, file=sys.stderr, end="")

@@ -4,10 +4,10 @@
 # Runs on every apply, after boot-related configuration scripts, so a pending
 # rebuild is retried even when those scripts are skipped by their execution state.
 # Rejects ambiguous config locations without deleting any config.
-# After rebuilding, explicitly enrolls and signs the final config when enabled.
-# Checks expected Linux/UKI entries and artifacts before enrollment and marker removal.
+# Package post-hooks enroll and sign after publishing rebuilt artifacts.
+# Verify artifacts and the enrolled checksum before clearing the pending request.
 # Rejects failure diagnostics even when package helpers incorrectly return zero.
-# Enrollment remains nontransactional; this does not prove signing or hook semantics.
+# No second enrollment reopens the completed boot path; power loss is not covered.
 #
 # Globals:
 #   INITRAMFS_PENDING_FILE - Rebuild request created by boot setup scripts
@@ -82,8 +82,17 @@ PYTHON
   if ! enroll_config="$(get_limine_config_value ENABLE_ENROLL_LIMINE_CONFIG)"; then
     die "Failed to read Limine checksum enrollment setting; rebuild remains pending"
   fi
-  if [[ "$enroll_config" = "yes" ]] && ! command_exists limine-enroll-config; then
-    die 127 "limine-enroll-config not found; rebuild remains pending"
+  if [[ "$enroll_config" = "yes" ]]; then
+    for dependency in limine-enroll-config sbctl jq; do
+      command_exists "$dependency" || die 127 "$dependency not found; enrollment/signing remains pending"
+    done
+    local enroll_hook=/etc/boot/hooks/post.d/90-limine-enroll-config
+    if ! sudo test -x "$enroll_hook" || ! sudo cmp -s -- "$enroll_hook" "$(command -v limine-enroll-config)"; then
+      die "Required Limine enrollment post-hook is missing or differs from the installed helper; rebuild remains pending"
+    fi
+    if ! sudo sbctl setup --print-state --json | jq -e '.installed == true' >/dev/null; then
+      die "sbctl signing setup is unavailable; complete the opt-in Secure Boot setup before retrying; rebuild remains pending"
+    fi
   fi
 
   log INFO "Deploying Limine"
@@ -100,9 +109,10 @@ PYTHON
   fi
 
   if [[ "$enroll_config" = "yes" ]]; then
-    log INFO "Enrolling Limine config checksum and signing EFI binary"
-    checked_limine_command limine-enroll-config >/dev/null || die "Failed to enroll and sign Limine config; rebuild remains pending"
-    log INFO "Enrolled Limine config checksum and signed EFI binary"
+    # limine-mkinitcpio's post-hook already enrolled and signed the final config.
+    # Check its result without restoring or modifying the live EFI image again.
+    sudo python3 -I -B -c "$verifier" enrollment "$boot_directory" ||
+      die "Failed to verify the enrolled Limine checksum; rebuild remains pending"
   fi
 
   if ! rm -f -- "$INITRAMFS_PENDING_FILE"; then
