@@ -66,7 +66,10 @@ class ScriptTests(ScriptCase):
         self.marker = self.directory / "state/chezmoi/initramfs.pending"
         temporary = self.directory / "limine-tmp"
         temporary.mkdir(exist_ok=True)
-        self.env.update(MARKER=str(self.marker), FAILURE=failure, TMPDIR=str(temporary))
+        self.env.update(
+            MARKER=str(self.marker), FAILURE=failure, TMPDIR=str(temporary),
+            STAGE_MODE=str(self.directory / "stage-mode"),
+        )
         self.stub("limine-entry-tool", "exit 97")  # availability check only
         self.stub(
             "sudo",
@@ -81,7 +84,27 @@ class ScriptTests(ScriptCase):
             partial_entries) printf 'timeout: 0.5\n/Arch\nprotocol: linux\n'; exit 0 ;;
         esac
         exec "$@" ;;
+    install)
+        [ -f "$MARKER" ] || exit 97
+        [ "$2" = -m ] && [ "$3" = 0600 ] && [ "$4" = /dev/null ] && [ "$5" = "$ITEM.new" ] || exit 97
+        if [ "$FAILURE" = install ]; then
+            echo 'fixture stage creation failed' >&2
+            exit 23
+        fi
+        exec "$@" ;;
+    chmod)
+        [ "$2" = "--reference=$ITEM" ] && [ "$3" = -- ] && [ "$4" = "$ITEM.new" ] || exit 97
+        if [ "$FAILURE" = chmod ]; then
+            echo 'fixture permission copy failed' >&2
+            exit 23
+        fi
+        exec "$@" ;;
     tee)
+        if [ -f "$ITEM.new" ]; then
+            stat -c '%a' -- "$ITEM.new" > "$STAGE_MODE"
+        else
+            printf 'missing\n' > "$STAGE_MODE"
+        fi
         [ -f "$MARKER" ] || exit 97
         [ "$2" = -- ] && [ "$3" = "$ITEM.new" ] || exit 97
         if [ "$FAILURE" = tee ]; then
@@ -259,15 +282,57 @@ esac""",
         self.assertFalse(any(call[1] in ("tee", "mv") for call in self.logged_calls()))
         self.assertEqual(list((self.directory / "limine-tmp").iterdir()), [])
 
+    def test_limine_stage_is_private_and_preserves_original_permissions(self):
+        for mode, leftover in ((0o600, False), (0o600, True), (0o640, False), (0o644, False)):
+            with self.subTest(mode=oct(mode), leftover=leftover):
+                script = self.limine_fixture()
+                self.item.chmod(mode)
+                # A leftover permissive stage must also be reset before writing.
+                stage = self.item.with_suffix(".new")
+                if leftover:
+                    stage.write_text("old stage")
+                    stage.chmod(0o666)
+                result = self.shell("umask 022\n" + script, name="Limine file modes")
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual((self.directory / "stage-mode").read_text().strip(), "600")
+                self.assertEqual(self.item.stat().st_mode & 0o7777, mode)
+                self.assertIn(b"timeout: 0.5\n", self.item.read_bytes())
+                self.assertFalse(stage.exists())
+
+    def test_limine_permission_failures_preserve_original_and_clean_stage(self):
+        for failure in ("install", "chmod"):
+            with self.subTest(failure=failure):
+                script = self.limine_fixture(failure)
+                self.calls.unlink(missing_ok=True)
+                self.item.chmod(0o600)
+                original = self.item.read_bytes()
+                result = self.shell("umask 022\n" + script, name=f"Limine {failure}")
+                self.assertEqual(result.returncode, 1, result.stderr)
+                self.assertEqual(self.item.read_bytes(), original)
+                self.assertEqual(self.item.stat().st_mode & 0o7777, 0o600)
+                self.assertTrue(self.marker.exists())
+                self.assertIn("Failed to write Limine options", result.stderr)
+                calls = self.logged_calls()
+                self.assertFalse(any(call[1] == "mv" for call in calls))
+                self.assertFalse(any(call[0] == "restore_backup" for call in calls))
+                self.assertIn(["sudo", "rm", "-f", "--", str(self.item) + ".new"], calls)
+                self.assertFalse(self.item.with_suffix(".new").exists())
+                self.assertEqual(list((self.directory / "limine-tmp").iterdir()), [])
+
     def test_limine_stages_beside_config_before_atomic_rename(self):
         script = self.limine_fixture()
         result = self.shell(script, name="Limine staged write")
         self.assertEqual(result.returncode, 0, result.stderr)
-        writes = [call for call in self.logged_calls() if call[1] in ("tee", "mv")]
+        writes = [
+            call for call in self.logged_calls()
+            if call[1] in ("install", "tee", "chmod", "mv")
+        ]
         self.assertEqual(
             writes,
             [
+                ["sudo", "install", "-m", "0600", "/dev/null", str(self.item) + ".new"],
                 ["sudo", "tee", "--", str(self.item) + ".new"],
+                ["sudo", "chmod", "--reference=" + str(self.item), "--", str(self.item) + ".new"],
                 ["sudo", "mv", "--", str(self.item) + ".new", str(self.item)],
             ],
         )

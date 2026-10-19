@@ -161,8 +161,11 @@ configure_limine_options() {
   fi
 
   # Stage on the boot filesystem; .conf.new does not match *.conf consumers.
+  # Keep boot arguments private while staging, then preserve the original mode.
   # shellcheck disable=SC2024  # temp input is user-owned; only the write needs sudo
-  if ! sudo tee -- "${limine_conf}.new" <"$temp_file" >/dev/null ||
+  if ! sudo install -m 0600 /dev/null "${limine_conf}.new" ||
+    ! sudo tee -- "${limine_conf}.new" <"$temp_file" >/dev/null ||
+    ! sudo chmod --reference="$limine_conf" -- "${limine_conf}.new" ||
     ! sudo mv -- "${limine_conf}.new" "$limine_conf"; then
     sudo rm -f -- "${limine_conf}.new" || true
     local error_msg="Failed to write Limine options"
