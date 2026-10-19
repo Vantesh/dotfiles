@@ -2,8 +2,9 @@
 # 00-install-pre-requisites.sh - Install prerequisites for setup and templates
 #
 # Installs git, figlet, and base-devel and ensures mise for all setups.
-# Personal setups configure Bitwarden before secret-backed templates render. Secret reads
-# unlock the vault on demand; desktop packages are installed by later scripts.
+# Personal setups configure Bitwarden in this prerequisite phase, not before
+# target rendering. Secret reads unlock the vault on demand; desktop packages
+# are installed by later scripts.
 # Globals:
 #   PERSONAL - Enable vault prerequisites only when set to 1
 #   CHEZMOI_SOURCE_DIR - Source directory containing shared libraries
