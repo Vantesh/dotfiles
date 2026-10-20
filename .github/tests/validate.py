@@ -1,9 +1,9 @@
-"""Render and statically validate setup code without executing setup scripts."""
+"""Render setup templates and check shell and managed Python syntax."""
 
 import shutil
 from pathlib import Path
 
-from helpers import CHEZMOI, LIB, SCRIPTS, ScriptCase
+from helpers import CHEZMOI, LIB, ROOT, SCRIPTS, ScriptCase
 
 
 def main():
@@ -31,8 +31,8 @@ def main():
                             f"{path} (personal={personal}):\n{result.stdout}{result.stderr}"
                         )
                 shell_count += 1
-        python_paths = sorted(LIB.glob("*.py")) + sorted(
-            Path(__file__).parent.glob("*.py")
+        python_paths = sorted((ROOT / "home").rglob("*.py")) + sorted(
+            Path(__file__).parent.rglob("*.py")
         )
         for path in python_paths:
             compile(path.read_text(), str(path), "exec")
