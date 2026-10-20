@@ -7,6 +7,11 @@ on:
 permissions:
   contents: read
 
+env:
+  NOCONFIRM: "1"
+  SKIP_PACKAGES: "1"
+  OFFLINE: "1"
+
 jobs:
   test-dotfiles:
     name: Arch Linux
@@ -19,7 +24,7 @@ jobs:
 
     steps:
       - name: Install dependencies
-        run: pacman -Syu --noconfirm git bash shellcheck chezmoi diffutils python
+        run: pacman -Syu --noconfirm git git-delta bash shellcheck chezmoi diffutils python
 
       - name: Checkout
         uses: actions/checkout@v5
@@ -40,3 +45,12 @@ jobs:
 
       - name: Test and lint setup scripts
         run: python3 -B -m unittest discover -s .github/tests -v && python3 -B .github/tests/validate.py
+
+      - name: Apply and verify dotfiles
+        run: |
+          set -euo pipefail
+          umask 022
+          mkdir -p -- "$XDG_CONFIG_HOME" "$XDG_CACHE_HOME" "$XDG_DATA_HOME" "$XDG_STATE_HOME"
+          chezmoi --verbose --source "$GITHUB_WORKSPACE" --destination "$HOME" init --data=false --no-tty
+          chezmoi --verbose --source "$GITHUB_WORKSPACE" --destination "$HOME" apply --exclude=scripts --no-tty
+          chezmoi --verbose --source "$GITHUB_WORKSPACE" --destination "$HOME" verify --exclude=scripts --no-tty
