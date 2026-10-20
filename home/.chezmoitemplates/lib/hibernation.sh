@@ -5,6 +5,212 @@ readonly SWAP_SUBVOL="@swap"
 readonly SWAP_MOUNT_POINT="/swap"
 readonly SWAP_FILE_PATH="/swap/swapfile"
 
+readonly HIBERNATION_SWAP_OWNER="${XDG_STATE_HOME:-$HOME/.local/state}/chezmoi/hibernation.swapfile"
+
+# Only the repository's exact layout is managed. Zram is never a resume target.
+# Return 3 for independently managed swap, 1 when inspection fails.
+check_hibernation_swap_policy() {
+  local active table units unit path source target filesystem options extra
+  active=$(swapon --show=NAME --noheadings --raw 2>/dev/null) || return 1
+  table=$(findmnt --fstab --tab-file /etc/fstab -rn -o SOURCE,TARGET,FSTYPE,OPTIONS 2>&1) || {
+    [[ -z "$table" ]] && ! grep -qE '^[[:space:]]*[^#[:space:]]' /etc/fstab || return 1
+  }
+  while read -r source target filesystem options extra; do
+    [[ -n "$source" ]] || continue
+    [[ -n "$options" && -z "$extra" && "$source" != findmnt:* ]] || return 1
+    if [[ "$filesystem" = swap ]]; then
+      active+=$'\n'"$source"
+    fi
+  done <<<"$table"
+  # Include inactive, independently configured systemd swap units too.
+  units=$(systemctl list-unit-files --type=swap --no-legend --no-pager 2>/dev/null) || return 1
+  while read -r unit extra; do
+    [[ -n "$unit" ]] || continue
+    path=$(systemctl show --property=What --value "$unit" 2>/dev/null) || return 1
+    [[ -n "$path" ]] || return 1
+    active+=$'\n'"$path"
+  done <<<"$units"
+  while IFS= read -r path; do
+    [[ -n "$path" ]] || continue
+    [[ "$path" =~ ^/dev/zram[0-9]+$ ]] && continue
+    if [[ "$path" != "$SWAP_FILE_PATH" ]]; then
+      log INFO "Existing independently managed swap ($path); configure hibernation manually (left untouched)"
+      return 3
+    fi
+  done <<<"$active"
+}
+
+# Read literal persistent default arguments using Limine's config precedence.
+# Never infer future unlocking from the currently running /proc/cmdline.
+get_hibernation_cmdline() {
+  sudo python3 -I -B - <<'PYTHON'
+import glob
+import pathlib
+import re
+
+managed = '/etc/limine-entry-tool.d/50-hibernation.conf'
+default = '/etc/limine-entry-tool.d/01-default.conf'
+feature_files = {default, managed, '/etc/limine-entry-tool.d/20-quiet-boot.conf'}
+files = (sorted(glob.glob('/usr/share/limine-entry-tool.d/*.conf')) +
+         ['/etc/limine-entry-tool.conf'] +
+         sorted(set(glob.glob('/etc/limine-entry-tool.d/*.conf')) | {default, managed}) +
+         ['/etc/default/limine'])
+records = {}
+baseline = False
+for name in files:
+    path = pathlib.Path(name)
+    records[name] = []
+    if not path.exists():
+        continue
+    for line in path.read_text().splitlines():
+        if not line.strip() or line.lstrip().startswith('#'):
+            continue
+        if name == managed:
+            if records[name] or not re.fullmatch(
+                r'KERNEL_CMDLINE\[default\]\+= "hibernate.compressor=lz4 '
+                r'resume=UUID=[0-9a-fA-F-]+ resume_offset=[0-9]+"', line):
+                raise SystemExit('Hibernation fragment contains unrelated configuration; preserve it and configure resume manually')
+            records[name].append(('+=', ''))
+            continue
+        if not re.match(r'^\s*KERNEL_CMDLINE\[default\]', line):
+            if re.match(r'^\s*KERNEL_CMDLINE\[', line):
+                raise SystemExit('Kernel-specific Limine arguments require manual hibernation configuration')
+            continue
+        match = re.fullmatch(r'\s*KERNEL_CMDLINE\[default\]\s*(\+?=)\s*(.*?)\s*', line)
+        if not match:
+            raise SystemExit('Cannot verify Limine default kernel arguments')
+        operator, value = match.groups()
+        # Limine values are literal: remove one enclosing double-quote pair.
+        # Unlike a shell, += prepends and # is not an inline comment.
+        if len(value) >= 2 and value.startswith('"') and value.endswith('"'):
+            value = value[1:-1]
+        if not value.strip():
+            raise SystemExit('Empty Limine defaults have an unverifiable fallback; configure resume manually')
+        records[name].append((operator, value))
+        if operator == '=' or name not in feature_files:
+            baseline = True
+if not baseline:
+    # Model exactly the baseline ensure_limine_cmdline_defaults will publish,
+    # before it writes anything or we modify swap.
+    value = pathlib.Path('/etc/kernel/cmdline').read_text().strip()
+    if not value or '\n' in value:
+        raise SystemExit('No single-line persistent kernel command line')
+    records[default] = [('=', value.replace('"', r'\"'))]
+marker = '__DOTFILES_HIBERNATION__'
+records[managed] = [('+=', marker)]
+value = ''
+for name in files:
+    for operator, argument in records[name]:
+        value = (argument + ' ' + value).strip() if operator == '+=' else argument
+if marker not in value.split():
+    raise SystemExit('Later Limine defaults override hibernation; configure resume manually')
+print(value.replace(marker, '').strip())
+PYTHON
+}
+
+# mkinitcpio sources these trusted root-owned shell configurations in this order.
+get_hibernation_hooks() {
+  sudo bash -s <<'BASH'
+set -euo pipefail
+shopt -s nullglob
+source /etc/mkinitcpio.conf
+for file in /etc/mkinitcpio.conf.d/*.conf; do source "$file"; done
+if [[ "${HOOKS@a}" != *a* ]]; then read -r -a HOOKS <<< "$HOOKS"; fi
+printf '%s\n' "${HOOKS[*]}"
+BASH
+}
+
+# Verify a single Btrfs device and its ancestry, not its name. Called first for
+# root (before mutations), then for the actual swapfile (before publication).
+# Sets caller-local resume_uuid and luks_uuid through Bash dynamic scope.
+inspect_hibernation_device() {
+  local target="$1" identity source filesystem uuid extra device metadata devices path types parent status kind backing resolved
+  LAST_ERROR="Cannot safely identify a single plain or LUKS-backed Btrfs device for $target; configure hibernation manually"
+  identity=$(findmnt -rn -o SOURCE,FSTYPE,UUID --target "$target" 2>/dev/null) || return 3
+  read -r source filesystem uuid extra <<<"$identity"
+  [[ "$filesystem" = btrfs && "$uuid" =~ ^[[:xdigit:]]{8}(-[[:xdigit:]]{4}){3}-[[:xdigit:]]{12}$ && -z "$extra" && "$identity" != *$'\n'* ]] || return 3
+  source="${source%%\[*}"
+  device=$(readlink -e -- "$source") || return 3
+  metadata=$(lsblk -dnro FSTYPE,UUID "$device" 2>/dev/null) || return 3
+  [[ "$metadata" = "btrfs $uuid" ]] || return 3
+  resolved=$(readlink -e -- "/dev/disk/by-uuid/$uuid") || return 3
+  [[ "$resolved" = "$device" ]] || return 3
+  devices=$(sudo btrfs filesystem show --raw "$target" 2>/dev/null) || return 3
+  [[ $(awk '/Total devices/ {print $3}' <<<"$devices") = 1 ]] || return 3
+  path=$(awk '$1 == "devid" && $7 == "path" {print $8}' <<<"$devices")
+  [[ -n "$path" && "$path" != *$'\n'* ]] || return 3
+  resolved=$(readlink -e -- "$path") || return 3
+  [[ "$resolved" = "$device" ]] || return 3
+  types=$(lsblk -srn -o TYPE "$device" 2>/dev/null) || return 3
+  luks_uuid=""
+  case "$types" in
+  disk | $'part\ndisk') ;;
+  $'crypt\npart\ndisk' | $'crypt\ndisk')
+    parent=$(lsblk -dnro PKNAME "$device" 2>/dev/null) || return 3
+    [[ -n "$parent" && "$parent" != *[[:space:]/]* ]] || return 3
+    parent=$(readlink -e -- "/dev/$parent") || return 3
+    kind=$(sudo blkid -p -s TYPE -o value "$parent" 2>/dev/null) || return 3
+    [[ "$kind" = crypto_LUKS ]] || return 3
+    status=$(sudo cryptsetup status "$device" 2>/dev/null) || return 3
+    kind=$(awk '$1 == "type:" {print $2}' <<<"$status")
+    backing=$(awk '$1 == "device:" {print $2}' <<<"$status")
+    [[ "$kind" = LUKS1 || "$kind" = LUKS2 ]] || return 3
+    resolved=$(readlink -e -- "$backing") || return 3
+    [[ "$resolved" = "$parent" ]] || return 3
+    luks_uuid=$(sudo blkid -p -s UUID -o value "$parent" 2>/dev/null) || return 3
+    [[ "$luks_uuid" =~ ^[[:xdigit:]]{8}(-[[:xdigit:]]{4}){3}-[[:xdigit:]]{12}$ && "$luks_uuid" != "$uuid" ]] || return 3
+    ;;
+  *) return 3 ;;
+  esac
+  resume_uuid="$uuid"
+  LAST_ERROR=""
+}
+
+verify_hibernation_unlock() {
+  local cmdline="$1" hooks options token selected=false restricted=false disabled=false
+  hooks=$(get_hibernation_hooks) || return 1
+  [[ " $hooks " = *' systemd '* && " $hooks " = *' sd-encrypt '* ]] || return 1
+  local -a tokens
+  options=$(get_limine_config_value MKINITCPIO_UKI_OPTIONS) || return 1
+  read -r -a tokens <<<"$options"
+  for token in "${tokens[@]}"; do
+    case "$token" in
+    -S* | --skiphooks*) return 1 ;;
+    esac
+  done
+  read -r -a tokens <<<"$cmdline"
+  for token in "${tokens[@]}"; do
+    token="${token#rd.}"
+    case "$token" in
+    luks=0 | luks=no | luks=false | luks=off) return 1 ;;
+    luks.crypttab=0 | luks.crypttab=no | luks.crypttab=false | luks.crypttab=off) disabled=true ;;
+    luks.uuid=* | luks.name=*)
+      restricted=true
+      case "$token" in
+      "luks.uuid=$luks_uuid" | "luks.uuid=luks-$luks_uuid" | "luks.name=$luks_uuid="?*) selected=true ;;
+      esac
+      ;;
+    esac
+  done
+  [[ "$selected" = true ]] && return 0
+  [[ "$restricted" = false && "$disabled" = false ]] || return 1
+  # Only recognize stable UUID entries included by sd-encrypt. Do not edit them
+  # or read key material. Other unlock arrangements require manual verification.
+  sudo bash -s -- "$luks_uuid" <<'BASH'
+set -euo pipefail
+file=/etc/crypttab
+if [[ -f /etc/crypttab.initramfs ]]; then file=/etc/crypttab.initramfs; fi
+[[ -r "$file" ]] || exit 1
+awk -v uuid="$1" '
+  !/^[[:space:]]*(#|$)/ && ($2 == "UUID=" uuid || $2 == "/dev/disk/by-uuid/" uuid) &&
+  $3 != "/dev/urandom" && $3 != "/dev/random" &&
+  $4 !~ /(^|,)(noauto|swap|plain)(,|$)/ &&
+  (FILENAME ~ /crypttab.initramfs$/ || $4 ~ /(^|,)x-initrd.attach(,|$)/) { found++ }
+  END { exit (found != 1) }
+' "$file"
+BASH
+}
+
 # Calculates optimal swap size based on RAM.
 #
 # Uses formula: swap = sqrt(ram) + ram, minimum 2GB.
@@ -360,6 +566,18 @@ create_btrfs_swap() {
 
   _validate_hibernation_swap_mount "$uuid" || return 1
 
+  if [[ -f "$SWAP_FILE_PATH" ]]; then
+    inode=$(stat -c %i -- "$SWAP_FILE_PATH") || return 1
+    # Legacy installations have both matching fstab entries. The state record
+    # also permits retries after this invocation's fstab transaction rolled back.
+    if [[ ! -r "$HIBERNATION_SWAP_OWNER" || "$(cat -- "$HIBERNATION_SWAP_OWNER")" != "$uuid $SWAP_FILE_PATH $inode" ]]; then
+      if ! _check_hibernation_fstab_entry "$mount_entry" || ! _check_hibernation_fstab_entry "$swap_entry"; then
+        log INFO "Existing swapfile is not demonstrably managed by this setup; configure hibernation manually (left untouched)"
+        return 3
+      fi
+    fi
+  fi
+
   # Create swapfile if it doesn't exist
   if [[ ! -f "$SWAP_FILE_PATH" ]]; then
     swap_size=$(calculate_swap_size)
@@ -369,10 +587,22 @@ create_btrfs_swap() {
       return 1
     fi
 
+    inode=$(stat -c %i -- "$SWAP_FILE_PATH") || return 1
+    if ! (umask 077; mkdir -p -- "${HIBERNATION_SWAP_OWNER%/*}" && printf '%s\n' "$uuid $SWAP_FILE_PATH $inode" > "$HIBERNATION_SWAP_OWNER"); then
+      LAST_ERROR="Failed to record managed swapfile ownership for retries"
+      return 1
+    fi
+
     log INFO "Created btrfs swapfile ($swap_size)"
   fi
 
   _validate_hibernation_swap_mount "$uuid" || return 1
+
+  local offset
+  if ! offset=$(sudo btrfs inspect-internal map-swapfile -r "$SWAP_FILE_PATH" 2>/dev/null) || [[ ! "$offset" =~ ^[0-9]+$ ]]; then
+    LAST_ERROR="Invalid Btrfs swapfile; map-swapfile validation failed for $SWAP_FILE_PATH"
+    return 1
+  fi
 
   # Activate swapfile if not already active
   local active_swap
@@ -404,94 +634,56 @@ create_btrfs_swap() {
   return 0
 }
 
-get_swap_path() {
-  swapon --show=NAME --noheadings 2>/dev/null | awk '$1 !~ /\/dev\/zram/ {print; exit}'
-}
-
-# Sets up hibernation support.
-#
-# Creates swap if needed, configures kernel parameters for resume,
-# updates bootloader configuration, and configures initramfs.
-#
-# Globals:
-#   LAST_ERROR - Set on failure
-# Returns:
-#   0 on success (hibernation fully configured)
-#   2 on graceful skip (swap creation failed)
-#   1 on error (roll back this invocation's fstab edits)
+# Return 2 for retryable prerequisites, 3 for permanently unsupported/manual
+# configurations, and 1 for failure. No boot configuration is published until
+# the actual managed swapfile and all resume metadata have been verified.
 setup_hibernation() {
-  local swap_path
-  local hibernation_params
-  local resume_uuid
-  local resume_offset
-
-  LAST_ERROR=""
-
-  if ! swap_path="$(get_swap_path)"; then
-    LAST_ERROR="Failed to detect swap path"
+  local resume_uuid luks_uuid cmdline resume_offset expected_uuid expected_luks status=0 token
+  local -a hibernation_params tokens
+  LAST_ERROR="Cannot inspect existing swap configuration; no swap or resume settings were changed"
+  check_hibernation_swap_policy || return "$?"
+  inspect_hibernation_device / || {
+    log INFO "$LAST_ERROR"
+    return 3
+  }
+  expected_uuid="$resume_uuid"
+  expected_luks="$luks_uuid"
+  if ! cmdline=$(get_hibernation_cmdline); then
+    LAST_ERROR="Cannot verify persistent kernel arguments; review Limine defaults before retrying"
+    return 2
+  fi
+  read -r -a tokens <<<"$cmdline"
+  for token in "${tokens[@]}"; do
+    case "$token" in
+    resume=* | resume_offset=* | noresume | hibernate=no)
+      log INFO "Existing external resume policy; configure hibernation manually (left untouched)"
+      return 3 ;;
+    esac
+  done
+  if [[ -n "$luks_uuid" ]] && ! verify_hibernation_unlock "$cmdline"; then
+    LAST_ERROR="Verify systemd/sd-encrypt hooks and early root unlocking via rd.luks.uuid/rd.luks.name or initramfs crypttab before retrying; encryption configuration was not changed"
+    log WARN "$LAST_ERROR"
+    return 2
+  fi
+  create_btrfs_swap || status="$?"
+  if [[ "$status" != 0 ]]; then
+    [[ "$status" = 3 ]] && return 3
+    log WARN "Failed to prepare Btrfs swapfile: $LAST_ERROR"
+    return 2
+  fi
+  inspect_hibernation_device "$SWAP_FILE_PATH" || return 1
+  if [[ "$resume_uuid" != "$expected_uuid" || "$luks_uuid" != "$expected_luks" ]]; then
+    LAST_ERROR="Swapfile device changed during setup; refusing to publish resume parameters"
     return 1
   fi
-
-  if [[ -z "$swap_path" ]] || [[ "$swap_path" = "$SWAP_FILE_PATH" ]]; then
-    if [[ -z "$swap_path" ]]; then
-      log INFO "No swap found, creating btrfs swapfile"
-    fi
-
-    if ! create_btrfs_swap; then
-      log WARN "Failed to create btrfs swap: $LAST_ERROR"
-      log WARN "Skipping hibernation setup due to swap creation failure"
-      return 2
-    fi
-
-    if ! swap_path="$(get_swap_path)"; then
-      LAST_ERROR="Failed to detect swap path after creation"
-      return 1
-    fi
-
-    if [[ -z "$swap_path" ]]; then
-      log WARN "Swap still not detected after creation"
-      return 2
-    fi
-  fi
-
-  hibernation_params=("hibernate.compressor=lz4")
-
-  if [[ -n "$swap_path" ]]; then
-    if [[ -b "$swap_path" ]]; then
-      if ! resume_uuid=$(lsblk -fno UUID "$swap_path" 2>/dev/null); then
-        LAST_ERROR="Failed to get UUID for swap device: $swap_path"
-        return 1
-      fi
-
-      hibernation_params+=("resume=UUID=$resume_uuid")
-
-    elif [[ -f "$swap_path" ]]; then
-      if ! resume_uuid=$(findmnt -n -o UUID --target "$swap_path" 2>/dev/null) || [[ -z "$resume_uuid" ]]; then
-        LAST_ERROR="Failed to get filesystem UUID for swapfile: $swap_path"
-        return 1
-      fi
-
-      if ! resume_offset=$(sudo btrfs inspect-internal map-swapfile -r "$swap_path" 2>/dev/null); then
-        LAST_ERROR="Failed to get offset for swapfile: $swap_path"
-        return 1
-      fi
-
-      hibernation_params+=("resume=UUID=$resume_uuid" "resume_offset=$resume_offset")
-
-    else
-      log WARN "Swap path $swap_path is neither block device nor file"
-    fi
-  fi
-
-  ensure_limine_cmdline_defaults || return 1
-
-  if ! update_limine_cmdline "50-hibernation.conf" --append "${hibernation_params[@]}"; then
-    local error_msg="$LAST_ERROR"
-    LAST_ERROR="Failed to write Limine hibernation config: $error_msg"
+  if ! resume_offset=$(sudo btrfs inspect-internal map-swapfile -r "$SWAP_FILE_PATH" 2>/dev/null) || [[ ! "$resume_offset" =~ ^[0-9]+$ ]]; then
+    LAST_ERROR="Failed to get a valid Btrfs swapfile resume offset"
     return 1
   fi
-  log INFO "Updated Limine kernel parameters"
+  hibernation_params=("hibernate.compressor=lz4" "resume=UUID=$resume_uuid" "resume_offset=$resume_offset")
 
+  # Publish the hook prerequisite first; a failed hook write must not leave new
+  # resume arguments pointing at an initramfs that cannot handle them.
   # shellcheck disable=SC2016
   local mkinitcpio_content='if [[ -n "${HOOKS:-}" && "${HOOKS@a}" != *a* ]]; then
   read -r -a HOOKS <<< "$HOOKS"
@@ -499,14 +691,11 @@ fi
 if [[ " ${HOOKS[*]:-} " != *" systemd "* && " ${HOOKS[*]:-} " != *" resume "* ]]; then
   HOOKS+=(resume)
 fi'
-
-  if ! write_mkinitcpio_dropin 'hibernation.conf' "$mkinitcpio_content"; then
-    local error_msg="$LAST_ERROR"
-    LAST_ERROR="Failed to write mkinitcpio hibernation drop-in: $error_msg"
+  write_mkinitcpio_dropin 'hibernation.conf' "$mkinitcpio_content" || return 1
+  ensure_limine_cmdline_defaults || return 1
+  if ! update_limine_cmdline "50-hibernation.conf" --append "${hibernation_params[@]}"; then
+    LAST_ERROR="Failed to write Limine hibernation config: $LAST_ERROR"
     return 1
   fi
-
-  log INFO "Configured mkinitcpio hibernation drop-in"
-
-  return 0
+  log INFO "Configured managed Btrfs swapfile resume"
 }
