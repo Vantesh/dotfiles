@@ -89,18 +89,6 @@ main() {
     print_box "Laptop"
     log STEP "Laptop Optimizations"
 
-    if command_exists powertop; then
-      if ! keep_sudo_alive; then
-        die "Failed to keep sudo alive"
-      fi
-
-      if sudo powertop --auto-tune >/dev/null 2>&1; then
-        log INFO "Applied powertop auto-tune"
-      else
-        log WARN "Failed to apply powertop auto-tune"
-      fi
-    fi
-
     configure_auto_cpufreq
   fi
 }

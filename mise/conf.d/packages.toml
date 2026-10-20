@@ -153,7 +153,6 @@
 
 # Laptop utilities
 "pacman:upower" = { env = "laptop" }
-"pacman:powertop" = { env = "laptop" }
 
 # Existing Limine/mkinitcpio installations
 "pacman:limine-mkinitcpio-hook" = { env = "limine-mkinitcpio" }
