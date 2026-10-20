@@ -12,6 +12,8 @@
     true-color = always
     navigate = true
     side-by-side = true
+    line-numbers-left-format = ""
+    line-numbers-right-format = "│ "
     line-numbers = true
 
 [diff]
