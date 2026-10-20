@@ -1,6 +1,8 @@
 """Before hooks must stop when essential package installation fails."""
 
-from helpers import SCRIPTS, ScriptCase
+import tomllib
+
+from helpers import ROOT, SCRIPTS, ScriptCase
 
 
 class DependencyTests(ScriptCase):
@@ -118,4 +120,50 @@ esac""",
                 result = self.shell(self.source)
                 self.assertEqual(result.returncode, 1, result.stderr)
                 self.assertIn(package, result.stderr)
+                self.assertEqual(self.logged_calls(), [])
+
+    def test_fixed_modules_cover_every_installed_kernel_before_skipping_selection(self):
+        kernels = (
+            "linux 6.18-1\nlinux-headers 6.18-1\n"
+            "linux-lts 6.12-1\nlinux-lts-headers 6.12-1\n"
+            "nvidia-utils 615.78.08-1\n"
+        )
+        declarations = tomllib.loads(
+            (ROOT / "mise/conf.d/packages.toml").read_text()
+        )["bootstrap"]["packages"]
+        for modules, expected_group, expected_package in (
+            ("nvidia-open-lts 615.78.08-1", "nvidia-open-linux", "pacman:nvidia-open"),
+            ("nvidia-open 615.78.08-1", "nvidia-open-lts", "pacman:nvidia-open-lts"),
+            ("nvidia-open 615.78.08-1\nnvidia-open-lts 615.78.08-1", None, None),
+            ("nvidia-open-dkms 615.78.08-1", None, None),
+        ):
+            with self.subTest(modules=modules):
+                self.env.update(GPU="GA106", PACKAGES=kernels + modules)
+                self.calls.unlink(missing_ok=True)
+                result = self.shell(self.source)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                groups = self.logged_calls()[-1][2].split(",")
+                self.assertIn("nvidia-current", groups)
+                self.assertEqual(
+                    {group for group in groups if group.startswith("nvidia-open")},
+                    {expected_group} if expected_group else set(),
+                )
+                if expected_package:
+                    self.assertEqual(declarations[expected_package]["env"], expected_group)
+
+    def test_uncovered_kernels_do_not_replace_installed_fixed_modules_with_dkms(self):
+        for kernel in ("linux-zen", "linux-hardened"):
+            with self.subTest(kernel=kernel):
+                self.env.update(
+                    GPU="GA106",
+                    PACKAGES=(
+                        "linux 6.18-1\nlinux-headers 6.18-1\n"
+                        f"{kernel} 6.18-1\n{kernel}-headers 6.18-1\n"
+                        "nvidia-utils 615.78.08-1\nnvidia-open 615.78.08-1"
+                    ),
+                )
+                self.calls.unlink(missing_ok=True)
+                result = self.shell(self.source)
+                self.assertEqual(result.returncode, 1, result.stderr)
+                self.assertIn(kernel, result.stderr)
                 self.assertEqual(self.logged_calls(), [])

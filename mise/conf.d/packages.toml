@@ -147,6 +147,8 @@
 "pacman:nvidia-settings" = { env = "nvidia-current" }
 "pacman:opencl-nvidia" = { env = "nvidia-current" }
 "pacman:nvidia-open-dkms" = { env = "nvidia-open" }
+"pacman:nvidia-open" = { env = "nvidia-open-linux" }
+"pacman:nvidia-open-lts" = { env = "nvidia-open-lts" }
 
 # Goodix 27c6:5395 fingerprint reader
 "aur:libfprint-goodix53x5-533c-git" = { env = "fingerprint-goodix" }

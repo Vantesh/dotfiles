@@ -57,12 +57,14 @@ if [[ "${INSTALL_DRIVERS:-1}" == "1" ]]; then
   # Use installed package versions, not the release still running before reboot.
   # Pacman enforces exact split-package targets; mise cannot install version pins.
   header_targets=()
+  installed_kernels=()
   installed_packages=$(pacman -Q) || die "Failed to query installed packages"
   while read -r kernel kernel_version; do
     case "$kernel" in
-      linux|linux-zen|linux-lts|linux-cachyos) header="$kernel-headers" ;;
+      linux|linux-zen|linux-lts|linux-hardened|linux-cachyos) header="$kernel-headers" ;;
       *) continue ;;
     esac
+    installed_kernels+=("$kernel")
 
     header_version=$(awk -v name="$header" '$1 == name { print $2 }' <<< "$installed_packages")
     if [[ -z "$header_version" ]]; then
@@ -110,15 +112,20 @@ if [[ "${INSTALL_DRIVERS:-1}" == "1" ]]; then
     nvidia_branch=""
   fi
 
-  nvidia_module_installed=false
+  nvidia_dkms_installed=false
+  declare -A nvidia_kernel_modules=()
   if [[ -n "$nvidia_branch" ]]; then
     # Complete matching stacks, but never switch installed driver families.
     nvidia_installed=$(awk '$1 ~ /^(lib32-)?(nvidia(-[0-9]+xx)?(-utils|-settings|-dkms|-lts)?|nvidia-open(-dkms|-lts)?|opencl-nvidia(-[0-9]+xx)?)$/ {print $1}' <<< "$installed_packages")
     while IFS= read -r package; do
       [[ -n "$package" ]] || continue
       case "$nvidia_branch:${package#lib32-}" in
-        legacy:nvidia-580xx|legacy:nvidia-580xx-dkms|legacy:nvidia-580xx-lts|current:nvidia-open|current:nvidia-open-dkms|current:nvidia-open-lts)
-          nvidia_module_installed=true ;;
+        legacy:nvidia-580xx-dkms|current:nvidia-open-dkms)
+          nvidia_dkms_installed=true ;;
+        legacy:nvidia-580xx|current:nvidia-open)
+          nvidia_kernel_modules[linux]=true ;;
+        legacy:nvidia-580xx-lts|current:nvidia-open-lts)
+          nvidia_kernel_modules[linux-lts]=true ;;
         legacy:nvidia-580xx-utils|legacy:nvidia-580xx-settings|legacy:opencl-nvidia-580xx|current:nvidia-utils|current:nvidia-settings|current:opencl-nvidia)
           ;;
         *)
@@ -140,12 +147,23 @@ if [[ "${INSTALL_DRIVERS:-1}" == "1" ]]; then
         pacman -Dk >/dev/null || die "Broken package dependencies; complete supported system maintenance before rerunning setup."
         ;;
       *)
-        # Preserve a matching fixed-kernel or DKMS module already installed.
-        if [[ "$nvidia_module_installed" == false ]]; then
-          if [[ "$nvidia_branch" == legacy ]]; then
-            package_envs+=",nvidia-legacy-dkms"
+        # DKMS covers all kernels; fixed modules cover only their target kernel.
+        if [[ "$nvidia_dkms_installed" == false ]]; then
+          if [[ ${#nvidia_kernel_modules[@]} -eq 0 ]]; then
+            if [[ "$nvidia_branch" == legacy ]]; then
+              package_envs+=",nvidia-legacy-dkms"
+            else
+              package_envs+=",nvidia-open"
+            fi
           else
-            package_envs+=",nvidia-open"
+            for kernel in "${installed_kernels[@]}"; do
+              [[ "${nvidia_kernel_modules[$kernel]:-false}" == true ]] && continue
+              case "$nvidia_branch:$kernel" in
+                current:linux) package_envs+=",nvidia-open-linux" ;;
+                current:linux-lts) package_envs+=",nvidia-open-lts" ;;
+                *) die "Installed NVIDIA modules do not cover $kernel. Configure matching DKMS modules manually before rerunning; setup will not replace installed fixed modules." ;;
+              esac
+            done
           fi
         fi
         ;;
