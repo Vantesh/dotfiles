@@ -29,6 +29,7 @@
 "pacman:mpv" = { env = "packages" }
 "pacman:evince" = { env = "packages" }
 "pacman:nautilus" = { env = "packages" }
+"aur:nautilus-my-computer" = { env = "packages" }
 "pacman:gvfs-mtp" = { env = "packages" }
 "pacman:libcanberra" = { env = "packages" }
 "pacman:ly" = { env = "packages" }
