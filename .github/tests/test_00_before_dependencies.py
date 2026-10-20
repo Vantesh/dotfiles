@@ -57,7 +57,10 @@ is_laptop() { return 1; }
 
 if [[ "$(id -u)" -eq 0 ]]; then""",
         )
-        self.env.update(INSTALL_DRIVERS="1", SETUP_SNAPPER="0", DISTRO="arch")
+        self.env.update(
+            INSTALL_DRIVERS="1", SETUP_SNAPPER="0", DISTRO="arch",
+            MODULE_FAILURE="", FAILURE_RELEASE="6.12-fixture",
+        )
         self.stub("id", "echo 1000")
         self.stub("figlet", "exit 0")
         self.stub(
@@ -68,7 +71,30 @@ if [[ "$(id -u)" -eq 0 ]]; then""",
             "pacman",
             """case "$*" in
     -Q) printf '%s\\n' "$PACKAGES" ;;
-
+    '-Q nvidia-utils'|'-Q nvidia-580xx-utils')
+        printf '%s\\n' "$PACKAGES" | awk -v name="$2" '$1 == name { print; found=1 } END { exit !found }' ;;
+    '-Qql linux') echo /usr/lib/modules/6.18-fixture/pkgbase ;;
+    '-Qql linux-lts') echo /usr/lib/modules/6.12-fixture/pkgbase ;;
+    *) exit 97 ;;
+esac""",
+        )
+        self.stub(
+            "modinfo",
+            """[ "$#" = 5 ] && [ "$1" = -k ] && [ "$3" = -F ] && [ "$5" = nvidia ] || exit 97
+if [ "$2" = "$FAILURE_RELEASE" ] && [ "$MODULE_FAILURE" = missing ]; then exit 1; fi
+case "$4" in
+    vermagic)
+        if [ "$2" = "$FAILURE_RELEASE" ] && [ "$MODULE_FAILURE" = wrong-abi ]; then
+            echo 'wrong-release SMP'
+        else
+            printf '%s SMP\\n' "$2"
+        fi ;;
+    version)
+        if [ "$2" = "$FAILURE_RELEASE" ] && [ "$MODULE_FAILURE" = stale ]; then
+            echo 580.119.02
+        else
+            echo 615.78.08
+        fi ;;
     *) exit 97 ;;
 esac""",
         )
@@ -167,3 +193,28 @@ esac""",
                 self.assertEqual(result.returncode, 1, result.stderr)
                 self.assertIn(kernel, result.stderr)
                 self.assertEqual(self.logged_calls(), [])
+
+    def test_dkms_package_presence_does_not_hide_missing_or_mismatched_kernel_modules(self):
+        kernels = (
+            "linux 6.18-1\nlinux-headers 6.18-1\n"
+            "linux-lts 6.12-1\nlinux-lts-headers 6.12-1\n"
+            "nvidia-utils 615.78.08-1\n"
+        )
+        for failure, release, dkms_package in (
+            ("missing", "6.12-fixture", "nvidia-open-dkms 615.78.08-1"),
+            ("missing", "6.18-fixture", "nvidia-open-dkms 615.78.08-1"),
+            ("wrong-abi", "6.12-fixture", "nvidia-open-dkms 615.78.08-1"),
+            ("stale", "6.12-fixture", "nvidia-open-dkms 615.78.08-1"),
+            ("missing", "6.12-fixture", ""),
+            ("", "6.12-fixture", "nvidia-open-dkms 615.78.08-1"),
+        ):
+            with self.subTest(failure=failure, release=release, installed=bool(dkms_package)):
+                self.env.update(
+                    GPU="GA106", PACKAGES=kernels + dkms_package,
+                    MODULE_FAILURE=failure, FAILURE_RELEASE=release,
+                )
+                self.calls.unlink(missing_ok=True)
+                result = self.shell(self.source)
+                self.assertEqual(result.returncode, 1 if failure else 0, result.stderr)
+                if failure:
+                    self.assertIn(release, result.stderr)

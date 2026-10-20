@@ -147,7 +147,7 @@ if [[ "${INSTALL_DRIVERS:-1}" == "1" ]]; then
         pacman -Dk >/dev/null || die "Broken package dependencies; complete supported system maintenance before rerunning setup."
         ;;
       *)
-        # DKMS covers all kernels; fixed modules cover only their target kernel.
+        # Keep installed providers; verify actual modules after package installation.
         if [[ "$nvidia_dkms_installed" == false ]]; then
           if [[ ${#nvidia_kernel_modules[@]} -eq 0 ]]; then
             if [[ "$nvidia_branch" == legacy ]]; then
@@ -243,4 +243,30 @@ if ! (
   mise --env "$package_envs" bootstrap packages apply --yes
 ); then
   die "Failed to install selected packages with mise"
+fi
+
+if [[ -n "$nvidia_branch" ]] && [[ ${#installed_kernels[@]} -gt 0 ]]; then
+  command_exists modinfo || die "modinfo not found; cannot verify installed NVIDIA modules"
+  nvidia_utils=nvidia-utils
+  if [[ "$nvidia_branch" == legacy ]]; then
+    nvidia_utils=nvidia-580xx-utils
+  fi
+  installed_driver=$(pacman -Q "$nvidia_utils") || die "Failed to inspect installed $nvidia_utils"
+  driver_version="${installed_driver#* }"
+  driver_version="${driver_version#*:}"
+  driver_version="${driver_version%-*}"
+
+  for kernel in "${installed_kernels[@]}"; do
+    kernel_release=$(pacman -Qql "$kernel" | awk -F/ '/^\/usr\/lib\/modules\/[^/]+\/pkgbase$/ {print $5}') ||
+      die "Failed to inspect the installed release of $kernel"
+    [[ -n "$kernel_release" && "$kernel_release" != *[[:space:]]* ]] ||
+      die "Cannot determine a single installed kernel release for $kernel"
+
+    if ! module_vermagic=$(modinfo -k "$kernel_release" -F vermagic nvidia 2>/dev/null) ||
+      [[ "${module_vermagic%% *}" != "$kernel_release" ]] ||
+      ! module_version=$(modinfo -k "$kernel_release" -F version nvidia 2>/dev/null) ||
+      [[ "$module_version" != "$driver_version" ]]; then
+      die "Missing or mismatched NVIDIA module for $kernel ($kernel_release), expected driver $driver_version. Repair its module installation/build before rebooting, then rerun setup."
+    fi
+  done
 fi
