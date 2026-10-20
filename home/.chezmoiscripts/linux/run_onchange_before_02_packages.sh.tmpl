@@ -110,15 +110,22 @@ if [[ "${INSTALL_DRIVERS:-1}" == "1" ]]; then
     nvidia_branch=""
   fi
 
+  nvidia_module_installed=false
   if [[ -n "$nvidia_branch" ]]; then
-    # Helpers alone are not a driver. Include partial/multilib userspace and
-    # alternate providers; every existing stack is user-owned, even if broken.
-    nvidia_installed=$(awk '$1 ~ /^(lib32-)?(nvidia(-[0-9]+xx)?-utils|opencl-nvidia(-[0-9]+xx)?)$/ {print $1}' <<< "$installed_packages")
-    nvidia_missing=$(pacman -T NVIDIA-MODULE nvidia-utils opencl-nvidia) || [[ $? -eq 127 ]] || die "Failed to inspect installed NVIDIA providers"
-    if [[ -n "$nvidia_installed" || "$nvidia_missing" != $'NVIDIA-MODULE\nnvidia-utils\nopencl-nvidia' ]]; then
-      log WARN "Existing NVIDIA driver packages or provider detected (possibly partial, unfamiliar or incompatible); preserving without reinstalling or switching families"
-      nvidia_branch=""
-    fi
+    # Complete matching stacks, but never switch installed driver families.
+    nvidia_installed=$(awk '$1 ~ /^(lib32-)?(nvidia(-[0-9]+xx)?(-utils|-settings|-dkms|-lts)?|nvidia-open(-dkms|-lts)?|opencl-nvidia(-[0-9]+xx)?)$/ {print $1}' <<< "$installed_packages")
+    while IFS= read -r package; do
+      [[ -n "$package" ]] || continue
+      case "$nvidia_branch:${package#lib32-}" in
+        legacy:nvidia-580xx|legacy:nvidia-580xx-dkms|legacy:nvidia-580xx-lts|current:nvidia-open|current:nvidia-open-dkms|current:nvidia-open-lts)
+          nvidia_module_installed=true ;;
+        legacy:nvidia-580xx-utils|legacy:nvidia-580xx-settings|legacy:opencl-nvidia-580xx|current:nvidia-utils|current:nvidia-settings|current:opencl-nvidia)
+          ;;
+        *)
+          die "Installed NVIDIA package '$package' conflicts with the detected $nvidia_branch GPU driver family. Resolve the driver stack manually before rerunning; setup will not replace installed drivers."
+          ;;
+      esac
+    done <<< "$nvidia_installed"
   fi
 
   if [[ "$nvidia_branch" == legacy ]]; then
@@ -133,10 +140,13 @@ if [[ "${INSTALL_DRIVERS:-1}" == "1" ]]; then
         pacman -Dk >/dev/null || die "Broken package dependencies; complete supported system maintenance before rerunning setup."
         ;;
       *)
-        if [[ "$nvidia_branch" == legacy ]]; then
-          package_envs+=",nvidia-legacy-dkms"
-        else
-          package_envs+=",nvidia-open"
+        # Preserve a matching fixed-kernel or DKMS module already installed.
+        if [[ "$nvidia_module_installed" == false ]]; then
+          if [[ "$nvidia_branch" == legacy ]]; then
+            package_envs+=",nvidia-legacy-dkms"
+          else
+            package_envs+=",nvidia-open"
+          fi
         fi
         ;;
     esac
