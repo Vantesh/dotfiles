@@ -82,6 +82,7 @@
 "pacman:shellcheck" = { env = "packages" }
 "pacman:television" = { env = "packages" }
 "pacman:lazygit" = { env = "packages" }
+"pacman:worktrunk" = { env = "packages" }
 
 
 # Personal shell history sync
