@@ -57,12 +57,14 @@ if [[ "${INSTALL_DRIVERS:-1}" == "1" ]]; then
   # Use installed package versions, not the release still running before reboot.
   # Pacman enforces exact split-package targets; mise cannot install version pins.
   header_targets=()
+  installed_kernels=()
   installed_packages=$(pacman -Q) || die "Failed to query installed packages"
   while read -r kernel kernel_version; do
     case "$kernel" in
-      linux|linux-zen|linux-lts|linux-cachyos) header="$kernel-headers" ;;
+      linux|linux-zen|linux-lts|linux-hardened|linux-cachyos) header="$kernel-headers" ;;
       *) continue ;;
     esac
+    installed_kernels+=("$kernel")
 
     header_version=$(awk -v name="$header" '$1 == name { print $2 }' <<< "$installed_packages")
     if [[ -z "$header_version" ]]; then
@@ -110,15 +112,27 @@ if [[ "${INSTALL_DRIVERS:-1}" == "1" ]]; then
     nvidia_branch=""
   fi
 
+  nvidia_dkms_installed=false
+  declare -A nvidia_kernel_modules=()
   if [[ -n "$nvidia_branch" ]]; then
-    # Helpers alone are not a driver. Include partial/multilib userspace and
-    # alternate providers; every existing stack is user-owned, even if broken.
-    nvidia_installed=$(awk '$1 ~ /^(lib32-)?(nvidia(-[0-9]+xx)?-utils|opencl-nvidia(-[0-9]+xx)?)$/ {print $1}' <<< "$installed_packages")
-    nvidia_missing=$(pacman -T NVIDIA-MODULE nvidia-utils opencl-nvidia) || [[ $? -eq 127 ]] || die "Failed to inspect installed NVIDIA providers"
-    if [[ -n "$nvidia_installed" || "$nvidia_missing" != $'NVIDIA-MODULE\nnvidia-utils\nopencl-nvidia' ]]; then
-      log WARN "Existing NVIDIA driver packages or provider detected (possibly partial, unfamiliar or incompatible); preserving without reinstalling or switching families"
-      nvidia_branch=""
-    fi
+    # Complete matching stacks, but never switch installed driver families.
+    nvidia_installed=$(awk '$1 ~ /^(lib32-)?(nvidia(-[0-9]+xx)?(-utils|-settings|-dkms|-lts)?|nvidia-open(-dkms|-lts)?|opencl-nvidia(-[0-9]+xx)?)$/ {print $1}' <<< "$installed_packages")
+    while IFS= read -r package; do
+      [[ -n "$package" ]] || continue
+      case "$nvidia_branch:${package#lib32-}" in
+        legacy:nvidia-580xx-dkms|current:nvidia-open-dkms)
+          nvidia_dkms_installed=true ;;
+        legacy:nvidia-580xx|current:nvidia-open)
+          nvidia_kernel_modules[linux]=true ;;
+        legacy:nvidia-580xx-lts|current:nvidia-open-lts)
+          nvidia_kernel_modules[linux-lts]=true ;;
+        legacy:nvidia-580xx-utils|legacy:nvidia-580xx-settings|legacy:opencl-nvidia-580xx|current:nvidia-utils|current:nvidia-settings|current:opencl-nvidia)
+          ;;
+        *)
+          die "Installed NVIDIA package '$package' conflicts with the detected $nvidia_branch GPU driver family. Resolve the driver stack manually before rerunning; setup will not replace installed drivers."
+          ;;
+      esac
+    done <<< "$nvidia_installed"
   fi
 
   if [[ "$nvidia_branch" == legacy ]]; then
@@ -133,10 +147,24 @@ if [[ "${INSTALL_DRIVERS:-1}" == "1" ]]; then
         pacman -Dk >/dev/null || die "Broken package dependencies; complete supported system maintenance before rerunning setup."
         ;;
       *)
-        if [[ "$nvidia_branch" == legacy ]]; then
-          package_envs+=",nvidia-legacy-dkms"
-        else
-          package_envs+=",nvidia-open"
+        # Keep installed providers; verify actual modules after package installation.
+        if [[ "$nvidia_dkms_installed" == false ]]; then
+          if [[ ${#nvidia_kernel_modules[@]} -eq 0 ]]; then
+            if [[ "$nvidia_branch" == legacy ]]; then
+              package_envs+=",nvidia-legacy-dkms"
+            else
+              package_envs+=",nvidia-open"
+            fi
+          else
+            for kernel in "${installed_kernels[@]}"; do
+              [[ "${nvidia_kernel_modules[$kernel]:-false}" == true ]] && continue
+              case "$nvidia_branch:$kernel" in
+                current:linux) package_envs+=",nvidia-open-linux" ;;
+                current:linux-lts) package_envs+=",nvidia-open-lts" ;;
+                *) die "Installed NVIDIA modules do not cover $kernel. Configure matching DKMS modules manually before rerunning; setup will not replace installed fixed modules." ;;
+              esac
+            done
+          fi
         fi
         ;;
     esac
@@ -215,4 +243,30 @@ if ! (
   mise --env "$package_envs" bootstrap packages apply --yes
 ); then
   die "Failed to install selected packages with mise"
+fi
+
+if [[ -n "$nvidia_branch" ]] && [[ ${#installed_kernels[@]} -gt 0 ]]; then
+  command_exists modinfo || die "modinfo not found; cannot verify installed NVIDIA modules"
+  nvidia_utils=nvidia-utils
+  if [[ "$nvidia_branch" == legacy ]]; then
+    nvidia_utils=nvidia-580xx-utils
+  fi
+  installed_driver=$(pacman -Q "$nvidia_utils") || die "Failed to inspect installed $nvidia_utils"
+  driver_version="${installed_driver#* }"
+  driver_version="${driver_version#*:}"
+  driver_version="${driver_version%-*}"
+
+  for kernel in "${installed_kernels[@]}"; do
+    kernel_release=$(pacman -Qql "$kernel" | awk -F/ '/^\/usr\/lib\/modules\/[^/]+\/pkgbase$/ {print $5}') ||
+      die "Failed to inspect the installed release of $kernel"
+    [[ -n "$kernel_release" && "$kernel_release" != *[[:space:]]* ]] ||
+      die "Cannot determine a single installed kernel release for $kernel"
+
+    if ! module_vermagic=$(modinfo -k "$kernel_release" -F vermagic nvidia 2>/dev/null) ||
+      [[ "${module_vermagic%% *}" != "$kernel_release" ]] ||
+      ! module_version=$(modinfo -k "$kernel_release" -F version nvidia 2>/dev/null) ||
+      [[ "$module_version" != "$driver_version" ]]; then
+      die "Missing or mismatched NVIDIA module for $kernel ($kernel_release), expected driver $driver_version. Repair its module installation/build before rebooting, then rerun setup."
+    fi
+  done
 fi
