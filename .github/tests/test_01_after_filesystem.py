@@ -80,9 +80,10 @@ create_btrfs_swap
         self.env.update(SWAP=str(swap), ENCRYPTED="1" if encrypted else "0",
                         FAILURE=failure)
         self.stub("findmnt", r'''case "$*" in
-    '-rn -o SOURCE,FSTYPE,UUID --target '*)
+    '-rn -o TARGET,SOURCE,FSTYPE,UUID --target '*)
         [ "$FAILURE" != identity ] || exit 23
-        echo '/dev/fixture[/@swap] btrfs aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa' ;;
+        if [ "$5" = / ]; then mount=/; else mount="$SWAP"; fi
+        printf '%s /dev/fixture[/@swap] btrfs aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa\n' "$mount" ;;
     *) exit 97 ;;
 esac''')
         self.stub("readlink", r'''case "$*" in
@@ -105,6 +106,8 @@ esac''')
 esac''')
         self.stub("sudo", r'''case "$*" in
     'btrfs filesystem show --raw '*)
+        # This command selects mounted filesystems by directory, not swapfile.
+        case "$5" in /|"$SWAP") ;; *) exit 23 ;; esac
         echo 'Total devices 1 FS bytes used 0'
         echo 'devid 1 size 100 used 0 path /dev/fixture' ;;
     'blkid -p '*) exec "$@" ;;

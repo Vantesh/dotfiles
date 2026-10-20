@@ -129,18 +129,18 @@ BASH
 # root (before mutations), then for the actual swapfile (before publication).
 # Sets caller-local resume_uuid and luks_uuid through Bash dynamic scope.
 inspect_hibernation_device() {
-  local target="$1" identity source filesystem uuid extra device metadata devices path types parent status kind backing resolved
+  local target="$1" identity mount_point source filesystem uuid extra device metadata devices path types parent status kind backing resolved
   LAST_ERROR="Cannot safely identify a single plain or LUKS-backed Btrfs device for $target; configure hibernation manually"
-  identity=$(findmnt -rn -o SOURCE,FSTYPE,UUID --target "$target" 2>/dev/null) || return 3
-  read -r source filesystem uuid extra <<<"$identity"
-  [[ "$filesystem" = btrfs && "$uuid" =~ ^[[:xdigit:]]{8}(-[[:xdigit:]]{4}){3}-[[:xdigit:]]{12}$ && -z "$extra" && "$identity" != *$'\n'* ]] || return 3
+  identity=$(findmnt -rn -o TARGET,SOURCE,FSTYPE,UUID --target "$target" 2>/dev/null) || return 3
+  read -r mount_point source filesystem uuid extra <<<"$identity"
+  [[ "$mount_point" = /* && "$filesystem" = btrfs && "$uuid" =~ ^[[:xdigit:]]{8}(-[[:xdigit:]]{4}){3}-[[:xdigit:]]{12}$ && -z "$extra" && "$identity" != *$'\n'* ]] || return 3
   source="${source%%\[*}"
   device=$(readlink -e -- "$source") || return 3
   metadata=$(lsblk -dnro FSTYPE,UUID "$device" 2>/dev/null) || return 3
   [[ "$metadata" = "btrfs $uuid" ]] || return 3
   resolved=$(readlink -e -- "/dev/disk/by-uuid/$uuid") || return 3
   [[ "$resolved" = "$device" ]] || return 3
-  devices=$(sudo btrfs filesystem show --raw "$target" 2>/dev/null) || return 3
+  devices=$(sudo btrfs filesystem show --raw "$mount_point" 2>/dev/null) || return 3
   [[ $(awk '/Total devices/ {print $3}' <<<"$devices") = 1 ]] || return 3
   path=$(awk '$1 == "devid" && $7 == "path" {print $8}' <<<"$devices")
   [[ -n "$path" && "$path" != *$'\n'* ]] || return 3
