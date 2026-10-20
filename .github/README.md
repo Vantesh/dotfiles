@@ -51,10 +51,11 @@ Normally, edit the managed source rather than the live `~/.config` copies. If I 
 ## Script tests
 
 Tests cover only chezmoi setup scripts and their shared helpers, not application
-dotfiles. Requires Python 3.10+ and Bash. Run manually with:
+dotfiles. Requires Python 3.11+, Bash, and chezmoi; static validation also needs
+ShellCheck. Run manually with:
 
 ```sh
-python3 -B -m unittest discover -s .github/tests -v
+python3 -B -m unittest discover -s .github/tests -v && python3 -B .github/tests/validate.py
 ```
 
 CI runs the tests only for pull requests targeting `main`.

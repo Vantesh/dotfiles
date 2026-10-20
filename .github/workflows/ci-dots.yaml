@@ -43,8 +43,8 @@ jobs:
             "XDG_DATA_HOME=$CI_HOME/.local/share" \
             "XDG_STATE_HOME=$CI_HOME/.local/state" >> "$GITHUB_ENV"
 
-      - name: Test scripts
-        run: python3 -B -m unittest discover -s .github/tests -v
+      - name: Test and lint setup scripts
+        run: python3 -B -m unittest discover -s .github/tests -v && python3 -B .github/tests/validate.py
 
       - name: Apply and verify dotfiles
         run: |
@@ -54,20 +54,3 @@ jobs:
           chezmoi --verbose --source "$GITHUB_WORKSPACE" --destination "$HOME" init --data=false --no-tty
           chezmoi --verbose --source "$GITHUB_WORKSPACE" --destination "$HOME" apply --exclude=scripts --no-tty
           chezmoi --verbose --source "$GITHUB_WORKSPACE" --destination "$HOME" verify --exclude=scripts --no-tty
-
-      - name: ShellCheck scripts and libraries
-        run: |
-          set -euo pipefail
-          shopt -s nullglob globstar
-          source_dir="$(chezmoi --verbose --source "$GITHUB_WORKSPACE" source-path)"
-          cd "$source_dir" || exit 1
-          files=(.chezmoiscripts/**/*.sh .chezmoiscripts/**/*.sh.tmpl .chezmoitemplates/lib/**/*.sh)
-          for file in "${files[@]}"; do
-            printf 'Checking: %s\n' "$file" >&2
-            if [[ "$file" = *.tmpl ]]; then
-              chezmoi --verbose --source "$GITHUB_WORKSPACE" execute-template < "$file" | \
-                shellcheck --severity=error -s bash -
-            else
-              shellcheck --severity=error -s bash "$file"
-            fi
-          done
