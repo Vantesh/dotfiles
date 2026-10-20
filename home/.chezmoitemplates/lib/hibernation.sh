@@ -113,8 +113,13 @@ get_hibernation_hooks() {
   sudo bash -s <<'BASH'
 set -euo pipefail
 shopt -s nullglob
-source /etc/mkinitcpio.conf
-for file in /etc/mkinitcpio.conf.d/*.conf; do source "$file"; done
+files=(/etc/mkinitcpio.conf.d/*.conf)
+if (( ${#files[@]} )); then
+  mapfile -d '' -t files < <(printf '%s\0' "${files[@]}" | LC_ALL=C.UTF-8 sort -zVu)
+fi
+# mkinitcpio concatenates the main config and version-sorted drop-ins.
+config=$(cat -- /etc/mkinitcpio.conf "${files[@]}")
+source /dev/stdin <<<"$config"
 if [[ "${HOOKS@a}" != *a* ]]; then read -r -a HOOKS <<< "$HOOKS"; fi
 printf '%s\n' "${HOOKS[*]}"
 BASH
@@ -184,6 +189,16 @@ verify_hibernation_unlock() {
     case "$token" in
     luks=0 | luks=no | luks=false | luks=off) return 1 ;;
     luks.crypttab=0 | luks.crypttab=no | luks.crypttab=false | luks.crypttab=off) disabled=true ;;
+    luks.options=*)
+      options="${token#*=}"
+      if [[ "$options" =~ ^[[:xdigit:]]{8}(-[[:xdigit:]]{4}){3}-[[:xdigit:]]{12}= ]]; then
+        [[ "$options" = "$luks_uuid="* ]] || continue
+        options="${options#*=}"
+      fi
+      case ",$options," in
+      *,noauto,* | *,swap,* | *,plain,*) return 1 ;;
+      esac
+      ;;
     luks.uuid=* | luks.name=*)
       restricted=true
       case "$token" in
@@ -192,21 +207,28 @@ verify_hibernation_unlock() {
       ;;
     esac
   done
-  [[ "$selected" = true ]] && return 0
-  [[ "$restricted" = false && "$disabled" = false ]] || return 1
+  if [[ "$selected" != true && ("$restricted" = true || "$disabled" = true) ]]; then
+    return 1
+  fi
   # Only recognize stable UUID entries included by sd-encrypt. Do not edit them
   # or read key material. Other unlock arrangements require manual verification.
-  sudo bash -s -- "$luks_uuid" <<'BASH'
+  sudo bash -s -- "$luks_uuid" "$selected" "$disabled" <<'BASH'
 set -euo pipefail
 file=/etc/crypttab
 if [[ -f /etc/crypttab.initramfs ]]; then file=/etc/crypttab.initramfs; fi
+if [[ "$3" = true || ! -e "$file" ]]; then
+  [[ "$2" = true ]]
+  exit
+fi
 [[ -r "$file" ]] || exit 1
-awk -v uuid="$1" '
+awk -v uuid="$1" -v selected="$2" '
   !/^[[:space:]]*(#|$)/ && ($2 == "UUID=" uuid || $2 == "/dev/disk/by-uuid/" uuid) &&
-  $3 != "/dev/urandom" && $3 != "/dev/random" &&
-  $4 !~ /(^|,)(noauto|swap|plain)(,|$)/ &&
-  (FILENAME ~ /crypttab.initramfs$/ || $4 ~ /(^|,)x-initrd.attach(,|$)/) { found++ }
-  END { exit (found != 1) }
+  (FILENAME ~ /crypttab.initramfs$/ || $4 ~ /(^|,)x-initrd.attach(,|$)/) {
+    found++
+    if ($3 == "/dev/urandom" || $3 == "/dev/random" ||
+        $4 ~ /(^|,)(noauto|swap|plain)(,|$)/) unsafe=1
+  }
+  END { exit (unsafe || found > 1 || (!found && selected != "true")) }
 ' "$file"
 BASH
 }
@@ -568,13 +590,10 @@ create_btrfs_swap() {
 
   if [[ -f "$SWAP_FILE_PATH" ]]; then
     inode=$(stat -c %i -- "$SWAP_FILE_PATH") || return 1
-    # Legacy installations have both matching fstab entries. The state record
-    # also permits retries after this invocation's fstab transaction rolled back.
+    # Paths and fstab conventions cannot prove ownership of a legacy file.
     if [[ ! -r "$HIBERNATION_SWAP_OWNER" || "$(cat -- "$HIBERNATION_SWAP_OWNER")" != "$uuid $SWAP_FILE_PATH $inode" ]]; then
-      if ! _check_hibernation_fstab_entry "$mount_entry" || ! _check_hibernation_fstab_entry "$swap_entry"; then
-        log INFO "Existing swapfile is not demonstrably managed by this setup; configure hibernation manually (left untouched)"
-        return 3
-      fi
+      log INFO "Existing swapfile has no matching ownership record; configure hibernation manually (left untouched)"
+      return 3
     fi
   fi
 

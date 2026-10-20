@@ -108,6 +108,7 @@ esac''')
         echo 'Total devices 1 FS bytes used 0'
         echo 'devid 1 size 100 used 0 path /dev/fixture' ;;
     'blkid -p '*) exec "$@" ;;
+    'bash -s -- '*) exec "$@" ;;
     'cryptsetup status /dev/fixture') printf '  type: LUKS2\n  device: /dev/container\n' ;;
     'btrfs inspect-internal map-swapfile -r '*)
         [ "$FAILURE" != offset ] || exit 23; echo 123 ;;
@@ -115,6 +116,7 @@ esac''')
 esac''')
         source = (LIB / "hibernation.sh").read_text().replace(
             '"/swap"', f'"{swap}"').replace('"/swap/swapfile"', f'"{swap}/swapfile"')
+        source = source.replace("/etc/crypttab", str(self.directory / "crypttab"))
         return self.libraries("common.sh") + source + r'''
 check_hibernation_swap_policy() { return 0; }
 get_hibernation_cmdline() {
@@ -221,18 +223,23 @@ esac''')
     'btrfs inspect-internal map-swapfile -r '*) echo 123 ;;
     *) echo "Unexpected mutation: $*" >&2; exit 97 ;;
 esac''', log=True)
-        for managed in (True, False):
-            with self.subTest(managed=managed):
+        owner = self.directory / "state/chezmoi/hibernation.swapfile"
+        owner.parent.mkdir(parents=True)
+        for ownership in ("matching", "missing", "stale"):
+            with self.subTest(ownership=ownership):
                 self.calls.unlink(missing_ok=True)
                 entries = f"UUID=root-uuid {swap} btrfs subvol=@swap\n"
-                if managed:
-                    entries += f"{swapfile} none swap defaults\n"
+                entries += f"{swapfile} none swap defaults\n"
                 fstab.write_text(entries)
+                owner.unlink(missing_ok=True)
+                if ownership != "missing":
+                    inode = swapfile.stat().st_ino if ownership == "matching" else 0
+                    owner.write_text(f"root-uuid {swapfile} {inode}\n")
                 result = self.shell(self.libraries("common.sh") + source + '''
 get_btrfs_root_device() { echo /dev/fixture; }
 create_btrfs_swap
 ''')
-                self.assertEqual(result.returncode, 0 if managed else 3, result.stderr)
+                self.assertEqual(result.returncode, 0 if ownership == "matching" else 3, result.stderr)
                 self.assertEqual(swapfile.read_text(), "existing swap contents")
                 self.assertEqual(fstab.read_text(), entries)
                 self.assertFalse(any("mkswapfile" in call for call in self.logged_calls()))
@@ -286,6 +293,22 @@ create_btrfs_swap
         (dropins / "50-hibernation.conf").write_text('KERNEL_CMDLINE[default]+= "root=UUID=user-owned"\n')
         self.assertNotEqual(self.shell(script).returncode, 0)
 
+    def test_hook_verification_matches_mkinitcpio_version_order(self):
+        etc = self.directory / "etc"
+        etc.mkdir()
+        (etc / "mkinitcpio.conf").write_text("HOOKS=(base systemd block filesystems)\n")
+        dropins = etc / "mkinitcpio.conf.d"
+        dropins.mkdir()
+        (dropins / "2-unlock.conf").write_text("HOOKS=(base systemd block sd-encrypt filesystems)\n")
+        (dropins / "10-local.conf").write_text("HOOKS=(base udev block encrypt filesystems)\n")
+        self.stub("sudo", 'exec "$@"')
+        self.stub("sort", 'exec /usr/bin/sort "$@"')
+        source = self.function(LIB / "hibernation.sh", "get_hibernation_hooks").replace(
+            "/etc/", f"{etc}/")
+        result = self.shell(source + "get_hibernation_hooks\n")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout.strip(), "base udev block encrypt filesystems")
+
     def test_persistent_unlock_uses_effective_crypttab_and_preserves_boot_intent(self):
         etc = self.directory / "etc"
         etc.mkdir()
@@ -301,6 +324,7 @@ create_btrfs_swap
             "/etc/", f"{etc}/").replace("/usr/share/", f"{self.directory}/share/")
         self.stub("sudo", 'exec "$@"')
         self.stub("python3", 'exec /usr/bin/python3 "$@"')
+        self.stub("sort", 'exec /usr/bin/sort "$@"')
         script = self.libraries("common.sh") + source + '''
 get_limine_config_value() { return 0; }
 luks_uuid=bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb
@@ -314,6 +338,21 @@ verify_hibernation_unlock "$cmdline"
         self.assertNotEqual(self.shell(script).returncode, 0)
         shadow.write_text(entry)
         self.assertEqual(self.shell(script).returncode, 0)
+        selected = ("root=UUID=aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa "
+                    "rd.luks.uuid=bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb")
+        for options, table_entry, status in (
+            ("rd.luks.options=bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb=noauto", entry, 1),
+            ("rd.luks.options=noauto", entry, 1),
+            ("", entry.replace("luks,", "luks,noauto,"), 1),
+            ("rd.luks.options=cccccccc-cccc-cccc-cccc-cccccccccccc=noauto", entry, 0),
+        ):
+            with self.subTest(options=options, table_entry=table_entry):
+                (kernel / "cmdline").write_text(f"{selected} {options}\n")
+                shadow.write_text(table_entry)
+                result = self.shell(script)
+                self.assertEqual(result.returncode, status, result.stderr)
+                self.assertEqual(shadow.read_text(), table_entry)
+        shadow.write_text(entry)
         (kernel / "cmdline").write_text("root=UUID=aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa luks.uuid=cccccccc-cccc-cccc-cccc-cccccccccccc\n")
         self.assertNotEqual(self.shell(script).returncode, 0)
         self.assertEqual((etc / "crypttab").read_text(), entry)
