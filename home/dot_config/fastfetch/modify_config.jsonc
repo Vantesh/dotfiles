@@ -1,0 +1,13 @@
+{{- /* chezmoi:modify-template */ -}}
+{{- $current := dict -}}
+{{- if .chezmoi.stdin | trim -}}
+  {{- $current = .chezmoi.stdin | fromJson -}}
+{{- end -}}
+{{- $before := $current | toJson -}}
+{{- $baseline := include ".chezmoitemplates/fastfetch.jsonc" | fromJson -}}
+{{- $updated := mergeOverwrite $current $baseline -}}
+{{- if eq $before ($updated | toJson) -}}
+{{- .chezmoi.stdin -}}
+{{- else -}}
+{{ $updated | toPrettyJson }}
+{{ end -}}
