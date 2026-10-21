@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Configure systemd initramfs for opted-in laptop hibernation before boot changes.
+# Validate systemd initramfs prerequisites before any boot configuration changes.
 # Runs on every apply so failed preflights retry; identical content never rebuilds.
 
 set -euo pipefail
@@ -8,14 +8,6 @@ set -euo pipefail
 {{ include ".chezmoitemplates/lib/snapboot.sh" }}
 
 main() {
-  if [[ "${SETUP_HIBERNATION:-1}" != "1" ]]; then
-    log SKIP "Hibernation disabled, preserving the existing initramfs configuration"
-    return 0
-  fi
-  if ! is_laptop; then
-    log SKIP "Not a laptop, preserving the existing initramfs configuration"
-    return 0
-  fi
   if [[ ! -x /usr/bin/limine ]] || ! command_exists mkinitcpio; then
     log SKIP "Limine/mkinitcpio unavailable, skipping initramfs configuration"
     return 0

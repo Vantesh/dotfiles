@@ -50,7 +50,7 @@ esac""",
             UNLOCK="rd.luks.name=bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb=root",
         )
 
-    def configure(self, *, persistent=False):
+    def configure(self, *, persistent=False, entrypoint=False):
         source = (
             (LIB / "snapboot.sh")
             .read_text()
@@ -59,6 +59,18 @@ esac""",
         )
         if not persistent:
             source += "\nget_limine_cmdline() { get_limine_cmdline_fixture; }\n"
+        run = 'configure_systemd_initramfs || { printf "%s\\n" "$LAST_ERROR" >&2; exit 1; }\n'
+        if entrypoint:
+            self.stub("limine", "exit 97")
+            run = self.function(
+                SCRIPTS / "run_after_00_initramfs_config.sh.tmpl", "main"
+            ).replace("/usr/bin/limine", str(self.bin / "limine")) + r'''
+command_exists() { return 0; }
+check_btrfs() { return 0; }
+is_laptop() { [[ "$LAPTOP" = 1 ]]; }
+keep_sudo_alive() { return 0; }
+main || exit 1
+'''
         return self.shell(
             self.libraries("common.sh")
             + source
@@ -79,9 +91,9 @@ get_limine_cmdline_fixture() {
 }
 get_limine_config_value() { printf '%s\n' "$UKI_OPTIONS"; }
 mkinitcpio_hook_exists() { [[ "$1:$FAILURE" != sd-encrypt:hook ]]; }
-configure_systemd_initramfs || { printf '%s\n' "$LAST_ERROR" >&2; exit 1; }
-get_mkinitcpio_hooks
 """
+            + run
+            + "get_mkinitcpio_hooks\n"
         )
 
     def ensure_defaults(self):
@@ -346,24 +358,41 @@ get_mkinitcpio_hooks
                     self.assertEqual(result.returncode, 0, result.stderr)
                     self.assertFalse(self.marker.exists())
 
-    def test_systemd_setup_runs_only_for_hibernation_on_supported_laptops(self):
-        self.stub("limine", "exit 97")
-        source = self.render(SCRIPTS / "run_after_00_initramfs_config.sh.tmpl")
-        source = source.replace("/usr/bin/limine", str(self.bin / "limine"))
-        source = source.replace('\nmain "$@"', r'''
-command_exists() { return 0; }
-check_btrfs() { return 0; }
-is_laptop() { [[ "$LAPTOP" = 1 ]]; }
-keep_sudo_alive() { return 0; }
-configure_systemd_initramfs() { printf 'configure\t\n' >> "$CALLS"; }
-main "$@"''')
-        for hibernation, laptop, expected in (("0", "1", []), ("1", "0", []), ("1", "1", [["configure"]])):
-            with self.subTest(hibernation=hibernation, laptop=laptop):
-                self.calls.unlink(missing_ok=True)
-                self.env.update(SETUP_HIBERNATION=hibernation, LAPTOP=laptop, SETUP_SNAPPER="1")
-                result = self.shell(source)
+    def test_baseline_systemd_hooks_are_independent_of_device_and_optional_features(self):
+        for laptop, encrypted, hibernation, snapper in (
+            ("0", "0", "0", "0"),
+            ("0", "1", "0", "1"),
+            ("1", "0", "0", "1"),
+            ("1", "1", "1", "0"),
+        ):
+            with self.subTest(laptop=laptop, encrypted=encrypted, hibernation=hibernation):
+                self.managed.unlink(missing_ok=True)
+                self.marker.unlink(missing_ok=True)
+                unlock = self.env["UNLOCK"] if encrypted == "1" else ""
+                self.persistent_sources(unlock)
+                if encrypted == "0":
+                    for path in (self.kernel, self.defaults):
+                        path.write_text(path.read_text().replace(
+                            "root=/dev/mapper/root", "root=UUID=aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+                        ))
+                self.env.update(
+                    ENCRYPTED=encrypted, LAPTOP=laptop,
+                    SETUP_HIBERNATION=hibernation, SETUP_SNAPPER=snapper,
+                )
+                before = (self.kernel.read_bytes(), self.defaults.read_bytes())
+                result = self.configure(persistent=True, entrypoint=True)
                 self.assertEqual(result.returncode, 0, result.stderr)
-                self.assertEqual(self.logged_calls(), expected)
+                hooks = result.stdout.split()
+                self.assertIn("systemd", hooks)
+                self.assertEqual("sd-encrypt" in hooks, encrypted == "1")
+                self.assertTrue(self.marker.exists())
+                self.assertEqual((self.kernel.read_bytes(), self.defaults.read_bytes()), before)
+                self.assertFalse(self.defaults.with_name("50-hibernation.conf").exists())
+                self.assertFalse({"udev", "encrypt", "resume"}.intersection(hooks))
+                self.marker.unlink()
+                result = self.configure(persistent=True, entrypoint=True)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertFalse(self.marker.exists())
 
     def test_independent_base_target_is_preserved_before_publication(self):
         header = "# Managed systemd base; snapshot hooks belong to Snapper.\n"
