@@ -197,12 +197,16 @@ verify_hibernation_unlock() {
       IFS=: read -r source name options extra <<<"${token#*=}"
       [[ "$name" =~ ^[[:alnum:]_.+-]+$ && -z "$extra" ]] || return 1
       case "$source" in
-      "UUID=$luks_uuid") ;;
+      UUID=*)
+        uuid="${source#UUID=}"
+        [[ "${uuid,,}" = "${luks_uuid,,}" ]] || return 1
+        ;;
       PARTUUID=*)
         [[ "$source" =~ ^PARTUUID=[[:xdigit:]-]+$ ]] || return 1
-        resolved=$(readlink -e -- "/dev/disk/by-partuuid/${source#PARTUUID=}") || return 1
+        uuid="${source#PARTUUID=}"
+        resolved=$(readlink -e -- "/dev/disk/by-partuuid/${uuid,,}") || return 1
         uuid=$(sudo blkid -p -s UUID -o value "$resolved" 2>/dev/null) || return 1
-        [[ "$uuid" = "$luks_uuid" ]] || return 1
+        [[ "${uuid,,}" = "${luks_uuid,,}" ]] || return 1
         ;;
       *) return 1 ;;
       esac

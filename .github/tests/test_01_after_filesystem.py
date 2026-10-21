@@ -173,6 +173,12 @@ setup_hibernation
         hooks = "base udev block encrypt filesystems fsck btrfs-overlayfs"
         for argument, hook_list, expected in (
             (f"cryptdevice=UUID={uuid}:root", hooks, 0),
+            (f"cryptdevice=UUID={uuid.upper()}:root", hooks, 0),
+            ("cryptdevice=UUID=bBbBbBbB-bBbB-bBbB-bBbB-bBbBbBbBbBbB:root", hooks, 0),
+            (f"cryptdevice=PARTUUID={partuuid.upper()}:root", hooks, 0),
+            ("cryptdevice=PARTUUID=cCcCcCcC-cCcC-cCcC-cCcC-cCcCcCcCcCcC:root", hooks, 0),
+            (f"cryptdevice=UUID={partuuid.upper()}:root", hooks, 2),
+            (f"cryptdevice=PARTUUID={uuid.upper()}:root", hooks, 2),
             (f"cryptdevice=PARTUUID={partuuid}:root", hooks, 0),
             (f"cryptdevice=PARTUUID={partuuid}:root:allow-discards", hooks, 0),
             (f"cryptdevice=UUID={uuid}:root disablehooks=resume", hooks, 2),
@@ -198,6 +204,29 @@ setup_hibernation
                 self.assertEqual(published, expected == 0)
                 prepared = any(call[0] == "reuse" for call in self.logged_calls())
                 self.assertEqual(prepared, expected == 0)
+
+    def test_busybox_luks_compares_expected_and_reported_uuid_case_insensitively(self):
+        script = self.resume_fixture(encrypted=True).rsplit("setup_hibernation\n", 1)[0]
+        self.stub("blkid", r'''case "$*" in
+    '-p -s UUID -o value /dev/container') printf '%s\n' "$REPORTED_UUID" ;;
+    *) exit 97 ;;
+esac''')
+        script += r'''
+get_hibernation_hooks() { echo 'base udev block encrypt filesystems'; }
+luks_uuid="$EXPECTED_UUID"
+verify_hibernation_unlock "root=/dev/mapper/root cryptdevice=$UNLOCK_SOURCE:root"
+'''
+        lower = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"
+        upper = "BBBBBBBB-BBBB-BBBB-BBBB-BBBBBBBBBBBB"
+        mixed = "bBbBbBbB-bBbB-bBbB-bBbB-bBbBbBbBbBbB"
+        for expected, reported in ((lower, upper), (upper, lower), (mixed, upper)):
+            for source in (f"UUID={lower}",
+                           "PARTUUID=cccccccc-cccc-cccc-cccc-cccccccccccc"):
+                with self.subTest(expected=expected, reported=reported, source=source):
+                    self.env.update(EXPECTED_UUID=expected, REPORTED_UUID=reported,
+                                    UNLOCK_SOURCE=source)
+                    result = self.shell(script)
+                    self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_busybox_resume_hook_is_after_encrypt_and_before_filesystems(self):
         script = self.resume_fixture(encrypted=True).rsplit("setup_hibernation\n", 1)[0]
