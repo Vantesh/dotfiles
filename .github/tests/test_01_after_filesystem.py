@@ -376,6 +376,39 @@ create_btrfs_swap
                 self.assertEqual(fstab.read_text(), entries)
                 self.assertFalse(any("mkswapfile" in call for call in self.logged_calls()))
 
+    def test_swap_unit_inventory_accepts_no_matches_but_rejects_command_errors(self):
+        self.stub("swapon", "exit 0")
+        self.stub("findmnt", "echo '/dev/mapper/root / btrfs defaults'")
+        self.stub(
+            "systemctl",
+            r"""case "$*" in
+    'list-unit-files --type=swap --no-legend --no-pager')
+        printf '%s' "$UNITS"
+        printf '%s' "$DIAGNOSTIC" >&2
+        exit "$STATUS" ;;
+    'show --property=What --value '*.swap) printf '%s\n' "$SWAP_PATH" ;;
+    *) exit 97 ;;
+esac""",
+        )
+        for units, diagnostic, status, path, expected in (
+            ("", "", 1, "", 0),
+            ("", "Failed to connect to system scope bus\n", 1, "", 1),
+            ("", "", 2, "", 1),
+            ("custom.swap enabled enabled\n", "", 0, "/other/swapfile", 3),
+            ("dev-zram0.swap generated -\n", "", 0, "/dev/zram0", 0),
+            ("swap-swapfile.swap generated -\n", "", 0, "/swap/swapfile", 0),
+        ):
+            with self.subTest(units=units, diagnostic=diagnostic, status=status):
+                self.env.update(
+                    UNITS=units,
+                    DIAGNOSTIC=diagnostic,
+                    STATUS=str(status),
+                    SWAP_PATH=path,
+                )
+                result = self.shell(self.libraries("common.sh", "hibernation.sh") +
+                                    "check_hibernation_swap_policy\n")
+                self.assertEqual(result.returncode, expected, result.stderr)
+
     def test_zram_is_preserved_and_inactive_or_multiple_persistent_swaps_skip(self):
         self.stub("swapon", 'printf "%s\\n" "$ACTIVE"')
         self.stub("findmnt", 'printf "%s\\n" "$TABLE"')

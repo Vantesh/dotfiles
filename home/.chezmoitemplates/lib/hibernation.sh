@@ -23,7 +23,10 @@ check_hibernation_swap_policy() {
     fi
   done <<<"$table"
   # Include inactive, independently configured systemd swap units too.
-  units=$(systemctl list-unit-files --type=swap --no-legend --no-pager 2>/dev/null) || return 1
+  units=$(systemctl list-unit-files --type=swap --no-legend --no-pager 2>&1) || {
+    # systemctl also returns 1 for no matches; real errors include a diagnostic.
+    [[ "$?" = 1 && -z "$units" ]] || return 1
+  }
   while read -r unit extra; do
     [[ -n "$unit" ]] || continue
     path=$(systemctl show --property=What --value "$unit" 2>/dev/null) || return 1
