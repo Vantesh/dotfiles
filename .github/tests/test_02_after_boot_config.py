@@ -346,6 +346,25 @@ get_mkinitcpio_hooks
                     self.assertEqual(result.returncode, 0, result.stderr)
                     self.assertFalse(self.marker.exists())
 
+    def test_systemd_setup_runs_only_for_hibernation_on_supported_laptops(self):
+        self.stub("limine", "exit 97")
+        source = self.render(SCRIPTS / "run_after_00_initramfs_config.sh.tmpl")
+        source = source.replace("/usr/bin/limine", str(self.bin / "limine"))
+        source = source.replace('\nmain "$@"', r'''
+command_exists() { return 0; }
+check_btrfs() { return 0; }
+is_laptop() { [[ "$LAPTOP" = 1 ]]; }
+keep_sudo_alive() { return 0; }
+configure_systemd_initramfs() { printf 'configure\t\n' >> "$CALLS"; }
+main "$@"''')
+        for hibernation, laptop, expected in (("0", "1", []), ("1", "0", []), ("1", "1", [["configure"]])):
+            with self.subTest(hibernation=hibernation, laptop=laptop):
+                self.calls.unlink(missing_ok=True)
+                self.env.update(SETUP_HIBERNATION=hibernation, LAPTOP=laptop, SETUP_SNAPPER="1")
+                result = self.shell(source)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(self.logged_calls(), expected)
+
     def test_independent_base_target_is_preserved_before_publication(self):
         header = "# Managed systemd base; snapshot hooks belong to Snapper.\n"
         for content in (
