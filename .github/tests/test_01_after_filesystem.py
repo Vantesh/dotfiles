@@ -87,9 +87,14 @@ create_btrfs_swap
     *) exit 97 ;;
 esac''')
         self.stub("readlink", r'''case "$*" in
-    *'/dev/disk/by-uuid/'*) [ "$FAILURE" != uuid ] || { echo /dev/container; exit; }; echo /dev/fixture ;;
+    *'/dev/disk/by-uuid/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa') [ "$FAILURE" != uuid ] || { echo /dev/container; exit; }; echo /dev/fixture ;;
+    *'/dev/disk/by-uuid/bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb') echo /dev/container ;;
     *'/dev/disk/by-partuuid/cccccccc-cccc-cccc-cccc-cccccccccccc') echo /dev/container ;;
+    *'/dev/disk/by-uuid/'*|*'/dev/disk/by-partuuid/'*)
+        [ "${EXACT_UDEV_PATH:-}" = "$3" ] || exit 1
+        echo /dev/container ;;
     *'/dev/container'*) echo /dev/container ;;
+    *'/dev/other'*) echo /dev/other ;;
     *'/dev/fixture'*) echo /dev/fixture ;;
     *) exec /usr/bin/readlink "$@" ;;
 esac''')
@@ -102,8 +107,12 @@ esac''')
     *) exit 97 ;;
 esac''')
         self.stub("blkid", r'''case "$*" in
+    '-lt '*)
+        [ "${RESOLVABLE_SOURCE:-}" = "$2" ] || exit 2
+        printf '%s\n' "${RESOLVED_DEVICE:-/dev/container}" ;;
     '-p -s TYPE -o value /dev/container') echo crypto_LUKS ;;
     '-p -s UUID -o value /dev/container') echo bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb ;;
+    '-p -s UUID -o value /dev/other') echo dddddddd-dddd-dddd-dddd-dddddddddddd ;;
     *) exit 97 ;;
 esac''')
         self.stub("sudo", r'''case "$*" in
@@ -112,7 +121,7 @@ esac''')
         case "$5" in /|"$SWAP") ;; *) exit 23 ;; esac
         echo 'Total devices 1 FS bytes used 0'
         echo 'devid 1 size 100 used 0 path /dev/fixture' ;;
-    'blkid -p '*) exec "$@" ;;
+    'blkid -p '*|'blkid -lt '*) exec "$@" ;;
     'bash -s -- '*) exec "$@" ;;
     'cryptsetup status /dev/fixture')
         if [ "$FAILURE" = crypttype ]; then printf '  type: PLAIN\n  device: /dev/container\n';
@@ -173,10 +182,10 @@ setup_hibernation
         hooks = "base udev block encrypt filesystems fsck btrfs-overlayfs"
         for argument, hook_list, expected in (
             (f"cryptdevice=UUID={uuid}:root", hooks, 0),
-            (f"cryptdevice=UUID={uuid.upper()}:root", hooks, 0),
-            ("cryptdevice=UUID=bBbBbBbB-bBbB-bBbB-bBbB-bBbBbBbBbBbB:root", hooks, 0),
-            (f"cryptdevice=PARTUUID={partuuid.upper()}:root", hooks, 0),
-            ("cryptdevice=PARTUUID=cCcCcCcC-cCcC-cCcC-cCcC-cCcCcCcCcCcC:root", hooks, 0),
+            (f"cryptdevice=UUID={uuid.upper()}:root", hooks, 2),
+            ("cryptdevice=UUID=bBbBbBbB-bBbB-bBbB-bBbB-bBbBbBbBbBbB:root", hooks, 2),
+            (f"cryptdevice=PARTUUID={partuuid.upper()}:root", hooks, 2),
+            ("cryptdevice=PARTUUID=cCcCcCcC-cCcC-cCcC-cCcC-cCcCcCcCcCcC:root", hooks, 2),
             (f"cryptdevice=UUID={partuuid.upper()}:root", hooks, 2),
             (f"cryptdevice=PARTUUID={uuid.upper()}:root", hooks, 2),
             (f"cryptdevice=PARTUUID={partuuid}:root", hooks, 0),
@@ -205,9 +214,38 @@ setup_hibernation
                 prepared = any(call[0] == "reuse" for call in self.logged_calls())
                 self.assertEqual(prepared, expected == 0)
 
+    def test_busybox_accepts_original_case_only_when_boot_lookup_resolves_it(self):
+        script = self.resume_fixture(encrypted=True).rsplit("setup_hibernation\n", 1)[0]
+        script += r'''
+get_hibernation_cmdline() { printf 'root=/dev/mapper/root cryptdevice=%s:root\n' "$UNLOCK_SOURCE"; }
+get_hibernation_hooks() { echo 'base udev block encrypt filesystems'; }
+setup_hibernation
+'''
+        for source in ("UUID=BBBBBBBB-BBBB-BBBB-BBBB-BBBBBBBBBBBB",
+                       "UUID=bBbBbBbB-bBbB-bBbB-bBbB-bBbBbBbBbBbB",
+                       "PARTUUID=CCCCCCCC-CCCC-CCCC-CCCC-CCCCCCCCCCCC",
+                       "PARTUUID=cCcCcCcC-cCcC-cCcC-cCcC-cCcCcCcCcCcC"):
+            tag, identifier = source.split("=", 1)
+            for lookup, expected in (("blkid", 0), ("udev", 0), ("wrong-device", 2)):
+                with self.subTest(source=source, lookup=lookup):
+                    self.env.update(UNLOCK_SOURCE=source,
+                                    RESOLVABLE_SOURCE=source if lookup != "udev" else "",
+                                    RESOLVED_DEVICE="/dev/other" if lookup == "wrong-device"
+                                    else "/dev/container",
+                                    EXACT_UDEV_PATH=f"/dev/disk/by-{tag.lower()}/{identifier}"
+                                    if lookup == "udev" else "")
+                    self.calls.unlink(missing_ok=True)
+                    result = self.shell(script)
+                    self.assertEqual(result.returncode, expected, result.stderr)
+                    self.assertEqual(any(call[0] == "update-limine"
+                                         for call in self.logged_calls()), expected == 0)
+                    self.assertEqual(any(call[0] == "reuse"
+                                         for call in self.logged_calls()), expected == 0)
+
     def test_busybox_luks_compares_expected_and_reported_uuid_case_insensitively(self):
         script = self.resume_fixture(encrypted=True).rsplit("setup_hibernation\n", 1)[0]
         self.stub("blkid", r'''case "$*" in
+    '-lt '*) exit 2 ;;
     '-p -s UUID -o value /dev/container') printf '%s\n' "$REPORTED_UUID" ;;
     *) exit 97 ;;
 esac''')

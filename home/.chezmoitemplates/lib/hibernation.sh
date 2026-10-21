@@ -184,7 +184,7 @@ verify_hibernation_unlock() {
   read -r -a tokens <<<"$cmdline"
   if [[ " $hooks " != *' systemd '* ]]; then
     [[ " $hooks " = *' udev '* && " $hooks " =~ [[:space:]]encrypt[[:space:]](.*[[:space:]])?filesystems[[:space:]] ]] || return 1
-    local source name extra resolved uuid
+    local source name extra resolved uuid tag
     for token in "${tokens[@]}"; do
       if [[ "$token" = disablehooks=* ]]; then
         case ",${token#*=}," in
@@ -198,18 +198,24 @@ verify_hibernation_unlock() {
       [[ "$name" =~ ^[[:alnum:]_.+-]+$ && -z "$extra" ]] || return 1
       case "$source" in
       UUID=*)
-        uuid="${source#UUID=}"
-        [[ "${uuid,,}" = "${luks_uuid,,}" ]] || return 1
+        [[ "$source" =~ ^UUID=[[:xdigit:]]{8}(-[[:xdigit:]]{4}){3}-[[:xdigit:]]{12}$ ]] || return 1
+        tag=uuid
         ;;
       PARTUUID=*)
         [[ "$source" =~ ^PARTUUID=[[:xdigit:]-]+$ ]] || return 1
-        uuid="${source#PARTUUID=}"
-        resolved=$(readlink -e -- "/dev/disk/by-partuuid/${uuid,,}") || return 1
-        uuid=$(sudo blkid -p -s UUID -o value "$resolved" 2>/dev/null) || return 1
-        [[ "${uuid,,}" = "${luks_uuid,,}" ]] || return 1
+        tag=partuuid
         ;;
       *) return 1 ;;
       esac
+      # Match BusyBox resolve_device: query the original tag, then its exact udev path.
+      resolved=$(sudo blkid -lt "$source" -o device 2>/dev/null) || resolved=""
+      if [[ -z "$resolved" ]]; then
+        resolved="/dev/disk/by-$tag/${source#*=}"
+      fi
+      [[ "$resolved" = /dev/* && "$resolved" != *[[:space:]]* ]] || return 1
+      resolved=$(readlink -e -- "$resolved") || return 1
+      uuid=$(sudo blkid -p -s UUID -o value "$resolved" 2>/dev/null) || return 1
+      [[ "${uuid,,}" = "${luks_uuid,,}" ]] || return 1
     done
     [[ "$selected" = true ]]
     return
