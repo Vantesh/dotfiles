@@ -148,29 +148,39 @@ configure_snapper() {
   return 0
 }
 
-# Adds the overlay hook matching the user's initramfs through a managed drop-in.
-# Selects the hook when mkinitcpio reads its configuration, preserving earlier hooks.
+# Select from the effective initramfs environment, independently of hibernation.
 # Globals: LAST_ERROR - Error from writing the drop-in or requesting a rebuild.
 # Outputs: Result and error logs to stderr.
 # Returns: 0 on success, 1 on configuration or rebuild request failure.
 add_mkinitcpio_overlay_hook() {
+  local hooks overlay=btrfs-overlayfs
+  if ! hooks=$(get_mkinitcpio_hooks); then
+    log ERROR "Cannot read the effective mkinitcpio hooks"
+    return 1
+  fi
+  [[ " $hooks " != *' systemd '* ]] || overlay=sd-btrfs-overlayfs
+  if ! mkinitcpio_hook_exists "$overlay"; then
+    log ERROR "Required mkinitcpio snapshot hook is unavailable: $overlay"
+    return 1
+  fi
   # shellcheck disable=SC2016
   local content='if [[ -n "${HOOKS:-}" && "${HOOKS@a}" != *a* ]]; then
   read -r -a HOOKS <<< "$HOOKS"
 fi
 
-case " ${HOOKS[*]:-} " in
-  *" systemd "*)
-    if [[ " ${HOOKS[*]:-} " != *" sd-btrfs-overlayfs "* ]]; then
-      HOOKS+=(sd-btrfs-overlayfs)
-    fi
-    ;;
-  *)
-    if [[ " ${HOOKS[*]:-} " != *" btrfs-overlayfs "* ]]; then
-      HOOKS+=(btrfs-overlayfs)
-    fi
-    ;;
-esac'
+_snapper_overlay=btrfs-overlayfs
+if [[ " ${HOOKS[*]:-} " = *" systemd "* ]]; then
+  _snapper_overlay=sd-btrfs-overlayfs
+fi
+if [[ " ${HOOKS[*]:-} " != *" $_snapper_overlay "* ]]; then
+  if [[ "${HOOKS[-1]:-}" = strip ]]; then
+    HOOKS[-1]="$_snapper_overlay"
+    HOOKS+=(strip)
+  else
+    HOOKS+=("$_snapper_overlay")
+  fi
+fi
+unset _snapper_overlay'
 
   if ! write_mkinitcpio_dropin "snapper.conf" "$content"; then
     log ERROR "Failed to configure mkinitcpio snapshot overlay: $LAST_ERROR"

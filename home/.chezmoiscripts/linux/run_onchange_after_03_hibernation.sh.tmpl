@@ -73,10 +73,6 @@ main() {
     die "Failed to keep sudo alive"
   fi
 
-  if ! validate_mkinitcpio_dropins; then
-    die "Cannot configure hibernation hooks: $LAST_ERROR"
-  fi
-
   local setup_result=0
   (
     local fstab_snapshot_dir=""
