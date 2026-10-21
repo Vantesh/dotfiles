@@ -86,54 +86,66 @@ create_btrfs_swap
         printf '%s /dev/fixture[/@swap] btrfs aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa\n' "$mount" ;;
     *) exit 97 ;;
 esac''')
-        self.stub("readlink", r'''case "$*" in
+        self.stub(
+            "readlink",
+            r"""case "$*" in
     *'/dev/disk/by-uuid/'*) [ "$FAILURE" != uuid ] || { echo /dev/container; exit; }; echo /dev/fixture ;;
     *'/dev/container'*) echo /dev/container ;;
-    *'/dev/fixture'*) echo /dev/fixture ;;
+    *'/dev/fixture'*|*'/dev/mapper/root'*) echo /dev/fixture ;;
     *) exec /usr/bin/readlink "$@" ;;
-esac''')
-        self.stub("lsblk", r'''case "$*" in
+esac""",
+        )
+        self.stub(
+            "lsblk",
+            r"""case "$*" in
     '-dnro FSTYPE,UUID /dev/fixture') echo 'btrfs aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa' ;;
     '-srn -o TYPE /dev/fixture')
+        [ "$FAILURE" != ancestry ] || { printf 'lvm\ncrypt\npart\ndisk\n'; exit; }
         if [ "$ENCRYPTED" = 1 ]; then printf 'crypt\npart\ndisk\n'; else printf 'part\ndisk\n'; fi ;;
     '-dnro PKNAME /dev/fixture') echo container ;;
+    '-dnro NAME /dev/fixture') echo root ;;
     *) exit 97 ;;
-esac''')
-        self.stub("blkid", r'''case "$*" in
-    '-p -s TYPE -o value /dev/container') echo crypto_LUKS ;;
+esac""",
+        )
+        self.stub(
+            "blkid",
+            r"""case "$*" in
+    '-p -s TYPE -o value /dev/container')
+        if [ "$FAILURE" = not-luks ]; then echo ext4; else echo crypto_LUKS; fi ;;
     '-p -s UUID -o value /dev/container') echo bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb ;;
     *) exit 97 ;;
-esac''')
-        self.stub("sudo", r'''case "$*" in
+esac""",
+        )
+        self.stub(
+            "sudo",
+            r"""case "$*" in
     'btrfs filesystem show --raw '*)
         # This command selects mounted filesystems by directory, not swapfile.
         case "$5" in /|"$SWAP") ;; *) exit 23 ;; esac
-        echo 'Total devices 1 FS bytes used 0'
+        if [ "$FAILURE" = multi ]; then echo 'Total devices 2 FS bytes used 0'; else echo 'Total devices 1 FS bytes used 0'; fi
         echo 'devid 1 size 100 used 0 path /dev/fixture' ;;
     'blkid -p '*) exec "$@" ;;
-    'bash -s -- '*) exec "$@" ;;
+    'bash '*) echo 'Hibernation must not inspect initramfs or unlocking policy' >&2; exit 97 ;;
     'cryptsetup status /dev/fixture') printf '  type: LUKS2\n  device: /dev/container\n' ;;
     'btrfs inspect-internal map-swapfile -r '*)
         [ "$FAILURE" != offset ] || exit 23; echo 123 ;;
     *) echo "Unexpected sudo: $*" >&2; exit 97 ;;
-esac''')
+esac""",
+        )
         source = (LIB / "hibernation.sh").read_text().replace(
             '"/swap"', f'"{swap}"').replace('"/swap/swapfile"', f'"{swap}/swapfile"')
-        source = source.replace("/etc/crypttab", str(self.directory / "crypttab"))
-        return self.libraries("common.sh") + source + r'''
+        return (
+            self.libraries("common.sh", "snapboot.sh")
+            + source
+            + r"""
 check_hibernation_swap_policy() { return 0; }
-get_hibernation_cmdline() {
-  if [[ "$FAILURE" = unlock ]]; then echo 'root=UUID=aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
-  else echo 'root=UUID=aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa rd.luks.uuid=bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'; fi
-}
-get_hibernation_hooks() { echo 'base systemd block sd-encrypt filesystems'; }
-get_limine_config_value() { if [[ "$FAILURE" = hooks ]]; then echo '-S sd-encrypt'; fi; }
+get_limine_cmdline() { echo 'root=UUID=aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'; }
 create_btrfs_swap() { printf 'reuse\t\n' >> "$CALLS"; }
 ensure_limine_cmdline_defaults() { printf 'defaults\t\n' >> "$CALLS"; }
 update_limine_cmdline() { printf '%s\t' update-limine "$@" >> "$CALLS"; printf '\n' >> "$CALLS"; }
-write_mkinitcpio_dropin() { printf 'dropin\t\n' >> "$CALLS"; }
 setup_hibernation
-'''
+"""
+        )
 
     def test_resume_uses_verified_filesystem_for_plain_and_luks_btrfs(self):
         for encrypted in (False, True):
@@ -147,14 +159,25 @@ setup_hibernation
                                "resume=UUID=aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
                                "resume_offset=123"], self.logged_calls())
 
-    def test_ambiguous_identity_or_missing_unlock_never_publishes_resume(self):
-        for failure in ("identity", "uuid", "offset", "unlock", "hooks"):
+    def test_ambiguous_identity_or_offset_never_publishes_resume(self):
+        for failure in (
+            "identity",
+            "uuid",
+            "multi",
+            "ancestry",
+            "not-luks",
+            "offset",
+        ):
             with self.subTest(failure=failure):
                 self.calls.unlink(missing_ok=True)
                 result = self.shell(self.resume_fixture(encrypted=True, failure=failure))
                 self.assertNotEqual(result.returncode, 0)
-                self.assertFalse(any(call[0] in ("defaults", "update-limine", "dropin")
-                                     for call in self.logged_calls()))
+                self.assertFalse(
+                    any(
+                        call[0] in ("defaults", "update-limine")
+                        for call in self.logged_calls()
+                    )
+                )
 
     def test_other_persistent_swap_is_left_untouched(self):
         self.stub("swapon", "echo /dev/other", log=True)
@@ -183,8 +206,11 @@ setup_hibernation
         exec "$@" ;;
     *) exit 97 ;;''')
         sudo.write_text(body)
+        script = script.replace(
+            "readonly INITRAMFS_PENDING_FILE=", "INITRAMFS_PENDING_FILE="
+        ).replace("readonly MKINITCPIO_DROPIN_DIR=", "MKINITCPIO_DROPIN_DIR=")
         script += f'INITRAMFS_PENDING_FILE="{marker}"\nMKINITCPIO_DROPIN_DIR="{dropins}"\n'
-        for name in ("request_initramfs_rebuild", "update_limine_cmdline", "write_mkinitcpio_dropin"):
+        for name in ("request_initramfs_rebuild", "update_limine_cmdline"):
             script += self.function(LIB / "snapboot.sh", name).replace(
                 "/etc/limine-entry-tool.d", str(boot))
         script += f'''setup_hibernation || exit 1
@@ -192,9 +218,7 @@ setup_hibernation
 rm -- "{marker}"
 setup_hibernation || exit 1
 [[ ! -e "{marker}" ]] || exit 1
-HOOKS=(base systemd block sd-encrypt filesystems)
-source "{dropins}/hibernation.conf"
-[[ " ${{HOOKS[*]}} " != *" resume "* ]]
+[[ ! -e "{dropins}" ]]
 '''
         result = self.shell(script)
         self.assertEqual(result.returncode, 0, result.stderr)
@@ -273,14 +297,18 @@ create_btrfs_swap
         dropins.mkdir()
         (dropins / "20-quiet-boot.conf").write_text('KERNEL_CMDLINE[default]+= "quiet"\n')
         (etc / "default").mkdir()
-        source = self.function(LIB / "hibernation.sh", "get_hibernation_cmdline").replace(
-            "/etc/", f"{etc}/").replace("/usr/share/", f"{self.directory}/share/")
+        source = (
+            self.function(LIB / "snapboot.sh", "get_limine_cmdline")
+            .replace("/etc/", f"{etc}/")
+            .replace("/usr/share/", f"{self.directory}/share/")
+        )
         self.stub("sudo", 'exec "$@"')
         self.stub("python3", 'exec /usr/bin/python3 "$@"')
-        script = source + "get_hibernation_cmdline\n"
+        script = source + "get_limine_cmdline hibernation\n"
         result = self.shell(script)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("resume=UUID=external noresume", result.stdout)
+        self.assertNotEqual(self.shell(source + "get_limine_cmdline\n").returncode, 0)
         (dropins / "01-default.conf").write_text("KERNEL_CMDLINE[default]=root=UUID=filesystem rd.luks.uuid=container\n")
         result = self.shell(script)
         self.assertEqual(result.returncode, 0, result.stderr)
@@ -288,6 +316,9 @@ create_btrfs_swap
         late = etc / "default/limine"
         late.write_text('KERNEL_CMDLINE[default]="root=UUID=filesystem"\n')
         self.assertNotEqual(self.shell(script).returncode, 0)
+        result = self.shell(source + "get_limine_cmdline\n")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout.strip(), "root=UUID=filesystem")
         late.unlink()
         custom = dropins / "60-custom.conf"
         custom.write_text('KERNEL_CMDLINE[linux]="root=UUID=filesystem rd.luks.uuid=other"\n')
@@ -303,82 +334,41 @@ create_btrfs_swap
         dropins = etc / "mkinitcpio.conf.d"
         dropins.mkdir()
         (dropins / "2-unlock.conf").write_text("HOOKS=(base systemd block sd-encrypt filesystems)\n")
-        (dropins / "10-local.conf").write_text("HOOKS=(base udev block encrypt filesystems)\n")
+        (dropins / "10-local.conf").write_text(
+            "HOOKS=(base systemd block filesystems fsck)\n"
+        )
         self.stub("sudo", 'exec "$@"')
         self.stub("sort", 'exec /usr/bin/sort "$@"')
-        source = self.function(LIB / "hibernation.sh", "get_hibernation_hooks").replace(
-            "/etc/", f"{etc}/")
-        result = self.shell(source + "get_hibernation_hooks\n")
+        source = self.function(LIB / "snapboot.sh", "get_mkinitcpio_hooks").replace(
+            "/etc/", f"{etc}/"
+        )
+        result = self.shell(source + "get_mkinitcpio_hooks\n")
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual(result.stdout.strip(), "base udev block encrypt filesystems")
+        self.assertEqual(result.stdout.strip(), "base systemd block filesystems fsck")
 
-    def test_persistent_unlock_uses_effective_crypttab_and_preserves_boot_intent(self):
-        etc = self.directory / "etc"
-        etc.mkdir()
-        (etc / "mkinitcpio.conf.d").mkdir()
-        (etc / "mkinitcpio.conf").write_text("HOOKS=(base systemd block sd-encrypt filesystems)\n")
-        (etc / "limine-entry-tool.d").mkdir()
-        kernel = etc / "kernel"
-        kernel.mkdir()
-        (kernel / "cmdline").write_text("root=UUID=aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa quiet\n")
-        entry = "root UUID=bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb none luks,x-initrd.attach\n"
-        (etc / "crypttab").write_text(entry)
-        source = (LIB / "hibernation.sh").read_text().replace(
-            "/etc/", f"{etc}/").replace("/usr/share/", f"{self.directory}/share/")
-        self.stub("sudo", 'exec "$@"')
-        self.stub("python3", 'exec /usr/bin/python3 "$@"')
-        self.stub("sort", 'exec /usr/bin/sort "$@"')
-        script = self.libraries("common.sh") + source + '''
-get_limine_config_value() { return 0; }
-luks_uuid=bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb
-cmdline=$(get_hibernation_cmdline) || exit 1
-verify_hibernation_unlock "$cmdline"
-'''
-        result = self.shell(script)
-        self.assertEqual(result.returncode, 0, result.stderr)
-        shadow = etc / "crypttab.initramfs"
-        shadow.write_text("# shadows the root entry\n")
-        self.assertNotEqual(self.shell(script).returncode, 0)
-        shadow.write_text(entry)
-        self.assertEqual(self.shell(script).returncode, 0)
-        selected = ("root=UUID=aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa "
-                    "rd.luks.uuid=bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb")
-        for options, table_entry, status in (
-            ("rd.luks.options=bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb=noauto", entry, 1),
-            ("rd.luks.options=noauto", entry, 1),
-            ("", entry.replace("luks,", "luks,noauto,"), 1),
-            ("rd.luks.options=cccccccc-cccc-cccc-cccc-cccccccccccc=noauto", entry, 0),
-        ):
-            with self.subTest(options=options, table_entry=table_entry):
-                (kernel / "cmdline").write_text(f"{selected} {options}\n")
-                shadow.write_text(table_entry)
-                result = self.shell(script)
-                self.assertEqual(result.returncode, status, result.stderr)
-                self.assertEqual(shadow.read_text(), table_entry)
-        shadow.write_text(entry)
-        (kernel / "cmdline").write_text("root=UUID=aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa luks.uuid=cccccccc-cccc-cccc-cccc-cccccccccccc\n")
-        self.assertNotEqual(self.shell(script).returncode, 0)
-        self.assertEqual((etc / "crypttab").read_text(), entry)
-        self.assertEqual(shadow.read_text(), entry)
-
-    def test_failed_hook_write_does_not_publish_resume_and_keeps_retry_pending(self):
+    def test_failed_swap_setup_does_not_publish_resume_and_keeps_retry_pending(self):
         script = self.resume_fixture(encrypted=True)
-        script = script.replace("setup_hibernation\n", "write_mkinitcpio_dropin() { return 1; }\nsetup_hibernation\n")
+        script = script.replace(
+            "setup_hibernation\n",
+            "create_btrfs_swap() { return 1; }\nsetup_hibernation\n",
+        )
         result = self.shell(script)
-        self.assertEqual(result.returncode, 1, result.stderr)
+        self.assertEqual(result.returncode, 2, result.stderr)
         self.assertFalse(any(call[0] in ("defaults", "update-limine")
                              for call in self.logged_calls()))
         self.stub("limine", "exit 97")
         source = self.render(SCRIPTS / "run_onchange_after_03_hibernation.sh.tmpl")
         source = source.replace("/usr/bin/limine", str(self.bin / "limine"))
-        source = source.replace('\nmain "$@"', '''
+        source = source.replace(
+            '\nmain "$@"',
+            '''
 check_btrfs() { return 0; }
 is_laptop() { return 0; }
 command_exists() { return 0; }
 keep_sudo_alive() { return 0; }
-validate_mkinitcpio_dropins() { return 0; }
 setup_hibernation() { LAST_ERROR="fixture failure"; return 1; }
-main "$@"''')
+main "$@"''',
+        )
         result = self.shell(source)
         self.assertEqual(result.returncode, 1, result.stderr)
         self.assertEqual((self.directory / "state/chezmoi/hibernation.pending").read_text(), ".")
