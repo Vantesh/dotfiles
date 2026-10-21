@@ -12,6 +12,10 @@ main() {
     log SKIP "Limine/mkinitcpio unavailable, skipping initramfs configuration"
     return 0
   fi
+  if ! check_btrfs; then
+    log SKIP "Root filesystem is not Btrfs, skipping initramfs configuration"
+    return 0
+  fi
   keep_sudo_alive || die "Cannot inspect initramfs prerequisites: $LAST_ERROR"
   configure_systemd_initramfs || die "Cannot configure systemd initramfs: $LAST_ERROR"
 }
