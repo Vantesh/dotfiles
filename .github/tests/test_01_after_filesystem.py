@@ -88,6 +88,7 @@ create_btrfs_swap
 esac''')
         self.stub("readlink", r'''case "$*" in
     *'/dev/disk/by-uuid/'*) [ "$FAILURE" != uuid ] || { echo /dev/container; exit; }; echo /dev/fixture ;;
+    *'/dev/disk/by-partuuid/cccccccc-cccc-cccc-cccc-cccccccccccc') echo /dev/container ;;
     *'/dev/container'*) echo /dev/container ;;
     *'/dev/fixture'*) echo /dev/fixture ;;
     *) exec /usr/bin/readlink "$@" ;;
@@ -96,7 +97,8 @@ esac''')
     '-dnro FSTYPE,UUID /dev/fixture') echo 'btrfs aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa' ;;
     '-srn -o TYPE /dev/fixture')
         if [ "$ENCRYPTED" = 1 ]; then printf 'crypt\npart\ndisk\n'; else printf 'part\ndisk\n'; fi ;;
-    '-dnro PKNAME /dev/fixture') echo container ;;
+    # --nodeps leaves PKNAME empty for device-mapper devices.
+    '-dnro PKNAME /dev/fixture') exit 0 ;;
     *) exit 97 ;;
 esac''')
         self.stub("blkid", r'''case "$*" in
@@ -112,7 +114,10 @@ esac''')
         echo 'devid 1 size 100 used 0 path /dev/fixture' ;;
     'blkid -p '*) exec "$@" ;;
     'bash -s -- '*) exec "$@" ;;
-    'cryptsetup status /dev/fixture') printf '  type: LUKS2\n  device: /dev/container\n' ;;
+    'cryptsetup status /dev/fixture')
+        if [ "$FAILURE" = crypttype ]; then printf '  type: PLAIN\n  device: /dev/container\n';
+        elif [ "$FAILURE" = backing ]; then printf '  type: LUKS2\n  device: /dev/missing\n';
+        else printf '  type: LUKS2\n  device: /dev/container\n'; fi ;;
     'btrfs inspect-internal map-swapfile -r '*)
         [ "$FAILURE" != offset ] || exit 23; echo 123 ;;
     *) echo "Unexpected sudo: $*" >&2; exit 97 ;;
@@ -148,13 +153,70 @@ setup_hibernation
                                "resume_offset=123"], self.logged_calls())
 
     def test_ambiguous_identity_or_missing_unlock_never_publishes_resume(self):
-        for failure in ("identity", "uuid", "offset", "unlock", "hooks"):
+        for failure in ("identity", "uuid", "offset", "unlock", "hooks", "crypttype", "backing"):
             with self.subTest(failure=failure):
                 self.calls.unlink(missing_ok=True)
                 result = self.shell(self.resume_fixture(encrypted=True, failure=failure))
                 self.assertNotEqual(result.returncode, 0)
                 self.assertFalse(any(call[0] in ("defaults", "update-limine", "dropin")
                                      for call in self.logged_calls()))
+
+    def test_busybox_luks_verifies_uuid_and_partuuid_cryptdevice(self):
+        script = self.resume_fixture(encrypted=True).rsplit("setup_hibernation\n", 1)[0]
+        script += r'''
+get_hibernation_cmdline() { printf '%s\n' "$CMDLINE"; }
+get_hibernation_hooks() { printf '%s\n' "$TEST_HOOKS"; }
+setup_hibernation
+'''
+        uuid = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"
+        partuuid = "cccccccc-cccc-cccc-cccc-cccccccccccc"
+        hooks = "base udev block encrypt filesystems fsck btrfs-overlayfs"
+        for argument, hook_list, expected in (
+            (f"cryptdevice=UUID={uuid}:root", hooks, 0),
+            (f"cryptdevice=PARTUUID={partuuid}:root", hooks, 0),
+            (f"cryptdevice=PARTUUID={partuuid}:root:allow-discards", hooks, 0),
+            (f"cryptdevice=UUID={uuid}:root disablehooks=resume", hooks, 2),
+            (f"cryptdevice=UUID={uuid}:root disablehooks=encrypt", hooks, 2),
+            (f"cryptdevice=UUID={uuid}:root disablehooks=udev", hooks, 2),
+            (f"cryptdevice=UUID={uuid}:root disablehooks=encrypt,resume", hooks, 2),
+            (f"cryptdevice=UUID={uuid}:root disablehooks=fsck", hooks, 0),
+            (f"cryptdevice=UUID={partuuid}:root", hooks, 2),
+            (f"cryptdevice=PARTUUID={uuid}:root", hooks, 2),
+            (f"cryptdevice=UUID={uuid}", hooks, 2),
+            (f"cryptdevice=UUID={uuid}:root cryptdevice=UUID={uuid}:other", hooks, 2),
+            (f"rd.luks.uuid={uuid}", hooks, 2),
+            (f"cryptdevice=UUID={uuid}:root", "base udev block filesystems", 2),
+            (f"cryptdevice=UUID={uuid}:root", "base udev block filesystems encrypt", 2),
+        ):
+            with self.subTest(argument=argument, hooks=hook_list):
+                self.env.update(CMDLINE=f"root=/dev/mapper/root {argument}",
+                                TEST_HOOKS=hook_list)
+                self.calls.unlink(missing_ok=True)
+                result = self.shell(script)
+                self.assertEqual(result.returncode, expected, result.stderr)
+                published = any(call[0] == "update-limine" for call in self.logged_calls())
+                self.assertEqual(published, expected == 0)
+                prepared = any(call[0] == "reuse" for call in self.logged_calls())
+                self.assertEqual(prepared, expected == 0)
+
+    def test_busybox_resume_hook_is_after_encrypt_and_before_filesystems(self):
+        script = self.resume_fixture(encrypted=True).rsplit("setup_hibernation\n", 1)[0]
+        self.env["DROPIN"] = str(self.directory / "hibernation.conf")
+        script += r'''
+get_hibernation_cmdline() { echo 'root=/dev/mapper/root cryptdevice=UUID=bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:root'; }
+get_hibernation_hooks() { echo 'base udev block encrypt filesystems fsck btrfs-overlayfs'; }
+write_mkinitcpio_dropin() { printf '%s\n' "$2" > "$DROPIN"; }
+setup_hibernation || exit 1
+for original in 'base udev block encrypt filesystems fsck btrfs-overlayfs' 'base udev resume block encrypt filesystems fsck btrfs-overlayfs'; do
+  read -r -a HOOKS <<< "$original"
+  source "$DROPIN"
+  [[ "${HOOKS[*]}" = 'base udev block encrypt resume filesystems fsck btrfs-overlayfs' ]] || exit 1
+  source "$DROPIN"
+  [[ "${HOOKS[*]}" = 'base udev block encrypt resume filesystems fsck btrfs-overlayfs' ]] || exit 1
+done
+'''
+        result = self.shell(script)
+        self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_other_persistent_swap_is_left_untouched(self):
         self.stub("swapon", "echo /dev/other", log=True)
@@ -263,6 +325,41 @@ create_btrfs_swap
                 result = self.shell(self.libraries("common.sh", "hibernation.sh") +
                                     "check_hibernation_swap_policy\n")
                 self.assertEqual(result.returncode, status, result.stderr)
+
+    def test_swap_unit_inventory_accepts_no_matches_but_rejects_command_errors(self):
+        self.stub("swapon", "exit 0")
+        self.stub("findmnt", "echo '/dev/mapper/root / btrfs defaults'")
+        self.stub(
+            "systemctl",
+            r"""case "$*" in
+    'list-unit-files --type=swap --no-legend --no-pager')
+        printf '%s' "$UNITS"
+        printf '%s' "$DIAGNOSTIC" >&2
+        exit "$STATUS" ;;
+    'show --property=What --value '*.swap) printf '%s\n' "$SWAP_PATH" ;;
+    *) exit 97 ;;
+esac""",
+        )
+        for units, diagnostic, status, path, expected in (
+            ("", "", 1, "", 0),
+            ("", "Failed to connect to system scope bus\n", 1, "", 1),
+            ("", "", 2, "", 1),
+            ("custom.swap enabled enabled\n", "", 0, "/other/swapfile", 3),
+            ("dev-zram0.swap generated -\n", "", 0, "/dev/zram0", 0),
+            ("swap-swapfile.swap generated -\n", "", 0, "/swap/swapfile", 0),
+        ):
+            with self.subTest(units=units, diagnostic=diagnostic, status=status):
+                self.env.update(
+                    UNITS=units,
+                    DIAGNOSTIC=diagnostic,
+                    STATUS=str(status),
+                    SWAP_PATH=path,
+                )
+                result = self.shell(
+                    self.libraries("common.sh", "hibernation.sh")
+                    + "check_hibernation_swap_policy\n"
+                )
+                self.assertEqual(result.returncode, expected, result.stderr)
 
     def test_cmdline_preflight_checks_prospective_defaults_and_rejects_overrides(self):
         etc = self.directory / "etc"

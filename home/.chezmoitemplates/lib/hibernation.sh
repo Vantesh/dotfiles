@@ -23,7 +23,10 @@ check_hibernation_swap_policy() {
     fi
   done <<<"$table"
   # Include inactive, independently configured systemd swap units too.
-  units=$(systemctl list-unit-files --type=swap --no-legend --no-pager 2>/dev/null) || return 1
+  units=$(systemctl list-unit-files --type=swap --no-legend --no-pager 2>&1) || {
+    # systemctl also returns 1 for no matches; real errors include a diagnostic.
+    [[ "$?" = 1 && -z "$units" ]] || return 1
+  }
   while read -r unit extra; do
     [[ -n "$unit" ]] || continue
     path=$(systemctl show --property=What --value "$unit" 2>/dev/null) || return 1
@@ -151,17 +154,13 @@ inspect_hibernation_device() {
   case "$types" in
   disk | $'part\ndisk') ;;
   $'crypt\npart\ndisk' | $'crypt\ndisk')
-    parent=$(lsblk -dnro PKNAME "$device" 2>/dev/null) || return 3
-    [[ -n "$parent" && "$parent" != *[[:space:]/]* ]] || return 3
-    parent=$(readlink -e -- "/dev/$parent") || return 3
-    kind=$(sudo blkid -p -s TYPE -o value "$parent" 2>/dev/null) || return 3
-    [[ "$kind" = crypto_LUKS ]] || return 3
     status=$(sudo cryptsetup status "$device" 2>/dev/null) || return 3
     kind=$(awk '$1 == "type:" {print $2}' <<<"$status")
     backing=$(awk '$1 == "device:" {print $2}' <<<"$status")
     [[ "$kind" = LUKS1 || "$kind" = LUKS2 ]] || return 3
-    resolved=$(readlink -e -- "$backing") || return 3
-    [[ "$resolved" = "$parent" ]] || return 3
+    parent=$(readlink -e -- "$backing") || return 3
+    kind=$(sudo blkid -p -s TYPE -o value "$parent" 2>/dev/null) || return 3
+    [[ "$kind" = crypto_LUKS ]] || return 3
     luks_uuid=$(sudo blkid -p -s UUID -o value "$parent" 2>/dev/null) || return 3
     [[ "$luks_uuid" =~ ^[[:xdigit:]]{8}(-[[:xdigit:]]{4}){3}-[[:xdigit:]]{12}$ && "$luks_uuid" != "$uuid" ]] || return 3
     ;;
@@ -174,7 +173,6 @@ inspect_hibernation_device() {
 verify_hibernation_unlock() {
   local cmdline="$1" hooks options token selected=false restricted=false disabled=false
   hooks=$(get_hibernation_hooks) || return 1
-  [[ " $hooks " = *' systemd '* && " $hooks " = *' sd-encrypt '* ]] || return 1
   local -a tokens
   options=$(get_limine_config_value MKINITCPIO_UKI_OPTIONS) || return 1
   read -r -a tokens <<<"$options"
@@ -184,6 +182,35 @@ verify_hibernation_unlock() {
     esac
   done
   read -r -a tokens <<<"$cmdline"
+  if [[ " $hooks " != *' systemd '* ]]; then
+    [[ " $hooks " = *' udev '* && " $hooks " =~ [[:space:]]encrypt[[:space:]](.*[[:space:]])?filesystems[[:space:]] ]] || return 1
+    local source name extra resolved uuid
+    for token in "${tokens[@]}"; do
+      if [[ "$token" = disablehooks=* ]]; then
+        case ",${token#*=}," in
+        *,udev,* | *,encrypt,* | *,resume,*) return 1 ;;
+        esac
+      fi
+      [[ "$token" = cryptdevice=* ]] || continue
+      [[ "$selected" = false ]] || return 1
+      selected=true
+      IFS=: read -r source name options extra <<<"${token#*=}"
+      [[ "$name" =~ ^[[:alnum:]_.+-]+$ && -z "$extra" ]] || return 1
+      case "$source" in
+      "UUID=$luks_uuid") ;;
+      PARTUUID=*)
+        [[ "$source" =~ ^PARTUUID=[[:xdigit:]-]+$ ]] || return 1
+        resolved=$(readlink -e -- "/dev/disk/by-partuuid/${source#PARTUUID=}") || return 1
+        uuid=$(sudo blkid -p -s UUID -o value "$resolved" 2>/dev/null) || return 1
+        [[ "$uuid" = "$luks_uuid" ]] || return 1
+        ;;
+      *) return 1 ;;
+      esac
+    done
+    [[ "$selected" = true ]]
+    return
+  fi
+  [[ " $hooks " = *' sd-encrypt '* ]] || return 1
   for token in "${tokens[@]}"; do
     token="${token#rd.}"
     case "$token" in
@@ -680,7 +707,7 @@ setup_hibernation() {
     esac
   done
   if [[ -n "$luks_uuid" ]] && ! verify_hibernation_unlock "$cmdline"; then
-    LAST_ERROR="Verify systemd/sd-encrypt hooks and early root unlocking via rd.luks.uuid/rd.luks.name or initramfs crypttab before retrying; encryption configuration was not changed"
+    LAST_ERROR="Cannot verify early LUKS unlocking; check encrypt/cryptdevice or systemd/sd-encrypt and its persistent unlock configuration; encryption configuration was not changed"
     log WARN "$LAST_ERROR"
     return 2
   fi
@@ -707,8 +734,20 @@ setup_hibernation() {
   local mkinitcpio_content='if [[ -n "${HOOKS:-}" && "${HOOKS@a}" != *a* ]]; then
   read -r -a HOOKS <<< "$HOOKS"
 fi
-if [[ " ${HOOKS[*]:-} " != *" systemd "* && " ${HOOKS[*]:-} " != *" resume "* ]]; then
-  HOOKS+=(resume)
+if [[ " ${HOOKS[*]:-} " != *" systemd "* ]]; then
+  _hibernation_hooks=()
+  for _hibernation_hook in "${HOOKS[@]}"; do
+    [[ "$_hibernation_hook" != resume ]] || continue
+    if [[ "$_hibernation_hook" = filesystems ]]; then
+      _hibernation_hooks+=(resume)
+    fi
+    _hibernation_hooks+=("$_hibernation_hook")
+  done
+  if [[ " ${_hibernation_hooks[*]} " != *" resume "* ]]; then
+    _hibernation_hooks+=(resume)
+  fi
+  HOOKS=("${_hibernation_hooks[@]}")
+  unset _hibernation_hooks _hibernation_hook
 fi'
   write_mkinitcpio_dropin 'hibernation.conf' "$mkinitcpio_content" || return 1
   ensure_limine_cmdline_defaults || return 1

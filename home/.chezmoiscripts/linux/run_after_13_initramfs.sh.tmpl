@@ -3,7 +3,7 @@
 #
 # Runs on every apply, after boot-related configuration scripts, so a pending
 # rebuild is retried even when those scripts are skipped by their execution state.
-# Rejects ambiguous config locations without deleting any config.
+# Uses ESP-root limine.conf; removes known legacy EFI configs only on personal machines.
 # Package post-hooks enroll and sign after publishing rebuilt artifacts.
 # Verify artifacts and the enrolled checksum before clearing the pending request.
 # Rejects failure diagnostics even when package helpers incorrectly return zero.
@@ -64,7 +64,7 @@ main() {
   fi
 
   if ! validate_limine_config_location "$boot_directory"; then
-    die "Ambiguous Limine config location; rebuild remains pending: $LAST_ERROR"
+    die "Limine legacy config cleanup failed; rebuild remains pending: $LAST_ERROR"
   fi
 
   local uki_mode fallback_mode
