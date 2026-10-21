@@ -173,6 +173,12 @@ update_limine_cmdline() {
 
   local content
   printf -v content 'KERNEL_CMDLINE[default]%s "%s"' "$operator" "$escaped_params"
+  if [[ "$dropin_name" = 01-default.conf ]]; then
+    content=$(get_limine_cmdline deduplicate "$content" "${SETUP_HIBERNATION:-1}") || {
+      LAST_ERROR="Cannot verify managed kernel argument duplicates; defaults were not changed"
+      return 1
+    }
+  fi
 
   if printf '%s\n' "$content" | sudo cmp -s -- "$dropin_file" -; then
     return 0
@@ -339,7 +345,14 @@ done
 exit 2
 BASH
   case "$status" in
-  0) return 0 ;;
+  0)
+    if sudo test -f /etc/limine-entry-tool.d/01-default.conf; then
+      if ! edit_system_configs _stage_limine_default_cleanup : /etc/limine-entry-tool.d/01-default.conf; then
+        LAST_ERROR="Failed to remove confirmed Limine default duplicates; see diagnostics"
+        return 1
+      fi
+    fi
+    return 0 ;;
   2) ;;
   *) LAST_ERROR="Cannot read persistent Limine defaults; refusing to replace them"; return 1 ;;
   esac
@@ -348,6 +361,13 @@ BASH
     return 1
   fi
   update_limine_cmdline "01-default.conf" "$params"
+}
+
+_stage_limine_default_cleanup() {
+  get_limine_cmdline deduplicate-file "$1" "${SETUP_HIBERNATION:-1}" >/dev/null || return 1
+  if ! sudo cmp -s -- /etc/limine-entry-tool.d/01-default.conf "$1"; then
+    request_initramfs_rebuild || return 1
+  fi
 }
 
 # Checks that Limine's UKI options do not disable managed mkinitcpio drop-ins.
@@ -495,6 +515,7 @@ import sys
 mode = sys.argv[1]
 hibernation = mode == 'hibernation'
 migration = mode == 'migrate'
+deduplicate = mode in ('deduplicate', 'deduplicate-file')
 kernel = '/etc/kernel/cmdline'
 managed = '/etc/limine-entry-tool.d/50-hibernation.conf'
 default = '/etc/limine-entry-tool.d/01-default.conf'
@@ -579,13 +600,17 @@ if migration:
 
 records = {}
 texts = {}
+default_spans = []
 baseline = False
 for name in files:
     path = pathlib.Path(name)
     records[name] = []
-    if not path.exists() and name not in staged:
-        continue
-    text = staged.get(name, path).read_text()
+    if deduplicate and name == default:
+        text = pathlib.Path(sys.argv[2]).read_bytes().decode() if mode == 'deduplicate-file' else sys.argv[2]
+    else:
+        if not path.exists() and name not in staged:
+            continue
+        text = staged.get(name, path).read_text()
     lines = text.splitlines(keepends=True)
     for index, raw in enumerate(lines):
         line = raw.rstrip('\r\n')
@@ -599,7 +624,7 @@ for name in files:
             records[name].append(('+=', ''))
             continue
         if not re.match(r'^\s*KERNEL_CMDLINE\[default\]', line):
-            if re.match(r'^\s*KERNEL_CMDLINE\[', line):
+            if not deduplicate and re.match(r'^\s*KERNEL_CMDLINE\[', line):
                 raise SystemExit('Kernel-specific Limine arguments require manual boot configuration review')
             continue
         match = re.fullmatch(r'\s*KERNEL_CMDLINE\[default\]\s*(\+?=)\s*(.*?)\s*', line)
@@ -615,6 +640,8 @@ for name in files:
             end -= 1
         if not value.strip():
             raise SystemExit('Empty Limine defaults have an unverifiable fallback; configure resume manually')
+        if deduplicate and name == default:
+            default_spans.append((index, start, end, value))
         if migration and name == default:
             replacement = translate(value)
             lines[index] = raw[:start] + replacement + raw[end:]
@@ -652,6 +679,48 @@ value = ''
 for name in files:
     for operator, argument in records[name]:
         value = (argument + ' ' + value).strip() if operator == '+=' else argument
+if deduplicate:
+    # Keep token spelling and all intervening bytes, including quoted values.
+    tokens = re.compile(r'(?:[^\s"]+|"[^"]*")+')
+    owners = {'/etc/limine-entry-tool.d/20-quiet-boot.conf'}
+    if sys.argv[3] == '1':
+        owners.add(managed)
+    supplied = set()
+    default_active = False
+    for name in files:
+        for operator, argument in records[name]:
+            if operator == '=':
+                supplied.clear()
+                default_active = False
+            if name == default:
+                default_active = True
+            if name in owners and operator == '+=' and argument.count('"') % 2 == 0:
+                supplied.update(tokens.findall(argument))
+    effective_tokens = tokens.findall(value)
+    supplied_keys = {token.lstrip('"').split('=', 1)[0].replace('-', '_') for token in supplied}
+    values = {}
+    for token in effective_tokens:
+        if '=' in token:
+            key = token.lstrip('"').split('=', 1)[0].replace('-', '_')
+            values.setdefault(key, set()).add(token)
+    conflicts = {key for key, choices in values.items() if len(choices) > 1 and key in supplied_keys}
+    # These bare options compete for the console loglevel too.
+    if 'quiet' in supplied and 'debug' in {token.strip('"') for token in effective_tokens}:
+        conflicts.add('quiet/debug')
+    for key in sorted(conflicts):
+        print('WARNING: conflicting ' + key + ' settings; leaving 01-default.conf unchanged', file=sys.stderr)
+    lines = texts.get(default, '').splitlines(keepends=True)
+    if default_active and not conflicts and value.count('"') % 2 == 0 and '--' not in {token.strip('"') for token in effective_tokens}:
+        for index, start, end, argument in default_spans:
+            replacement = tokens.sub(lambda match: '' if match[0] in supplied else match[0], argument)
+            if replacement.strip():
+                lines[index] = lines[index][:start] + replacement + lines[index][end:]
+    content = ''.join(lines)
+    if mode == 'deduplicate-file':
+        pathlib.Path(sys.argv[2]).write_bytes(content.encode())
+    else:
+        sys.stdout.write(content)
+    raise SystemExit(0)
 if mode in ('migrate', 'candidate'):
     if 'cryptdevice=' in value or any(token.startswith(('cryptkey=', 'crypto=')) for token in value.split()):
         raise SystemExit('Legacy unlocking remains in independent Limine defaults; reconcile that source manually')

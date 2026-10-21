@@ -101,6 +101,154 @@ get_mkinitcpio_hooks
 """
         )
 
+    def ensure_defaults(self):
+        self.stub("sed", 'exec /usr/bin/sed "$@"')
+        source = (
+            (LIB / "snapboot.sh")
+            .read_text()
+            .replace("/etc/", f"{self.etc}/")
+            .replace("/usr/share/", f"{self.directory}/share/")
+        )
+        return self.shell(
+            self.libraries("common.sh")
+            + source
+            + '\nensure_limine_cmdline_defaults || { printf "%s\\n" "$LAST_ERROR" >&2; exit 1; }\n'
+        )
+
+    def test_defaults_remove_only_exact_active_owner_tokens_and_preserve_other_bytes(
+        self,
+    ):
+        self.env["SETUP_HIBERNATION"] = "1"
+        base = "rd.luks.name=container=data rd.luks.options=container=tpm2-device=auto root=/dev/mapper/data rootflags=subvol=/custom rw rootfstype=btrfs"
+        custom = 'custom=quiet systemd.setenv="WORDS=quiet splash extra" nvidia_drm.modeset=1'
+        original = f'# keep quiet and splash here\nKERNEL_CMDLINE[default]= "{base} quiet splash hibernate.compressor=lz4 resume=UUID=filesystem resume_offset=123 loglevel=3 {custom}"\nOTHER=yes\n\n'
+        expected = f'# keep quiet and splash here\nKERNEL_CMDLINE[default]= "{base}       {custom}"\nOTHER=yes\n\n'
+        self.defaults.write_text(original)
+        self.kernel.write_text("root=/dev/mapper/data quiet splash\n")
+        quiet = self.defaults.with_name("20-quiet-boot.conf")
+        quiet.write_text('KERNEL_CMDLINE[default]+= "quiet splash loglevel=3"\n')
+        hibernation = self.defaults.with_name("50-hibernation.conf")
+        hibernation.write_text(
+            'KERNEL_CMDLINE[default]+= "hibernate.compressor=lz4 resume=UUID=filesystem resume_offset=123"\n'
+        )
+        before = (
+            self.kernel.read_bytes(),
+            quiet.read_bytes(),
+            hibernation.read_bytes(),
+        )
+        result = self.ensure_defaults()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(self.defaults.read_text(), expected)
+        self.assertEqual(
+            (self.kernel.read_bytes(), quiet.read_bytes(), hibernation.read_bytes()),
+            before,
+        )
+        self.assertTrue(self.marker.exists())
+        self.marker.unlink()
+        result = self.ensure_defaults()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(self.defaults.read_text(), expected)
+        self.assertFalse(self.marker.exists())
+
+    def test_default_cleanup_respects_missing_disabled_and_overridden_owners(self):
+        original = 'KERNEL_CMDLINE[default]= "root=UUID=filesystem quiet resume_offset=123 loglevel=7 loglevel=3"\n'
+        quiet = self.defaults.with_name("20-quiet-boot.conf")
+        hibernation = self.defaults.with_name("50-hibernation.conf")
+        late = self.etc / "default/limine"
+        late.parent.mkdir()
+        for case in (
+            "missing",
+            "disabled",
+            "inactive",
+            "overridden",
+            "conflict",
+            "quoted-conflict",
+            "separator",
+            "crlf",
+            "per-kernel",
+            "alias-conflict",
+            "bare-conflict",
+        ):
+            with self.subTest(case=case):
+                self.defaults.write_text(original)
+                self.marker.unlink(missing_ok=True)
+                independent = self.etc / "limine-entry-tool.conf"
+                for path in (quiet, hibernation, late, independent):
+                    path.unlink(missing_ok=True)
+                self.env["SETUP_HIBERNATION"] = "0"
+                if case == "disabled":
+                    hibernation.write_text(
+                        'KERNEL_CMDLINE[default]+= "resume_offset=123"\n'
+                    )
+                elif case == "inactive":
+                    quiet.write_text('# KERNEL_CMDLINE[default]+= "quiet"\n')
+                elif case == "overridden":
+                    quiet.write_text('KERNEL_CMDLINE[default]+= "quiet"\n')
+                    late.write_text(
+                        'KERNEL_CMDLINE[default]= "root=UUID=other quiet"\n'
+                    )
+                elif case == "conflict":
+                    quiet.write_text('KERNEL_CMDLINE[default]+= "quiet loglevel=3"\n')
+                    self.defaults.write_text(
+                        'KERNEL_CMDLINE[default]= "root=UUID=filesystem loglevel=7 quiet"\n'
+                    )
+                elif case == "quoted-conflict":
+                    self.env["SETUP_HIBERNATION"] = "1"
+                    hibernation.write_text(
+                        'KERNEL_CMDLINE[default]+= "resume=UUID=managed"\n'
+                    )
+                    self.defaults.write_text(
+                        'KERNEL_CMDLINE[default]= "root=UUID=filesystem "resume=UUID=external" resume=UUID=managed"\n'
+                    )
+                elif case == "separator":
+                    quiet.write_text('KERNEL_CMDLINE[default]+= "quiet"\n')
+                    self.defaults.write_text(
+                        'KERNEL_CMDLINE[default]= "root=UUID=filesystem init=/custom-init -- quiet"\n'
+                    )
+                elif case == "crlf":
+                    self.defaults.write_bytes(original.replace("\n", "\r\n").encode())
+                elif case == "per-kernel":
+                    independent.write_text(
+                        'KERNEL_CMDLINE[linux-custom]= "root=UUID=custom quiet"\n'
+                    )
+                elif case == "alias-conflict":
+                    self.env["SETUP_HIBERNATION"] = "1"
+                    hibernation.write_text(
+                        'KERNEL_CMDLINE[default]+= "resume_offset=123"\n'
+                    )
+                    self.defaults.write_text(
+                        'KERNEL_CMDLINE[default]= "root=UUID=filesystem resume-offset=456 resume_offset=123"\n'
+                    )
+                elif case == "bare-conflict":
+                    quiet.write_text('KERNEL_CMDLINE[default]+= "quiet"\n')
+                    self.defaults.write_text(
+                        'KERNEL_CMDLINE[default]= "root=UUID=filesystem debug quiet"\n'
+                    )
+                expected = self.defaults.read_bytes()
+                result = self.ensure_defaults()
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(self.defaults.read_bytes(), expected)
+                self.assertFalse(self.marker.exists())
+                if case == "conflict":
+                    self.assertIn("loglevel", result.stderr)
+
+    def test_generated_defaults_deduplicate_without_rewriting_persistent_kernel_line(
+        self,
+    ):
+        self.kernel.write_text("root=/dev/mapper/data quiet custom=quiet\n")
+        self.defaults.with_name("20-quiet-boot.conf").write_text(
+            'KERNEL_CMDLINE[default]+= "quiet"\n'
+        )
+        result = self.ensure_defaults()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(
+            self.defaults.read_text(),
+            'KERNEL_CMDLINE[default]= "root=/dev/mapper/data  custom=quiet"\n',
+        )
+        self.assertEqual(
+            self.kernel.read_text(), "root=/dev/mapper/data quiet custom=quiet\n"
+        )
+
     def legacy_sources(self, unlock, *, mapping="root"):
         self.env.update(ENCRYPTED="1", MAPPING=mapping)
         arguments = (
