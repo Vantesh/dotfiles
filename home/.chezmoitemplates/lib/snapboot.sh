@@ -60,15 +60,14 @@ get_btrfs_root_device() {
   fi
 
   local device
-  device=$(findmnt -n -o SOURCE --target / 2>/dev/null)
+  device=$(findmnt --nofsroot -rn -o SOURCE --target / 2>/dev/null)
 
   if [[ -z "$device" ]]; then
     LAST_ERROR="Failed to find root device"
     return 1
   fi
 
-  # Strip subvolume info (e.g., "/dev/sda1[/@]" -> "/dev/sda1")
-  printf '%s\n' "${device%%\[*}"
+  printf '%b\n' "$device"
   return 0
 }
 
@@ -592,46 +591,69 @@ BASH
 # Sets caller-local resume_uuid (the filesystem UUID), luks_uuid and root_mapping
 # through Bash dynamic scope; never guesses encryption from a mapper name.
 inspect_btrfs_device() {
-  local target="$1" identity mount_point source filesystem uuid extra device metadata devices path types parent status kind backing resolved
-  LAST_ERROR="Cannot safely identify a single plain or LUKS-backed Btrfs device for $target; review storage manually"
-  identity=$(findmnt -rn -o TARGET,SOURCE,FSTYPE,UUID --target "$target" 2>/dev/null) || return 3
+  local target="$1" identity mount_point source filesystem uuid extra device metadata device_id block_fs block_uuid devices path types parent parent_id status kind backing resolved
+  local -a parents
+  LAST_ERROR="Unable to read unambiguous mount metadata for $target"
+  identity=$(findmnt --nofsroot -rn -o TARGET,SOURCE,FSTYPE,UUID --target "$target" 2>/dev/null) || return 3
   read -r mount_point source filesystem uuid extra <<<"$identity"
-  [[ "$mount_point" = /* && "$filesystem" = btrfs && "$uuid" =~ ^[[:xdigit:]]{8}(-[[:xdigit:]]{4}){3}-[[:xdigit:]]{12}$ && -z "$extra" && "$identity" != *$'\n'* ]] || return 3
-  source="${source%%\[*}"
+  [[ "$mount_point" = /* && -n "$source" && -z "$extra" && "$identity" != *$'\n'* ]] || return 3
+  LAST_ERROR="Filesystem at $target is not Btrfs"
+  [[ "$filesystem" = btrfs ]] || return 3
+  LAST_ERROR="Invalid Btrfs filesystem UUID metadata for $target"
+  [[ "$uuid" =~ ^[[:xdigit:]]{8}(-[[:xdigit:]]{4}){3}-[[:xdigit:]]{12}$ ]] || return 3
+  mount_point=$(printf '%b' "$mount_point")
+  source=$(printf '%b' "$source")
+  LAST_ERROR="Unable to resolve Btrfs backing device for $target"
   device=$(readlink -e -- "$source") || return 3
-  metadata=$(lsblk -dnro FSTYPE,UUID "$device" 2>/dev/null) || return 3
-  [[ "$metadata" = "btrfs $uuid" ]] || return 3
+  metadata=$(lsblk -dnro FSTYPE,UUID,MAJ:MIN "$device" 2>/dev/null) || return 3
+  read -r block_fs block_uuid device_id extra <<<"$metadata"
+  LAST_ERROR="Filesystem UUID does not match the resolved device for $target"
+  [[ "$block_fs" = btrfs && "$block_uuid" = "$uuid" ]] || return 3
+  LAST_ERROR="Unable to identify the backing block device for $target"
+  [[ "$device_id" =~ ^[0-9]+:[0-9]+$ && -z "$extra" && "$metadata" != *$'\n'* ]] || return 3
+  # Use block-device identities, not Btrfs's anonymous filesystem device number.
+  LAST_ERROR="Filesystem UUID resolves to a different or missing block device for $target"
   resolved=$(readlink -e -- "/dev/disk/by-uuid/$uuid") || return 3
-  [[ "$resolved" = "$device" ]] || return 3
+  [[ $(lsblk -dnro MAJ:MIN "$resolved" 2>/dev/null) = "$device_id" ]] || return 3
+  LAST_ERROR="Unable to inspect Btrfs device membership for $target"
   devices=$(sudo btrfs filesystem show --raw "$mount_point" 2>/dev/null) || return 3
+  LAST_ERROR="Btrfs filesystem must report exactly one device for $target"
   [[ $(awk '/Total devices/ {print $3}' <<<"$devices") = 1 ]] || return 3
-  path=$(awk '$1 == "devid" && $7 == "path" {print $8}' <<<"$devices")
+  LAST_ERROR="Btrfs member does not match the resolved backing block device for $target"
+  path=$(awk '$1 == "devid" && $7 == "path" {match($0, /[[:space:]]path[[:space:]]+/); print substr($0, RSTART + RLENGTH)}' <<<"$devices")
   [[ -n "$path" && "$path" != *$'\n'* ]] || return 3
   resolved=$(readlink -e -- "$path") || return 3
-  [[ "$resolved" = "$device" ]] || return 3
+  [[ $(lsblk -dnro MAJ:MIN "$resolved" 2>/dev/null) = "$device_id" ]] || return 3
+  LAST_ERROR="Unsupported block-device topology for $target"
   types=$(lsblk -srn -o TYPE "$device" 2>/dev/null) || return 3
   luks_uuid=""
   root_mapping=""
   case "$types" in
   disk | $'part\ndisk') ;;
   $'crypt\npart\ndisk' | $'crypt\ndisk')
-    parent=$(lsblk -dnro PKNAME "$device" 2>/dev/null) || return 3
-    [[ -n "$parent" && "$parent" != *[[:space:]/]* ]] || return 3
-    parent=$(readlink -e -- "/dev/$parent") || return 3
+    LAST_ERROR="Unsupported device-mapper topology for $target: expected one direct backing device"
+    parents=(/sys/dev/block/"$device_id"/slaves/*)
+    [[ "${#parents[@]}" = 1 && -d "${parents[0]}" ]] || return 3
+    IFS= read -r parent_id < "${parents[0]}/dev" || return 3
+    [[ "$parent_id" =~ ^[0-9]+:[0-9]+$ && "$parent_id" != "$device_id" ]] || return 3
+    parent=$(readlink -e -- "/dev/block/$parent_id") || return 3
+    [[ $(lsblk -dnro MAJ:MIN "$parent" 2>/dev/null) = "$parent_id" ]] || return 3
+    LAST_ERROR="LUKS backing device could not be verified for $target"
     kind=$(sudo blkid -p -s TYPE -o value "$parent" 2>/dev/null) || return 3
     [[ "$kind" = crypto_LUKS ]] || return 3
-    status=$(sudo cryptsetup status "$device" 2>/dev/null) || return 3
+    status=$(sudo env LC_ALL=C cryptsetup status "$device" 2>/dev/null) || return 3
     kind=$(awk '$1 == "type:" {print $2}' <<<"$status")
-    backing=$(awk '$1 == "device:" {print $2}' <<<"$status")
+    backing=$(awk '$1 == "device:" {sub(/^[[:space:]]*device:[[:space:]]*/, ""); print}' <<<"$status")
     [[ "$kind" = LUKS1 || "$kind" = LUKS2 ]] || return 3
     resolved=$(readlink -e -- "$backing") || return 3
-    [[ "$resolved" = "$parent" ]] || return 3
+    [[ $(lsblk -dnro MAJ:MIN "$resolved" 2>/dev/null) = "$parent_id" ]] || return 3
     luks_uuid=$(sudo blkid -p -s UUID -o value "$parent" 2>/dev/null) || return 3
     [[ "$luks_uuid" =~ ^[[:xdigit:]]{8}(-[[:xdigit:]]{4}){3}-[[:xdigit:]]{12}$ && "$luks_uuid" != "$uuid" ]] || return 3
-    root_mapping=$(lsblk -dnro NAME "$device" 2>/dev/null) || return 3
-    [[ "$root_mapping" =~ ^[[:alnum:]_.+-]+$ ]] || return 3
+    LAST_ERROR="Unable to verify active LUKS mapping identity for $target"
+    IFS= read -r root_mapping < "/sys/dev/block/$device_id/dm/name" || return 3
+    [[ -n "$root_mapping" ]] || return 3
     resolved=$(readlink -e -- "/dev/mapper/$root_mapping") || return 3
-    [[ "$resolved" = "$device" ]] || return 3
+    [[ $(lsblk -dnro MAJ:MIN "$resolved" 2>/dev/null) = "$device_id" ]] || return 3
     ;;
   *) return 3 ;;
   esac

@@ -73,46 +73,103 @@ create_btrfs_swap
                 self.assertEqual(self.logged_calls(), [] if failure == "identity" else
                                  [["sudo", "btrfs", "subvolume", "list", "/"]])
 
-    def resume_fixture(self, *, encrypted=False, failure=""):
+    def resume_fixture(
+        self,
+        *,
+        encrypted=False,
+        failure="",
+        mapping="system-volume.v2",
+        mapper_source=False,
+        whole_device=False,
+    ):
         swap = self.directory / "swap"
         swap.mkdir(exist_ok=True)
         (swap / "swapfile").touch()
-        self.env.update(SWAP=str(swap), ENCRYPTED="1" if encrypted else "0",
-                        FAILURE=failure)
-        self.stub("findmnt", r'''case "$*" in
-    '-rn -o TARGET,SOURCE,FSTYPE,UUID --target '*)
-        [ "$FAILURE" != identity ] || exit 23
-        if [ "$5" = / ]; then mount=/; else mount="$SWAP"; fi
-        printf '%s /dev/fixture[/@swap] btrfs aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa\n' "$mount" ;;
-    *) exit 97 ;;
-esac''')
+        dev = self.directory / "dev"
+        for directory in (
+            dev,
+            dev / "mapper",
+            dev / "disk/by-id",
+            dev / "disk/by-uuid",
+            dev / "block",
+        ):
+            directory.mkdir(parents=True, exist_ok=True)
+        for name in ("fixture", "container", "other"):
+            (dev / name).touch()
+        device_id = "240:5" if encrypted else "8:1"
+        aliases = {
+            dev / "mapper" / mapping: dev / "fixture",
+            dev / "disk/by-id/system-volume": dev / "fixture",
+            dev / "disk/by-uuid/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa": dev
+            / ("container" if failure == "uuid" else "fixture"),
+            dev / "block/8:17": dev / "container",
+        }
+        for alias, destination in aliases.items():
+            alias.unlink(missing_ok=True)
+            alias.symlink_to(destination)
+        block = self.directory / "sys/dev/block" / device_id
+        slaves = block / "slaves"
+        slaves.mkdir(parents=True, exist_ok=True)
+        for slave in slaves.iterdir():
+            slave.unlink()
+        parent = self.directory / "sys/backing-device"
+        parent.mkdir(parents=True, exist_ok=True)
+        (parent / "dev").write_text("8:17\n")
+        if encrypted and failure != "missing-parent":
+            (slaves / "backing-device").symlink_to(parent)
+            if failure == "parents":
+                (slaves / "second-device").symlink_to(parent)
+        (block / "dm").mkdir(exist_ok=True)
+        (block / "dm/name").write_text(mapping + "\n")
+        source = dev / (
+            "mapper/" + mapping if mapper_source else "disk/by-id/system-volume"
+        )
+        self.env.update(
+            SWAP=str(swap),
+            ENCRYPTED="1" if encrypted else "0",
+            FAILURE=failure,
+            DEV=str(dev),
+            DEVICE_ID=device_id,
+            MOUNT_SOURCE=str(source),
+            WHOLE_DEVICE="1" if whole_device else "0",
+        )
         self.stub(
-            "readlink",
+            "findmnt",
             r"""case "$*" in
-    *'/dev/disk/by-uuid/'*) [ "$FAILURE" != uuid ] || { echo /dev/container; exit; }; echo /dev/fixture ;;
-    *'/dev/container'*) echo /dev/container ;;
-    *'/dev/fixture'*|*'/dev/mapper/root'*) echo /dev/fixture ;;
-    *) exec /usr/bin/readlink "$@" ;;
+    '--nofsroot -rn -o SOURCE --target /'|'--nofsroot -n -o SOURCE --target /') printf '%s\n' "$MOUNT_SOURCE" ;;
+    '-n -o SOURCE --target /') printf '%s[/releases/root.v2]\n' "$MOUNT_SOURCE" ;;
+    '--nofsroot -rn -o TARGET,SOURCE,FSTYPE,UUID --target '*|'-rn -o TARGET,SOURCE,FSTYPE,UUID --target '*)
+        [ "$FAILURE" != identity ] || exit 23
+        for target do :; done
+        if [ "$target" = / ]; then mount=/; else mount="$SWAP"; fi
+        case "$1" in --nofsroot) source="$MOUNT_SOURCE" ;; *) source="$MOUNT_SOURCE[/releases/root.v2]" ;; esac
+        printf '%s %s btrfs aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa\n' "$mount" "$source" ;;
+    *) exit 97 ;;
 esac""",
         )
         self.stub(
             "lsblk",
             r"""case "$*" in
-    '-dnro FSTYPE,UUID /dev/fixture') echo 'btrfs aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa' ;;
-    '-srn -o TYPE /dev/fixture')
+    "-dnro FSTYPE,UUID $DEV/fixture") echo 'btrfs aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa' ;;
+    "-dnro FSTYPE,UUID,MAJ:MIN $DEV/fixture") printf 'btrfs aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa %s\n' "$DEVICE_ID" ;;
+    "-dnro MAJ:MIN $DEV/fixture") echo "$DEVICE_ID" ;;
+    "-dnro MAJ:MIN $DEV/container") echo '8:17' ;;
+    "-dnro MAJ:MIN $DEV/other") echo '8:18' ;;
+    "-srn -o TYPE $DEV/fixture")
         [ "$FAILURE" != ancestry ] || { printf 'lvm\ncrypt\npart\ndisk\n'; exit; }
-        if [ "$ENCRYPTED" = 1 ]; then printf 'crypt\npart\ndisk\n'; else printf 'part\ndisk\n'; fi ;;
-    '-dnro PKNAME /dev/fixture') echo container ;;
-    '-dnro NAME /dev/fixture') echo root ;;
+        [ "$ENCRYPTED" != 1 ] || printf 'crypt\n'
+        [ "$WHOLE_DEVICE" = 1 ] || printf 'part\n'
+        printf 'disk\n' ;;
+    "-dnro PKNAME $DEV/fixture") exit 0 ;;
     *) exit 97 ;;
 esac""",
         )
         self.stub(
             "blkid",
             r"""case "$*" in
-    '-p -s TYPE -o value /dev/container')
+    "-p -s TYPE -o value $DEV/container")
         if [ "$FAILURE" = not-luks ]; then echo ext4; else echo crypto_LUKS; fi ;;
-    '-p -s UUID -o value /dev/container') echo bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb ;;
+    "-p -s UUID -o value $DEV/container") echo bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb ;;
     *) exit 97 ;;
 esac""",
         )
@@ -123,10 +180,12 @@ esac""",
         # This command selects mounted filesystems by directory, not swapfile.
         case "$5" in /|"$SWAP") ;; *) exit 23 ;; esac
         if [ "$FAILURE" = multi ]; then echo 'Total devices 2 FS bytes used 0'; else echo 'Total devices 1 FS bytes used 0'; fi
-        echo 'devid 1 size 100 used 0 path /dev/fixture' ;;
+        printf 'devid 1 size 100 used 0 path %s/disk/by-uuid/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa\n' "$DEV" ;;
     'blkid -p '*) exec "$@" ;;
     'bash '*) echo 'Hibernation must not inspect initramfs or unlocking policy' >&2; exit 97 ;;
-    'cryptsetup status /dev/fixture') printf '  type: LUKS2\n  device: /dev/container\n' ;;
+    "cryptsetup status $DEV/fixture"|"env LC_ALL=C cryptsetup status $DEV/fixture")
+        if [ "$FAILURE" = backing ]; then backing="$DEV/other"; else backing="$DEV/container"; fi
+        printf '  type: LUKS2\n  device: %s\n' "$backing" ;;
     'btrfs inspect-internal map-swapfile -r '*)
         [ "$FAILURE" != offset ] || exit 23; echo 123 ;;
     *) echo "Unexpected sudo: $*" >&2; exit 97 ;;
@@ -135,7 +194,11 @@ esac""",
         source = (LIB / "hibernation.sh").read_text().replace(
             '"/swap"', f'"{swap}"').replace('"/swap/swapfile"', f'"{swap}/swapfile"')
         return (
-            self.libraries("common.sh", "snapboot.sh")
+            self.libraries("common.sh")
+            + (LIB / "snapboot.sh")
+            .read_text()
+            .replace('"/dev/', f'"{dev}/')
+            .replace("/sys/", f"{self.directory}/sys/")
             + source
             + r"""
 check_hibernation_swap_policy() { return 0; }
@@ -147,10 +210,39 @@ setup_hibernation
 """
         )
 
+    def test_detector_resolves_subvolume_sources_and_mapper_aliases(self):
+        script = self.resume_fixture(
+            encrypted=True, mapping="data[system]:v2", mapper_source=True
+        ).rsplit("setup_hibernation\n", 1)[0]
+        result = self.shell(
+            "set -euo pipefail\nshopt -s nullglob\n"
+            + script
+            + r"""
+inspect_btrfs_device / || { printf '%s\n' "$LAST_ERROR" >&2; exit 1; }
+printf '%s|%s|%s\n' "$resume_uuid" "$luks_uuid" "$root_mapping"
+get_btrfs_root_device
+"""
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(
+            result.stdout.splitlines(),
+            [
+                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa|bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb|data[system]:v2",
+                str(self.directory / "dev/mapper/data[system]:v2"),
+            ],
+        )
+
     def test_resume_uses_verified_filesystem_for_plain_and_luks_btrfs(self):
-        for encrypted in (False, True):
-            with self.subTest(encrypted=encrypted):
-                script = self.resume_fixture(encrypted=encrypted)
+        for encrypted, whole_device in (
+            (False, False),
+            (True, False),
+            (False, True),
+            (True, True),
+        ):
+            with self.subTest(encrypted=encrypted, whole_device=whole_device):
+                script = self.resume_fixture(
+                    encrypted=encrypted, whole_device=whole_device
+                )
                 self.calls.unlink(missing_ok=True)
                 result = self.shell(script)
                 self.assertEqual(result.returncode, 0, result.stderr)
@@ -166,12 +258,25 @@ setup_hibernation
             "multi",
             "ancestry",
             "not-luks",
+            "missing-parent",
+            "parents",
+            "backing",
             "offset",
         ):
             with self.subTest(failure=failure):
                 self.calls.unlink(missing_ok=True)
-                result = self.shell(self.resume_fixture(encrypted=True, failure=failure))
+                result = self.shell(
+                    "set -euo pipefail\nshopt -s nullglob\n"
+                    + self.resume_fixture(encrypted=True, failure=failure)
+                )
                 self.assertNotEqual(result.returncode, 0)
+                reasons = {
+                    "missing-parent": "one direct backing",
+                    "parents": "one direct backing",
+                    "backing": "LUKS backing",
+                }
+                if failure in reasons:
+                    self.assertIn(reasons[failure], result.stderr)
                 self.assertFalse(
                     any(
                         call[0] in ("defaults", "update-limine")
