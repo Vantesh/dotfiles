@@ -65,16 +65,31 @@ The three setup components have separate responsibilities:
   filesystem UUID**, not the LUKS UUID. The offset comes from `map-swapfile -r`.
   Systemd supplies resume support; hibernation does not inspect or write hooks.
 
-**Encrypted-root unlocking is user-managed.** Before applying, establish a
-matching systemd early-unlock definition in persistent Limine defaults (for
-example `rd.luks.name=<LUKS-superblock-UUID>=root`) or an included crypttab entry
-with the correct UUID/mapping and `x-initrd.attach`. The installed `sd-encrypt`
-hook gives `/etc/crypttab.initramfs` precedence over `/etc/crypttab`. An ordinary
-host crypttab entry without early inclusion is insufficient. The setup performs
-a read-only presence check and rejects destructive/non-LUKS root modes; it never
-configures TPM2, keyfiles, credentials or unlock arguments, and never translates
-legacy `cryptdevice=` policy. Encrypted-root preflight also requires explicit
-persistent Limine defaults, rather than relying on a running/rescue boot.
+**Encryption credentials and authentication policy remain user-managed.** For
+verified LUKS roots, setup translates a single option-free
+`cryptdevice=<identifier>:<active-mapping>` to
+`rd.luks.name=<LUKS-superblock-UUID>=<active-mapping>`. UUID, PARTUUID, LABEL,
+PARTLABEL and device-path identifiers must resolve to the verified backing
+container; the Btrfs filesystem UUID is never used as the LUKS UUID. Only
+`/etc/kernel/cmdline` and the managed `01-default.conf` are eligible for token
+replacement, preserving unrelated arguments and settings. Kernel-only defaults
+are persisted in that managed drop-in. The command lines and base hooks are
+preflighted and published together using the existing rollback helper.
+
+Existing valid systemd definitions are reused without duplicate arguments.
+Legacy options, `cryptkey=`, implicit BusyBox keyfiles (including recognized
+keyfile-producing hooks), quoted/escaped encryption arguments, conflicting
+selections and independently managed effective legacy defaults require manual
+reconciliation. Additional early crypttab devices also require review so a new
+UUID allowlist cannot silently suppress their unlocking. Setup never edits
+crypttab, TPM2 configuration, keyfiles, credentials or LUKS policy.
+
+Without supported legacy arguments, establish a matching systemd early-unlock
+definition in persistent Limine defaults or an included crypttab entry with the
+correct UUID/mapping and `x-initrd.attach`. The installed `sd-encrypt` hook gives
+`/etc/crypttab.initramfs` precedence over `/etc/crypttab`. An ordinary host entry
+without early inclusion is insufficient. All preflight inputs are persistent;
+setup never infers future unlocking from a running/rescue boot command line.
 Verify authentication, required initramfs assets and recovery/password fallback
 yourself, especially when TPM PCR policy may be affected by rebuilt boot images.
 Custom UKI options cannot bypass the managed config, command line or signing.
