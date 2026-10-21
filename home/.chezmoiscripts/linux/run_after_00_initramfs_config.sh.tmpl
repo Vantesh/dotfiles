@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# Validate systemd initramfs prerequisites before any boot configuration changes.
+# Runs on every apply so failed preflights retry; identical content never rebuilds.
+
+set -euo pipefail
+
+{{ include ".chezmoitemplates/lib/common.sh" }}
+{{ include ".chezmoitemplates/lib/snapboot.sh" }}
+
+main() {
+  if [[ ! -x /usr/bin/limine ]] || ! command_exists mkinitcpio; then
+    log SKIP "Limine/mkinitcpio unavailable, skipping initramfs configuration"
+    return 0
+  fi
+  if ! check_btrfs; then
+    log SKIP "Root filesystem is not Btrfs, skipping initramfs configuration"
+    return 0
+  fi
+  keep_sudo_alive || die "Cannot inspect initramfs prerequisites: $LAST_ERROR"
+  configure_systemd_initramfs || die "Cannot configure systemd initramfs: $LAST_ERROR"
+}
+
+main "$@"

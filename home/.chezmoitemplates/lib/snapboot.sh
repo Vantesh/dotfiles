@@ -60,15 +60,14 @@ get_btrfs_root_device() {
   fi
 
   local device
-  device=$(findmnt -n -o SOURCE --target / 2>/dev/null)
+  device=$(findmnt --nofsroot -rn -o SOURCE --target / 2>/dev/null)
 
   if [[ -z "$device" ]]; then
     LAST_ERROR="Failed to find root device"
     return 1
   fi
 
-  # Strip subvolume info (e.g., "/dev/sda1[/@]" -> "/dev/sda1")
-  printf '%s\n' "${device%%\[*}"
+  printf '%b\n' "$device"
   return 0
 }
 
@@ -174,6 +173,12 @@ update_limine_cmdline() {
 
   local content
   printf -v content 'KERNEL_CMDLINE[default]%s "%s"' "$operator" "$escaped_params"
+  if [[ "$dropin_name" = 01-default.conf ]]; then
+    content=$(get_limine_cmdline deduplicate "$content" "${SETUP_HIBERNATION:-1}") || {
+      LAST_ERROR="Cannot verify managed kernel argument duplicates; defaults were not changed"
+      return 1
+    }
+  fi
 
   if printf '%s\n' "$content" | sudo cmp -s -- "$dropin_file" -; then
     return 0
@@ -340,7 +345,14 @@ done
 exit 2
 BASH
   case "$status" in
-  0) return 0 ;;
+  0)
+    if sudo test -f /etc/limine-entry-tool.d/01-default.conf; then
+      if ! edit_system_configs _stage_limine_default_cleanup : /etc/limine-entry-tool.d/01-default.conf; then
+        LAST_ERROR="Failed to remove confirmed Limine default duplicates; see diagnostics"
+        return 1
+      fi
+    fi
+    return 0 ;;
   2) ;;
   *) LAST_ERROR="Cannot read persistent Limine defaults; refusing to replace them"; return 1 ;;
   esac
@@ -351,6 +363,13 @@ BASH
   update_limine_cmdline "01-default.conf" "$params"
 }
 
+_stage_limine_default_cleanup() {
+  get_limine_cmdline deduplicate-file "$1" "${SETUP_HIBERNATION:-1}" >/dev/null || return 1
+  if ! sudo cmp -s -- /etc/limine-entry-tool.d/01-default.conf "$1"; then
+    request_initramfs_rebuild || return 1
+  fi
+}
+
 # Checks that Limine's UKI options do not disable managed mkinitcpio drop-ins.
 #
 # Explicit -c/--config arguments disable drop-ins even for the default config.
@@ -358,7 +377,7 @@ BASH
 # Globals:
 #   LAST_ERROR - Set on unreadable configuration or unsupported options
 # Returns:
-#   0 on compatible options, 1 on read failure, 2 on explicit config selection
+#   0 on compatible options, 1 on read failure, 2 on unsupported options
 validate_mkinitcpio_dropins() {
   LAST_ERROR=""
 
@@ -370,31 +389,31 @@ validate_mkinitcpio_dropins() {
 
   local -a args=()
   read -r -a args <<<"$options"
-  local arg short_options
+  local arg value_pending=false
+  # mkinitcpio accepts abbreviated long options and aliases. Only permit exact
+  # presentation/compression options, never an unverified config/cmdline/build path.
   for arg in "${args[@]}"; do
+    if [[ "$value_pending" = true ]]; then
+      if [[ "$arg" = -* ]]; then
+        LAST_ERROR="MKINITCPIO_UKI_OPTIONS is missing a value before $arg"
+        return 2
+      fi
+      value_pending=false
+      continue
+    fi
     case "$arg" in
-    --config | --config=*)
-      LAST_ERROR="MKINITCPIO_UKI_OPTIONS selects an explicit config ($arg), which disables /etc/mkinitcpio.conf.d; remove -c/--config before managed hook setup"
-      return 2
-      ;;
-    --) break ;;
-    --*) continue ;;
-    -*)
-      short_options="${arg:1}"
-      while [[ -n "$short_options" ]]; do
-        case "${short_options:0:1}" in
-        c)
-          LAST_ERROR="MKINITCPIO_UKI_OPTIONS selects an explicit config ($arg), which disables /etc/mkinitcpio.conf.d; remove -c/--config before managed hook setup"
-          return 2
-          ;;
-        A | g | H | h | k | p | r | S | s | t | U) break ;;
-        esac
-        short_options="${short_options:1}"
-      done
-      ;;
+    --verbose | --quiet | --nocolor | -v | -q | -n) ;;
+    --compress | --splash) value_pending=true ;;
+    --compress=?* | --splash=?*) ;;
+    *)
+      LAST_ERROR="Review unsupported MKINITCPIO_UKI_OPTIONS argument ($arg); only exact verbosity, color, compression and splash options are allowed with managed hooks/unlocking/signing"
+      return 2 ;;
     esac
   done
-
+  if [[ "$value_pending" = true ]]; then
+    LAST_ERROR="MKINITCPIO_UKI_OPTIONS is missing an option value"
+    return 2
+  fi
   return 0
 }
 
@@ -481,4 +500,578 @@ request_initramfs_rebuild() {
   fi
 
   return 0
+}
+
+# Read literal persistent default arguments using Limine's config precedence.
+# Never infer future unlocking from the currently running /proc/cmdline.
+get_limine_cmdline() {
+  sudo python3 -I -B - "${1:-boot}" "${@:2}" <<'PYTHON'
+import glob
+import pathlib
+import re
+import subprocess
+import sys
+
+mode = sys.argv[1]
+hibernation = mode == 'hibernation'
+migration = mode == 'migrate'
+deduplicate = mode in ('deduplicate', 'deduplicate-file')
+kernel = '/etc/kernel/cmdline'
+managed = '/etc/limine-entry-tool.d/50-hibernation.conf'
+default = '/etc/limine-entry-tool.d/01-default.conf'
+feature_files = {default, managed, '/etc/limine-entry-tool.d/20-quiet-boot.conf'}
+files = (sorted(glob.glob('/usr/share/limine-entry-tool.d/*.conf')) +
+         ['/etc/limine-entry-tool.conf'] +
+         sorted(set(glob.glob('/etc/limine-entry-tool.d/*.conf')) | {default, managed}) +
+         ['/etc/default/limine'])
+staged = {}
+if mode in ('migrate', 'candidate'):
+    luks_uuid, mapping, device_id, filesystem_uuid, kernel_stage, default_stage = sys.argv[2:]
+    staged = {name: pathlib.Path(stage) for name, stage in
+              ((kernel, kernel_stage), (default, default_stage)) if stage}
+
+if migration:
+    checked = {}
+
+    def block_value(identifier, field):
+        key = (identifier, field)
+        if key not in checked:
+            try:
+                device = identifier
+                if identifier.startswith(('UUID=', 'PARTUUID=', 'LABEL=', 'PARTLABEL=')):
+                    matches = subprocess.check_output(['blkid', '-t', identifier, '-o', 'device'], text=True).splitlines()
+                    if len(matches) != 1:
+                        raise SystemExit('Legacy block identifier is missing or ambiguous; review it manually')
+                    device = matches[0]
+                elif not identifier.startswith('/dev/'):
+                    raise SystemExit('Unsupported legacy block identifier; use a persistent block-device identifier')
+                checked[key] = subprocess.check_output(['lsblk', '-dnro', field, device], text=True).strip()
+            except (OSError, subprocess.CalledProcessError):
+                raise SystemExit('Cannot verify legacy block identifier; boot configuration was not changed') from None
+        return checked[key]
+
+    def translate(value):
+        if value.count('"') % 2 or any(
+                re.search(r'(cryptdevice|cryptkey|crypto|luks)[.=]', quoted)
+                for quoted in re.findall(r'"[^"]*"', value)):
+            raise SystemExit('Quoted encryption arguments require manual reconciliation')
+        tokens = value.split()
+        expected = 'rd.luks.name=' + luks_uuid + '=' + mapping
+        selections = [arg for arg in tokens if arg.startswith(('rd.luks.name=', 'luks.name=', 'rd.luks.uuid=', 'luks.uuid='))]
+        if any(arg.startswith(('cryptkey=', 'crypto=')) for arg in tokens):
+            raise SystemExit('Legacy cryptkey/crypto authentication must be configured for systemd manually')
+        legacy = [token for token in tokens if token.startswith('cryptdevice=')]
+        if not legacy:
+            return value
+        if len(legacy) != 1:
+            raise SystemExit('Multiple cryptdevice arguments require manual root-unlock review')
+        token = legacy[0]
+        fields = token.removeprefix('cryptdevice=').split(':')
+        if len(fields) != 2:
+            raise SystemExit('Unsupported cryptdevice options or escaping: ' + token + '; configure equivalent systemd unlocking manually')
+        identifier, name = fields
+        if name != mapping or any(char in token for char in '\\"\''):
+            raise SystemExit('Legacy root mapping does not match the verified active LUKS mapping')
+        if pathlib.Path('/crypto_keyfile.bin').exists():
+            raise SystemExit('Legacy /crypto_keyfile.bin requires user-managed systemd keyfile configuration')
+        if block_value(identifier, 'MAJ:MIN') != device_id:
+            raise SystemExit('Legacy cryptdevice does not select the verified LUKS backing device')
+        roots = [arg[5:] for arg in tokens if arg.startswith('root=')]
+        if len(roots) != 1 or (roots[0] not in ('UUID=' + filesystem_uuid, '/dev/mapper/' + mapping)
+                              and block_value(roots[0], 'UUID') != filesystem_uuid):
+            raise SystemExit('Legacy root= does not identify the verified Btrfs filesystem; review it manually')
+        if selections:
+            # The shared verifier checks the existing selectors before publication.
+            return re.sub(r'(?<!\S)' + re.escape(token) + r'(?!\S)', '', value, count=1)
+        # Adding a UUID allowlist must not suppress other early crypttab devices.
+        table = pathlib.Path('/etc/crypttab.initramfs')
+        if not table.exists():
+            table = pathlib.Path('/etc/crypttab')
+        if table.exists():
+            for line in table.read_text().splitlines():
+                if not line.strip() or line.lstrip().startswith('#'):
+                    continue
+                entry = line.split()
+                if table.name != 'crypttab.initramfs' and (len(entry) < 4 or 'x-initrd.attach' not in entry[3].split(',')):
+                    continue
+                if len(entry) < 2 or entry[:2] not in ([mapping, 'UUID=' + luks_uuid], [mapping, '/dev/disk/by-uuid/' + luks_uuid]):
+                    raise SystemExit('Independent early crypttab entries require manual unlock-argument reconciliation; crypttab was not changed')
+        return re.sub(r'(?<!\S)' + re.escape(token) + r'(?!\S)', lambda _: expected, value, count=1)
+
+records = {}
+texts = {}
+default_spans = []
+baseline = False
+for name in files:
+    path = pathlib.Path(name)
+    records[name] = []
+    if deduplicate and name == default:
+        text = pathlib.Path(sys.argv[2]).read_bytes().decode() if mode == 'deduplicate-file' else sys.argv[2]
+    else:
+        if not path.exists() and name not in staged:
+            continue
+        text = staged.get(name, path).read_text()
+    lines = text.splitlines(keepends=True)
+    for index, raw in enumerate(lines):
+        line = raw.rstrip('\r\n')
+        if not line.strip() or line.lstrip().startswith('#'):
+            continue
+        if name == managed and hibernation:
+            if records[name] or not re.fullmatch(
+                r'KERNEL_CMDLINE\[default\]\+= "hibernate.compressor=lz4 '
+                r'resume=UUID=[0-9a-fA-F-]+ resume_offset=[0-9]+"', line):
+                raise SystemExit('Hibernation fragment contains unrelated configuration; preserve it and configure resume manually')
+            records[name].append(('+=', ''))
+            continue
+        if not re.match(r'^\s*KERNEL_CMDLINE\[default\]', line):
+            if not deduplicate and re.match(r'^\s*KERNEL_CMDLINE\[', line):
+                raise SystemExit('Kernel-specific Limine arguments require manual boot configuration review')
+            continue
+        match = re.fullmatch(r'\s*KERNEL_CMDLINE\[default\]\s*(\+?=)\s*(.*?)\s*', line)
+        if not match:
+            raise SystemExit('Cannot verify Limine default kernel arguments')
+        operator, value = match.groups()
+        start, end = match.span(2)
+        # Limine values are literal: remove one enclosing double-quote pair.
+        # Unlike a shell, += prepends and # is not an inline comment.
+        if len(value) >= 2 and value.startswith('"') and value.endswith('"'):
+            value = value[1:-1]
+            start += 1
+            end -= 1
+        if not value.strip():
+            raise SystemExit('Empty Limine defaults have an unverifiable fallback; configure resume manually')
+        if deduplicate and name == default:
+            default_spans.append((index, start, end, value))
+        if migration and name == default:
+            replacement = translate(value)
+            lines[index] = raw[:start] + replacement + raw[end:]
+            value = replacement
+        records[name].append((operator, value))
+        if operator == '=' or name not in feature_files:
+            baseline = True
+    texts[name] = ''.join(lines)
+kernel_value = None
+if migration and kernel in staged:
+    kernel_text = staged[kernel].read_text()
+    kernel_value = kernel_text.strip()
+    if not kernel_value or '\n' in kernel_value:
+        raise SystemExit('No single-line persistent kernel command line')
+    replacement = translate(kernel_value)
+    texts[kernel] = kernel_text.replace(kernel_value, replacement, 1)
+    kernel_value = replacement
+if not baseline:
+    if not hibernation and mode not in ('initramfs', 'migrate'):
+        raise SystemExit('Set explicit persistent Limine defaults before initramfs migration; refusing an unverified running-command-line fallback')
+    # Model exactly the baseline ensure_limine_cmdline_defaults will publish,
+    # before it writes anything or we modify swap.
+    value = kernel_value if kernel_value is not None else pathlib.Path(kernel).read_text().strip()
+    if not value or '\n' in value:
+        raise SystemExit('No single-line persistent kernel command line')
+    records[default] = [('=', value.replace('"', r'\"') if hibernation else value)] + (records[default] if not hibernation else [])
+    if migration:
+        if default not in staged:
+            raise SystemExit('Persistent Limine default must be staged before migration')
+        texts[default] = 'KERNEL_CMDLINE[default]= "' + value + '"\n' + texts.get(default, '')
+marker = '__DOTFILES_HIBERNATION__'
+if hibernation:
+    records[managed] = [('+=', marker)]
+value = ''
+for name in files:
+    for operator, argument in records[name]:
+        value = (argument + ' ' + value).strip() if operator == '+=' else argument
+if deduplicate:
+    # Keep token spelling and all intervening bytes, including quoted values.
+    tokens = re.compile(r'(?:[^\s"]+|"[^"]*")+')
+    owners = {'/etc/limine-entry-tool.d/20-quiet-boot.conf'}
+    if sys.argv[3] == '1':
+        owners.add(managed)
+    supplied = set()
+    default_active = False
+    for name in files:
+        for operator, argument in records[name]:
+            if operator == '=':
+                supplied.clear()
+                default_active = False
+            if name == default:
+                default_active = True
+            if name in owners and operator == '+=' and argument.count('"') % 2 == 0:
+                supplied.update(tokens.findall(argument))
+    effective_tokens = tokens.findall(value)
+    supplied_keys = {token.lstrip('"').split('=', 1)[0].replace('-', '_') for token in supplied}
+    values = {}
+    for token in effective_tokens:
+        if '=' in token:
+            key = token.lstrip('"').split('=', 1)[0].replace('-', '_')
+            values.setdefault(key, set()).add(token)
+    conflicts = {key for key, choices in values.items() if len(choices) > 1 and key in supplied_keys}
+    # These bare options compete for the console loglevel too.
+    if 'quiet' in supplied and 'debug' in {token.strip('"') for token in effective_tokens}:
+        conflicts.add('quiet/debug')
+    for key in sorted(conflicts):
+        print('WARNING: conflicting ' + key + ' settings; leaving 01-default.conf unchanged', file=sys.stderr)
+    lines = texts.get(default, '').splitlines(keepends=True)
+    if default_active and not conflicts and value.count('"') % 2 == 0 and '--' not in {token.strip('"') for token in effective_tokens}:
+        for index, start, end, argument in default_spans:
+            replacement = tokens.sub(lambda match: '' if match[0] in supplied else match[0], argument)
+            if replacement.strip():
+                lines[index] = lines[index][:start] + replacement + lines[index][end:]
+    content = ''.join(lines)
+    if mode == 'deduplicate-file':
+        pathlib.Path(sys.argv[2]).write_bytes(content.encode())
+    else:
+        sys.stdout.write(content)
+    raise SystemExit(0)
+if mode in ('migrate', 'candidate'):
+    if 'cryptdevice=' in value or any(token.startswith(('cryptkey=', 'crypto=')) for token in value.split()):
+        raise SystemExit('Legacy unlocking remains in independent Limine defaults; reconcile that source manually')
+if migration:
+    for name, path in staged.items():
+        if name in texts:
+            path.write_text(texts[name])
+if hibernation and marker not in value.split():
+    raise SystemExit('Later Limine defaults override hibernation; configure resume manually')
+print(value.replace(marker, '').strip() if hibernation else value)
+PYTHON
+}
+
+# Match mkinitcpio's concatenation and version sort, including a prospective
+# replacement of our hook owner. Existing trusted root-owned configs still run.
+# Arguments: current/base/candidate, prospective base content, legacy migration.
+get_mkinitcpio_hooks() {
+  sudo bash -s -- "${1:-current}" "${2:-}" "${3:-false}" <<'BASH'
+set -euo pipefail
+shopt -s nullglob
+managed=/etc/mkinitcpio.conf.d/00-chezmoi-systemd.conf
+files=(/etc/mkinitcpio.conf.d/*.conf "$managed")
+mapfile -d '' -t files < <(printf '%s\0' "${files[@]}" | LC_ALL=C.UTF-8 sort -zVu)
+config=$(
+  cat -- /etc/mkinitcpio.conf || exit 1
+  for file in "${files[@]}"; do
+    if [[ "$file" = "$managed" ]]; then
+      case "$1" in
+      base) break ;;
+      candidate) printf '%s\n' "$2"; continue ;;
+      esac
+    fi
+    [[ -f "$file" ]] || continue
+    [[ -r "$file" ]] || exit 1
+    cat -- "$file" || exit 1
+  done
+)
+source /dev/stdin <<<"$config"
+if [[ "$3" = true && " ${FILES[*]-} " = *crypto_keyfile.bin* ]]; then
+  printf '%s\n' 'Legacy embedded crypto_keyfile.bin requires user-managed systemd keyfile configuration' >&2
+  exit 1
+fi
+if [[ "${HOOKS@a}" != *a* ]]; then read -r -a HOOKS <<< "${HOOKS:-}"; fi
+if [[ "$3" = true ]]; then
+  for hook in "${HOOKS[@]}"; do
+    [[ "$hook" != encrypt ]] || continue
+    for file in /etc/initcpio/{install,hooks}/"$hook" /usr/lib/initcpio/{install,hooks}/"$hook"; do
+      [[ -f "$file" ]] || continue
+      [[ -r "$file" ]] || exit 1
+      if grep -Eiq 'crypto_keyfile[.]bin|cryptkey' "$file"; then
+        printf 'Legacy keyfile hook %s requires user-managed systemd authentication\n' "$hook" >&2
+        exit 1
+      fi
+    done
+  done
+fi
+printf '%s\n' "${HOOKS[*]}"
+BASH
+}
+
+# Verify a single Btrfs device and its ancestry, not its name. Called first for
+# root (before mutations), then for the actual swapfile (before publication).
+# Sets caller-local resume_uuid (the filesystem UUID), luks_uuid and root_mapping
+# through Bash dynamic scope; never guesses encryption from a mapper name.
+inspect_btrfs_device() {
+  local target="$1" identity mount_point source filesystem uuid extra device metadata device_id block_fs block_uuid devices path types parent parent_id status kind backing resolved
+  local -a parents
+  LAST_ERROR="Unable to read unambiguous mount metadata for $target"
+  identity=$(findmnt --nofsroot -rn -o TARGET,SOURCE,FSTYPE,UUID --target "$target" 2>/dev/null) || return 3
+  read -r mount_point source filesystem uuid extra <<<"$identity"
+  [[ "$mount_point" = /* && -n "$source" && -z "$extra" && "$identity" != *$'\n'* ]] || return 3
+  LAST_ERROR="Filesystem at $target is not Btrfs"
+  [[ "$filesystem" = btrfs ]] || return 3
+  LAST_ERROR="Invalid Btrfs filesystem UUID metadata for $target"
+  [[ "$uuid" =~ ^[[:xdigit:]]{8}(-[[:xdigit:]]{4}){3}-[[:xdigit:]]{12}$ ]] || return 3
+  mount_point=$(printf '%b' "$mount_point")
+  source=$(printf '%b' "$source")
+  LAST_ERROR="Unable to resolve Btrfs backing device for $target"
+  device=$(readlink -e -- "$source") || return 3
+  metadata=$(lsblk -dnro FSTYPE,UUID,MAJ:MIN "$device" 2>/dev/null) || return 3
+  read -r block_fs block_uuid device_id extra <<<"$metadata"
+  LAST_ERROR="Filesystem UUID does not match the resolved device for $target"
+  [[ "$block_fs" = btrfs && "$block_uuid" = "$uuid" ]] || return 3
+  LAST_ERROR="Unable to identify the backing block device for $target"
+  [[ "$device_id" =~ ^[0-9]+:[0-9]+$ && -z "$extra" && "$metadata" != *$'\n'* ]] || return 3
+  # Use block-device identities, not Btrfs's anonymous filesystem device number.
+  LAST_ERROR="Filesystem UUID resolves to a different or missing block device for $target"
+  resolved=$(readlink -e -- "/dev/disk/by-uuid/$uuid") || return 3
+  [[ $(lsblk -dnro MAJ:MIN "$resolved" 2>/dev/null) = "$device_id" ]] || return 3
+  LAST_ERROR="Unable to inspect Btrfs device membership for $target"
+  devices=$(sudo btrfs filesystem show --raw "$mount_point" 2>/dev/null) || return 3
+  LAST_ERROR="Btrfs filesystem must report exactly one device for $target"
+  [[ $(awk '/Total devices/ {print $3}' <<<"$devices") = 1 ]] || return 3
+  LAST_ERROR="Btrfs member does not match the resolved backing block device for $target"
+  path=$(awk '$1 == "devid" && $7 == "path" {match($0, /[[:space:]]path[[:space:]]+/); print substr($0, RSTART + RLENGTH)}' <<<"$devices")
+  [[ -n "$path" && "$path" != *$'\n'* ]] || return 3
+  resolved=$(readlink -e -- "$path") || return 3
+  [[ $(lsblk -dnro MAJ:MIN "$resolved" 2>/dev/null) = "$device_id" ]] || return 3
+  LAST_ERROR="Unsupported block-device topology for $target"
+  types=$(lsblk -srn -o TYPE "$device" 2>/dev/null) || return 3
+  luks_uuid=""
+  root_mapping=""
+  case "$types" in
+  disk | $'part\ndisk') ;;
+  $'crypt\npart\ndisk' | $'crypt\ndisk')
+    LAST_ERROR="Unsupported device-mapper topology for $target: expected one direct backing device"
+    parents=(/sys/dev/block/"$device_id"/slaves/*)
+    [[ "${#parents[@]}" = 1 && -d "${parents[0]}" ]] || return 3
+    IFS= read -r parent_id < "${parents[0]}/dev" || return 3
+    [[ "$parent_id" =~ ^[0-9]+:[0-9]+$ && "$parent_id" != "$device_id" ]] || return 3
+    # shellcheck disable=SC2034 # Caller-local output used only by initramfs migration.
+    luks_device_id="$parent_id"
+    parent=$(readlink -e -- "/dev/block/$parent_id") || return 3
+    [[ $(lsblk -dnro MAJ:MIN "$parent" 2>/dev/null) = "$parent_id" ]] || return 3
+    LAST_ERROR="LUKS backing device could not be verified for $target"
+    kind=$(sudo blkid -p -s TYPE -o value "$parent" 2>/dev/null) || return 3
+    [[ "$kind" = crypto_LUKS ]] || return 3
+    status=$(sudo env LC_ALL=C cryptsetup status "$device" 2>/dev/null) || return 3
+    kind=$(awk '$1 == "type:" {print $2}' <<<"$status")
+    backing=$(awk '$1 == "device:" {sub(/^[[:space:]]*device:[[:space:]]*/, ""); print}' <<<"$status")
+    [[ "$kind" = LUKS1 || "$kind" = LUKS2 ]] || return 3
+    resolved=$(readlink -e -- "$backing") || return 3
+    [[ $(lsblk -dnro MAJ:MIN "$resolved" 2>/dev/null) = "$parent_id" ]] || return 3
+    luks_uuid=$(sudo blkid -p -s UUID -o value "$parent" 2>/dev/null) || return 3
+    [[ "$luks_uuid" =~ ^[[:xdigit:]]{8}(-[[:xdigit:]]{4}){3}-[[:xdigit:]]{12}$ && "$luks_uuid" != "$uuid" ]] || return 3
+    LAST_ERROR="Unable to verify active LUKS mapping identity for $target"
+    IFS= read -r root_mapping < "/sys/dev/block/$device_id/dm/name" || return 3
+    [[ -n "$root_mapping" ]] || return 3
+    resolved=$(readlink -e -- "/dev/mapper/$root_mapping") || return 3
+    [[ $(lsblk -dnro MAJ:MIN "$resolved" 2>/dev/null) = "$device_id" ]] || return 3
+    ;;
+  *) return 3 ;;
+  esac
+  resume_uuid="$uuid"
+  LAST_ERROR=""
+}
+
+# Check presence and reject root reformat/non-LUKS modes, not authentication policy.
+verify_systemd_unlock() {
+  local cmdline="$1" token options quotes quoted=false escaped=false status=0 selected=false named=false restricted=false disabled=false selectors=" "
+  local -a tokens
+  read -r -a tokens <<<"$cmdline"
+  for token in "${tokens[@]}"; do
+    case "$token" in
+    *\"* | *\'* | *\\*) escaped=true ;;
+    *) escaped=false ;;
+    esac
+    if [[ "$token" =~ (cryptdevice|cryptkey|crypto|luks)[.=] && ("$quoted" = true || "$escaped" = true) ]]; then
+      LAST_ERROR="Quoted or escaped encryption arguments require manual reconciliation"
+      return 1
+    fi
+    quotes="${token//[^\"]/}"
+    if (( ${#quotes} % 2 )); then
+      if [[ "$quoted" = false ]]; then quoted=true; else quoted=false; fi
+    fi
+    token="${token#rd.}"
+    case "$token" in
+    luks=0 | luks=no | luks=false | luks=off) return 1 ;;
+    luks.crypttab=0 | luks.crypttab=no | luks.crypttab=false | luks.crypttab=off) disabled=true ;;
+    luks.options=*)
+      options="${token#*=}"
+      if [[ "$options" =~ ^[[:xdigit:]]{8}(-[[:xdigit:]]{4}){3}-[[:xdigit:]]{12}= ]]; then
+        [[ "$options" = "$luks_uuid="* ]] || continue
+        options="${options#*=}"
+      fi
+      case ",$options," in
+      *,noauto,* | *,swap,* | *,tmp,* | *,tmp=* | *,plain,* | *,tcrypt* | *,bitlk,* | *,fvault2,*) return 1 ;;
+      esac
+      ;;
+    luks.uuid=* | luks.name=*)
+      [[ "$selectors" != *" $token "* ]] || return 1
+      selectors+="$token "
+      restricted=true
+      case "$token" in
+      "luks.uuid=$luks_uuid" | "luks.uuid=luks-$luks_uuid") selected=true ;;
+      "luks.name=$luks_uuid=$root_mapping") selected=true; named=true ;;
+      "luks.name=$luks_uuid="* | "luks.name="*"=$root_mapping") return 1 ;;
+      esac
+      ;;
+    esac
+  done
+  [[ "$quoted" = false && ("$restricted" != true || "$selected" = true) ]] || return 1
+  if [[ "$disabled" != true ]]; then
+    sudo bash -s -- "$luks_uuid" "$root_mapping" <<'BASH' || status="$?"
+set -euo pipefail
+file=/etc/crypttab
+if [[ -f /etc/crypttab.initramfs ]]; then file=/etc/crypttab.initramfs; fi
+[[ -e "$file" ]] || exit 2
+[[ -r "$file" ]] || exit 1
+awk -v uuid="$1" -v mapping="$2" '
+  !/^[[:space:]]*(#|$)/ &&
+  (FILENAME ~ /crypttab.initramfs$/ || $4 ~ /(^|,)x-initrd.attach(,|$)/) &&
+  ($1 == mapping || $2 == "UUID=" uuid || $2 == "/dev/disk/by-uuid/" uuid) {
+    entries++
+    if ($1 == mapping && ($2 == "UUID=" uuid || $2 == "/dev/disk/by-uuid/" uuid) &&
+        $4 !~ /(^|,)(noauto|swap|tmp(=[^,]*)?|plain|tcrypt[^,]*|bitlk|fvault2)(,|$)/) matched++
+  }
+  END { exit (!entries ? 2 : entries != 1 || matched != 1) }
+' "$file"
+BASH
+    case "$status" in
+    0) return 0 ;;
+    2) ;;
+    *) return 1 ;;
+    esac
+  fi
+  [[ "$named" = true || ("$selected" = true && "$root_mapping" = "luks-$luks_uuid") ]]
+}
+
+mkinitcpio_hook_exists() {
+  [[ -f "/etc/initcpio/install/$1" || -f "/usr/lib/initcpio/install/$1" ]]
+}
+
+# One base HOOKS owner, before Snapper's independent snapshot-hook append.
+# Validate the complete prospective configuration before the atomic write.
+configure_systemd_initramfs() {
+  # inspect_btrfs_device also populates the filesystem UUID through dynamic scope.
+  # shellcheck disable=SC2034
+  local resume_uuid luks_uuid root_mapping luks_device_id cmdline kernel_cmdline="" current effective ordered hook content phase=before seen=" " snapshot_required=false
+  local migrate=false kernel_present=false default_present=false
+  local obsolete_hooks=" udev encrypt keymap consolefont resume btrfs-overlayfs "
+  local -a hooks previous final_hooks middle=() tail=()
+  validate_mkinitcpio_dropins || return 1
+  if sudo test -e "$MKINITCPIO_DROPIN_DIR/zz-chezmoi-systemd.conf"; then
+    LAST_ERROR="Review and remove the superseded zz-chezmoi-systemd.conf base drop-in before retrying; existing configuration was left intact"
+    return 1
+  fi
+  inspect_btrfs_device / || return 1
+  if [[ -n "$luks_uuid" ]]; then
+    cmdline=$(get_limine_cmdline initramfs) || {
+      LAST_ERROR="Cannot read persistent root-unlock arguments; hooks were not changed"
+      return 1
+    }
+    if sudo test -e /etc/kernel/cmdline; then
+      kernel_present=true
+      kernel_cmdline=$(sudo cat -- /etc/kernel/cmdline) || return 1
+    fi
+    if [[ "$cmdline $kernel_cmdline" = *cryptdevice=* ]]; then
+      migrate=true
+      if sudo test -e /etc/limine-entry-tool.d/01-default.conf || [[ "$cmdline" = *cryptdevice=* ]]; then
+        default_present=true
+      fi
+    elif ! verify_systemd_unlock "$cmdline"; then
+      LAST_ERROR="No usable user-managed systemd early-unlock definition for '$root_mapping'. Configure rd.luks.name=$luks_uuid=$root_mapping or a matching included crypttab entry with x-initrd.attach; review disabled, non-LUKS or root-formatting options. TPM2 and credentials remain user-managed; hooks were not changed"
+      return 1
+    fi
+  fi
+  current=$(get_mkinitcpio_hooks base "" "$migrate") || {
+    LAST_ERROR="Cannot read base mkinitcpio configuration; hooks were not changed"
+    return 1
+  }
+  read -r -a previous <<<"$current"
+  if [[ " $current " = *' btrfs-overlayfs '* || " $current " = *' sd-btrfs-overlayfs '* ]]; then
+    snapshot_required=true
+  fi
+  hooks=(base systemd autodetect microcode modconf kms keyboard sd-vconsole block)
+  [[ " $current " != *' plymouth '* ]] || hooks+=(plymouth)
+  [[ -z "$luks_uuid" ]] || hooks+=(sd-encrypt)
+  # Retain additional hardware/filesystem hooks in their existing relative order.
+  for hook in "${previous[@]}"; do
+    [[ "$obsolete_hooks" != *" $hook "* ]] || continue
+    case "$hook" in
+    filesystems) phase=filesystems; continue ;;
+    fsck) phase=fsck; continue ;;
+    shutdown) hook=sd-shutdown ;;
+    esac
+    [[ " ${hooks[*]} ${middle[*]} ${tail[*]} " != *" $hook "* ]] || continue
+    [[ "$hook" != sd-encrypt || -n "$luks_uuid" ]] || continue
+    case "$phase" in
+    before) hooks+=("$hook") ;;
+    filesystems) middle+=("$hook") ;;
+    fsck) tail+=("$hook") ;;
+    esac
+  done
+  hooks+=(filesystems "${middle[@]}" fsck "${tail[@]}")
+
+  printf -v content '# Managed systemd base; snapshot hooks belong to Snapper.\nHOOKS=(%s)' "${hooks[*]}"
+  # The probe exists only during preflight. Even a matching later assignment
+  # would otherwise hide Snapper's current or future contribution.
+  effective=$(get_mkinitcpio_hooks candidate "$content"$'\n''HOOKS+=(__chezmoi_base_owner__)' "$migrate") || {
+    LAST_ERROR="Cannot evaluate prospective mkinitcpio configuration; hooks were not changed"
+    return 1
+  }
+  if [[ " $effective " != *' __chezmoi_base_owner__ '* ]]; then
+    LAST_ERROR="A later drop-in replaces the base HOOKS array; preserve append-only feature configuration before retrying"
+    return 1
+  fi
+  # Validate the exact candidate too: the probe can change last-hook conditionals.
+  effective=$(get_mkinitcpio_hooks candidate "$content" "$migrate") || {
+    LAST_ERROR="Cannot evaluate the exact mkinitcpio configuration; hooks were not changed"
+    return 1
+  }
+  if [[ "$snapshot_required" = true && " $effective " != *' sd-btrfs-overlayfs '* ]]; then
+    LAST_ERROR="Existing snapshot boot would lose its overlay; configure Snapper's independent systemd selector before retrying"
+    return 1
+  fi
+  ordered="$effective"
+  if [[ " ${hooks[*]} " != *' sd-btrfs-overlayfs '* ]]; then
+    ordered="${ordered/ sd-btrfs-overlayfs/}"
+  fi
+  if [[ "$ordered" != "${hooks[*]}" && "$ordered" != "${hooks[*]} "* ]]; then
+    LAST_ERROR="Later configuration changes the managed systemd hooks; review it before retrying"
+    return 1
+  fi
+  read -r -a final_hooks <<<"$effective"
+  for hook in "${final_hooks[@]}"; do
+    if [[ "$obsolete_hooks" = *" $hook "* || "$seen" = *" $hook "* ]] ||
+      [[ "$hook" = sd-encrypt && -z "$luks_uuid" ]] ||
+      [[ ! "$hook" =~ ^[[:alnum:]_-]+$ ]] || ! mkinitcpio_hook_exists "$hook"; then
+      LAST_ERROR="Unavailable, duplicate or incompatible mkinitcpio hook: $hook; hooks were not changed"
+      return 1
+    fi
+    seen+="$hook "
+  done
+  if [[ "$migrate" != true ]]; then
+    write_mkinitcpio_dropin 00-chezmoi-systemd.conf "$content"
+    return
+  fi
+
+  local -a targets=()
+  [[ "$kernel_present" != true ]] || targets+=(/etc/kernel/cmdline)
+  [[ "$default_present" != true ]] || targets+=(/etc/limine-entry-tool.d/01-default.conf)
+  targets+=("$MKINITCPIO_DROPIN_DIR/00-chezmoi-systemd.conf")
+  sudo mkdir -p -- /etc/limine-entry-tool.d "$MKINITCPIO_DROPIN_DIR" || return 1
+  if ! edit_system_configs _stage_systemd_migration _verify_systemd_migration "${targets[@]}"; then
+    LAST_ERROR="Systemd migration failed; configuration was left intact or rolled back (see diagnostics); any rebuild request remains pending"
+    return 1
+  fi
+  log INFO "Systemd root-unlock migration staged; initramfs/Limine rebuild remains pending"
+}
+
+# Callbacks run inside edit_system_configs, with caller-local candidate state.
+_stage_systemd_migration() {
+  local kernel_stage="" default_stage=""
+  if [[ "$kernel_present" = true ]]; then kernel_stage="$1"; shift; fi
+  if [[ "$default_present" = true ]]; then default_stage="$1"; shift; fi
+  get_limine_cmdline migrate "$luks_uuid" "$root_mapping" "$luks_device_id" "$resume_uuid" "$kernel_stage" "$default_stage" >/dev/null || return 1
+  cmdline=$(get_limine_cmdline candidate "$luks_uuid" "$root_mapping" "$luks_device_id" "$resume_uuid" "$kernel_stage" "$default_stage") || return 1
+  local kernel_candidate="$cmdline"
+  [[ -z "$kernel_stage" ]] || kernel_candidate=$(cat -- "$kernel_stage") || return 1
+  if ! verify_systemd_unlock "$cmdline" || ! verify_systemd_unlock "$kernel_candidate"; then
+    log ERROR "Candidate systemd unlocking conflicts with user configuration (${LAST_ERROR:-review root selectors and crypttab}); no boot configuration was changed"
+    return 1
+  fi
+  printf '%s\n' "$content" > "$1" || return 1
+  request_initramfs_rebuild
+}
+
+_verify_systemd_migration() {
+  local actual
+  actual=$(get_limine_cmdline initramfs) && [[ "$actual" = "$cmdline" ]] &&
+    verify_systemd_unlock "$actual" &&
+    [[ $(get_mkinitcpio_hooks) = "$effective" ]]
 }

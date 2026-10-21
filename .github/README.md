@@ -48,6 +48,64 @@ chezmoi destroy ~/.bashrc       # remove from machine and repo
 
 Normally, edit the managed source rather than the live `~/.config` copies. If I edit a live file, use `chezmoi add` to bring it back into the repo. For `.tmpl` files, edit the template directly instead.
 
+## Initramfs migration
+
+The three setup components have separate responsibilities:
+
+- **Initramfs:** `00-chezmoi-systemd.conf` owns the systemd base hooks, with
+  `sd-encrypt` only for a verified single-device LUKS-backed Btrfs root. Plymouth
+  remains optional. Other settings and compatible hook contributions are kept;
+  a later replacement of the base array stops the apply before publication.
+- **Snapper:** its own `snapper.conf` selects the snapshot overlay from the
+  effective initramfs environment and adds it once. With the managed systemd
+  base, Snapper selects `sd-btrfs-overlayfs`; its standalone selector handles an external
+  non-systemd environment. Snapper's feature gate is independent of hibernation.
+- **Hibernation:** manages only the existing Btrfs swapfile layout, safe reuse,
+  resume parameters and retry state. `resume=UUID=` uses the **unlocked Btrfs
+  filesystem UUID**, not the LUKS UUID. The offset comes from `map-swapfile -r`.
+  Systemd supplies resume support; hibernation does not inspect or write hooks.
+
+**Encryption credentials and authentication policy remain user-managed.** For
+verified LUKS roots, setup translates a single option-free
+`cryptdevice=<identifier>:<active-mapping>` to
+`rd.luks.name=<LUKS-superblock-UUID>=<active-mapping>`. UUID, PARTUUID, LABEL,
+PARTLABEL and device-path identifiers must resolve to the verified backing
+container; the Btrfs filesystem UUID is never used as the LUKS UUID. Only
+`/etc/kernel/cmdline` and the managed `01-default.conf` are eligible for token
+replacement, preserving unrelated arguments and settings. Kernel-only defaults
+are persisted in that managed drop-in. The command lines and base hooks are
+preflighted and published together using the existing rollback helper.
+
+Existing valid systemd definitions are reused without duplicate arguments.
+Legacy options, `cryptkey=`, implicit BusyBox keyfiles (including recognized
+keyfile-producing hooks), quoted/escaped encryption arguments, conflicting
+selections and independently managed effective legacy defaults require manual
+reconciliation. Additional early crypttab devices also require review so a new
+UUID allowlist cannot silently suppress their unlocking. Setup never edits
+crypttab, TPM2 configuration, keyfiles, credentials or LUKS policy.
+
+Without supported legacy arguments, establish a matching systemd early-unlock
+definition in persistent Limine defaults or an included crypttab entry with the
+correct UUID/mapping and `x-initrd.attach`. The installed `sd-encrypt` hook gives
+`/etc/crypttab.initramfs` precedence over `/etc/crypttab`. An ordinary host entry
+without early inclusion is insufficient. All preflight inputs are persistent;
+setup never infers future unlocking from a running/rescue boot command line.
+Verify authentication, required initramfs assets and recovery/password fallback
+yourself, especially when TPM PCR policy may be affected by rebuilt boot images.
+Custom UKI options cannot bypass the managed config, command line or signing.
+
+If the earlier migration was applied, review and retire the superseded
+`zz-chezmoi-systemd.conf` before retrying, preserving any local changes. It must
+not replace the new earlier base and erase Snapper's independent contribution.
+Unknown user drop-ins are never deleted automatically. If an existing legacy
+snapshot hook would disappear, preflight requires Snapper's independent selector
+rather than silently disabling snapshot boot.
+
+Changed configuration queues the existing late Limine rebuild, signing and
+artifact-verification flow; identical configuration does not queue another build.
+Before rebooting, verify successful rebuild/signing, hooks, unlock configuration,
+and resume UUID/offset. Development tests never publish live boot artifacts.
+
 ## Script tests
 
 Tests cover only chezmoi setup scripts and their shared helpers, not application
