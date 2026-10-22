@@ -33,7 +33,7 @@ jobs:
           set -euo pipefail
           shopt -s nullglob globstar
 
-          templates=(home/.chezmoiexternals/**/*.tmpl)
+          templates=(home/.chezmoiexternals/*.tmpl)
 
           if (( ${#templates[@]} == 0 )); then
             echo "::error::No chezmoi externals templates found"
