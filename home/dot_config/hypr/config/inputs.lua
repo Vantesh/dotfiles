@@ -13,7 +13,7 @@ hl.config({
   },
 
   cursor = {
-    inactive_timeout = 30,
+    inactive_timeout = 20,
     zoom_disable_aa = true,
     no_hardware_cursors = true,
     hide_on_key_press = true,
