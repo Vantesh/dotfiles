@@ -1,0 +1,9 @@
+[Unit]
+Description=Hyprland power-key inhibitor for Noctalia
+BindsTo=wayland-wm@hyprland.desktop.service
+PartOf=wayland-session@hyprland.desktop.target
+After=wayland-wm@hyprland.desktop.service
+
+[Service]
+Type=exec
+ExecStart=/usr/bin/systemd-inhibit --who=Hyprland "--why=Noctalia power-menu keybind" --what=handle-power-key --mode=block /usr/bin/sleep infinity
