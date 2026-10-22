@@ -23,6 +23,9 @@ class SystemdInitramfsTests(ScriptCase):
         self.stub("sort", 'exec /usr/bin/sort "$@"')
         self.stub("tee", 'exec /usr/bin/tee "$@"')
         self.stub("python3", 'exec /usr/bin/python3 "$@"')
+        self.stub("blkid", r'''[ "$*" = '-t UUID=bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb -o device' ] || exit 97
+echo /dev/fixture-container
+[ "$FAILURE" != ambiguous ] || echo /dev/duplicate-container''')
         (self.etc / "kernel").mkdir()
         (self.etc / "limine-entry-tool.d").mkdir()
         self.kernel = self.etc / "kernel/cmdline"
@@ -32,12 +35,15 @@ class SystemdInitramfsTests(ScriptCase):
             r"""case "$1" in
     bash|python3) exec "$@" ;;
     chown) exit 0 ;;
-    test|stat|cp|cat|cmp|mkdir|mktemp|tee|chmod|mv|rm)
+    blkid|test|stat|cp|cat|cmp|mkdir|mktemp|tee|chmod|mv|rm)
         for arg do
             case "$arg" in /*) case "$arg" in "$HOME"/*) ;; *) exit 97 ;; esac ;; esac
         done
         [ "$1:$FAILURE" != tee:write ] || exit 23
-        [ "$1:$FAILURE" != mv:publish ] || exit 23
+        case "$FAILURE:$*" in publish:mv*00-chezmoi-systemd.conf*) exit 23 ;; esac
+        case "$FAILURE:$*" in postcheck:mv*00-chezmoi-systemd.conf.chezmoi.*)
+            printf 'KERNEL_CMDLINE[default]= "root=UUID=independent"\n' > "$HOME/etc/default/limine" ;;
+        esac
         exec "$@" ;;
     *) exit 97 ;;
 esac""",
@@ -56,6 +62,7 @@ esac""",
             .read_text()
             .replace("/etc/", f"{self.etc}/")
             .replace("/usr/share/", f"{self.directory}/share/")
+            .replace("/crypto_keyfile.bin", f"{self.directory}/crypto_keyfile.bin")
         )
         if not persistent:
             source += "\nget_limine_cmdline() { get_limine_cmdline_fixture; }\n"
@@ -262,12 +269,12 @@ mkinitcpio_hook_exists() { [[ "$1:$FAILURE" != sd-encrypt:hook ]]; }
         extra.parent.mkdir()
         previous = "HOOKS=(base systemd block filesystems fsck)\n"
         for source, argument in (
-            (self.defaults, legacy),
+            (self.defaults, legacy.replace(":root", ":other")),
             (self.defaults, legacy + ":allow-discards"),
             (self.defaults, named + " cryptkey=rootfs:/keyfile"),
             (self.defaults, named + " crypto=sha256:aes:256:0:"),
             (self.defaults, named + ' "cryptdevice=UUID=container:root"'),
-            (self.kernel, legacy),
+            (self.kernel, legacy.replace("bbbbbbbb", "dddddddd")),
             (extra, legacy),
             (extra, named + " cryptkey=rootfs:/keyfile"),
         ):
@@ -294,6 +301,136 @@ mkinitcpio_hook_exists() { [[ "$1:$FAILURE" != sd-encrypt:hook ]]; }
                     self.assertIn(str(source), result.stderr)
                     self.assertEqual([path.read_bytes() for path in paths], before)
                     self.assertFalse(self.marker.exists())
+
+    def test_fresh_luks_conversion_updates_active_sources_without_losing_tokens(self):
+        legacy = "cryptdevice=UUID=bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:data-volume.v2"
+        named = "rd.luks.name=bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb=data-volume.v2"
+        for sources in ("both", "kernel", "default", "no-kernel", "no-default", "filesystem-root"):
+            with self.subTest(sources=sources):
+                self.managed.unlink(missing_ok=True)
+                self.marker.unlink(missing_ok=True)
+                self.persistent_sources(legacy, mapping="data-volume.v2")
+                self.env.update(LAPTOP="0", SETUP_HIBERNATION="0", SETUP_SNAPPER="0")
+                custom = 'custom=cryptdevice=unchanged  systemd.setenv="WORDS=hello world"\tloglevel=3'
+                for path in (self.kernel, self.defaults):
+                    path.write_text(path.read_text().replace(legacy, legacy + "  " + custom))
+                self.defaults.write_text("# " + legacy + "\n" + self.defaults.read_text())
+                if sources == "kernel":
+                    self.defaults.write_text("# unrelated defaults\nOTHER_SETTING=yes\n")
+                elif sources == "default":
+                    self.kernel.write_text("root=UUID=independent quiet\n")
+                elif sources == "no-kernel":
+                    self.kernel.unlink()
+                elif sources == "no-default":
+                    self.defaults.unlink()
+                elif sources == "filesystem-root":
+                    for path in (self.kernel, self.defaults):
+                        path.write_text(path.read_text().replace(
+                            "root=/dev/mapper/data-volume.v2", "root=UUID=aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+                        ))
+                before = {path: path.read_text() for path in (self.kernel, self.defaults) if path.exists()}
+                result = self.configure(persistent=True, entrypoint=True)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                for path, text in before.items():
+                    expected = text.replace(legacy, named) if path == self.kernel else text.replace(
+                        legacy + "  " + custom, named + "  " + custom
+                    )
+                    self.assertEqual(path.read_text(), expected)
+                self.assertEqual(self.kernel.exists(), sources != "no-kernel")
+                self.assertEqual(self.defaults.exists(), sources != "no-default")
+                self.assertIn(" sd-encrypt ", result.stdout)
+                self.assertFalse(self.defaults.with_name("50-hibernation.conf").exists())
+                self.assertTrue(self.marker.exists())
+                paths = [*before, self.managed]
+                after = [path.read_bytes() for path in paths]
+                self.marker.unlink()
+                result = self.configure(persistent=True, entrypoint=True)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual([path.read_bytes() for path in paths], after)
+                self.assertFalse(self.marker.exists())
+
+    def test_matching_busybox_and_systemd_selections_reuse_existing_policy(self):
+        legacy = "cryptdevice=UUID=bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:root"
+        named = "rd.luks.name=bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb=root"
+        options = "rd.luks.options=bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb=tpm2-device=auto,tpm2-pin=yes,tries=3"
+        self.persistent_sources(legacy + " " + named + " " + options)
+        before = (self.kernel.read_text(), self.defaults.read_text())
+        result = self.configure(persistent=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(self.kernel.read_text(), before[0].replace(legacy, ""))
+        self.assertEqual(self.defaults.read_text(), before[1].replace(legacy, ""))
+        self.assertEqual(self.kernel.read_text().count(named), 1)
+
+    def test_unsupported_installer_unlocks_never_publish_arguments_or_hooks(self):
+        legacy = "cryptdevice=UUID=bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:root"
+        for unlock in (
+            legacy + ":allow-discards", legacy + " " + legacy,
+            legacy.replace("UUID=", "PARTUUID="),
+            legacy.replace("UUID=bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb", "/dev/sda2"),
+            legacy.replace("bbbbbbbb", "aaaaaaaa"), legacy.replace(":root", ":other"),
+            legacy + " cryptkey=rootfs:/keyfile", legacy + " crypto=sha256:aes:256:0:",
+            legacy + " rd.luks.name=dddddddd-dddd-dddd-dddd-dddddddddddd=root",
+            legacy + " rd.luks.name=bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb=other",
+            legacy + " rd.luks=0", '"' + legacy + '"',
+            'systemd.setenv="WORDS=before ' + legacy + ' after"', legacy + " -- init=custom",
+        ):
+            with self.subTest(unlock=unlock):
+                self.persistent_sources(unlock)
+                before = (self.kernel.read_bytes(), self.defaults.read_bytes(), self.main.read_bytes())
+                result = self.configure(persistent=True)
+                self.assertNotEqual(result.returncode, 0, result.stderr)
+                self.assertEqual((self.kernel.read_bytes(), self.defaults.read_bytes(), self.main.read_bytes()), before)
+                self.assertFalse(self.managed.exists())
+                self.assertFalse(self.marker.exists())
+
+    def test_conversion_preserves_implicit_keys_independent_crypttab_and_hook_failures(self):
+        legacy = "cryptdevice=UUID=bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:root"
+        for failure in ("implicit", "embedded", "key-hook", "crypttab", "hook", "ambiguous"):
+            with self.subTest(failure=failure):
+                self.persistent_sources(legacy)
+                self.main.write_text(self.original)
+                implicit = self.directory / "crypto_keyfile.bin"
+                table = self.etc / "crypttab"
+                hook = self.etc / "initcpio/install/local-keyfiles"
+                for path in (implicit, table, hook):
+                    path.unlink(missing_ok=True)
+                self.env["FAILURE"] = failure if failure in ("hook", "ambiguous") else ""
+                if failure == "implicit":
+                    implicit.touch()
+                elif failure == "embedded":
+                    self.main.write_text(self.original.replace("FILES=(/keyfile)", f"FILES=({implicit})"))
+                elif failure == "key-hook":
+                    self.main.write_text(self.original.replace("fsck)", "fsck local-keyfiles)"))
+                    hook.parent.mkdir(parents=True, exist_ok=True)
+                    hook.write_text("build() { add_file /private/key /crypto_keyfile.bin; }\n")
+                elif failure == "crypttab":
+                    table.write_text("other UUID=dddddddd-dddd-dddd-dddd-dddddddddddd none x-initrd.attach,tpm2-device=auto\n")
+                paths = [self.kernel, self.defaults, self.main] + ([table] if table.exists() else [])
+                before = [path.read_bytes() for path in paths]
+                result = self.configure(persistent=True)
+                self.assertNotEqual(result.returncode, 0, result.stderr)
+                self.assertEqual([path.read_bytes() for path in paths], before)
+                self.assertFalse(self.managed.exists())
+                self.assertFalse(self.marker.exists())
+
+    def test_conversion_publication_failure_rolls_back_arguments_and_hooks(self):
+        legacy = "cryptdevice=UUID=bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:root"
+        previous = "# Managed systemd base; snapshot hooks belong to Snapper.\nHOOKS=(base systemd block filesystems fsck)\n"
+        late = self.etc / "default/limine"
+        late.parent.mkdir()
+        for failure in ("publish", "postcheck"):
+            with self.subTest(failure=failure):
+                late.unlink(missing_ok=True)
+                self.persistent_sources(legacy)
+                self.managed.write_text(previous)
+                self.marker.unlink(missing_ok=True)
+                self.env["FAILURE"] = failure
+                before = (self.kernel.read_bytes(), self.defaults.read_bytes(), self.managed.read_bytes())
+                result = self.configure(persistent=True)
+                self.assertNotEqual(result.returncode, 0, result.stderr)
+                self.assertEqual((self.kernel.read_bytes(), self.defaults.read_bytes(), self.managed.read_bytes()), before)
+                self.assertIn("Rolled back", result.stderr)
+                self.assertTrue(self.marker.exists())
 
     def test_matching_systemd_selection_and_crypttab_policy_are_preserved(self):
         table = self.etc / "crypttab"

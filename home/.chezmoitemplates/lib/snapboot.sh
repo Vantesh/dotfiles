@@ -504,6 +504,9 @@ request_initramfs_rebuild() {
 
 # Read literal persistent default arguments using Limine's config precedence.
 # Never infer future unlocking from the currently running /proc/cmdline.
+# initramfs accepts a verified LUKS UUID to defer simple cryptdevice validation.
+# convert-unlock takes verified LUKS UUID, mapper, filesystem UUID, and optional
+# private kernel/default stage paths; empty paths perform preflight only.
 get_limine_cmdline() {
   sudo python3 -I -B - "${1:-boot}" "${@:2}" <<'PYTHON'
 import glob
@@ -512,31 +515,40 @@ import re
 import sys
 
 mode = sys.argv[1]
-if mode not in ('boot', 'initramfs', 'hibernation', 'deduplicate', 'deduplicate-file'):
+if mode not in ('boot', 'initramfs', 'convert-unlock', 'hibernation', 'deduplicate', 'deduplicate-file'):
     raise SystemExit('Unsupported Limine command-line operation')
 hibernation = mode == 'hibernation'
 deduplicate = mode in ('deduplicate', 'deduplicate-file')
 kernel = '/etc/kernel/cmdline'
 managed = '/etc/limine-entry-tool.d/50-hibernation.conf'
 default = '/etc/limine-entry-tool.d/01-default.conf'
+converting = mode == 'convert-unlock'
+staged = {}
+if converting:
+    luks_uuid, mapping, filesystem_uuid, kernel_stage, default_stage = sys.argv[2:]
+    staged = {name: pathlib.Path(stage) for name, stage in
+              ((kernel, kernel_stage), (default, default_stage)) if stage}
 feature_files = {default, managed, '/etc/limine-entry-tool.d/20-quiet-boot.conf'}
 files = (sorted(glob.glob('/usr/share/limine-entry-tool.d/*.conf')) +
          ['/etc/limine-entry-tool.conf'] +
          sorted(set(glob.glob('/etc/limine-entry-tool.d/*.conf')) | {default, managed}) +
          ['/etc/default/limine'])
 records = {}
+locations = {}
 texts = {}
 default_spans = []
 baseline = False
 for name in files:
     path = pathlib.Path(name)
     records[name] = []
+    locations[name] = []
     if deduplicate and name == default:
         text = pathlib.Path(sys.argv[2]).read_bytes().decode() if mode == 'deduplicate-file' else sys.argv[2]
     else:
-        if not path.exists():
+        if not path.exists() and name not in staged:
             continue
-        text = path.read_text()
+        path = staged.get(name, path)
+        text = path.read_bytes().decode() if converting else path.read_text()
     lines = text.splitlines(keepends=True)
     for index, raw in enumerate(lines):
         line = raw.rstrip('\r\n')
@@ -569,18 +581,20 @@ for name in files:
         if deduplicate and name == default:
             default_spans.append((index, start, end, value))
         records[name].append((operator, value))
+        locations[name].append((index, start, end))
         if operator == '=' or name not in feature_files:
             baseline = True
     texts[name] = ''.join(lines)
 if not baseline:
-    if not hibernation and mode != 'initramfs':
+    if not hibernation and mode not in ('initramfs', 'convert-unlock'):
         raise SystemExit('Set explicit persistent Limine defaults; refusing an unverified running-command-line fallback')
     # Model exactly the baseline ensure_limine_cmdline_defaults will publish,
     # before it writes anything or we modify swap.
-    value = pathlib.Path(kernel).read_text().strip()
+    value = staged.get(kernel, pathlib.Path(kernel)).read_text().strip()
     if not value or '\n' in value:
         raise SystemExit('No single-line persistent kernel command line')
     records[default] = [('=', value.replace('"', r'\"') if hibernation else value)] + (records[default] if not hibernation else [])
+    locations[default].insert(0, None)
 marker = '__DOTFILES_HIBERNATION__'
 if hibernation:
     records[managed] = [('+=', marker)]
@@ -589,13 +603,69 @@ active_sources = []
 for name in files:
     for index, (operator, argument) in enumerate(records[name]):
         value = (argument + ' ' + value).strip() if operator == '+=' else argument
-        if mode == 'initramfs':
+        if mode in ('initramfs', 'convert-unlock'):
             source = kernel if not baseline and name == default and index == 0 else name
-            active_sources = [(source, argument)] + active_sources if operator == '+=' else [(source, argument)]
-if mode == 'initramfs':
-    for source, argument in active_sources:
-        if re.search(r'(?<![\w.])(?:cryptdevice|cryptkey|crypto)=', argument):
+            record = (source, argument, locations[name][index])
+            active_sources = [record] + active_sources if operator == '+=' else [record]
+if mode in ('initramfs', 'convert-unlock'):
+    for source, argument, _ in active_sources:
+        legacy = re.search(r'(?<![\w.=])cryptdevice=', argument)
+        eligible = source in (kernel, default) and (converting or len(sys.argv) > 2 and sys.argv[2])
+        if re.search(r'(?<![\w.=])(?:cryptkey|crypto)=', argument) or legacy and not eligible:
             raise SystemExit(f'Unsupported BusyBox unlock arguments in {source}; configure systemd early unlocking there manually; boot configuration was not changed')
+if converting:
+    tokens = re.compile(r'(?:[^\s"]+|"[^"]*")+')
+    arguments = tokens.findall(value)
+    legacy = [token for token in arguments if token.startswith('cryptdevice=')]
+    expected = 'cryptdevice=UUID=' + luks_uuid + ':' + mapping
+    roots = [token[5:] for token in arguments if token.startswith('root=')]
+    if (not luks_uuid or not re.fullmatch(r'[\w.+-]+', mapping) or legacy != [expected]
+            or value.count('"') % 2 or '--' in arguments
+            or len(roots) != 1 or roots[0] not in ('UUID=' + filesystem_uuid, '/dev/mapper/' + mapping)):
+        sources = ', '.join(source for source, argument, _ in active_sources
+                            if re.search(r'(?<![\w.=])cryptdevice=', argument))
+        raise SystemExit(f'Cannot convert installer cryptdevice in {sources}: require one unquoted cryptdevice=UUID=<verified LUKS UUID>:<active mapper> and matching root=; reconcile these persistent arguments manually')
+    selections = any(token.startswith(('rd.luks.name=', 'luks.name=', 'rd.luks.uuid=', 'luks.uuid=')) for token in arguments)
+    replacement = '' if selections else 'rd.luks.name=' + luks_uuid + '=' + mapping
+    if not selections:
+        # A new UUID allowlist must not suppress independent early crypttab devices.
+        table = pathlib.Path('/etc/crypttab.initramfs')
+        if not table.exists():
+            table = pathlib.Path('/etc/crypttab')
+        if table.exists():
+            for line in table.read_text().splitlines():
+                if not line.strip() or line.lstrip().startswith('#'):
+                    continue
+                entry = line.split()
+                if table.name != 'crypttab.initramfs' and (len(entry) < 4 or 'x-initrd.attach' not in entry[3].split(',')):
+                    continue
+                if len(entry) < 2 or entry[:2] not in ([mapping, 'UUID=' + luks_uuid], [mapping, '/dev/disk/by-uuid/' + luks_uuid]):
+                    raise SystemExit(f'Independent early unlocking in {table}; configure systemd selectors manually; crypttab was not changed')
+    changes = {}
+    for source, argument, location in active_sources:
+        if expected not in tokens.findall(argument):
+            continue
+        if pathlib.Path(source).is_symlink():
+            raise SystemExit(f'Preserved independently linked configuration {source}; configure systemd unlocking manually')
+        if source == kernel:
+            changes[kernel] = tokens.sub(lambda match: replacement if match[0] == expected else match[0],
+                                        staged.get(kernel, pathlib.Path(kernel)).read_bytes().decode())
+        else:
+            index, start, end = location
+            lines = changes.get(default, texts[default]).splitlines(keepends=True)
+            lines[index] = lines[index][:start] + tokens.sub(lambda match: replacement if match[0] == expected else match[0], argument) + lines[index][end:]
+            changes[default] = ''.join(lines)
+            # Keep an identical installer copy synchronized, leaving independent
+            # or inactive kernel arguments alone.
+            path = staged.get(kernel, pathlib.Path(kernel))
+            if path.exists() and not pathlib.Path(kernel).is_symlink():
+                text = path.read_bytes().decode()
+                if text.strip() == argument.strip():
+                    changes[kernel] = tokens.sub(lambda match: replacement if match[0] == expected else match[0], text)
+    value = tokens.sub(lambda match: replacement if match[0] == expected else match[0], value)
+    for name, text in changes.items():
+        if name in staged:
+            staged[name].write_bytes(text.encode())
 if deduplicate:
     # Keep token spelling and all intervening bytes, including quoted values.
     tokens = re.compile(r'(?:[^\s"]+|"[^"]*")+')
@@ -646,7 +716,7 @@ PYTHON
 
 # Match mkinitcpio's concatenation and version sort, including a prospective
 # replacement of our hook owner. Existing trusted root-owned configs still run.
-# Arguments: current/base/candidate, prospective base content.
+# Arguments: current/base/candidate/unlock-check, prospective base content.
 get_mkinitcpio_hooks() {
   sudo bash -s -- "${1:-current}" "${2:-}" <<'BASH'
 set -euo pipefail
@@ -670,6 +740,23 @@ config=$(
 )
 source /dev/stdin <<<"$config"
 if [[ "${HOOKS@a}" != *a* ]]; then read -r -a HOOKS <<< "${HOOKS:-}"; fi
+if [[ "$1" = unlock-check ]]; then
+  if [[ -e /crypto_keyfile.bin || " ${FILES[*]-} " = *crypto_keyfile.bin* ]]; then
+    printf '%s\n' 'Implicit crypto_keyfile.bin requires user-managed systemd keyfile configuration' >&2
+    exit 1
+  fi
+  for hook in "${HOOKS[@]}"; do
+    [[ "$hook" != encrypt ]] || continue
+    for file in /etc/initcpio/{install,hooks}/"$hook" /usr/lib/initcpio/{install,hooks}/"$hook"; do
+      [[ -f "$file" ]] || continue
+      [[ -r "$file" ]] || exit 1
+      if grep -Eiq 'crypto_keyfile[.]bin|cryptkey' "$file"; then
+        printf 'Keyfile hook %s requires user-managed systemd authentication\n' "$hook" >&2
+        exit 1
+      fi
+    done
+  done
+fi
 printf '%s\n' "${HOOKS[*]}"
 BASH
 }
@@ -831,14 +918,32 @@ configure_systemd_initramfs() {
   # inspect_btrfs_device also populates the filesystem UUID through dynamic scope.
   # shellcheck disable=SC2034
   local resume_uuid luks_uuid root_mapping cmdline current effective ordered hook content phase=before seen=" " snapshot_required=false
+  local convert=false kernel_present=false default_present=false unlock_devices
   local obsolete_hooks=" udev encrypt keymap consolefont resume btrfs-overlayfs "
   local -a hooks previous final_hooks middle=() tail=()
   validate_mkinitcpio_dropins || return 1
   inspect_btrfs_device / || return 1
-  cmdline=$(get_limine_cmdline initramfs) || {
+  cmdline=$(get_limine_cmdline initramfs "$luks_uuid") || {
     LAST_ERROR="Cannot read persistent boot arguments; hooks were not changed"
     return 1
   }
+  if [[ "$cmdline" =~ (^|[[:space:]\"])cryptdevice= ]]; then
+    convert=true
+    if ! cmdline=$(get_limine_cmdline convert-unlock "$luks_uuid" "$root_mapping" "$resume_uuid" "" "") ||
+      ! get_mkinitcpio_hooks unlock-check >/dev/null; then
+      LAST_ERROR="Cannot safely convert installer unlocking; see the persistent source/keyfile diagnostics; configuration was not changed"
+      return 1
+    fi
+    # The superblock UUID is already verified against the active backing device.
+    # Refuse duplicate UUIDs rather than generate an ambiguous boot selector.
+    if ! unlock_devices=$(sudo blkid -t "UUID=$luks_uuid" -o device) ||
+      [[ -z "$unlock_devices" || "$unlock_devices" = *$'\n'* ]]; then
+      LAST_ERROR="LUKS UUID=$luks_uuid is missing or ambiguous; resolve duplicate device identifiers before converting persistent unlocking; configuration was not changed"
+      return 1
+    fi
+    if sudo test -f /etc/kernel/cmdline && ! sudo test -L /etc/kernel/cmdline; then kernel_present=true; fi
+    if sudo test -f /etc/limine-entry-tool.d/01-default.conf && ! sudo test -L /etc/limine-entry-tool.d/01-default.conf; then default_present=true; fi
+  fi
   if [[ -n "$luks_uuid" ]] && ! verify_systemd_unlock "$cmdline"; then
     LAST_ERROR="No usable user-managed systemd early-unlock definition for '$root_mapping'. Configure rd.luks.name=$luks_uuid=$root_mapping or a matching included crypttab entry with x-initrd.attach; review disabled, non-LUKS or root-formatting options. TPM2 and credentials remain user-managed; hooks were not changed"
     return 1
@@ -918,5 +1023,36 @@ configure_systemd_initramfs() {
     fi
     seen+="$hook "
   done
-  write_mkinitcpio_dropin 00-chezmoi-systemd.conf "$content"
+  if [[ "$convert" != true ]]; then
+    write_mkinitcpio_dropin 00-chezmoi-systemd.conf "$content"
+    return
+  fi
+  local -a targets=()
+  [[ "$kernel_present" != true ]] || targets+=(/etc/kernel/cmdline)
+  [[ "$default_present" != true ]] || targets+=(/etc/limine-entry-tool.d/01-default.conf)
+  targets+=("$managed")
+  sudo mkdir -p -- "$MKINITCPIO_DROPIN_DIR" || return 1
+  if ! edit_system_configs _stage_initramfs_unlock _verify_initramfs_unlock "${targets[@]}"; then
+    LAST_ERROR="Installer unlock conversion failed; configuration was preserved or rolled back; any rebuild request remains pending"
+    return 1
+  fi
+}
+
+# Reuse the shared transaction for arguments and hooks; all validation precedes
+# publication, and the post-check reads the actual persistent configuration.
+_stage_initramfs_unlock() {
+  local kernel_stage="" default_stage="" candidate
+  if [[ "$kernel_present" = true ]]; then kernel_stage="$1"; shift; fi
+  if [[ "$default_present" = true ]]; then default_stage="$1"; shift; fi
+  candidate=$(get_limine_cmdline convert-unlock "$luks_uuid" "$root_mapping" "$resume_uuid" "$kernel_stage" "$default_stage") || return 1
+  [[ "$candidate" = "$cmdline" ]] && verify_systemd_unlock "$candidate" || return 1
+  [[ $(get_mkinitcpio_hooks candidate "$content") = "$effective" ]] || return 1
+  printf '%s\n' "$content" > "$1" || return 1
+  request_initramfs_rebuild
+}
+
+_verify_initramfs_unlock() {
+  local actual
+  actual=$(get_limine_cmdline initramfs) && [[ "$actual" = "$cmdline" ]] &&
+    verify_systemd_unlock "$actual" && [[ $(get_mkinitcpio_hooks) = "$effective" ]]
 }
