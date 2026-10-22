@@ -17,19 +17,9 @@ chezmoi init --apply vantesh
 
 Setup installs its remaining prerequisites and prompts for Snapper, hibernation, Secure Boot, and drivers. Choose the personal setup only for my Bitwarden-backed private configuration.
 
-### Yazi plugins
-
-Install these manually after applying; run each `add` only if the plugin is not already registered:
-
-```bash
-ya pkg add ahkohd/eza-preview
-ya pkg add yazi-rs/plugins:full-border
-ya pkg install
-```
-
 ## Btrfs layout
 
-My current mount layout; disk partitioning is done during Arch installation. Hibernation adds `@swap` when needed, and Snapper manages `/.snapshots`.
+This is the Btrfs layout I use; these dotfiles do not create it. Optional hibernation can add `@swap`, and Snapper manages `/.snapshots`.
 
 ```text
 Btrfs volume
@@ -85,6 +75,8 @@ Merge with existing options for that UUID; preserve `rd.luks.name=`, `root=`, an
 
 ## Chroot recovery
 
+### From a live USB
+
 Boot an Arch Linux live USB and use its root shell. Replace the device placeholders with the actual partitions.
 
 Unlock LUKS, mount the real `@` root and EFI System Partition, then enter the installation:
@@ -120,23 +112,33 @@ umount -R /mnt
 reboot
 ```
 
-When booted into a Snapper overlay snapshot, `/` may be temporary: edits to `/etc` may not reach the real root. Mount the real `@` subvolume explicitly and repair it through chroot.
+### From a Snapper snapshot
+
+To repair the installed root from a booted Snapper overlay, mount the real `@` subvolume. The LUKS container is already unlocked; replace `<root-mapper>` and `<efi-partition>` with their actual names. This requires `arch-install-scripts` in the booted environment.
+
+```bash
+sudo mount -o subvol=@ /dev/mapper/<root-mapper> /mnt
+sudo mount --mkdir /dev/<efi-partition> /mnt/boot
+sudo arch-chroot /mnt
+```
+
+Use the repair steps above inside the chroot. When finished:
+
+```bash
+exit
+sudo umount -R /mnt
+sudo reboot
+```
 
 ## Usual commands
 
 ```bash
 chezmoi diff                    # Review changes
-chezmoi apply -nv                # Preview an apply
+chezmoi apply -nv                # Dry run with verbose output
 chezmoi apply                    # Apply files and eligible setup scripts
 chezmoi apply --exclude=scripts  # Apply files only
 chezmoi update                   # Pull and apply
 chezmoi cd                       # Open a shell in the source repo
-
-sudo limine-update              # Rebuild boot artifacts and entries
-sudo sbctl status               # Inspect Secure Boot state
-findmnt -no SOURCE,FSTYPE /      # Identify the mounted root
-cat /proc/cmdline               # Arguments used for this boot
-sudo snapper -c root list        # List root snapshots
 ```
 
 For file edits:
