@@ -4,7 +4,7 @@
 
 My Arch Linux setup: Hyprland, Noctalia, Fish, and Kitty. Managed with [chezmoi](https://www.chezmoi.io/quick-start/).
 
-[Install](#fresh-install) · [Layout](#btrfs-layout) · [Boot](#boot-configuration) · [Recovery](#chroot-recovery)
+[Install](#fresh-install) · [Customize](#customizing-the-setup) · [Layout](#btrfs-layout) · [Boot](#boot-configuration) · [Recovery](#chroot-recovery)
 
 ## Fresh install
 
@@ -15,7 +15,41 @@ sudo pacman -S --needed chezmoi
 chezmoi init --apply vantesh
 ```
 
-Setup installs its remaining prerequisites and prompts for Snapper, hibernation, Secure Boot, and drivers. Choose the personal setup only for my Bitwarden-backed private configuration.
+Setup installs its remaining prerequisites and prompts for Snapper, hibernation, Secure Boot, and drivers.
+
+> [!WARNING]
+> **If you are not me (Vantesh), answer No to “Is this a personal setup”.** This option is for me only. It expects my private Bitwarden entries and their exact fields; missing or incorrect entries will make setup fail.
+
+## Customizing the setup
+
+Chezmoi deploys `home/` and runs the setup scripts. The scripts use [mise bootstrap](https://mise.jdx.dev/bootstrap.html) to apply the repository's package and system settings. `mise/config.toml` sets the required mise version; `mise/conf.d/` splits the settings by purpose. These are separate from your global mise configuration.
+
+Run `chezmoi cd` to open the repository; all paths below are relative to its root.
+
+| What to change | File |
+| --- | --- |
+| Packages and optional package groups | `mise/conf.d/packages.toml` |
+| System services and timers | `mise/conf.d/services.toml` |
+| Login shell (`/usr/bin/fish` by default) | `mise/conf.d/login-shell.toml` |
+| Firewall rules | `mise/conf.d/firewall.toml` |
+| Pacman cache hooks | `mise/conf.d/pacman-hooks.toml` |
+
+To add a package, follow the existing entries under `[bootstrap.packages]`, for example `"pacman:htop" = { env = "packages" }`. Use `aur:` for AUR packages. The `env` field selects a package group; keep optional driver and feature packages in their existing groups.
+
+For system services, add or edit a `[bootstrap.services."name.service"]` block: `state = "running"` starts it, and `enabled = true` enables it at boot. To stop and disable one, apply `state = "stopped"` and `enabled = false` before removing its block. Deleting a declaration alone does not uninstall its package or stop its service; uninstall unwanted packages separately.
+
+Packaged **user** services are handled separately: edit `USER_SERVICES` in `home/.chezmoiscripts/linux/run_onchange_after_14_services.sh.tmpl`.
+
+After editing, review the source changes with `git diff`, then run `chezmoi apply`. Changes to these mise files make the corresponding setup scripts run again.
+
+### Fish
+
+Fish configuration lives in `home/dot_config/private_fish/`, deployed to `~/.config/fish/`:
+
+- `config.fish`: interactive startup and Fisher setup.
+- `conf.d/abbr.fish`: abbreviations; `conf.d/variables.fish`: environment and paths. Other `conf.d/` files configure integrations.
+- `functions/`: custom commands and wrappers.
+- `fish_plugins`: Fisher plugin list.
 
 ## Btrfs layout
 
