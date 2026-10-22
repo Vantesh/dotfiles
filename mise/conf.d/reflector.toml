@@ -1,0 +1,17 @@
+# Applied by 03_pacman before the service phase starts reflector.timer.
+[bootstrap.directories."/etc/xdg/reflector"]
+owner = "root"
+group = "root"
+mode = "0755"
+
+[bootstrap.files."/etc/xdg/reflector/reflector.conf"]
+owner = "root"
+group = "root"
+mode = "0644"
+content = """
+--fastest 30
+--latest 30
+--number 10
+--verbose
+--save /etc/pacman.d/mirrorlist
+"""

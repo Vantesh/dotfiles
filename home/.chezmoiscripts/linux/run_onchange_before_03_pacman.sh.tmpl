@@ -4,6 +4,7 @@
 # SKIP_PACKAGES: {{ ternary "1" "0" (eq (env "SKIP_PACKAGES") "1") }}
 # mise/config.toml: {{ include "../mise/config.toml" | sha256sum }}
 # mise/conf.d/pacman-hooks.toml: {{ include "../mise/conf.d/pacman-hooks.toml" | sha256sum }}
+# mise/conf.d/reflector.toml: {{ include "../mise/conf.d/reflector.toml" | sha256sum }}
 
 set -euo pipefail
 
@@ -94,7 +95,7 @@ setup_pacman() {
     MISE_TRUSTED_CONFIG_PATHS={{ joinPath .chezmoi.workingTree "mise" | quote }} \
       mise --env '' bootstrap --only files --yes
   ); then
-    die "Failed to apply pacman cache hooks with mise"
+    die "Failed to apply pacman hooks and Reflector configuration with mise"
   fi
 
 }
