@@ -73,6 +73,8 @@ Btrfs volume
 - **LUKS roots:** `sd-encrypt` is included for verified, directly LUKS-backed Btrfs roots; plain roots omit it.
 - **Optional:** Plymouth, Secure Boot, Snapper snapshots, and laptop hibernation. Snapper is independent of hibernation.
 
+This setup intentionally uses `systemd.tpm2_measured_os=0` to disable systemd's additional measured-OS/NvPCR services and avoid their errors on newer systemd versions. This changes TPM measurements; it is more than a logging option. See the [Arch Linux discussion](https://bbs.archlinux.org/viewtopic.php?id=314939&p=2).
+
 > [!IMPORTANT]
 > If selecting Secure Boot for first-time key enrollment, put UEFI in **Setup Mode** with **Secure Boot disabled** before applying. Enable Secure Boot in firmware only after setup and the boot rebuild succeed.
 
