@@ -6,7 +6,7 @@ from helpers import SCRIPTS, ScriptCase
 class EnrollmentTests(ScriptCase):
     def setUp(self):
         super().setUp()
-        self.source = self.render(SCRIPTS / "run_after_15_enrollment.sh.tmpl")
+        self.source = self.render(SCRIPTS / "run_onchange_after_15_enrollment.sh.tmpl")
         self.stub("figlet", "exit 0")
 
     def test_warp_registration_is_created_once_without_connecting(self):
