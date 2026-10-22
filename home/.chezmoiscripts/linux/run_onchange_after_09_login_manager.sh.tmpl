@@ -23,7 +23,7 @@ declare -A DM_STATES=()
 # aliases and both persistent/runtime scopes. systemctl enable is not disable's
 # inverse: either operation can fail after changing some links.
 dm_links() {
-  sudo python3 - "$1" "$DM_STATE_DIR" "${DM_UNITS[@]}" <<'PYTHON'
+  sudo python3 -I -B - "$1" "$DM_STATE_DIR" "${DM_UNITS[@]}" <<'PYTHON'
 import json
 import os
 import sys

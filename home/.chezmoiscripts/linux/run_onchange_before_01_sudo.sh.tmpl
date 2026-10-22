@@ -16,10 +16,70 @@ if ! keep_sudo_alive; then
   die "Failed to keep sudo alive"
 fi
 
+# These fragments contain only self-contained Defaults directives. Check each
+# candidate and the current full policy without replacing unrelated includes.
+# One privileged process owns staging, validation, publication, and cleanup.
+publish_sudoers_fragment() {
+  local name="$1" content="$2"
+  LAST_ERROR=""
+
+  if ! sudo bash -s -- "$SUDOERS_DIR" "$name" "$content" <<'BASH'
+set -euo pipefail
+directory="$1" name="$2" content="$3"
+fail() { printf 'Sudoers publication: %s\n' "$*" >&2; exit 1; }
+case "$name" in timeout|passwd_tries|keep_env) ;; *) fail "Unsupported fragment name: $name" ;; esac
+[[ ! -L "$directory" ]] || fail "Refusing a symlink directory: $directory"
+if [[ ! -e "$directory" ]]; then
+  install -d -o root -g root -m 0750 -- "$directory" || fail "Cannot create $directory"
+fi
+[[ -d "$directory" && $(stat -c %u -- "$directory") = 0 ]] || fail "Directory must be root-owned: $directory"
+mode=$(stat -c %a -- "$directory") || fail "Cannot inspect $directory"
+(( (8#$mode & 0022) == 0 )) || fail "Directory is writable by group or others: $directory"
+
+target="$directory/$name" initial=''
+state_format='%d:%i:%f:%u:%g:%s:%y:%z'
+if [[ -L "$target" || (-e "$target" && ! -f "$target") ]]; then
+  fail "Refusing a non-regular target: $target"
+fi
+if [[ -e "$target" ]]; then
+  initial=$(stat -c "$state_format" -- "$target") || fail "Cannot inspect $target"
+  if cmp -s -- "$target" <(printf '%s\n' "$content") &&
+    [[ $(stat -c '%u:%g:%a' -- "$target") = 0:0:440 ]]; then
+    exit 0
+  fi
+fi
+
+# @includedir ignores dot-containing names; staging stays on the target filesystem.
+umask 077
+stage=''
+trap '[[ -z "$stage" ]] || rm -f -- "$stage"' EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+stage=$(mktemp -- "$directory/.chezmoi-$name.XXXXXX") || fail "Cannot stage $target"
+printf '%s\n' "$content" > "$stage" || fail "Cannot write candidate for $target"
+chown root:root -- "$stage" || fail "Cannot set candidate ownership for $target"
+chmod 0440 -- "$stage" || fail "Cannot set candidate permissions for $target"
+visudo -c -f "$stage" >/dev/null || fail "Candidate validation failed for $target"
+visudo -c -f /etc/sudoers >/dev/null || fail "Existing sudoers policy is invalid; $target was not changed"
+
+if [[ -n "$initial" ]]; then
+  [[ ! -L "$target" && -f "$target" && $(stat -c "$state_format" -- "$target") = "$initial" ]] ||
+    fail "Target changed during validation; preserved $target"
+elif [[ -e "$target" || -L "$target" ]]; then
+  fail "Target was created during validation; preserved $target"
+fi
+mv -Tf -- "$stage" "$target" || fail "Atomic publication failed for $target"
+stage=''
+BASH
+  then
+    LAST_ERROR="Failed to validate or atomically publish $SUDOERS_DIR/$name; see diagnostics"
+    return 1
+  fi
+  return 0
+}
+
 _configure_sudo_timeout() {
-  if ! write_system_config "$SUDOERS_DIR/timeout" <<'EOF'; then
-Defaults passwd_timeout=0
-EOF
+  if ! publish_sudoers_fragment timeout 'Defaults passwd_timeout=0'; then
     log ERROR "Failed to configure sudo timeout: $LAST_ERROR"
     return 1
   fi
@@ -29,9 +89,7 @@ EOF
 }
 
 _configure_sudo_retries() {
-  if ! write_system_config "$SUDOERS_DIR/passwd_tries" <<'EOF'; then
-Defaults passwd_tries=10
-EOF
+  if ! publish_sudoers_fragment passwd_tries 'Defaults passwd_tries=10'; then
     log ERROR "Failed to configure sudo retries: $LAST_ERROR"
     return 1
   fi
@@ -41,9 +99,7 @@ EOF
 }
 
 _configure_sudo_keep_variables() {
-  if ! write_system_config "$SUDOERS_DIR/keep_env" <<'EOF'; then
-Defaults env_keep += "EDITOR VISUAL"
-EOF
+  if ! publish_sudoers_fragment keep_env 'Defaults env_keep += "EDITOR VISUAL"'; then
     log ERROR "Failed to configure sudo keep variables: $LAST_ERROR"
     return 1
   fi
