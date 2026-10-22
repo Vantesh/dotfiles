@@ -249,9 +249,7 @@ main() {
 
   log STEP "Configuring Snapper"
 
-  if ! enable_snapper_services; then
-    log WARN "Some services failed to enable, continuing anyway"
-  fi
+  enable_snapper_services
 
   if ! configure_limine_snapper; then
     die "Failed to configure Limine snapper integration"
