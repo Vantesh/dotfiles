@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # data: distroFamily={{ .distroFamily | quote }}
-# Packaged user units, one-shot maintenance, and native mise services/firewall/login shell.
+# Packaged user units, locate maintenance, and native mise services/firewall/login shell.
 # mise/config.toml: {{ include "../mise/config.toml" | sha256sum }}
 # mise/conf.d/services.toml: {{ include "../mise/conf.d/services.toml" | sha256sum }}
 # mise/conf.d/firewall.toml: {{ include "../mise/conf.d/firewall.toml" | sha256sum }}
@@ -60,7 +60,7 @@ converge_packaged_user_services() {
 }
 
 
-update_locate_database() {
+configure_locate_database() {
   if ! command_exists updatedb; then
     log SKIP "updatedb not available"
     return 0
@@ -80,12 +80,9 @@ update_locate_database() {
     log INFO "Excluded .snapshots directories from the locate database"
   fi
 
-  log INFO "Updating locate database"
-
-  if sudo updatedb >/dev/null 2>&1; then
-    log INFO "Locate database updated"
-  else
-    log WARN "updatedb encountered issues"
+  # The package links this static timer into timers.target for future boots.
+  if ! sudo systemctl start plocate-updatedb.timer; then
+    log WARN "Failed to start plocate-updatedb.timer; locate indexing is deferred"
   fi
 
   return 0
@@ -96,9 +93,9 @@ main() {
   log STEP "Configuring services"
 
   converge_packaged_user_services || die "Failed to apply packaged user services"
-  update_locate_database
+  configure_locate_database
 
-  # Packages and database initialization precede native service convergence.
+  # Packages and updatedb exclusions precede native service convergence.
   # Leave NVIDIA environment selection to the gated hibernation phase.
   if ! (
     cd {{ .chezmoi.workingTree | quote }} || exit 1

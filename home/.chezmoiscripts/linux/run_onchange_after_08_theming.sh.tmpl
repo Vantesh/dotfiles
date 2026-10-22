@@ -154,7 +154,7 @@ configure_limine_options() {
     return 0
   fi
 
-  if ! create_backup "$limine_conf" force; then
+  if ! create_backup "$limine_conf"; then
     local error_msg="$LAST_ERROR"
     LAST_ERROR="Failed to backup limine config: $error_msg"
     rm -f "$temp_file"
