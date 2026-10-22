@@ -42,6 +42,7 @@ echo /dev/fixture-container
         [ "$1:$FAILURE" != tee:write ] || exit 23
         case "$FAILURE:$*" in publish:mv*00-chezmoi-systemd.conf*) exit 23 ;; esac
         case "$FAILURE:$*" in defaults-publish:mv*01-default.conf.chezmoi.*) exit 23 ;; esac
+        case "$FAILURE:$*" in fragment-publish:mv*20-quiet-boot.conf*) exit 23 ;; esac
         case "$FAILURE:$*" in postcheck:mv*00-chezmoi-systemd.conf.chezmoi.*)
             printf 'KERNEL_CMDLINE[default]= "root=UUID=independent"\n' > "$HOME/etc/default/limine" ;;
         esac
@@ -105,7 +106,6 @@ mkinitcpio_hook_exists() { [[ "$1:$FAILURE" != sd-encrypt:hook ]]; }
         )
 
     def ensure_defaults(self):
-        self.stub("sed", 'exec /usr/bin/sed "$@"')
         source = (
             (LIB / "snapboot.sh")
             .read_text()
@@ -117,6 +117,62 @@ mkinitcpio_hook_exists() { [[ "$1:$FAILURE" != sd-encrypt:hook ]]; }
             + source
             + '\nensure_limine_cmdline_defaults || { printf "%s\\n" "$LAST_ERROR" >&2; exit 1; }\n'
         )
+
+    def write_fragment(self, name, params):
+        self.env.update(FRAGMENT=name, PARAMETERS=params)
+        source = (LIB / "snapboot.sh").read_text().replace("/etc/", f"{self.etc}/").replace(
+            "/usr/share/", f"{self.directory}/share/"
+        )
+        return self.shell(
+            self.libraries("common.sh") + source
+            + '\nupdate_limine_cmdline "$FRAGMENT" "$PARAMETERS" || { printf "%s\\n" "$LAST_ERROR" >&2; exit 1; }\n'
+        )
+
+    def test_feature_fragments_preserve_directives_and_request_only_changed_writes(self):
+        for name, old, new in (
+            ("20-quiet-boot.conf", "quiet loglevel=3 splash", "quiet loglevel=3"),
+            ("50-hibernation.conf", "hibernate.compressor=lz4 resume=UUID=aaaa-bbbb resume_offset=123",
+             "hibernate.compressor=lz4 resume=UUID=aaaa-bbbb resume_offset=456"),
+        ):
+            with self.subTest(name=name):
+                path = self.defaults.with_name(name)
+                self.marker.unlink(missing_ok=True)
+                result = self.write_fragment(name, old)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(path.read_text(), f'KERNEL_CMDLINE[default]+= "{old}"\n')
+                original = f'# local settings\r\nOTHER_SETTING=yes\r\nKERNEL_CMDLINE[default]+= "{old}"\r\n'
+                path.write_bytes(original.encode())
+                path.chmod(0o640)
+                self.marker.unlink()
+                result = self.write_fragment(name, new)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                expected = original.replace(old, new).encode()
+                self.assertEqual(path.read_bytes(), expected)
+                self.assertEqual(path.stat().st_mode & 0o777, 0o640)
+                self.assertTrue(self.marker.exists())
+                self.marker.unlink()
+                result = self.write_fragment(name, new)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(path.read_bytes(), expected)
+                self.assertFalse(self.marker.exists())
+
+    def test_unsafe_or_failed_feature_updates_preserve_existing_configuration(self):
+        path = self.defaults.with_name("20-quiet-boot.conf")
+        for original, failure in (
+            ('# keep\nKERNEL_CMDLINE[default]= "root=UUID=user"\n', ""),
+            ('KERNEL_CMDLINE[default]+= "quiet loglevel=7"\n', ""),
+            ('KERNEL_CMDLINE[default]+= "quiet custom=keep"\n', ""),
+            ('KERNEL_CMDLINE[default]+= "quiet"\nKERNEL_CMDLINE[default]+= "splash"\n', ""),
+            ('# keep\nKERNEL_CMDLINE[default]+= "quiet splash"\n', "fragment-publish"),
+        ):
+            with self.subTest(original=original, failure=failure):
+                path.write_text(original)
+                self.marker.unlink(missing_ok=True)
+                self.env["FAILURE"] = failure
+                result = self.write_fragment(path.name, "quiet loglevel=3")
+                self.assertNotEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(path.read_text(), original)
+                self.assertEqual(self.marker.exists(), failure == "fragment-publish")
 
     def test_defaults_remove_only_exact_active_owner_tokens_and_preserve_other_bytes(
         self,

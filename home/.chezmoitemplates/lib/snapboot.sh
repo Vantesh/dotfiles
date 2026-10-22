@@ -115,99 +115,38 @@ add_fstab_entry() {
   return 0
 }
 
-# Updates Limine kernel command line via drop-in file.
-#
-# Creates configuration file in /etc/limine-entry-tool.d/ with
-# KERNEL_CMDLINE[default] directive. Use --append for += operator.
-# Escapes quotes in parameters and atomically replaces root-owned drop-ins.
-# Requests a deferred rebuild before changed writes; unchanged content is skipped.
-#
-# Arguments:
-#   $1 - Drop-in filename (e.g., "50-hibernation" or "50-hibernation.conf")
-#   --append - Optional flag to use += operator instead of = (must be $2 if present)
-#   $@ - Kernel parameters to add (from $2 or $3 onwards)
-# Globals:
-#   LAST_ERROR - Set on failure
-# Returns:
-#   0 on success, 1 on failure, 2 on invalid args
+# Update the append-only quiet-boot or hibernation fragment through the shared
+# transaction. Preserve unrelated directives and refuse independent boot policy.
+# Arguments: full feature filename, kernel parameters.
 update_limine_cmdline() {
-  local dropin_name="${1:-}"
-
+  local dropin_name="${1:-}" params fragment
   LAST_ERROR=""
-
-  if [[ -z "$dropin_name" ]]; then
-    LAST_ERROR="update_limine_cmdline() requires drop-in filename as first argument"
+  case "$dropin_name" in
+  20-quiet-boot.conf | 50-hibernation.conf) ;;
+  *)
+    LAST_ERROR="Expected 20-quiet-boot.conf or 50-hibernation.conf"
     return 2
-  fi
-
+    ;;
+  esac
   shift
-
-  local operator="="
-  if [[ "${1:-}" == "--append" ]]; then
-    operator="+="
-    shift
-  fi
-
-  local params="$*"
-
+  params="$*"
   if [[ -z "$params" ]]; then
     LAST_ERROR="update_limine_cmdline() requires kernel parameters"
     return 2
   fi
-
-  [[ "$dropin_name" != *.conf ]] && dropin_name+=".conf"
-
-  if [[ ! "$dropin_name" =~ ^[[:alnum:]_-]+\.conf$ ]]; then
-    LAST_ERROR="Limine drop-in filename must not contain directory components"
-    return 2
-  fi
-
-  local dropin_dir="/etc/limine-entry-tool.d"
-  local dropin_file="$dropin_dir/$dropin_name"
-
-  local escaped_params
-  if ! escaped_params="$(printf '%s' "$params" | sed 's/"/\\"/g')"; then
-    LAST_ERROR="Failed to escape Limine kernel parameters"
+  fragment="/etc/limine-entry-tool.d/$dropin_name"
+  sudo mkdir -p -- /etc/limine-entry-tool.d || return 1
+  if ! edit_system_configs _stage_limine_fragment : "$fragment"; then
+    LAST_ERROR="Failed to update $fragment; existing configuration was preserved; see diagnostics"
     return 1
   fi
+}
 
-  local content
-  printf -v content 'KERNEL_CMDLINE[default]%s "%s"' "$operator" "$escaped_params"
-  if [[ "$dropin_name" = 01-default.conf ]]; then
-    content=$(get_limine_cmdline deduplicate "$content" "${SETUP_HIBERNATION:-1}") || {
-      LAST_ERROR="Cannot verify managed kernel argument duplicates; defaults were not changed"
-      return 1
-    }
+_stage_limine_fragment() {
+  get_limine_cmdline fragment-file "$dropin_name" "$1" "$params" >/dev/null || return 1
+  if ! sudo cmp -s -- "$fragment" "$1"; then
+    request_initramfs_rebuild || return 1
   fi
-
-  if printf '%s\n' "$content" | sudo cmp -s -- "$dropin_file" -; then
-    return 0
-  fi
-
-  if ! request_initramfs_rebuild; then
-    return 1
-  fi
-
-  if ! sudo mkdir -p "$dropin_dir" 2>/dev/null; then
-    LAST_ERROR="Failed to create Limine drop-in directory: $dropin_dir"
-    return 1
-  fi
-
-  local stage=""
-  if ! (
-    stage="$(sudo mktemp -- "$dropin_dir/.$dropin_name.XXXXXX")" || exit 1
-    trap 'sudo rm -f -- "$stage" >/dev/null 2>&1 || true' EXIT
-    trap 'exit 1' INT TERM
-    printf '%s\n' "$content" | sudo tee "$stage" >/dev/null 2>&1 || exit 1
-    sudo chmod 0644 "$stage" >/dev/null 2>&1 || exit 1
-    sudo chown root:root "$stage" >/dev/null 2>&1 || exit 1
-    sudo mv -f -- "$stage" "$dropin_file" >/dev/null 2>&1 || exit 1
-  ) >/dev/null 2>&1; then
-    LAST_ERROR="Failed to atomically write Limine drop-in file: $dropin_file"
-    return 1
-  fi
-
-  return 0
 }
 
 # Reads a Limine option using package configuration precedence, without execution.
@@ -511,14 +450,14 @@ request_initramfs_rebuild() {
 # convert-unlock takes verified LUKS UUID, mapper, filesystem UUID, and optional
 # private kernel/default stage paths; empty paths perform preflight only.
 get_limine_cmdline() {
-  sudo python3 -I -B - "${1:-boot}" "${@:2}" <<'PYTHON'
+  sudo python3 -I -B - "${1:?Limine operation required}" "${@:2}" <<'PYTHON'
 import glob
 import pathlib
 import re
 import sys
 
 mode = sys.argv[1]
-if mode not in ('boot', 'initramfs', 'convert-unlock', 'hibernation', 'deduplicate', 'deduplicate-file'):
+if mode not in ('initramfs', 'convert-unlock', 'hibernation', 'deduplicate', 'deduplicate-file', 'fragment-file'):
     raise SystemExit('Unsupported Limine command-line operation')
 hibernation = mode == 'hibernation'
 deduplicate = mode in ('deduplicate', 'deduplicate-file')
@@ -526,6 +465,7 @@ kernel = '/etc/kernel/cmdline'
 managed = '/etc/limine-entry-tool.d/50-hibernation.conf'
 default = '/etc/limine-entry-tool.d/01-default.conf'
 converting = mode == 'convert-unlock'
+fragment = mode == 'fragment-file'
 staged = {}
 if converting:
     luks_uuid, mapping, filesystem_uuid, kernel_stage, default_stage = sys.argv[2:]
@@ -536,6 +476,10 @@ files = (sorted(glob.glob('/usr/share/limine-entry-tool.d/*.conf')) +
          ['/etc/limine-entry-tool.conf'] +
          sorted(set(glob.glob('/etc/limine-entry-tool.d/*.conf')) | {default, managed}) +
          ['/etc/default/limine'])
+if fragment:
+    name = '/etc/limine-entry-tool.d/' + sys.argv[2]
+    files = [name]
+    staged = {name: pathlib.Path(sys.argv[3])}
 records = {}
 locations = {}
 texts = {}
@@ -551,7 +495,7 @@ for name in files:
         if not path.exists() and name not in staged:
             continue
         path = staged.get(name, path)
-        text = path.read_bytes().decode() if converting else path.read_text()
+        text = path.read_bytes().decode() if converting or fragment else path.read_text()
     lines = text.splitlines(keepends=True)
     for index, raw in enumerate(lines):
         line = raw.rstrip('\r\n')
@@ -565,7 +509,7 @@ for name in files:
             records[name].append(('+=', ''))
             continue
         if not re.match(r'^\s*KERNEL_CMDLINE\[default\]', line):
-            if not deduplicate and re.match(r'^\s*KERNEL_CMDLINE\[', line):
+            if not deduplicate and not fragment and re.match(r'^\s*KERNEL_CMDLINE\[', line):
                 raise SystemExit('Kernel-specific Limine arguments require manual boot configuration review')
             continue
         match = re.fullmatch(r'\s*KERNEL_CMDLINE\[default\]\s*(\+?=)\s*(.*?)\s*', line)
@@ -588,6 +532,30 @@ for name in files:
         if operator == '=' or name not in feature_files:
             baseline = True
     texts[name] = ''.join(lines)
+if fragment:
+    entries = records[name]
+    params = sys.argv[4].replace('"', r'\"')
+    if len(entries) > 1 or entries and entries[0][0] != '+=':
+        raise SystemExit(f'Preserved {name}: expected a single append-only feature directive; review independent boot configuration manually')
+    lines = texts[name].splitlines(keepends=True)
+    if entries:
+        argument = entries[0][1]
+        if name == managed:
+            compatible = re.fullmatch(r'hibernate.compressor=lz4 resume=UUID=[0-9a-fA-F-]+ resume_offset=[0-9]+', argument)
+        else:
+            compatible = set(argument.split()) <= set(params.split()) | {'splash'}
+        if not compatible:
+            raise SystemExit(f'Preserved {name}: custom feature arguments require manual reconciliation')
+        index, start, end = locations[name][0]
+        lines[index] = lines[index][:start] + params + lines[index][end:]
+        content = ''.join(lines)
+    else:
+        content = texts[name]
+        if content and not content.endswith('\n'):
+            content += '\n'
+        content += 'KERNEL_CMDLINE[default]+= "' + params + '"\n'
+    staged[name].write_bytes(content.encode())
+    raise SystemExit(0)
 if not baseline:
     if not hibernation and mode not in ('initramfs', 'convert-unlock'):
         raise SystemExit('Set explicit persistent Limine defaults; refusing an unverified running-command-line fallback')

@@ -507,7 +507,7 @@ setup_hibernation() {
   hibernation_params=("hibernate.compressor=lz4" "resume=UUID=$resume_uuid" "resume_offset=$resume_offset")
 
   ensure_limine_cmdline_defaults || return 1
-  if ! update_limine_cmdline "50-hibernation.conf" --append "${hibernation_params[@]}"; then
+  if ! update_limine_cmdline "50-hibernation.conf" "${hibernation_params[@]}"; then
     LAST_ERROR="Failed to write Limine hibernation config: $LAST_ERROR"
     return 1
   fi
