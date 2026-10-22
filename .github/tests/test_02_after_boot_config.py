@@ -831,6 +831,27 @@ add_mkinitcpio_overlay_hook
                 self.assertEqual(table.read_text(), contents)
                 self.assertEqual(self.main.read_text(), self.original)
 
+        early = self.etc / "crypttab.initramfs"
+        self.env["UNLOCK"] = ""
+        conflicting = entry.replace("root UUID=", "other UUID=")
+        for case, host, included, valid in (
+            ("included-root-overrides-host-conflict", conflicting,
+             entry.replace("x-initrd.attach,", ""), True),
+            ("included-conflict-overrides-host-root", entry, conflicting, False),
+        ):
+            with self.subTest(source=case):
+                self.managed.unlink(missing_ok=True)
+                self.marker.unlink(missing_ok=True)
+                table.write_text(host)
+                early.write_text(included)
+                result = self.configure()
+                self.assertEqual(result.returncode == 0, valid, result.stderr)
+                self.assertEqual(self.managed.exists(), valid)
+                self.assertEqual(self.marker.exists(), valid)
+                self.assertEqual(table.read_text(), host)
+                self.assertEqual(early.read_text(), included)
+                self.assertEqual(self.main.read_text(), self.original)
+
     def test_unsafe_uki_overrides_never_publish_hooks(self):
         self.env["ENCRYPTED"] = "1"
         for options in (
