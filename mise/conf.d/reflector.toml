@@ -9,9 +9,9 @@ owner = "root"
 group = "root"
 mode = "0644"
 content = """
+--protocol https
 --fastest 30
 --latest 30
 --number 10
---verbose
 --save /etc/pacman.d/mirrorlist
 """
