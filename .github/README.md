@@ -1,15 +1,17 @@
 <img width="1280" height="720" alt="Hyprland desktop" src="https://github.com/user-attachments/assets/5edaf197-b81f-4d5f-be7c-5acab8b7764e" />
 
-<h1 align="center">Arch dotfiles</h1>
-
-My Arch Linux setup: Hyprland, Noctalia, Fish, and Kitty. Managed with [chezmoi](https://www.chezmoi.io/quick-start/).
+<h1 align="center">Dotfiles</h1>
 
 <p align="center">
-  <a href="#fresh-install"><img height="28" alt="Install" src="https://img.shields.io/badge/Install-89b4fa?style=flat" /></a>
-  <a href="#customizing-the-setup"><img height="28" alt="Customize" src="https://img.shields.io/badge/Customize-cba6f7?style=flat" /></a>
-  <a href="#btrfs-layout"><img height="28" alt="Layout" src="https://img.shields.io/badge/Layout-a6e3a1?style=flat" /></a>
-  <a href="#boot-configuration"><img height="28" alt="Boot" src="https://img.shields.io/badge/Boot-fab387?style=flat" /></a>
-  <a href="#chroot-recovery"><img height="28" alt="Recovery" src="https://img.shields.io/badge/Recovery-f38ba8?style=flat" /></a>
+  My desktop setup: Hyprland, Noctalia, Fish, and Kitty. Managed with <a href="https://www.chezmoi.io/quick-start/">chezmoi</a>.
+</p>
+
+<p align="center">
+  <a href="#fresh-install"><img height="36" alt="Install" src="https://img.shields.io/badge/Install-1e1e2e?style=flat" /></a>
+  <a href="#customizing-the-setup"><img height="36" alt="Customize" src="https://img.shields.io/badge/Customize-1e1e2e?style=flat" /></a>
+  <a href="#btrfs-layout"><img height="36" alt="Layout" src="https://img.shields.io/badge/Layout-1e1e2e?style=flat" /></a>
+  <a href="#boot-configuration"><img height="36" alt="Boot" src="https://img.shields.io/badge/Boot-1e1e2e?style=flat" /></a>
+  <a href="#chroot-recovery"><img height="36" alt="Recovery" src="https://img.shields.io/badge/Recovery-1e1e2e?style=flat" /></a>
 </p>
 
 ## Fresh install
