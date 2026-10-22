@@ -2,129 +2,169 @@
 
 # Hyprland dotfiles
 
-My Arch Linux setup: Hyprland, Noctalia, Fish, and Kitty. Managed with chezmoi.
+My Arch Linux setup: Hyprland, Noctalia, Fish, and Kitty. Managed with [chezmoi](https://www.chezmoi.io/quick-start/).
+
+[Install](#fresh-install) · [Layout](#btrfs-layout) · [Boot](#boot-configuration) · [Recovery](#chroot-recovery)
 
 ## Fresh install
 
-Back up my existing config first. Run as regular user with sudo access.
+Start from an installed Arch system with network access and a regular user with sudo access. Back up existing configuration first.
 
-```sh
+```bash
 sudo pacman -S --needed chezmoi
 chezmoi init --apply vantesh
 ```
 
-### Yazi plugins (manual)
+Setup installs its remaining prerequisites and prompts for Snapper, hibernation, Secure Boot, and drivers. Choose the personal setup only for my Bitwarden-backed private configuration.
 
-After applying, install the Yazi plugins manually; chezmoi does not install them.
-Run each `add` command only if that plugin is not already registered:
+### Yazi plugins
 
-```sh
+Install these manually after applying; run each `add` only if the plugin is not already registered:
+
+```bash
 ya pkg add ahkohd/eza-preview
 ya pkg add yazi-rs/plugins:full-border
 ya pkg install
 ```
 
+## Btrfs layout
+
+My current mount layout; disk partitioning is done during Arch installation. Hibernation adds `@swap` when needed, and Snapper manages `/.snapshots`.
+
+```text
+Btrfs volume
+├── @                 → /
+│   └── .snapshots    → /.snapshots
+├── @home             → /home
+├── @root             → /root
+├── @srv              → /srv
+├── @cache            → /var/cache
+├── @machines         → /var/lib/machines
+├── @portables        → /var/lib/portables
+├── @log              → /var/log
+├── @tmp              → /var/tmp
+└── @swap             → /swap
+
+/boot                  EFI System Partition
+```
+
+## Boot configuration
+
+- **Limine** with systemd-based mkinitcpio on supported Btrfs installations, independently of hibernation.
+- **LUKS roots:** `sd-encrypt` is included for verified, directly LUKS-backed Btrfs roots; plain roots omit it.
+- **Optional:** Plymouth, Secure Boot, Snapper snapshots, and laptop hibernation. Snapper is independent of hibernation.
+- Boot configuration changes queue a deferred rebuild. Credentials, crypttab, and TPM2 policy remain user-managed.
+
+Persistent Limine defaults live in `/etc/limine-entry-tool.d/01-default.conf`, with feature fragments alongside it. The effective command line may differ from `/etc/kernel/cmdline` because later configuration can prepend or replace arguments.
+
+After editing persistent settings, run `sudo limine-update` and inspect the generated `/boot/limine.conf`; after reboot, check `cat /proc/cmdline`. If the ESP is mounted elsewhere, use its configured `ESP_PATH` from `/etc/default/limine`.
+
+Current and historical snapshot UKIs (unified kernel images) can have different BLAKE2b hashes. Each entry's hash must match its referenced boot file. When Limine configuration enrollment is enabled, regenerate through the normal tools rather than manually editing generated hashes.
+
+### TPM2 automatic LUKS unlocking
+
+For LUKS2 with a TPM2, enrollment and boot configuration are separate. Replace the device placeholder with the encrypted partition, then identify its **LUKS UUID**, not the Btrfs UUID:
+
+```bash
+sudo cryptsetup luksUUID /dev/<luks-partition>
+sudo systemd-cryptenroll \
+  --tpm2-device=auto \
+  --tpm2-pcrs=7 \
+  /dev/<luks-partition>
+```
+
+PCR 7 binds unlocking to the Secure Boot policy. Choose this policy deliberately: changes to Secure Boot mode or keys can affect unlocking. Keep a working LUKS password or recovery key. See [systemd-cryptenroll](https://www.freedesktop.org/software/systemd/man/latest/systemd-cryptenroll.html) for policy details.
+
+Add this option to the existing kernel arguments in `/etc/limine-entry-tool.d/01-default.conf`:
+
+```text
+rd.luks.options=<LUKS-UUID>=tpm2-device=auto
+```
+
+Merge with existing options for that UUID; preserve `rd.luks.name=`, `root=`, and other custom arguments. Review any existing early crypttab policy too. Run `sudo limine-update` and verify the generated command line before rebooting. The setup scripts do not enroll TPM2 or choose authentication policies.
+
+## Chroot recovery
+
+Boot an Arch Linux live USB and use its root shell. Replace the device placeholders with the actual partitions.
+
+Unlock LUKS, mount the real `@` root and EFI System Partition, then enter the installation:
+
+```bash
+sudo cryptsetup open /dev/<luks-partition> root
+sudo mount -o subvol=@ /dev/mapper/root /mnt
+sudo mount --mkdir /dev/<efi-partition> /mnt/boot
+sudo arch-chroot /mnt
+```
+
+Use the installation's actual ESP mount point if it differs from `/boot`. [arch-chroot](https://man.archlinux.org/man/arch-chroot.8.en) comes from `arch-install-scripts` and is included in the standard Arch installation environment.
+
+Inside the chroot, inspect persistent settings and correct them before rebuilding:
+
+```bash
+cat /etc/limine-entry-tool.d/01-default.conf
+cat /etc/kernel/cmdline
+limine-update
+```
+
+`limine-update` is the normal path here: it rebuilds through mkinitcpio, generates UKIs when enabled, and runs the configured signing and Limine enrollment hooks. A separate mkinitcpio rebuild is usually unnecessary; for an initramfs-only repair when needed:
+
+```bash
+mkinitcpio -P
+```
+
+Check the rebuild output before leaving; an initramfs-only rebuild does not replace the full Limine signing/enrollment path.
+
+```bash
+exit
+umount -R /mnt
+reboot
+```
+
+When booted into a Snapper overlay snapshot, `/` may be temporary: edits to `/etc` may not reach the real root. Mount the real `@` subvolume explicitly and repair it through chroot.
+
 ## Usual commands
 
-```sh
-chezmoi status                 # See which files differ
-chezmoi diff                   # See the actual changes before applying
-chezmoi apply                  # Apply my local edits and eligible setup scripts
-chezmoi apply -nv              # Dry run: show what would happen without changing anything
-chezmoi apply --exclude=scripts # Apply files without running setup scripts
-chezmoi update                 # Pull from GitHub and apply
-chezmoi cd                     # Open a shell in this repo
+```bash
+chezmoi diff                    # Review changes
+chezmoi apply -nv                # Preview an apply
+chezmoi apply                    # Apply files and eligible setup scripts
+chezmoi apply --exclude=scripts  # Apply files only
+chezmoi update                   # Pull and apply
+chezmoi cd                       # Open a shell in the source repo
+
+sudo limine-update              # Rebuild boot artifacts and entries
+sudo sbctl status               # Inspect Secure Boot state
+findmnt -no SOURCE,FSTYPE /      # Identify the mounted root
+cat /proc/cmdline               # Arguments used for this boot
+sudo snapper -c root list        # List root snapshots
 ```
 
-### Working on a file
+For file edits:
 
-```sh
-chezmoi edit ~/.bashrc          # Edit the managed source, then run chezmoi apply
-chezmoi add ~/.bashrc           # Track the live file, or import edits I made to it
-chezmoi apply ~/.bashrc         # Apply only this file
-chezmoi forget ~/.bashrc        # Stop tracking it; keep the live file
-chezmoi destroy ~/.bashrc       # remove from machine and repo
+```bash
+chezmoi edit ~/.bashrc           # Edit the managed source
+chezmoi add ~/.bashrc            # Track a file or import live edits
+chezmoi apply ~/.bashrc          # Apply only this file
+chezmoi forget ~/.bashrc         # Stop tracking; keep the live file
 ```
 
-Normally, edit the managed source rather than the live `~/.config` copies. If I edit a live file, use `chezmoi add` to bring it back into the repo. For `.tmpl` files, edit the template directly instead.
-
-## Initramfs migration
-
-The three setup components have separate responsibilities:
-
-- **Initramfs:** `00-chezmoi-systemd.conf` owns the systemd base hooks, with
-  `sd-encrypt` only for a verified single-device LUKS-backed Btrfs root. Plymouth
-  remains optional. Other settings and compatible hook contributions are kept;
-  a later replacement of the base array stops the apply before publication.
-- **Snapper:** its own `snapper.conf` selects the snapshot overlay from the
-  effective initramfs environment and adds it once. With the managed systemd
-  base, Snapper selects `sd-btrfs-overlayfs`; its standalone selector handles an external
-  non-systemd environment. Snapper's feature gate is independent of hibernation.
-- **Hibernation:** manages only the existing Btrfs swapfile layout, safe reuse,
-  resume parameters and retry state. `resume=UUID=` uses the **unlocked Btrfs
-  filesystem UUID**, not the LUKS UUID. The offset comes from `map-swapfile -r`.
-  Systemd supplies resume support; hibernation does not inspect or write hooks.
-
-**Encryption credentials and authentication policy remain user-managed.** For
-verified LUKS roots, setup translates a single option-free
-`cryptdevice=<identifier>:<active-mapping>` to
-`rd.luks.name=<LUKS-superblock-UUID>=<active-mapping>`. UUID, PARTUUID, LABEL,
-PARTLABEL and device-path identifiers must resolve to the verified backing
-container; the Btrfs filesystem UUID is never used as the LUKS UUID. Only
-`/etc/kernel/cmdline` and the managed `01-default.conf` are eligible for token
-replacement, preserving unrelated arguments and settings. Kernel-only defaults
-are persisted in that managed drop-in. The command lines and base hooks are
-preflighted and published together using the existing rollback helper.
-
-Existing valid systemd definitions are reused without duplicate arguments.
-Legacy options, `cryptkey=`, implicit BusyBox keyfiles (including recognized
-keyfile-producing hooks), quoted/escaped encryption arguments, conflicting
-selections and independently managed effective legacy defaults require manual
-reconciliation. Additional early crypttab devices also require review so a new
-UUID allowlist cannot silently suppress their unlocking. Setup never edits
-crypttab, TPM2 configuration, keyfiles, credentials or LUKS policy.
-
-Without supported legacy arguments, establish a matching systemd early-unlock
-definition in persistent Limine defaults or an included crypttab entry with the
-correct UUID/mapping and `x-initrd.attach`. The installed `sd-encrypt` hook gives
-`/etc/crypttab.initramfs` precedence over `/etc/crypttab`. An ordinary host entry
-without early inclusion is insufficient. All preflight inputs are persistent;
-setup never infers future unlocking from a running/rescue boot command line.
-Verify authentication, required initramfs assets and recovery/password fallback
-yourself, especially when TPM PCR policy may be affected by rebuilt boot images.
-Custom UKI options cannot bypass the managed config, command line or signing.
-
-If the earlier migration was applied, review and retire the superseded
-`zz-chezmoi-systemd.conf` before retrying, preserving any local changes. It must
-not replace the new earlier base and erase Snapper's independent contribution.
-Unknown user drop-ins are never deleted automatically. If an existing legacy
-snapshot hook would disappear, preflight requires Snapper's independent selector
-rather than silently disabling snapshot boot.
-
-Changed configuration queues the existing late Limine rebuild, signing and
-artifact-verification flow; identical configuration does not queue another build.
-Before rebooting, verify successful rebuild/signing, hooks, unlock configuration,
-and resume UUID/offset. Development tests never publish live boot artifacts.
+Edit `.tmpl` files directly in the source repo. Use `chezmoi add` to import deliberate edits to live files.
 
 ## Script tests
 
-Tests cover only chezmoi setup scripts and their shared helpers, not application
-dotfiles. Requires Python 3.11+, Bash, and chezmoi; static validation also needs
-ShellCheck. Run manually with:
+Setup-script tests require Python 3.11+, Bash, and chezmoi; static checks also require ShellCheck.
 
-```sh
-python3 -B -m unittest discover -s .github/tests -v && python3 -B .github/tests/validate.py
+```bash
+python3 -B -m unittest discover -s .github/tests -v
+python3 -B .github/tests/validate.py
 ```
-
-CI runs the tests only for pull requests targeting `main`.
 
 ## Reminders
 
 - **Super + F2:** keybinding cheat sheet.
-- **Super + W:** wallpaper picker. My wallpapers live in `~/Pictures/Wallpapers`.
+- **Super + W:** wallpaper picker; wallpapers live in `~/Pictures/Wallpapers`.
 - **Super + U:** system update.
-- **Super + B:** Open browser.
-- **Bash history:** move `~/.bash_history` to `~/.local/state/bash/history` manually if needed; don't overwrite existing history.
-- **Laptop power:** auto-cpufreq handles AC/battery automatically. Check with `auto-cpufreq --stats`.
+- **Super + B:** browser.
+- **Bash history:** move `~/.bash_history` to `~/.local/state/bash/history` if needed, preserving existing history.
 
 Based on [END4's dotfiles](https://github.com/end-4/dots-hyprland), with Noctalia for the shell and theming.
