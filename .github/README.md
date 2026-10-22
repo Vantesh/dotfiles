@@ -4,7 +4,11 @@
 
 My Arch Linux setup: Hyprland, Noctalia, Fish, and Kitty. Managed with [chezmoi](https://www.chezmoi.io/quick-start/).
 
-[Install](#fresh-install) · [Customize](#customizing-the-setup) · [Layout](#btrfs-layout) · [Boot](#boot-configuration) · [Recovery](#chroot-recovery)
+[![Install](https://img.shields.io/badge/Install-1793d1?style=for-the-badge)](#fresh-install)
+[![Customize](https://img.shields.io/badge/Customize-7c3aed?style=for-the-badge)](#customizing-the-setup)
+[![Layout](https://img.shields.io/badge/Layout-166534?style=for-the-badge)](#btrfs-layout)
+[![Boot](https://img.shields.io/badge/Boot-b45309?style=for-the-badge)](#boot-configuration)
+[![Recovery](https://img.shields.io/badge/Recovery-be123c?style=for-the-badge)](#chroot-recovery)
 
 ## Fresh install
 
@@ -18,7 +22,7 @@ chezmoi init --apply vantesh
 Setup installs its remaining prerequisites and prompts for Snapper, hibernation, Secure Boot, and drivers.
 
 > [!WARNING]
-> **If you are not me (Vantesh), answer No to “Is this a personal setup”.** This option is for me only. It expects my private Bitwarden entries and their exact fields; missing or incorrect entries will make setup fail.
+> **If you are not me, answer No to “Is this a personal setup”.** This option is for me only. It expects my private Bitwarden entries and their exact fields; missing or incorrect entries will make setup fail.
 
 ## Customizing the setup
 
@@ -27,16 +31,9 @@ Mise files in the repository (`chezmoi cd`):
 - `mise/config.toml` → required mise version.
 - `mise/conf.d/packages.toml` → packages and optional groups.
 - `mise/conf.d/services.toml` → system services and timers.
-- `mise/conf.d/login-shell.toml` → login shell (Fish by default).
+- `mise/conf.d/login-shell.toml` → sets Fish as the default login shell (`/usr/bin/fish`).
 - `mise/conf.d/firewall.toml` → firewall rules.
 - `mise/conf.d/pacman-hooks.toml` → package-cache cleanup hooks.
-
-Fish settings:
-
-- `~/.config/fish/config.fish` → interactive startup.
-- `~/.config/fish/conf.d/` → abbreviations, environment, and integrations.
-- `~/.config/fish/functions/` → custom commands and wrappers.
-- `~/.config/fish/fish_plugins` → Fisher plugins.
 
 ## Btrfs layout
 
@@ -189,5 +186,7 @@ python3 -B .github/tests/validate.py
 - **Super + U:** system update.
 - **Super + B:** browser.
 - **Bash history:** move `~/.bash_history` to `~/.local/state/bash/history` if needed, preserving existing history.
+
+## Credits
 
 [Noctalia](https://github.com/noctalia-dev/noctalia) provides the bar, desktop shell, and theming.
