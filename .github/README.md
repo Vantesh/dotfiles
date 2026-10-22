@@ -1,4 +1,4 @@
-![Hyprland desktop](https://github.com/user-attachments/assets/093b4800-a1ec-49d2-b169-f6b6293cf2c0)
+<img width="1280" height="720" alt="Hyprland desktop" src="https://github.com/user-attachments/assets/5edaf197-b81f-4d5f-be7c-5acab8b7764e" />
 
 # Hyprland dotfiles
 
@@ -22,34 +22,21 @@ Setup installs its remaining prerequisites and prompts for Snapper, hibernation,
 
 ## Customizing the setup
 
-Chezmoi deploys `home/` and runs the setup scripts. The scripts use [mise bootstrap](https://mise.jdx.dev/bootstrap.html) to apply the repository's package and system settings. `mise/config.toml` sets the required mise version; `mise/conf.d/` splits the settings by purpose. These are separate from your global mise configuration.
+Mise files in the repository (`chezmoi cd`):
 
-Run `chezmoi cd` to open the repository; all paths below are relative to its root.
+- `mise/config.toml` → required mise version.
+- `mise/conf.d/packages.toml` → packages and optional groups.
+- `mise/conf.d/services.toml` → system services and timers.
+- `mise/conf.d/login-shell.toml` → login shell (Fish by default).
+- `mise/conf.d/firewall.toml` → firewall rules.
+- `mise/conf.d/pacman-hooks.toml` → package-cache cleanup hooks.
 
-| What to change | File |
-| --- | --- |
-| Packages and optional package groups | `mise/conf.d/packages.toml` |
-| System services and timers | `mise/conf.d/services.toml` |
-| Login shell (`/usr/bin/fish` by default) | `mise/conf.d/login-shell.toml` |
-| Firewall rules | `mise/conf.d/firewall.toml` |
-| Pacman cache hooks | `mise/conf.d/pacman-hooks.toml` |
+Fish settings:
 
-To add a package, follow the existing entries under `[bootstrap.packages]`, for example `"pacman:htop" = { env = "packages" }`. Use `aur:` for AUR packages. The `env` field selects a package group; keep optional driver and feature packages in their existing groups.
-
-For system services, add or edit a `[bootstrap.services."name.service"]` block: `state = "running"` starts it, and `enabled = true` enables it at boot. To stop and disable one, apply `state = "stopped"` and `enabled = false` before removing its block. Deleting a declaration alone does not uninstall its package or stop its service; uninstall unwanted packages separately.
-
-Packaged **user** services are handled separately: edit `USER_SERVICES` in `home/.chezmoiscripts/linux/run_onchange_after_14_services.sh.tmpl`.
-
-After editing, review the source changes with `git diff`, then run `chezmoi apply`. Changes to these mise files make the corresponding setup scripts run again.
-
-### Fish
-
-Fish configuration lives in `home/dot_config/private_fish/`, deployed to `~/.config/fish/`:
-
-- `config.fish`: interactive startup and Fisher setup.
-- `conf.d/abbr.fish`: abbreviations; `conf.d/variables.fish`: environment and paths. Other `conf.d/` files configure integrations.
-- `functions/`: custom commands and wrappers.
-- `fish_plugins`: Fisher plugin list.
+- `~/.config/fish/config.fish` → interactive startup.
+- `~/.config/fish/conf.d/` → abbreviations, environment, and integrations.
+- `~/.config/fish/functions/` → custom commands and wrappers.
+- `~/.config/fish/fish_plugins` → Fisher plugins.
 
 ## Btrfs layout
 
@@ -203,4 +190,4 @@ python3 -B .github/tests/validate.py
 - **Super + B:** browser.
 - **Bash history:** move `~/.bash_history` to `~/.local/state/bash/history` if needed, preserving existing history.
 
-Based on [END4's dotfiles](https://github.com/end-4/dots-hyprland), with Noctalia for the shell and theming.
+[Noctalia](https://github.com/noctalia-dev/noctalia) provides the bar, desktop shell, and theming.
