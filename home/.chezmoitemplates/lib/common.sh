@@ -796,28 +796,21 @@ update_config() {
   return 0
 }
 
-# Enable-only system units for login transitions and deferred Snapper setup.
+# Enable system units without starting them for deferred Snapper setup.
 # Ordinary system lifecycle state belongs to mise, not this helper.
 # Arguments:
 #   $1 - Unit name
-#   $2 - Scope: 'system' (default); user lifecycle uses its packaged-unit path
 # Globals:
 #   LAST_ERROR - Set on failure
 # Returns:
 #   0 on success, 1 on failure, 2 on invalid args
 enable_service() {
   local unit="${1:-}"
-  local scope="${2:-system}"
 
   LAST_ERROR=""
 
   if [[ -z "$unit" ]]; then
     LAST_ERROR="enable_service() requires a unit argument"
-    return 2
-  fi
-
-  if [[ "$scope" != "system" ]]; then
-    LAST_ERROR="Invalid scope: $scope (enable_service only supports system units)"
     return 2
   fi
 
@@ -832,7 +825,7 @@ enable_service() {
     if sudo systemctl enable "$unit" >/dev/null 2>&1; then
       return 0
     fi
-    LAST_ERROR="Failed to enable $unit (scope: $scope)"
+    LAST_ERROR="Failed to enable $unit"
     return 1
     ;;
   4)
@@ -840,7 +833,7 @@ enable_service() {
     return 1
     ;;
   *)
-    LAST_ERROR="Failed to query state of $unit (scope: $scope)"
+    LAST_ERROR="Failed to query state of $unit"
     return 1
     ;;
   esac
