@@ -7,8 +7,7 @@ on:
       - "home/**"
       - "mise/**"
       - ".github/tests/**"
-      - ".github/workflows/dotfiles-ci.yml"
-      - ".github/workflows/dotfiles-ci.yaml"
+      - ".github/workflows/ci-dots.yaml"
 
 permissions:
   contents: read
