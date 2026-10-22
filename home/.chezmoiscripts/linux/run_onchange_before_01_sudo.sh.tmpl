@@ -59,8 +59,8 @@ stage=$(mktemp -- "$directory/.chezmoi-$name.XXXXXX") || fail "Cannot stage $tar
 printf '%s\n' "$content" > "$stage" || fail "Cannot write candidate for $target"
 chown root:root -- "$stage" || fail "Cannot set candidate ownership for $target"
 chmod 0440 -- "$stage" || fail "Cannot set candidate permissions for $target"
-visudo -c -f "$stage" || fail "Candidate validation failed for $target"
-visudo -c -f /etc/sudoers || fail "Existing sudoers policy is invalid; $target was not changed"
+visudo -c -f "$stage" >/dev/null || fail "Candidate validation failed for $target"
+visudo -c -f /etc/sudoers >/dev/null || fail "Existing sudoers policy is invalid; $target was not changed"
 
 if [[ -n "$initial" ]]; then
   [[ ! -L "$target" && -f "$target" && $(stat -c "$state_format" -- "$target") = "$initial" ]] ||
