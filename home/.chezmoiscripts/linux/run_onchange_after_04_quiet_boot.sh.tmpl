@@ -40,7 +40,7 @@ main() {
     die "Cannot configure quiet boot: $LAST_ERROR"
   fi
 
-  if ! update_limine_cmdline "20-quiet-boot.conf" --append "$QUIET_BOOT_PARAMS"; then
+  if ! update_limine_cmdline "20-quiet-boot.conf" "$QUIET_BOOT_PARAMS"; then
     die "Failed to write Limine quiet boot config: $LAST_ERROR"
   fi
   log INFO "Updated Limine kernel parameters"

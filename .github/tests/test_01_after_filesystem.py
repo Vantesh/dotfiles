@@ -246,7 +246,7 @@ get_btrfs_root_device
                 self.calls.unlink(missing_ok=True)
                 result = self.shell(script)
                 self.assertEqual(result.returncode, 0, result.stderr)
-                self.assertIn(["update-limine", "50-hibernation.conf", "--append",
+                self.assertIn(["update-limine", "50-hibernation.conf",
                                "hibernate.compressor=lz4",
                                "resume=UUID=aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
                                "resume_offset=123"], self.logged_calls())
@@ -298,13 +298,15 @@ get_btrfs_root_device
         boot = self.directory / "boot-options"
         dropins = self.directory / "initramfs-options"
         marker = self.directory / "state/chezmoi/initramfs.pending"
-        self.stub("sed", 'exec /usr/bin/sed "$@"')
-        self.stub("tee", 'exec /usr/bin/tee "$@"')
+        kernel = self.directory / "etc/kernel/cmdline"
+        kernel.parent.mkdir(parents=True)
+        kernel.write_text("root=UUID=aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa\n")
+        self.stub("python3", 'exec /usr/bin/python3 "$@"')
         sudo = self.bin / "sudo"
         body = sudo.read_text().replace(
             '    *) echo "Unexpected sudo: $*" >&2; exit 97 ;;', r'''
-    'chown '*) exit 0 ;;
-    'cmp '*|'mkdir '*|'mktemp '*|'tee '*|'chmod '*|'mv '*|'rm '*)
+    'python3 '*) exec "$@" ;;
+    'test '*|'stat '*|'cp '*|'cat '*|'cmp '*|'mkdir '*|'mktemp '*|'tee '*|'chmod '*|'mv '*|'rm '*)
         for arg do
             case "$arg" in /*) case "$arg" in "$HOME"/*) ;; *) exit 97 ;; esac ;; esac
         done
@@ -315,9 +317,11 @@ get_btrfs_root_device
             "readonly INITRAMFS_PENDING_FILE=", "INITRAMFS_PENDING_FILE="
         ).replace("readonly MKINITCPIO_DROPIN_DIR=", "MKINITCPIO_DROPIN_DIR=")
         script += f'INITRAMFS_PENDING_FILE="{marker}"\nMKINITCPIO_DROPIN_DIR="{dropins}"\n'
-        for name in ("request_initramfs_rebuild", "update_limine_cmdline"):
+        for name in ("request_initramfs_rebuild", "update_limine_cmdline", "_stage_limine_fragment", "get_limine_cmdline"):
             script += self.function(LIB / "snapboot.sh", name).replace(
-                "/etc/limine-entry-tool.d", str(boot))
+                "/etc/limine-entry-tool.d", str(boot)).replace(
+                "/etc/", f"{self.directory}/etc/").replace(
+                "/usr/share/", f"{self.directory}/share/")
         script += f'''setup_hibernation || exit 1
 [[ -f "{marker}" ]] || exit 1
 rm -- "{marker}"
@@ -454,7 +458,7 @@ esac""",
         late = etc / "default/limine"
         late.write_text('KERNEL_CMDLINE[default]="root=UUID=filesystem"\n')
         self.assertNotEqual(self.shell(script).returncode, 0)
-        result = self.shell(source + "get_limine_cmdline\n")
+        result = self.shell(source + "get_limine_cmdline initramfs\n")
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout.strip(), "root=UUID=filesystem")
         late.unlink()
