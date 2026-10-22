@@ -1,13 +1,11 @@
 name: Validate chezmoi externals
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "home/.chezmoiexternals/*.tmpl"
-      - ".github/workflows/chezmoi-externals-check.yaml"
   pull_request:
     branches: [main]
+    paths:
+      - "home/.chezmoiexternals/**"
+      - ".github/workflows/chezmoi-externals-check.yaml"
 
 permissions:
   contents: read
@@ -25,38 +23,45 @@ jobs:
           persist-credentials: false
 
       - name: Install dependencies
-        run: |
-          pacman -Syu --noconfirm
-          pacman -S --noconfirm chezmoi git
+        run: pacman -Syu --noconfirm chezmoi git
 
       - name: Validate externals templates
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        shell: bash
         run: |
           set -euo pipefail
-          failed=0
+          shopt -s nullglob globstar
 
-          for tmpl in home/.chezmoiexternals/*.tmpl; do
-            echo "   • Validating $tmpl"
+          templates=(home/.chezmoiexternals/*.tmpl)
 
-            # Render template
-            if ! output=$(chezmoi --verbose execute-template < "$tmpl"); then
-              echo "❌ Failed to render: $tmpl"
-              failed=1
-              continue
-            fi
-
-            # Check for URL presence
-            if ! echo "$output" | grep -Eq 'url:[[:space:]]+\S+'; then
-              echo "❌ Missing or empty url in: $tmpl"
-              failed=1
-              continue
-            fi
-
-            echo "✅ OK: $tmpl"
-          done
-
-          if [ "$failed" -ne 0 ]; then
-            echo "❌ Externals check failed"
+          if (( ${#templates[@]} == 0 )); then
+            echo "::error::No chezmoi externals templates found"
             exit 1
           fi
 
-          echo "🎉 All externals passed!"
+          failed=0
+
+          for tmpl in "${templates[@]}"; do
+            echo "Validating $tmpl"
+
+            if ! output=$(chezmoi execute-template < "$tmpl"); then
+              echo "::error file=$tmpl::Template rendering failed"
+              failed=1
+              continue
+            fi
+
+            if ! grep -Eq '^[[:space:]]*url:[[:space:]]*[^[:space:]]+' <<< "$output"; then
+              echo "::error file=$tmpl::Missing or empty URL"
+              failed=1
+              continue
+            fi
+
+            echo "OK: $tmpl"
+          done
+
+          if (( failed != 0 )); then
+            exit 1
+          fi
+
+          echo "All externals templates passed"

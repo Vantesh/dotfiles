@@ -1,0 +1,93 @@
+#!/usr/bin/env bash
+# 15_enrollment.sh - Register WARP and offer fingerprint enrollment
+#
+# Runs after services and before finalization. Rechecks external state on each
+# apply so failed registration or skipped fingerprint enrollment can be retried.
+# Globals:
+#   CI - Skip device enrollment in CI
+#   NOCONFIRM - Skip interactive fingerprint enrollment
+# Exit codes: 0 (completed or skipped), nonzero (unexpected failure)
+
+set -euo pipefail
+
+{{ include ".chezmoitemplates/lib/common.sh" }}
+
+# Register a missing account without changing WARP's connection state.
+register_warp() {
+  command_exists warp-cli || return 0
+
+  local registration
+  if registration=$(LC_ALL=C warp-cli --accept-tos registration show 2>&1); then
+    log SKIP "WARP is already registered"
+    return 0
+  fi
+  if [[ "${registration,,}" != *"missing registration."* ]]; then
+    log WARN "Cannot inspect WARP registration; leaving it unchanged. Check warp-svc and retry."
+    return 0
+  fi
+
+  if warp-cli --accept-tos registration new; then
+    log INFO "Registered WARP; connect manually when wanted"
+  else
+    log WARN "WARP registration failed; retry with warp-cli registration new"
+  fi
+}
+
+# Offer enrollment for this setup's fingerprint packages, preserving existing prints.
+enroll_fingerprint() {
+  command_exists fprintd-enroll && command_exists gdbus && command_exists pacman || return 0
+  # Only offer enrollment for the fingerprint package group used by this setup.
+  pacman -Q -- libfprint-goodix53x5-533c-git fprintd >/dev/null 2>&1 || return 0
+
+  local device fingers
+  local device_pattern="^\(objectpath '(/net/reactivated/Fprint/Device/[0-9]+)',\)$"
+  if ! device=$(LC_ALL=C gdbus call --system --dest net.reactivated.Fprint \
+    --object-path /net/reactivated/Fprint/Manager \
+    --method net.reactivated.Fprint.Manager.GetDefaultDevice 2>&1); then
+    log SKIP "No usable fingerprint reader reported by fprintd"
+    return 0
+  fi
+  if [[ ! "$device" =~ $device_pattern ]]; then
+    log WARN "Cannot identify the fingerprint reader; skipping enrollment"
+    return 0
+  fi
+  device="${BASH_REMATCH[1]}"
+
+  # An inspection error must never be treated as permission to replace prints.
+  if fingers=$(LC_ALL=C gdbus call --system --dest net.reactivated.Fprint \
+    --object-path "$device" --method net.reactivated.Fprint.Device.ListEnrolledFingers "" 2>&1); then
+    if [[ "$fingers" != "(@as [],)" && "$fingers" != "([],)" ]]; then
+      log SKIP "A fingerprint is already enrolled"
+      return 0
+    fi
+  elif [[ "$fingers" != *net.reactivated.Fprint.Error.NoEnrolledPrints:* ]]; then
+    log WARN "Cannot inspect existing fingerprints; skipping enrollment"
+    return 0
+  fi
+
+  if [[ "${NOCONFIRM:-0}" == "1" ]] || ! { true </dev/tty; } 2>/dev/null; then
+    log SKIP "Fingerprint enrollment needs an interactive terminal; run fprintd-enroll later"
+    return 0
+  fi
+  if confirm "Enroll a fingerprint now? Touch the reader when prompted." "n"; then
+    if ! fprintd-enroll </dev/tty; then
+      log WARN "Fingerprint enrollment did not complete; retry with fprintd-enroll"
+    fi
+  fi
+  return 0
+}
+
+main() {
+  if [[ -n "${CI:-}" ]]; then
+    log SKIP "Skipping device enrollment in CI"
+    return 0
+  fi
+
+  print_box "Enrollment"
+  log STEP "Configuring device enrollment"
+
+  register_warp
+  enroll_fingerprint
+}
+
+main "$@"

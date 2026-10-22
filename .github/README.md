@@ -72,23 +72,36 @@ Btrfs volume
 - **Limine** with systemd-based mkinitcpio on supported Btrfs installations, independently of hibernation.
 - **LUKS roots:** `sd-encrypt` is included for verified, directly LUKS-backed Btrfs roots; plain roots omit it.
 - **Optional:** Plymouth, Secure Boot, Snapper snapshots, and laptop hibernation. Snapper is independent of hibernation.
-- Boot configuration changes queue a deferred rebuild. Credentials, crypttab, and TPM2 policy remain user-managed.
 
 > [!IMPORTANT]
 > If selecting Secure Boot for first-time key enrollment, put UEFI in **Setup Mode** with **Secure Boot disabled** before applying. Enable Secure Boot in firmware only after setup and the boot rebuild succeed.
 
-Persistent Limine defaults live in `/etc/limine-entry-tool.d/01-default.conf`, with feature fragments alongside it. The effective command line may differ from `/etc/kernel/cmdline` because later configuration can prepend or replace arguments.
+Limine defaults live in `/etc/limine-entry-tool.d/01-default.conf`. After editing, rebuild with `sudo limine-update` or `sudo limine-mkinitcpio`; do not run mkinitcpio directly.
 
-After editing persistent settings, run `sudo limine-update` and inspect the generated `/boot/limine.conf`; after reboot, check `cat /proc/cmdline`. If the ESP is mounted elsewhere, use its configured `ESP_PATH` from `/etc/default/limine`.
+### Device names and LUKS UUID
 
-Current and historical snapshot UKIs (unified kernel images) can have different BLAKE2b hashes. Each entry's hash must match its referenced boot file. When Limine configuration enrollment is enabled, regenerate through the normal tools rather than manually editing generated hashes.
+Find your devices with:
 
-### TPM2 automatic LUKS unlocking
+```bash
+lsblk -o NAME,PATH,FSTYPE,UUID,MOUNTPOINTS
+```
 
-For LUKS2 with a TPM2, enrollment and boot configuration are separate. Replace the device placeholder with the encrypted partition, then identify its **LUKS UUID**, not the Btrfs UUID:
+Replace the placeholders below with your own values, without the angle brackets:
+
+- `<luks-partition>` → the `crypto_LUKS` partition backing your root, such as `nvme0n1p2`.
+- `<root-mapper>` → its unlocked name under `/dev/mapper/`, such as `root` or `luks-…`.
+- `<efi-partition>` → your EFI System Partition, usually `vfat` and mounted at `/boot`.
+- `<LUKS-UUID>` → the encrypted partition's UUID, **not** the mapped Btrfs filesystem UUID. Print it with:
 
 ```bash
 sudo cryptsetup luksUUID /dev/<luks-partition>
+```
+
+### TPM2 automatic LUKS unlocking
+
+For LUKS2 with a TPM2, enrollment and boot configuration are separate. Use the encrypted partition identified above:
+
+```bash
 sudo systemd-cryptenroll \
   --tpm2-device=auto \
   --tpm2-pcrs=7 \
@@ -109,7 +122,7 @@ Merge with existing options for that UUID; preserve `rd.luks.name=`, `root=`, an
 
 ### From a live USB
 
-Boot an Arch Linux live USB and use its root shell. Replace the device placeholders with the actual partitions.
+Boot an Arch Linux live USB and use its root shell. Identify the partitions using [the device names above](#device-names-and-luks-uuid).
 
 Unlock LUKS, mount the real `@` root and EFI System Partition, then enter the installation:
 
@@ -130,13 +143,7 @@ cat /etc/kernel/cmdline
 limine-update
 ```
 
-`limine-update` is the normal path here: it rebuilds through mkinitcpio, generates UKIs when enabled, and runs the configured signing and Limine enrollment hooks. A separate mkinitcpio rebuild is usually unnecessary; for an initramfs-only repair when needed:
-
-```bash
-mkinitcpio -P
-```
-
-Check the rebuild output before leaving; an initramfs-only rebuild does not replace the full Limine signing/enrollment path.
+Use `limine-update` or `limine-mkinitcpio` for rebuilds so the installed Limine hooks run. Check the output before leaving.
 
 ```bash
 exit
@@ -145,6 +152,8 @@ reboot
 ```
 
 ### From a Snapper snapshot
+
+With Snapper enabled, reboot and **press any key as Limine starts**. Tap an arrow key repeatedly to catch the **0.5-second timeout** and reveal the boot menu. Open **Snapshots**, select a snapshot, and boot it.
 
 To repair the installed root from a booted Snapper overlay, mount the real `@` subvolume. The LUKS container is already unlocked; replace `<root-mapper>` and `<efi-partition>` with their actual names. This requires `arch-install-scripts` in the booted environment.
 
@@ -200,8 +209,8 @@ python3 -B .github/tests/validate.py
 - **Super + U:** system update.
 - **Super + B:** browser.
 - **Bash history:** move `~/.bash_history` to `~/.local/state/bash/history` if needed, preserving existing history.
-- **Dell fingerprint:** enroll my fingerprint after setup with `fprintd-enroll`.
-- **WARP:** register once with `warp-cli registration new`, then connect with `warp-cli connect`.
+- **Fingerprint:** setup offers enrollment only with its fingerprint packages installed and a detected reader without enrolled prints. Touch the reader when prompted, or run `fprintd-enroll` later.
+- **WARP:** setup registers it once without connecting. Connect manually when wanted.
 
 ## Credits
 

@@ -450,7 +450,6 @@ esac""",
         result = self.shell(script)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("resume=UUID=external noresume", result.stdout)
-        self.assertNotEqual(self.shell(source + "get_limine_cmdline\n").returncode, 0)
         (dropins / "01-default.conf").write_text("KERNEL_CMDLINE[default]=root=UUID=filesystem rd.luks.uuid=container\n")
         result = self.shell(script)
         self.assertEqual(result.returncode, 0, result.stderr)
@@ -498,23 +497,81 @@ esac""",
         self.assertEqual(result.returncode, 2, result.stderr)
         self.assertFalse(any(call[0] in ("defaults", "update-limine")
                              for call in self.logged_calls()))
+
+        etc = self.directory / "etc"
+        (etc / "kernel").mkdir(parents=True)
+        kernel = etc / "kernel/cmdline"
+        kernel.write_text("root=UUID=aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa\n")
+        fstab = etc / "fstab"
+        original = "# existing fstab\n"
+        swapfile = self.directory / "swap/swapfile"
+        swapfile.parent.mkdir(exist_ok=True)
+        swapfile.touch()
+        self.env["FSTAB"] = str(fstab)
         self.stub("limine", "exit 97")
+        self.stub("mkinitcpio", "exit 97")
+        self.stub("python3", 'exec /usr/bin/python3 "$@"')
+        self.stub("tee", 'exec /usr/bin/tee "$@"')
+        self.stub("findmnt", '''[ "$1" = --fstab ] || exit 97
+awk '!/^[[:space:]]*(#|$)/ {print $1, $2, $3, $4}' "$FSTAB"''')
+        self.stub("sudo", r'''case "$1" in
+    bash|python3) exec "$@" ;;
+    btrfs) [ "$2 $3 $4" = 'inspect-internal map-swapfile -r' ] && echo 123; exit ;;
+    test|stat|cp|cat|cmp|mkdir|mktemp|tee|chmod|mv|rm) ;;
+    *) exit 97 ;;
+esac
+for arg do
+    case "$arg" in /*) case "$arg" in "$HOME"/*) ;; *) exit 97 ;; esac ;; esac
+done
+if [ "$1" = mv ]; then
+    for target do :; done
+    if [ "$target" = "$HOME/etc/limine-entry-tool.d/50-hibernation.conf" ]; then
+        if [ "$FAILURE" = concurrent-edit ]; then printf '# independent edit\n' >> "$FSTAB"; fi
+        exit 23
+    fi
+fi
+exec "$@"''')
         source = self.render(SCRIPTS / "run_onchange_after_03_hibernation.sh.tmpl")
+        source = source.replace("/etc/", f"{etc}/").replace(
+            "/usr/share/", f"{self.directory}/share/")
+        source = source.replace('"/swap"', f'"{swapfile.parent}"').replace(
+            '"/swap/swapfile"', f'"{swapfile}"')
         source = source.replace("/usr/bin/limine", str(self.bin / "limine"))
-        source = source.replace(
-            '\nmain "$@"',
-            '''
+        source = source.replace('\nmain "$@"', '''
 check_btrfs() { return 0; }
 is_laptop() { return 0; }
-command_exists() { return 0; }
 keep_sudo_alive() { return 0; }
-setup_hibernation() { LAST_ERROR="fixture failure"; return 1; }
-main "$@"''',
-        )
-        result = self.shell(source)
-        self.assertEqual(result.returncode, 1, result.stderr)
-        self.assertEqual((self.directory / "state/chezmoi/hibernation.pending").read_text(), ".")
-        self.assertNotIn("setup completed", result.stderr)
+reload_systemd_daemon() { return 0; }
+check_hibernation_swap_policy() { return 0; }
+inspect_btrfs_device() {
+    resume_uuid=aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa
+    luks_uuid=bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb
+}
+# Storage preparation is simulated; fstab edits, resume staging and rollback are real.
+create_btrfs_swap() {
+    _add_hibernation_fstab_entry "$SWAP_FILE_PATH none swap defaults 0 0" fixture
+}
+main "$@"''')
+        pending = self.directory / "state/chezmoi/hibernation.pending"
+        rebuild = self.directory / "state/chezmoi/initramfs.pending"
+        for failure in ("publish", "concurrent-edit"):
+            with self.subTest(failure=failure):
+                fstab.write_text(original)
+                pending.unlink(missing_ok=True)
+                rebuild.unlink(missing_ok=True)
+                self.env["FAILURE"] = failure
+                result = self.shell(source)
+                self.assertEqual(result.returncode, 1, result.stderr)
+                expected = original if failure == "publish" else (
+                    original + f"\n{swapfile} none swap defaults 0 0\n# independent edit\n")
+                self.assertEqual(fstab.read_text(), expected)
+                self.assertEqual(pending.read_text(), ".")
+                self.assertTrue(rebuild.exists())
+                self.assertFalse((etc / "limine-entry-tool.d/50-hibernation.conf").exists())
+                self.assertNotIn("resume=", (etc / "limine-entry-tool.d/01-default.conf").read_text())
+                self.assertEqual(kernel.read_text(), "root=UUID=aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa\n")
+                self.assertNotIn("setup completed", result.stderr)
+
 
     def test_consecutive_deferrals_keep_changing_the_onchange_retry_state(self):
         path = SCRIPTS / "run_onchange_after_03_hibernation.sh.tmpl"
