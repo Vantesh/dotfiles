@@ -3,6 +3,12 @@ name: dotfiles CI
 on:
   pull_request:
     branches: [main]
+    paths:
+      - "home/**"
+      - "mise/**"
+      - ".github/tests/**"
+      - ".github/workflows/dotfiles-ci.yml"
+      - ".github/workflows/dotfiles-ci.yaml"
 
 permissions:
   contents: read
@@ -18,24 +24,27 @@ jobs:
     runs-on: ubuntu-latest
     container: archlinux:latest
     timeout-minutes: 15
+
     defaults:
       run:
         shell: bash
 
     steps:
-      - name: Install dependencies
-        run: pacman -Syu --noconfirm git git-delta bash shellcheck chezmoi diffutils python
-
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v5
         with:
           persist-credentials: false
 
+      - name: Install dependencies
+        run: pacman -Syu --noconfirm git git-delta bash shellcheck chezmoi diffutils python
+
       - name: Configure isolated home
         run: |
           set -euo pipefail
+
           readonly CI_HOME="$RUNNER_TEMP/dotfiles-ci/home"
           mkdir -p -- "$CI_HOME"
+
           printf '%s\n' \
             "HOME=$CI_HOME" \
             "XDG_CONFIG_HOME=$CI_HOME/.config" \
@@ -44,13 +53,33 @@ jobs:
             "XDG_STATE_HOME=$CI_HOME/.local/state" >> "$GITHUB_ENV"
 
       - name: Test and lint setup scripts
-        run: python3 -B -m unittest discover -s .github/tests -v && python3 -B .github/tests/validate.py
+        run: |
+          set -euo pipefail
+          python3 -B -m unittest discover -s .github/tests -v
+          python3 -B .github/tests/validate.py
 
       - name: Apply and verify dotfiles
         run: |
           set -euo pipefail
           umask 022
-          mkdir -p -- "$XDG_CONFIG_HOME" "$XDG_CACHE_HOME" "$XDG_DATA_HOME" "$XDG_STATE_HOME"
-          chezmoi --verbose --source "$GITHUB_WORKSPACE" --destination "$HOME" init --data=false --no-tty
-          chezmoi --verbose --source "$GITHUB_WORKSPACE" --destination "$HOME" apply --exclude=scripts --no-tty
-          chezmoi --verbose --source "$GITHUB_WORKSPACE" --destination "$HOME" verify --exclude=scripts --no-tty
+
+          mkdir -p -- \
+            "$XDG_CONFIG_HOME" \
+            "$XDG_CACHE_HOME" \
+            "$XDG_DATA_HOME" \
+            "$XDG_STATE_HOME"
+
+          chezmoi --verbose \
+            --source "$GITHUB_WORKSPACE" \
+            --destination "$HOME" \
+            init --data=false --no-tty
+
+          chezmoi --verbose \
+            --source "$GITHUB_WORKSPACE" \
+            --destination "$HOME" \
+            apply --exclude=scripts --no-tty
+
+          chezmoi --verbose \
+            --source "$GITHUB_WORKSPACE" \
+            --destination "$HOME" \
+            verify --exclude=scripts --no-tty
