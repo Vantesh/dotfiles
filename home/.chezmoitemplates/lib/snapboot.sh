@@ -457,10 +457,10 @@ import re
 import sys
 
 mode = sys.argv[1]
-if mode not in ('initramfs', 'convert-unlock', 'hibernation', 'deduplicate', 'deduplicate-file', 'fragment-file'):
+if mode not in ('initramfs', 'convert-unlock', 'hibernation', 'deduplicate-file', 'fragment-file'):
     raise SystemExit('Unsupported Limine command-line operation')
 hibernation = mode == 'hibernation'
-deduplicate = mode in ('deduplicate', 'deduplicate-file')
+deduplicate = mode == 'deduplicate-file'
 kernel = '/etc/kernel/cmdline'
 managed = '/etc/limine-entry-tool.d/50-hibernation.conf'
 default = '/etc/limine-entry-tool.d/01-default.conf'
@@ -490,7 +490,7 @@ for name in files:
     records[name] = []
     locations[name] = []
     if deduplicate and name == default:
-        text = pathlib.Path(sys.argv[2]).read_bytes().decode() if mode == 'deduplicate-file' else sys.argv[2]
+        text = pathlib.Path(sys.argv[2]).read_bytes().decode()
     else:
         if not path.exists() and name not in staged:
             continue
@@ -674,10 +674,7 @@ if deduplicate:
             if replacement.strip():
                 lines[index] = lines[index][:start] + replacement + lines[index][end:]
     content = ''.join(lines)
-    if mode == 'deduplicate-file':
-        pathlib.Path(sys.argv[2]).write_bytes(content.encode())
-    else:
-        sys.stdout.write(content)
+    pathlib.Path(sys.argv[2]).write_bytes(content.encode())
     raise SystemExit(0)
 if hibernation and marker not in value.split():
     raise SystemExit('Later Limine defaults override hibernation; configure resume manually')

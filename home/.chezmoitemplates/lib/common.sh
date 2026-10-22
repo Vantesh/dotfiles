@@ -485,19 +485,17 @@ write_system_config() {
 
 # Creates .bak backup of file
 #
-# Only creates backup if .bak file doesn't already exist unless "force" is specified.
+# Replaces any existing .bak backup with the current file.
 # Uses atomic copy via temporary file. Uses sudo if target directory not writable.
 #
 # Arguments:
 #   $1 - Target file path
-#   $2 - Optional: "force" to overwrite existing backup
 # Globals:
 #   LAST_ERROR - Set on failure
 # Returns:
-#   0 on success (created or already exists), 1 on failure, 2 on invalid args
+#   0 on success, 1 on failure, 2 on invalid args
 create_backup() {
   local target_path="$1"
-  local force="${2:-}"
   local backup_path="${target_path}.bak"
 
   LAST_ERROR=""
@@ -510,10 +508,6 @@ create_backup() {
   if [[ ! -e "$target_path" ]] && ! sudo test -e "$target_path"; then
     LAST_ERROR="Target path does not exist: $target_path"
     return 2
-  fi
-
-  if { [[ -e "$backup_path" ]] || sudo test -e "$backup_path"; } && [[ "$force" != "force" ]]; then
-    return 0
   fi
 
   local backup_dir

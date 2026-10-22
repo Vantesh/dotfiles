@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 # 15_enrollment.sh - Register WARP and offer fingerprint enrollment
 #
-# Runs after services and before finalization. Rechecks external state on each
-# apply so failed registration or skipped fingerprint enrollment can be retried.
+# Runs after services and before finalization when its rendered content changes.
 # Globals:
 #   CI - Skip device enrollment in CI
 #   NOCONFIRM - Skip interactive fingerprint enrollment
