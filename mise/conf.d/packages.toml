@@ -104,6 +104,11 @@
 "pacman:python-pillow" = { env = "packages" }
 
 # Fonts
+"pacman:otf-font-awesome" = { env = "packages" }
+"pacman:ttf-material-symbols-variable" = { env = "packages" }
+"pacman:ttf-jetbrains-mono-nerd" = { env = "packages" }
+"pacman:ttf-nerd-fonts-symbols" = { env = "packages" }
+"pacman:ttf-nerd-fonts-symbols-mono" = { env = "packages" }
 "pacman:noto-fonts-cjk" = { env = "packages" }
 "pacman:noto-fonts-extra" = { env = "packages" }
 "pacman:ttf-liberation" = { env = "packages" }
