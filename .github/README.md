@@ -1,18 +1,25 @@
 <img width="1280" height="720" alt="Hyprland desktop" src="https://github.com/user-attachments/assets/5edaf197-b81f-4d5f-be7c-5acab8b7764e" />
 
-# Hyprland dotfiles
+<h1 align="center">Arch dotfiles</h1>
 
 My Arch Linux setup: Hyprland, Noctalia, Fish, and Kitty. Managed with [chezmoi](https://www.chezmoi.io/quick-start/).
 
-[![Install](https://img.shields.io/badge/Install-1793d1?style=for-the-badge)](#fresh-install)
-[![Customize](https://img.shields.io/badge/Customize-7c3aed?style=for-the-badge)](#customizing-the-setup)
-[![Layout](https://img.shields.io/badge/Layout-166534?style=for-the-badge)](#btrfs-layout)
-[![Boot](https://img.shields.io/badge/Boot-b45309?style=for-the-badge)](#boot-configuration)
-[![Recovery](https://img.shields.io/badge/Recovery-be123c?style=for-the-badge)](#chroot-recovery)
+<p align="center">
+  <a href="#fresh-install"><img height="28" alt="Install" src="https://img.shields.io/badge/Install-89b4fa?style=flat" /></a>
+  <a href="#customizing-the-setup"><img height="28" alt="Customize" src="https://img.shields.io/badge/Customize-cba6f7?style=flat" /></a>
+  <a href="#btrfs-layout"><img height="28" alt="Layout" src="https://img.shields.io/badge/Layout-a6e3a1?style=flat" /></a>
+  <a href="#boot-configuration"><img height="28" alt="Boot" src="https://img.shields.io/badge/Boot-fab387?style=flat" /></a>
+  <a href="#chroot-recovery"><img height="28" alt="Recovery" src="https://img.shields.io/badge/Recovery-f38ba8?style=flat" /></a>
+</p>
 
 ## Fresh install
 
 Start from an installed Arch system with network access and a regular user with sudo access. Back up existing configuration first.
+
+Support is best effort; I only test this setup on machines I own.
+
+> [!WARNING]
+> **Package setup enables Chaotic-AUR by default**, adding its third-party repository and signing keys to pacman.
 
 ```bash
 sudo pacman -S --needed chezmoi
@@ -23,6 +30,8 @@ Setup installs its remaining prerequisites and prompts for Snapper, hibernation,
 
 > [!WARNING]
 > **If you are not me, answer No to “Is this a personal setup”.** This option is for me only. It expects my private Bitwarden entries and their exact fields; missing or incorrect entries will make setup fail.
+>
+> If you answered Yes by mistake, run `chezmoi init --prompt` and choose No before retrying.
 
 ## Customizing the setup
 
@@ -62,6 +71,9 @@ Btrfs volume
 - **LUKS roots:** `sd-encrypt` is included for verified, directly LUKS-backed Btrfs roots; plain roots omit it.
 - **Optional:** Plymouth, Secure Boot, Snapper snapshots, and laptop hibernation. Snapper is independent of hibernation.
 - Boot configuration changes queue a deferred rebuild. Credentials, crypttab, and TPM2 policy remain user-managed.
+
+> [!IMPORTANT]
+> If selecting Secure Boot for first-time key enrollment, put UEFI in **Setup Mode** with **Secure Boot disabled** before applying. Enable Secure Boot in firmware only after setup and the boot rebuild succeed.
 
 Persistent Limine defaults live in `/etc/limine-entry-tool.d/01-default.conf`, with feature fragments alongside it. The effective command line may differ from `/etc/kernel/cmdline` because later configuration can prepend or replace arguments.
 
@@ -186,7 +198,10 @@ python3 -B .github/tests/validate.py
 - **Super + U:** system update.
 - **Super + B:** browser.
 - **Bash history:** move `~/.bash_history` to `~/.local/state/bash/history` if needed, preserving existing history.
+- **Dell fingerprint:** enroll my fingerprint after setup with `fprintd-enroll`.
+- **WARP:** register once with `warp-cli registration new`, then connect with `warp-cli connect`.
 
 ## Credits
 
-[Noctalia](https://github.com/noctalia-dev/noctalia) provides the bar, desktop shell, and theming.
+- [Noctalia](https://github.com/noctalia-dev/noctalia) → bar, desktop shell, and theming.
+- [Matt-FTW's dotfiles](https://github.com/Matt-FTW/dotfiles) → some application configurations.
