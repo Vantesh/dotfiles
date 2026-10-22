@@ -407,8 +407,7 @@ def main():
     )
     config_dir = Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config")
 
-    # Intentional inverted mapping.
-    variant = "light" if mode == "dark" else "dark"
+    variant = mode
 
     candidates = (
         icons / f"MacTahoe-{variant}",
