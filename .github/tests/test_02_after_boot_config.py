@@ -23,21 +23,9 @@ class SystemdInitramfsTests(ScriptCase):
         self.stub("sort", 'exec /usr/bin/sort "$@"')
         self.stub("tee", 'exec /usr/bin/tee "$@"')
         self.stub("python3", 'exec /usr/bin/python3 "$@"')
-        self.stub(
-            "blkid",
-            r"""case "$*" in
-    '-t UUID=bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb -o device'|'-t PARTUUID=cccccccc-cccc-cccc-cccc-cccccccccccc -o device') echo /dev/fixture-container ;;
-    *) exit 1 ;;
-esac""",
-        )
-        self.stub(
-            "lsblk",
-            r"""case "$*" in
-    '-dnro MAJ:MIN /dev/fixture-container'|'-dnro MAJ:MIN /dev/disk/by-id/fixture-container') echo 8:17 ;;
-    '-dnro UUID /dev/disk/by-id/fixture-root') echo aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa ;;
-    *) exit 1 ;;
-esac""",
-        )
+        self.stub("blkid", r'''[ "$*" = '-t UUID=bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb -o device' ] || exit 97
+echo /dev/fixture-container
+[ "$FAILURE" != ambiguous ] || echo /dev/duplicate-container''')
         (self.etc / "kernel").mkdir()
         (self.etc / "limine-entry-tool.d").mkdir()
         self.kernel = self.etc / "kernel/cmdline"
@@ -47,12 +35,15 @@ esac""",
             r"""case "$1" in
     bash|python3) exec "$@" ;;
     chown) exit 0 ;;
-    test|stat|cp|cat|cmp|mkdir|mktemp|tee|chmod|mv|rm)
+    blkid|test|stat|cp|cat|cmp|mkdir|mktemp|tee|chmod|mv|rm)
         for arg do
             case "$arg" in /*) case "$arg" in "$HOME"/*) ;; *) exit 97 ;; esac ;; esac
         done
         [ "$1:$FAILURE" != tee:write ] || exit 23
-        case "$FAILURE:$*" in publish:mv*00-chezmoi-systemd.conf.chezmoi.*) exit 23 ;; esac
+        case "$FAILURE:$*" in publish:mv*00-chezmoi-systemd.conf*) exit 23 ;; esac
+        case "$FAILURE:$*" in postcheck:mv*00-chezmoi-systemd.conf.chezmoi.*)
+            printf 'KERNEL_CMDLINE[default]= "root=UUID=independent"\n' > "$HOME/etc/default/limine" ;;
+        esac
         exec "$@" ;;
     *) exit 97 ;;
 esac""",
@@ -65,7 +56,7 @@ esac""",
             UNLOCK="rd.luks.name=bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb=root",
         )
 
-    def configure(self, *, persistent=False):
+    def configure(self, *, persistent=False, entrypoint=False):
         source = (
             (LIB / "snapboot.sh")
             .read_text()
@@ -75,6 +66,18 @@ esac""",
         )
         if not persistent:
             source += "\nget_limine_cmdline() { get_limine_cmdline_fixture; }\n"
+        run = 'configure_systemd_initramfs || { printf "%s\\n" "$LAST_ERROR" >&2; exit 1; }\n'
+        if entrypoint:
+            self.stub("limine", "exit 97")
+            run = self.function(
+                SCRIPTS / "run_after_00_initramfs_config.sh.tmpl", "main"
+            ).replace("/usr/bin/limine", str(self.bin / "limine")) + r'''
+command_exists() { return 0; }
+check_btrfs() { return 0; }
+is_laptop() { [[ "$LAPTOP" = 1 ]]; }
+keep_sudo_alive() { return 0; }
+main || exit 1
+'''
         return self.shell(
             self.libraries("common.sh")
             + source
@@ -86,7 +89,6 @@ inspect_btrfs_device() {
     if [[ "$ENCRYPTED" = 1 ]]; then
         luks_uuid=bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb
         root_mapping="${MAPPING:-root}"
-        luks_device_id=8:17
     fi
 }
 get_limine_cmdline_fixture() {
@@ -96,9 +98,9 @@ get_limine_cmdline_fixture() {
 }
 get_limine_config_value() { printf '%s\n' "$UKI_OPTIONS"; }
 mkinitcpio_hook_exists() { [[ "$1:$FAILURE" != sd-encrypt:hook ]]; }
-configure_systemd_initramfs || { printf '%s\n' "$LAST_ERROR" >&2; exit 1; }
-get_mkinitcpio_hooks
 """
+            + run
+            + "get_mkinitcpio_hooks\n"
         )
 
     def ensure_defaults(self):
@@ -249,145 +251,188 @@ get_mkinitcpio_hooks
             self.kernel.read_text(), "root=/dev/mapper/data quiet custom=quiet\n"
         )
 
-    def legacy_sources(self, unlock, *, mapping="root"):
+    def persistent_sources(self, unlock, *, mapping="root"):
         self.env.update(ENCRYPTED="1", MAPPING=mapping)
         arguments = (
             f"{unlock} root=/dev/mapper/{mapping} rootflags=subvol=/releases/root.v2 "
-            'rw rootfstype=btrfs resume=UUID=aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa resume_offset=123 systemd.setenv="WELCOME=hello world"'
+            'rw rootfstype=btrfs systemd.setenv="WELCOME=hello world"'
         )
         self.kernel.write_text(arguments + "\n")
         self.defaults.write_text(
             f'# local defaults\nKERNEL_CMDLINE[default]= "{arguments}"\nOTHER_SETTING=yes\n'
         )
 
-    def test_legacy_root_selection_updates_both_sources_once(self):
-        name = "rd.luks.name=bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb=data-volume.v2"
-        for identifier in (
-            "UUID=bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
-            "PARTUUID=cccccccc-cccc-cccc-cccc-cccccccccccc",
-            "/dev/disk/by-id/fixture-container",
+    def test_active_legacy_unlock_arguments_preserve_boot_files_and_name_the_source(self):
+        named = "rd.luks.name=bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb=root"
+        legacy = "cryptdevice=UUID=bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:root"
+        extra = self.etc / "default/limine"
+        extra.parent.mkdir()
+        previous = "HOOKS=(base systemd block filesystems fsck)\n"
+        for source, argument in (
+            (self.defaults, legacy.replace(":root", ":other")),
+            (self.defaults, legacy + ":allow-discards"),
+            (self.defaults, named + " cryptkey=rootfs:/keyfile"),
+            (self.defaults, named + " crypto=sha256:aes:256:0:"),
+            (self.defaults, named + ' "cryptdevice=UUID=container:root"'),
+            (self.kernel, legacy.replace("bbbbbbbb", "dddddddd")),
+            (extra, legacy),
+            (extra, named + " cryptkey=rootfs:/keyfile"),
         ):
-            with self.subTest(identifier=identifier):
-                legacy = f"cryptdevice={identifier}:data-volume.v2"
-                self.legacy_sources(legacy, mapping="data-volume.v2")
-                if identifier.startswith("/dev/"):
-                    for path in (self.defaults, self.kernel):
-                        path.write_text(
-                            path.read_text().replace(
-                                "root=/dev/mapper/data-volume.v2",
-                                "root=/dev/disk/by-id/fixture-root",
-                            )
-                        )
-                before = self.defaults.read_text()
-                kernel_before = self.kernel.read_text()
+            with self.subTest(source=source, argument=argument):
+                self.persistent_sources(named)
+                extra.unlink(missing_ok=True)
+                self.managed.write_text(previous)
+                self.marker.unlink(missing_ok=True)
+                if source == self.kernel:
+                    self.defaults.write_text("# no default override\nOTHER_SETTING=yes\n")
+                    source.write_text(f"{argument} root=/dev/mapper/root\n")
+                else:
+                    source.write_text(
+                        f'KERNEL_CMDLINE[default]= "{argument} root=/dev/mapper/root"\n'
+                    )
+                paths = [self.main, self.kernel, self.defaults, self.managed]
+                if extra.exists():
+                    paths.append(extra)
+                before = [path.read_bytes() for path in paths]
+                for encrypted in ("0", "1"):
+                    self.env["ENCRYPTED"] = encrypted
+                    result = self.configure(persistent=True)
+                    self.assertNotEqual(result.returncode, 0, result.stderr)
+                    self.assertIn(str(source), result.stderr)
+                    self.assertEqual([path.read_bytes() for path in paths], before)
+                    self.assertFalse(self.marker.exists())
+
+    def test_fresh_luks_conversion_updates_active_sources_without_losing_tokens(self):
+        legacy = "cryptdevice=UUID=bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:data-volume.v2"
+        named = "rd.luks.name=bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb=data-volume.v2"
+        for sources in ("both", "kernel", "default", "no-kernel", "no-default", "filesystem-root"):
+            with self.subTest(sources=sources):
                 self.managed.unlink(missing_ok=True)
                 self.marker.unlink(missing_ok=True)
-                (self.etc / "limine-entry-tool.d/20-quiet-boot.conf").write_text(
-                    'KERNEL_CMDLINE[default]+= "quiet splash"\n'
-                )
-                result = self.configure(persistent=True)
+                self.persistent_sources(legacy, mapping="data-volume.v2")
+                self.env.update(LAPTOP="0", SETUP_HIBERNATION="0", SETUP_SNAPPER="0")
+                custom = 'custom=cryptdevice=unchanged  systemd.setenv="WORDS=hello world"\tloglevel=3'
+                for path in (self.kernel, self.defaults):
+                    path.write_text(path.read_text().replace(legacy, legacy + "  " + custom))
+                self.defaults.write_text("# " + legacy + "\n" + self.defaults.read_text())
+                if sources == "kernel":
+                    self.defaults.write_text("# unrelated defaults\nOTHER_SETTING=yes\n")
+                elif sources == "default":
+                    self.kernel.write_text("root=UUID=independent quiet\n")
+                elif sources == "no-kernel":
+                    self.kernel.unlink()
+                elif sources == "no-default":
+                    self.defaults.unlink()
+                elif sources == "filesystem-root":
+                    for path in (self.kernel, self.defaults):
+                        path.write_text(path.read_text().replace(
+                            "root=/dev/mapper/data-volume.v2", "root=UUID=aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+                        ))
+                before = {path: path.read_text() for path in (self.kernel, self.defaults) if path.exists()}
+                result = self.configure(persistent=True, entrypoint=True)
                 self.assertEqual(result.returncode, 0, result.stderr)
-                self.assertEqual(
-                    self.defaults.read_text(), before.replace(legacy, name)
-                )
-                self.assertEqual(
-                    self.kernel.read_text(), kernel_before.replace(legacy, name)
-                )
-                self.assertEqual(self.kernel.read_text().count(name), 1)
+                for path, text in before.items():
+                    expected = text.replace(legacy, named) if path == self.kernel else text.replace(
+                        legacy + "  " + custom, named + "  " + custom
+                    )
+                    self.assertEqual(path.read_text(), expected)
+                self.assertEqual(self.kernel.exists(), sources != "no-kernel")
+                self.assertEqual(self.defaults.exists(), sources != "no-default")
                 self.assertIn(" sd-encrypt ", result.stdout)
+                self.assertFalse(self.defaults.with_name("50-hibernation.conf").exists())
                 self.assertTrue(self.marker.exists())
+                paths = [*before, self.managed]
+                after = [path.read_bytes() for path in paths]
                 self.marker.unlink()
-                result = self.configure(persistent=True)
+                result = self.configure(persistent=True, entrypoint=True)
                 self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual([path.read_bytes() for path in paths], after)
                 self.assertFalse(self.marker.exists())
 
-    def test_unsupported_legacy_selection_never_changes_boot_files(self):
-        valid = "cryptdevice=UUID=bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:root"
+    def test_matching_busybox_and_systemd_selections_reuse_existing_policy(self):
+        legacy = "cryptdevice=UUID=bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:root"
+        named = "rd.luks.name=bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb=root"
+        options = "rd.luks.options=bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb=tpm2-device=auto,tpm2-pin=yes,tries=3"
+        self.persistent_sources(legacy + " " + named + " " + options)
+        before = (self.kernel.read_text(), self.defaults.read_text())
+        result = self.configure(persistent=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(self.kernel.read_text(), before[0].replace(legacy, ""))
+        self.assertEqual(self.defaults.read_text(), before[1].replace(legacy, ""))
+        self.assertEqual(self.kernel.read_text().count(named), 1)
+
+    def test_unsupported_installer_unlocks_never_publish_arguments_or_hooks(self):
+        legacy = "cryptdevice=UUID=bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:root"
         for unlock in (
-            valid + ":allow-discards",
-            valid + " cryptkey=rootfs:/keyfile",
-            valid + ' "rd.luks=0"',
-            valid + ' rd.luks.options="swap"',
-            valid
-            + ' systemd.setenv="BOOT_ARGS=before rd.luks.name=bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb=root after"',
-            valid.replace(":root", ":other"),
-            valid.replace(
-                "UUID=bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
-                "UUID=dddddddd-dddd-dddd-dddd-dddddddddddd",
-            ),
-            valid + " " + valid,
-            valid + " rd.luks.name=dddddddd-dddd-dddd-dddd-dddddddddddd=root",
+            legacy + ":allow-discards", legacy + " " + legacy,
+            legacy.replace("UUID=", "PARTUUID="),
+            legacy.replace("UUID=bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb", "/dev/sda2"),
+            legacy.replace("bbbbbbbb", "aaaaaaaa"), legacy.replace(":root", ":other"),
+            legacy + " cryptkey=rootfs:/keyfile", legacy + " crypto=sha256:aes:256:0:",
+            legacy + " rd.luks.name=dddddddd-dddd-dddd-dddd-dddddddddddd=root",
+            legacy + " rd.luks.name=bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb=other",
+            legacy + " rd.luks=0", '"' + legacy + '"',
+            'systemd.setenv="WORDS=before ' + legacy + ' after"', legacy + " -- init=custom",
         ):
             with self.subTest(unlock=unlock):
-                self.managed.unlink(missing_ok=True)
-                self.marker.unlink(missing_ok=True)
-                self.legacy_sources(unlock)
-                before = (self.kernel.read_bytes(), self.defaults.read_bytes())
+                self.persistent_sources(unlock)
+                before = (self.kernel.read_bytes(), self.defaults.read_bytes(), self.main.read_bytes())
                 result = self.configure(persistent=True)
                 self.assertNotEqual(result.returncode, 0, result.stderr)
-                self.assertEqual(
-                    (self.kernel.read_bytes(), self.defaults.read_bytes()), before
-                )
+                self.assertEqual((self.kernel.read_bytes(), self.defaults.read_bytes(), self.main.read_bytes()), before)
                 self.assertFalse(self.managed.exists())
                 self.assertFalse(self.marker.exists())
 
-    def test_independent_sources_and_legacy_authentication_are_not_overwritten(self):
+    def test_conversion_preserves_implicit_keys_independent_crypttab_and_hook_failures(self):
         legacy = "cryptdevice=UUID=bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:root"
-        for failure in (
-            "independent",
-            "kernel-conflict",
-            "embedded-key",
-            "key-hook",
-            "crypttab",
-        ):
+        for failure in ("implicit", "embedded", "key-hook", "crypttab", "hook", "ambiguous"):
             with self.subTest(failure=failure):
-                self.managed.unlink(missing_ok=True)
-                self.marker.unlink(missing_ok=True)
-                self.legacy_sources(legacy)
-                extra = self.etc / "default/limine"
-                extra.parent.mkdir(exist_ok=True)
-                extra.unlink(missing_ok=True)
-                table = self.etc / "crypttab"
-                table.unlink(missing_ok=True)
+                self.persistent_sources(legacy)
                 self.main.write_text(self.original)
-                if failure == "independent":
-                    extra.write_text(
-                        f'KERNEL_CMDLINE[default]= "{self.kernel.read_text().strip()}"\n'
-                    )
-                elif failure == "kernel-conflict":
-                    self.kernel.write_text(
-                        "rd.luks.name=dddddddd-dddd-dddd-dddd-dddddddddddd=root root=/dev/mapper/root\n"
-                    )
-                elif failure == "embedded-key":
-                    self.main.write_text(
-                        self.original.replace(
-                            "FILES=(/keyfile)", "FILES=(/crypto_keyfile.bin)"
-                        )
-                    )
+                implicit = self.directory / "crypto_keyfile.bin"
+                table = self.etc / "crypttab"
+                hook = self.etc / "initcpio/install/local-keyfiles"
+                for path in (implicit, table, hook):
+                    path.unlink(missing_ok=True)
+                self.env["FAILURE"] = failure if failure in ("hook", "ambiguous") else ""
+                if failure == "implicit":
+                    implicit.touch()
+                elif failure == "embedded":
+                    self.main.write_text(self.original.replace("FILES=(/keyfile)", f"FILES=({implicit})"))
                 elif failure == "key-hook":
-                    self.main.write_text(
-                        self.original.replace("fsck)", "fsck local-keyfiles)")
-                    )
-                    hook = self.etc / "initcpio/install/local-keyfiles"
+                    self.main.write_text(self.original.replace("fsck)", "fsck local-keyfiles)"))
                     hook.parent.mkdir(parents=True, exist_ok=True)
-                    hook.write_text(
-                        "build() { add_file /private/key /crypto_keyfile.bin; }\n"
-                    )
-                else:
-                    table.write_text(
-                        "other UUID=dddddddd-dddd-dddd-dddd-dddddddddddd none x-initrd.attach,tpm2-device=auto\n"
-                    )
-                before = (self.kernel.read_bytes(), self.defaults.read_bytes())
+                    hook.write_text("build() { add_file /private/key /crypto_keyfile.bin; }\n")
+                elif failure == "crypttab":
+                    table.write_text("other UUID=dddddddd-dddd-dddd-dddd-dddddddddddd none x-initrd.attach,tpm2-device=auto\n")
+                paths = [self.kernel, self.defaults, self.main] + ([table] if table.exists() else [])
+                before = [path.read_bytes() for path in paths]
                 result = self.configure(persistent=True)
                 self.assertNotEqual(result.returncode, 0, result.stderr)
-                self.assertEqual(
-                    (self.kernel.read_bytes(), self.defaults.read_bytes()), before
-                )
+                self.assertEqual([path.read_bytes() for path in paths], before)
                 self.assertFalse(self.managed.exists())
                 self.assertFalse(self.marker.exists())
+
+    def test_conversion_publication_failure_rolls_back_arguments_and_hooks(self):
+        legacy = "cryptdevice=UUID=bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:root"
+        previous = "# Managed systemd base; snapshot hooks belong to Snapper.\nHOOKS=(base systemd block filesystems fsck)\n"
+        late = self.etc / "default/limine"
+        late.parent.mkdir()
+        for failure in ("publish", "postcheck"):
+            with self.subTest(failure=failure):
+                late.unlink(missing_ok=True)
+                self.persistent_sources(legacy)
+                self.managed.write_text(previous)
+                self.marker.unlink(missing_ok=True)
+                self.env["FAILURE"] = failure
+                before = (self.kernel.read_bytes(), self.defaults.read_bytes(), self.managed.read_bytes())
+                result = self.configure(persistent=True)
+                self.assertNotEqual(result.returncode, 0, result.stderr)
+                self.assertEqual((self.kernel.read_bytes(), self.defaults.read_bytes(), self.managed.read_bytes()), before)
+                self.assertIn("Rolled back", result.stderr)
+                self.assertTrue(self.marker.exists())
 
     def test_matching_systemd_selection_and_crypttab_policy_are_preserved(self):
-        legacy = "cryptdevice=UUID=bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:root"
         table = self.etc / "crypttab"
         entry = "root UUID=bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb none x-initrd.attach,tpm2-device=auto,tpm2-pin=yes,tries=3\n"
         table.write_text(entry)
@@ -397,71 +442,108 @@ get_mkinitcpio_hooks
             "rd.luks.uuid=bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
         ):
             with self.subTest(name=name):
-                self.legacy_sources(legacy + " " + name)
+                self.managed.unlink(missing_ok=True)
+                self.marker.unlink(missing_ok=True)
+                options = "rd.luks.options=bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb=tpm2-device=auto,tpm2-pin=yes,tries=3"
+                self.persistent_sources(name + " " + options)
+                # Neither an inactive source nor comments are migration targets.
+                self.kernel.write_text("cryptdevice=UUID=old:old root=/dev/mapper/old\n")
+                self.defaults.write_text("# cryptkey=historical-reference\n" + self.defaults.read_text())
+                before = (self.kernel.read_bytes(), self.defaults.read_bytes())
                 result = self.configure(persistent=True)
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertEqual(table.read_text(), entry)
-                self.assertEqual(self.kernel.read_text().count(name), 1)
-                self.assertEqual(self.defaults.read_text().count(name), 1)
-                self.assertNotIn("cryptdevice=", self.kernel.read_text())
+                self.assertEqual((self.kernel.read_bytes(), self.defaults.read_bytes()), before)
+                self.assertIn(" sd-encrypt ", result.stdout)
                 self.marker.unlink()
                 result = self.configure(persistent=True)
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertFalse(self.marker.exists())
 
-    def test_comment_copy_is_preserved_while_active_default_is_migrated(self):
-        legacy = "cryptdevice=UUID=bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:root"
-        self.legacy_sources(legacy)
-        active = self.defaults.read_text().splitlines(keepends=True)[1]
-        self.defaults.write_text("# " + active + self.defaults.read_text())
-        before = self.defaults.read_text()
-        result = self.configure(persistent=True)
-        self.assertEqual(result.returncode, 0, result.stderr)
+    def test_kernel_only_systemd_defaults_and_plain_root_are_not_rewritten(self):
+        named = "rd.luks.name=bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb=root"
+        for encrypted, unlock in (("1", named), ("0", "")):
+            with self.subTest(encrypted=encrypted):
+                self.persistent_sources(unlock)
+                self.env["ENCRYPTED"] = encrypted
+                self.defaults.write_text("# unrelated defaults\nOTHER_SETTING=yes\n")
+                before = (self.kernel.read_bytes(), self.defaults.read_bytes())
+                result = self.configure(persistent=True)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(" sd-encrypt " in result.stdout, encrypted == "1")
+                self.assertEqual((self.kernel.read_bytes(), self.defaults.read_bytes()), before)
 
-        # Only the active line changes; the commented reference remains untouched.
-        expected = (
-            "# "
-            + active
-            + before[len("# " + active) :].replace(
-                legacy, "rd.luks.name=bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb=root"
-            )
-        )
-        self.assertEqual(self.defaults.read_text(), expected)
+    def test_later_dropins_are_judged_by_hook_ownership_not_filename(self):
+        dropin = self.dropins / "zz-chezmoi-systemd.conf"
+        for content, valid in (
+            ("MODULES+=(amdgpu)\n", True),
+            ("HOOKS+=(btrfs)\n", True),
+            ("HOOKS=(base systemd block filesystems)\n", False),
+        ):
+            with self.subTest(content=content):
+                self.managed.unlink(missing_ok=True)
+                self.marker.unlink(missing_ok=True)
+                dropin.write_text(content)
+                result = self.configure()
+                self.assertEqual(result.returncode == 0, valid, result.stderr)
+                self.assertEqual(dropin.read_text(), content)
+                self.assertEqual(self.managed.exists(), valid)
+                self.assertEqual(self.marker.exists(), valid)
+                if valid:
+                    self.marker.unlink()
+                    result = self.configure()
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    self.assertFalse(self.marker.exists())
 
-    def test_hook_publication_failure_rolls_back_cmdlines_and_keeps_rebuild_pending(
-        self,
-    ):
-        self.legacy_sources(
-            "cryptdevice=PARTUUID=cccccccc-cccc-cccc-cccc-cccccccccccc:root"
-        )
-        self.env["FAILURE"] = "publish"
-        before = (self.kernel.read_bytes(), self.defaults.read_bytes())
-        result = self.configure(persistent=True)
-        self.assertNotEqual(result.returncode, 0, result.stderr)
-        self.assertEqual((self.kernel.read_bytes(), self.defaults.read_bytes()), before)
-        self.assertFalse(self.managed.exists())
-        self.assertTrue(self.marker.exists())
+    def test_baseline_systemd_hooks_are_independent_of_device_and_optional_features(self):
+        for laptop, encrypted, hibernation, snapper in (
+            ("0", "0", "0", "0"),
+            ("0", "1", "0", "1"),
+            ("1", "0", "0", "1"),
+            ("1", "1", "1", "0"),
+        ):
+            with self.subTest(laptop=laptop, encrypted=encrypted, hibernation=hibernation):
+                self.managed.unlink(missing_ok=True)
+                self.marker.unlink(missing_ok=True)
+                unlock = self.env["UNLOCK"] if encrypted == "1" else ""
+                self.persistent_sources(unlock)
+                if encrypted == "0":
+                    for path in (self.kernel, self.defaults):
+                        path.write_text(path.read_text().replace(
+                            "root=/dev/mapper/root", "root=UUID=aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+                        ))
+                self.env.update(
+                    ENCRYPTED=encrypted, LAPTOP=laptop,
+                    SETUP_HIBERNATION=hibernation, SETUP_SNAPPER=snapper,
+                )
+                before = (self.kernel.read_bytes(), self.defaults.read_bytes())
+                result = self.configure(persistent=True, entrypoint=True)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                hooks = result.stdout.split()
+                self.assertIn("systemd", hooks)
+                self.assertEqual("sd-encrypt" in hooks, encrypted == "1")
+                self.assertTrue(self.marker.exists())
+                self.assertEqual((self.kernel.read_bytes(), self.defaults.read_bytes()), before)
+                self.assertFalse(self.defaults.with_name("50-hibernation.conf").exists())
+                self.assertFalse({"udev", "encrypt", "resume"}.intersection(hooks))
+                self.marker.unlink()
+                result = self.configure(persistent=True, entrypoint=True)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertFalse(self.marker.exists())
 
-    def test_kernel_only_legacy_defaults_are_persisted_and_plain_root_is_untouched(
-        self,
-    ):
-        legacy = "cryptdevice=UUID=bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:root"
-        self.legacy_sources(legacy)
-        self.defaults.write_text("# unrelated defaults\nOTHER_SETTING=yes\n")
-        result = self.configure(persistent=True)
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn(
-            "# unrelated defaults\nOTHER_SETTING=yes\n", self.defaults.read_text()
-        )
-        self.assertNotIn("cryptdevice=", self.defaults.read_text())
-        self.assertIn("rd.luks.name=", self.kernel.read_text())
-        self.legacy_sources(legacy)
-        self.env["ENCRYPTED"] = "0"
-        before = (self.kernel.read_bytes(), self.defaults.read_bytes())
-        result = self.configure(persistent=True)
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertNotIn("sd-encrypt", result.stdout)
-        self.assertEqual((self.kernel.read_bytes(), self.defaults.read_bytes()), before)
+    def test_independent_base_target_is_preserved_before_publication(self):
+        header = "# Managed systemd base; snapshot hooks belong to Snapper.\n"
+        for content in (
+            'FILES+=(/private/root.key)\nCOMPRESSION="lz4"\nHOOKS=(base systemd block filesystems fsck)\n',
+            header + 'HOOKS=(base systemd block filesystems fsck)\nFILES+=(/private/root.key)\n',
+        ):
+            with self.subTest(content=content):
+                self.managed.write_text(content)
+                result = self.configure()
+                self.assertNotEqual(result.returncode, 0, result.stderr)
+                self.assertIn(str(self.managed), result.stderr)
+                self.assertEqual(self.managed.read_text(), content)
+                self.assertFalse(self.marker.exists())
 
     def test_plain_and_encrypted_roots_preserve_optional_hooks_and_queue_once(self):
         for encrypted, plymouth, extra, expected in (
@@ -597,7 +679,7 @@ add_mkinitcpio_overlay_hook
         self.assertFalse(self.marker.exists())
 
     def test_failed_preflight_or_write_preserves_previous_hooks(self):
-        previous = "HOOKS=(base systemd block filesystems fsck)\n"
+        previous = "# Managed systemd base; snapshot hooks belong to Snapper.\nHOOKS=(base systemd block filesystems fsck)\n"
         self.managed.write_text(previous)
         for failure in (
             "identity",
@@ -606,9 +688,9 @@ add_mkinitcpio_overlay_hook
             "hook",
             "late",
             "late-matching",
-            "superseded",
             "snapshot",
             "write",
+            "publish",
         ):
             with self.subTest(failure=failure):
                 self.env.update(ENCRYPTED="1", FAILURE=failure, SETUP_SNAPPER="0")
@@ -616,17 +698,13 @@ add_mkinitcpio_overlay_hook
                 self.managed.write_text(previous)
                 self.marker.unlink(missing_ok=True)
                 late = self.dropins / "99-local.conf"
-                superseded = self.dropins / "zz-chezmoi-systemd.conf"
                 late.unlink(missing_ok=True)
-                superseded.unlink(missing_ok=True)
                 if failure == "late":
                     late.write_text("HOOKS=(base systemd block filesystems)\n")
                 elif failure == "late-matching":
                     late.write_text(
                         "HOOKS=(base systemd autodetect microcode modconf kms keyboard sd-vconsole block plymouth sd-encrypt filesystems fsck)\n"
                     )
-                elif failure == "superseded":
-                    superseded.write_text(previous)
                 elif failure == "snapshot":
                     self.main.write_text(
                         self.original.replace("fsck)", "fsck btrfs-overlayfs)")
@@ -635,9 +713,7 @@ add_mkinitcpio_overlay_hook
                 self.assertNotEqual(result.returncode, 0, result.stderr)
                 self.assertEqual(self.managed.read_text(), previous)
                 self.assertFalse(list(self.dropins.glob(".*.??????")))
-                self.assertEqual(self.marker.exists(), failure == "write")
-                if failure == "superseded":
-                    self.assertEqual(superseded.read_text(), previous)
+                self.assertEqual(self.marker.exists(), failure in ("write", "publish"))
 
     def test_user_managed_early_unlock_presence_is_required_and_never_rewritten(self):
         self.env.update(ENCRYPTED="1", UNLOCK="")
