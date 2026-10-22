@@ -41,6 +41,7 @@ echo /dev/fixture-container
         done
         [ "$1:$FAILURE" != tee:write ] || exit 23
         case "$FAILURE:$*" in publish:mv*00-chezmoi-systemd.conf*) exit 23 ;; esac
+        case "$FAILURE:$*" in defaults-publish:mv*01-default.conf.chezmoi.*) exit 23 ;; esac
         case "$FAILURE:$*" in postcheck:mv*00-chezmoi-systemd.conf.chezmoi.*)
             printf 'KERNEL_CMDLINE[default]= "root=UUID=independent"\n' > "$HOME/etc/default/limine" ;;
         esac
@@ -250,6 +251,40 @@ mkinitcpio_hook_exists() { [[ "$1:$FAILURE" != sd-encrypt:hook ]]; }
         self.assertEqual(
             self.kernel.read_text(), "root=/dev/mapper/data quiet custom=quiet\n"
         )
+
+    def test_initialization_preserves_settings_and_existing_prepend_arguments(self):
+        base = "rd.luks.name=container=data rd.luks.options=container=tpm2-device=auto root=/dev/mapper/data quiet custom=quiet"
+        self.kernel.write_text(base + "\n")
+        original = '# local settings\nOTHER_SETTING=yes\nKERNEL_CMDLINE[default]+= "local=first quiet"\n\n'
+        self.defaults.write_text(original)
+        self.defaults.chmod(0o640)
+        self.defaults.with_name("20-quiet-boot.conf").write_text('KERNEL_CMDLINE[default]+= "quiet"\n')
+        expected = (
+            'KERNEL_CMDLINE[default]= "rd.luks.name=container=data rd.luks.options=container=tpm2-device=auto root=/dev/mapper/data  custom=quiet"\n'
+            '# local settings\nOTHER_SETTING=yes\nKERNEL_CMDLINE[default]+= "local=first "\n\n'
+        )
+        result = self.ensure_defaults()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(self.defaults.read_text(), expected)
+        self.assertEqual(self.defaults.stat().st_mode & 0o777, 0o640)
+        self.assertEqual(self.kernel.read_text(), base + "\n")
+        self.assertTrue(self.marker.exists())
+        self.marker.unlink()
+        result = self.ensure_defaults()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(self.defaults.read_text(), expected)
+        self.assertFalse(self.marker.exists())
+
+    def test_initialization_publication_failure_preserves_existing_defaults(self):
+        original = "# user settings\nOTHER_SETTING=yes\n"
+        self.defaults.write_text(original)
+        self.kernel.write_text("root=UUID=filesystem quiet\n")
+        self.env["FAILURE"] = "defaults-publish"
+        result = self.ensure_defaults()
+        self.assertNotEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(self.defaults.read_text(), original)
+        self.assertEqual(self.kernel.read_text(), "root=UUID=filesystem quiet\n")
+        self.assertTrue(self.marker.exists())
 
     def persistent_sources(self, unlock, *, mapping="root"):
         self.env.update(ENCRYPTED="1", MAPPING=mapping)

@@ -322,7 +322,7 @@ validate_limine_config_location() {
 # Respect explicit package/drop-in defaults, otherwise use the persistent kernel
 # command line. Missing intent requires an operator decision, not a denylist.
 ensure_limine_cmdline_defaults() {
-  local status=0 params
+  local status=0 params initial_defaults=""
   LAST_ERROR=""
   sudo bash -s <<'BASH' || status="$?"
 set -euo pipefail
@@ -346,24 +346,27 @@ exit 2
 BASH
   case "$status" in
   0)
-    if sudo test -f /etc/limine-entry-tool.d/01-default.conf; then
-      if ! edit_system_configs _stage_limine_default_cleanup : /etc/limine-entry-tool.d/01-default.conf; then
-        LAST_ERROR="Failed to remove confirmed Limine default duplicates; see diagnostics"
-        return 1
-      fi
+    sudo test -f /etc/limine-entry-tool.d/01-default.conf || return 0 ;;
+  2)
+    if ! params=$(sudo cat -- /etc/kernel/cmdline) || [[ -z "${params//[[:space:]]/}" || "$params" == *$'\n'* ]]; then
+      LAST_ERROR="No single-line persistent kernel command line found; review required boot arguments and set /etc/kernel/cmdline or KERNEL_CMDLINE[default] before retrying (never copy rescue/debug arguments blindly)"
+      return 1
     fi
-    return 0 ;;
-  2) ;;
+    printf -v initial_defaults 'KERNEL_CMDLINE[default]= "%s"\n' "${params//\"/\\\"}" ;;
   *) LAST_ERROR="Cannot read persistent Limine defaults; refusing to replace them"; return 1 ;;
   esac
-  if ! params=$(sudo cat -- /etc/kernel/cmdline) || [[ -z "${params//[[:space:]]/}" || "$params" == *$'\n'* ]]; then
-    LAST_ERROR="No single-line persistent kernel command line found; review required boot arguments and set /etc/kernel/cmdline or KERNEL_CMDLINE[default] before retrying (never copy rescue/debug arguments blindly)"
+  sudo mkdir -p -- /etc/limine-entry-tool.d || return 1
+  if ! edit_system_configs _stage_limine_defaults : /etc/limine-entry-tool.d/01-default.conf; then
+    LAST_ERROR="Failed to stage Limine defaults; existing configuration was preserved; see diagnostics"
     return 1
   fi
-  update_limine_cmdline "01-default.conf" "$params"
 }
 
-_stage_limine_default_cleanup() {
+_stage_limine_defaults() {
+  if [[ -n "$initial_defaults" ]]; then
+    { printf '%s' "$initial_defaults"; cat -- "$1"; } > "$1.initialized" || return 1
+    mv -f -- "$1.initialized" "$1" || return 1
+  fi
   get_limine_cmdline deduplicate-file "$1" "${SETUP_HIBERNATION:-1}" >/dev/null || return 1
   if ! sudo cmp -s -- /etc/limine-entry-tool.d/01-default.conf "$1"; then
     request_initramfs_rebuild || return 1
