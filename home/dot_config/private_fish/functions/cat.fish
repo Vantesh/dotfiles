@@ -1,6 +1,6 @@
-function cat --wraps='bat' --description 'alias bat --style header --style snip --style changes --style header'
+function cat --wraps='bat' --description 'alias bat'
     if type -f bat &>/dev/null
-        bat --style header --style snip --style changes --style header $argv
+        bat $argv
     else
         command cat $argv
     end
