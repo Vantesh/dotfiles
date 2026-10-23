@@ -20,6 +20,9 @@ readonly -a USER_SERVICES=(
   "gnome-keyring-daemon.service"
   "mpris-proxy"
   "udiskie"
+{{- if .personal }}
+  "ssh-agent.socket"
+{{- end }}
 )
 
 

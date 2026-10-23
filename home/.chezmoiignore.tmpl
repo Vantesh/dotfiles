@@ -1,11 +1,14 @@
 # Secrets & temp files
 key.txt.age
 tmp*
-.bitwarden-ssh-agent.sock
 .netrc
 .password-store
-.ssh/{id_*,*.pem,authorized_keys,known_hosts*}
-!.ssh/*.pub
+.ssh/{id_*,*.pem,known_hosts*}
+!.ssh/id_*.pub
+# Do not render signing keys into previews or verbose/debug output.
+{{ if or .chezmoi.flags.dryRun .chezmoi.config.verbose (not (has .chezmoi.command (list "apply" "init" "update"))) (regexMatch "(^| )--debug(=| |$)" (join " " .chezmoi.args)) -}}
+.ssh/{git_signing,git_signing.pub}
+{{ end -}}
 .gnupg/{private-keys-v1.d,openpgp-revocs.d,pubring.kbx*,trustdb.gpg,random_seed,S.*,*.lock}
 .aws
 .azure
@@ -128,4 +131,5 @@ Pictures/**
 .config/atuin
 .config/fish/conf.d/atuin.fish
 .config/git
+.ssh/{git_signing,git_signing.pub,authorized_keys}
 {{- end }}

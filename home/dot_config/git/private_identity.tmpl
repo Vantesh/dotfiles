@@ -1,7 +1,7 @@
 [user]
     name = "{{ .git.username }}"
     email = "{{ .git.email }}"
-    signingkey = "{{ .git.signingKey }}"
+    signingkey = ~/.ssh/git_signing.pub
 
 [gpg]
     format = ssh

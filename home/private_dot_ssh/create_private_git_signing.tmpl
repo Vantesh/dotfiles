@@ -1,0 +1,6 @@
+{{- if .personal -}}
+{{- if eq .chezmoi.command "execute-template" }}{{ fail "Use a nonverbose chezmoi apply to restore the private signing key" }}{{ end -}}
+{{- $key := output "rbw" "get" "--field" "private_key" "Git commits" | trim -}}
+{{- if not $key }}{{ fail "Git commits has no private_key; check the Bitwarden SSH Key item" }}{{ end -}}
+{{ $key }}
+{{ end -}}
