@@ -1,0 +1,36 @@
+# Applied by 03_pacman before the service phase starts reflector.timer.
+[bootstrap.directories."/etc/xdg/reflector"]
+owner = "root"
+group = "root"
+mode = "0755"
+
+[bootstrap.files."/etc/xdg/reflector/reflector.conf"]
+owner = "root"
+group = "root"
+mode = "0644"
+content = """
+--protocol https
+--age 12
+--fastest 30
+--latest 30
+--number 10
+--save /etc/pacman.d/mirrorlist
+"""
+
+[bootstrap.directories."/etc/systemd/system/reflector.timer.d"]
+owner = "root"
+group = "root"
+mode = "0755"
+
+[bootstrap.files."/etc/systemd/system/reflector.timer.d/10-schedule.conf"]
+owner = "root"
+group = "root"
+mode = "0644"
+content = """
+[Unit]
+Description=Refresh Pacman mirrorlist every third calendar day with Reflector.
+
+[Timer]
+OnCalendar=
+OnCalendar=*-*-01/3 00:00:00
+"""

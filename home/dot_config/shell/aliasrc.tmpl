@@ -73,7 +73,7 @@ alias mkdir="mkdir -p"
 # --------------------------------------------------------------------
 # PACKAGE MANAGEMENT (Arch Linux)
 # --------------------------------------------------------------------
-alias mirror='sudo reflector -f 30 -l 30 --number 10 --verbose --save /etc/pacman.d/mirrorlist'
+alias mirror='sudo reflector @/etc/xdg/reflector/reflector.conf'
 alias cleanup='sudo pacman -Rns $(pacman -Qtdq)'
 unalias fixpacman 2>/dev/null || true
 fixpacman() {

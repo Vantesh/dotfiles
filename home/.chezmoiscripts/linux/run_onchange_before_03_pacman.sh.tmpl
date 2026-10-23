@@ -4,6 +4,7 @@
 # SKIP_PACKAGES: {{ ternary "1" "0" (eq (env "SKIP_PACKAGES") "1") }}
 # mise/config.toml: {{ include "../mise/config.toml" | sha256sum }}
 # mise/conf.d/pacman-hooks.toml: {{ include "../mise/conf.d/pacman-hooks.toml" | sha256sum }}
+# mise/conf.d/reflector.toml: {{ include "../mise/conf.d/reflector.toml" | sha256sum }}
 
 set -euo pipefail
 
@@ -49,6 +50,30 @@ _add_ilovecandy() {
   fi
 }
 
+_exclude_packaged_mirrorlist() {
+  local pacman_conf="$1" noextract options_end
+  noextract=$(pacman-conf --config "$pacman_conf" NoExtract) || return 1
+
+  # Keep our exact exclusion last so earlier exceptions cannot override it.
+  if [[ "${noextract##*$'\n'}" == "etc/pacman.d/mirrorlist" ]]; then
+    log SKIP "Packaged mirrorlist already excluded"
+    return 0
+  fi
+
+  options_end=$(awk '
+    /^[[:space:]]*\[/ {
+      options = ($0 ~ /^[[:space:]]*\[options\][[:space:]]*$/)
+    }
+    options { last = NR }
+    END { if (last) print last; else exit 1 }
+  ' "$pacman_conf") || {
+    log ERROR "Cannot locate [options] in pacman.conf"
+    return 1
+  }
+  sed -i "${options_end}a NoExtract = etc/pacman.d/mirrorlist" "$pacman_conf" || return 1
+  log INFO "Excluded packaged mirrorlist; Reflector manages mirror selection"
+}
+
 _configure_paccache() {
   if ! update_config "$1" "PACCACHE_ARGS" "'-k2'"; then
     log WARN "Failed to configure paccache: $LAST_ERROR"
@@ -60,7 +85,8 @@ _configure_paccache() {
 }
 
 _stage_pacman_configs() {
-  _configure_pacman_options "$1" && _add_ilovecandy "$1" || return 1
+  _configure_pacman_options "$1" && _add_ilovecandy "$1" &&
+    _exclude_packaged_mirrorlist "$1" || return 1
   if [[ $# -gt 1 ]]; then
     _configure_paccache "$2" || return 1
   fi
@@ -92,9 +118,11 @@ setup_pacman() {
     MISE_CONFIG_DIR=/dev/null MISE_SYSTEM_CONFIG_DIR=/dev/null \
     MISE_AUTO_ENV=false MISE_CEILING_PATHS={{ dir .chezmoi.workingTree | quote }} \
     MISE_TRUSTED_CONFIG_PATHS={{ joinPath .chezmoi.workingTree "mise" | quote }} \
-      mise --env '' bootstrap --only files --yes
+      mise --env '' bootstrap --only files --yes || exit 1
+    # Re-read timer drop-ins even when the timer is already running.
+    sudo systemctl daemon-reload
   ); then
-    die "Failed to apply pacman cache hooks with mise"
+    die "Failed to apply pacman hooks and Reflector configuration with mise"
   fi
 
 }
