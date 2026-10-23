@@ -1,8 +1,3 @@
 {{- if .personal -}}
-{{- $key := output "rbw" "get" "--field" "public_key" "Git commits" | trim -}}
-{{- $local := output "ssh-keygen" "-y" "-f" (joinPath .chezmoi.homeDir ".ssh/git_signing") | trim -}}
-{{- if or (not $key) (ne (regexFind "^\\S+\\s+\\S+" $key) (regexFind "^\\S+\\s+\\S+" $local)) -}}
-{{- fail "Git commits public_key does not match ~/.ssh/git_signing; existing keys were preserved" -}}
-{{- end -}}
-{{ $key }}
+{{ (rbw "Git commits").data.public_key }}
 {{ end -}}
