@@ -14,8 +14,10 @@
 
 # Import only the managed SSH keys, never during previews or verbose/debug output.
 .ssh/{id_*,*.pem,known_hosts*,authorized_keys}
+.config/git/allowed_signers
 {{ if $importKeys -}}
 !.ssh/{id_rsa,id_rsa.pub,authorized_keys}
+!.config/git/allowed_signers
 {{ end -}}
 
 # Runtime state and placeholder files
