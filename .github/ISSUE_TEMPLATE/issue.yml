@@ -1,0 +1,20 @@
+name: Issue
+description: Report an issue or request an improvement.
+body:
+  - type: input
+    id: summary
+    attributes:
+      label: Summary
+      placeholder: What is the issue or requested improvement?
+    validations:
+      required: true
+  - type: textarea
+    id: details
+    attributes:
+      label: Details
+      placeholder: Relevant context, current behavior, or proposed change.
+  - type: textarea
+    id: expected-behavior
+    attributes:
+      label: Expected behavior
+      placeholder: What should happen instead?
