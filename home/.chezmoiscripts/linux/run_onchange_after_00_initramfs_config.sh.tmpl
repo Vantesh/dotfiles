@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Validate systemd initramfs prerequisites before any boot configuration changes.
-# Runs on every apply so failed preflights retry; identical content never rebuilds.
+# Runs when the script or included helpers change; failed runs retry automatically.
 
 set -euo pipefail
 

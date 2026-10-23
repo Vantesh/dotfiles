@@ -1,4 +1,4 @@
 {{- if .personal -}}
-# SSH Agent (rbw)
-SSH_AUTH_SOCK=${XDG_RUNTIME_DIR}/rbw/ssh-agent-socket
+# Packaged OpenSSH agent; preserve an inherited or forwarded socket.
+SSH_AUTH_SOCK=${SSH_AUTH_SOCK:-${XDG_RUNTIME_DIR}/ssh-agent.socket}
 {{- end -}}

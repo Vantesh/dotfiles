@@ -72,7 +72,7 @@ esac""",
         if entrypoint:
             self.stub("limine", "exit 97")
             run = self.function(
-                SCRIPTS / "run_after_00_initramfs_config.sh.tmpl", "main"
+                SCRIPTS / "run_onchange_after_00_initramfs_config.sh.tmpl", "main"
             ).replace("/usr/bin/limine", str(self.bin / "limine")) + r'''
 command_exists() { return 0; }
 check_btrfs() { return 0; }

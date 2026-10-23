@@ -20,6 +20,9 @@ readonly -a USER_SERVICES=(
   "gnome-keyring-daemon.service"
   "mpris-proxy"
   "udiskie"
+{{- if .personal }}
+  "ssh-agent.socket"
+{{- end }}
 )
 
 
@@ -49,8 +52,8 @@ converge_packaged_user_services() {
         ;;
     esac
 
-    if systemctl --user unmask -- "$service" &&
-      systemctl --user enable --now -- "$service"; then
+    if systemctl --user --quiet unmask -- "$service" &&
+      systemctl --user --quiet enable --now -- "$service"; then
       log INFO "${COLOR_GREEN}${service}${COLOR_RESET} enabled and running (user)"
     else
       log ERROR "Failed to converge $service (user)"

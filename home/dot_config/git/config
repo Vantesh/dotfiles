@@ -1,7 +1,5 @@
+
 [core]
-    whitespace = error
-    compression = 7
-    preloadindex = true
     pager = delta
     untrackedCache = true
 
@@ -14,10 +12,8 @@
     side-by-side = true
     line-numbers-left-format = ""
     line-numbers-right-format = "│ "
-    line-numbers = true
 
 [diff]
-    context = 3
     algorithm = histogram
     colorMoved = plain
     renames = copies
@@ -27,24 +23,20 @@
 [push]
     autoSetupRemote = true
     default = current
-    followTags = true
 
 [fetch]
     prune = true
-    all = true
 
 [pull]
     rebase = true
 
 [rebase]
-    autostash = true
     autoSquash = true
-    updateRefs = true
     missingCommitsCheck = warn
+    updateRefs = true
 
 [rerere]
     enabled = true
-    autoupdate = true
 
 [commit]
     verbose = true
@@ -61,7 +53,7 @@
     sort = -committerdate
 
 [tag]
-    sort = -taggerdate
+    sort = version:refname
 
 [color "decorate"]
     HEAD = red
@@ -84,19 +76,15 @@
 
 [status]
     showStash = true
-    submoduleSummary = true
 
 [stash]
     showPatch = true
-
-[submodule]
-    recurse = true
 
 [transfer]
     fsckObjects = true
 
 [init]
-  defaultBranch = main
+    defaultBranch = main
 
 [include]
     path = ~/.config/git/identity

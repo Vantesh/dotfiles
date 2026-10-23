@@ -11,6 +11,9 @@ set -q XDG_CACHE_HOME; or set -xg XDG_CACHE_HOME $HOME/.cache
 set -q XDG_STATE_HOME; or set -xg XDG_STATE_HOME $HOME/.local/state
 set -q XDG_BIN_HOME; or set -xg XDG_BIN_HOME $HOME/.local/bin
 set -q XDG_RUNTIME_DIR; or set -xg XDG_RUNTIME_DIR /run/user/$(id -u)
+{{ if .personal }}
+set -q SSH_AUTH_SOCK; or set -gx SSH_AUTH_SOCK "$XDG_RUNTIME_DIR/ssh-agent.socket"
+{{ end }}
 
 #--------------------------------------------------
 # PATHS

@@ -1,131 +1,39 @@
-# Secrets & temp files
-key.txt.age
-tmp*
-.bitwarden-ssh-agent.sock
-.netrc
-.password-store
-.ssh/{id_*,*.pem,authorized_keys,known_hosts*}
-!.ssh/*.pub
-.gnupg/{private-keys-v1.d,openpgp-revocs.d,pubring.kbx*,trustdb.gpg,random_seed,S.*,*.lock}
-.aws
-.azure
-.kube/{cache,config}
-.docker/config.json
-.config/gh/hosts.yml
+{{- $personal := get . "personal" | default false -}}
+{{- $keyCommand := has .chezmoi.command (list "apply" "init" "update") -}}
+{{- $debug := regexMatch "(^| )--debug(=| |$)" (join " " .chezmoi.args) -}}
+{{- $preview := or .chezmoi.flags.dryRun .chezmoi.config.verbose $debug (not $keyCommand) -}}
+{{- $importKeys := and $personal (not $preview) -}}
+{{- $nvidiaSettings := lookPath "nvidia-settings" -}}
 
-# Backup, swap & junk files
-**/*.{bak,backup,bkp,old,orig,ori,rej,swp,swo,tmp,temp,log,zwc,pacnew,pacsave,pacorig,save,sav}
-**/*.{bak,backup,bkp,old,orig}*
-**/*~
-**/*.~*~
-**/{.backup,.backups,backups,Backups}
-**/*.sock
-**/.DS_Store
-**/Thumbs.db
-**/desktop.ini
-**/__pycache__
-**/*.pyc
-**/node_modules
+# Personal configuration
+{{ if not $personal -}}
+.ssh
+.config/{git,atuin}
+.config/fish/conf.d/atuin.fish
+{{ end -}}
 
-# Shell & tool history/state
-.bash_history
-.zsh_history
-.python_history
-.node_repl_history
-.lesshst
-.viminfo
-.wget-hsts
-.sudo_as_admin_successful
-.xsession-errors*
-.Xauthority
-.ICEauthority
-.config/zsh/.{history,zcompdump}
+# Import only the managed SSH keys, never during previews or verbose/debug output.
+.ssh/{id_*,*.pem,known_hosts*,authorized_keys}
+.config/git/allowed_signers
+{{ if $importKeys -}}
+!.ssh/{id_rsa,id_rsa.pub,authorized_keys}
+!.config/git/allowed_signers
+{{ end -}}
+
+# Runtime state and placeholder files
 .config/fish/fish_variables
-
-# IDE & cache
-.vscode
-.{cache,pki,m2,nv,dotnet,thumbnails,java}
-
-# Dev toolchains & package manager data
-.{npm,pnpm-store,nvm,bun,deno,gradle,android,gem,pyenv,rustup,conda,steam,wine,mozilla}
-.cargo/{registry,git,bin}
-
-# App state/cache
-.config/{BraveSoftware/*,google-chrome/*,Authy*,Bitwarden*,fcitx5/conf/cached_layouts,lazygit/state.yml,rbw,wakatime}
-!.config/google-chrome/NativeMessagingHosts/**
-!.config/BraveSoftware/NativeMessagingHosts/**
-.config/{pulse,dconf,goa-1.0,session,Trolltech.conf}
-.config/Code/{Cache*,CachedData,GPUCache,logs,Crashpad,Backups,User/{workspaceStorage,globalStorage,History}}
-.config/**/{cache,Cache,GPUCache,CachedData,Crashpad,blob_storage,IndexedDB,Service Worker,Session Storage,Local Storage,Code Cache,logs,crash_reports}
-.config/clipse/{clipboard_history.json,tmp_files}
 .config/{codex,copilot}/*
 .config/nvim/lazy-lock.json
 .config/systemd/user/*.wants
 
-# User directories
-{Downloads,Documents,Desktop,Music,Videos,Public,Templates,Pictures}
-# Keep only the Linux wallpaper directory; its contents remain user-owned.
-Pictures/**
-{{ if eq .chezmoi.os "linux" -}}
-!Pictures
-!Pictures/Wallpapers
-{{ end -}}
-
-# .local (whitelist only what's needed)
-.local/*
-!.local/share
-.local/share/*
-!.local/share/{icons,fonts,themes}
-!.local/bin
-{{ if lookPath "nvidia-settings" -}}
-!.local/share/applications
-.local/share/applications/*
-!.local/share/applications/nvidia-settings.desktop
-{{ end -}}
-
-# Generated theme files
-.config/**/{themes,Themes}/**
-
-.config/{qt5ct,qt6ct}
-.config/gtk-{3,4}.0/{colors.css,assets}
-.config/gtk-4.0/bookmarks
-.config/nvim/colors/noctalia.lua
-.config/kitty/{color*,current-theme.conf}
-.config/nvim/colors
-
-# Yazi plugins/flavors
+# Generated themes and installed Yazi packages
+.config/**/themes/**
+.config/gtk-{3,4}.0/noctalia.css
 .config/yazi/{plugins,flavors}/**
 
-# Platform-specific
-{{ if ne .chezmoi.os "linux" -}}
-.chezmoiscripts/linux/**
-.config/{kitty,hypr,rofi,matugen,kvantum,yay,clipse,gtk*,uwsm}
-{{ end -}}
-{{ if ne .chezmoi.os "windows" -}}
-.chezmoiscripts/windows/**
-{{ end -}}
-{{ if eq .chezmoi.os "windows" -}}
-!Documents/*PowerShell/
-{{ end }}
 
-# Conditional tools
-{{ if not (lookPath "nvidia-settings") -}}
+# Optional NVIDIA configuration
+{{ if not $nvidiaSettings -}}
 .config/fish/functions/nvidia-settings.fish
 .local/share/applications/nvidia-settings.desktop
 {{ end -}}
-{{ if not (lookPath "hypridle") -}}
-.config/hypr/hypridle.conf
-{{ end -}}
-{{ if not (lookPath "hyprlock") -}}
-.config/hypr/hyprlock.conf
-{{ end }}
-
-# Shell-specific
-.config/{zsh,fsh}
-
-# personal files
-{{- if not (get . "personal") }}
-.config/atuin
-.config/fish/conf.d/atuin.fish
-.config/git
-{{- end }}
