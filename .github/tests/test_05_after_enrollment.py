@@ -96,9 +96,9 @@ fi
 [ "$*" = 'fprintd-enroll -f right-index-finger fixture-user' ] || exit 97
 PRIVILEGED=1 exec "$@"
 """, log=True)
-        package_check = ["pacman", "-Q", "--", "libfprint-goodix53x5-533c-git", "fprintd"]
+        package_check = ["pacman", "-Q", "--", "libfprint-goodix53x5-533c-git"]
         self.stub("pacman", """
-[ "$*" = '-Q -- libfprint-goodix53x5-533c-git fprintd' ] || exit 97
+[ "$*" = '-Q -- libfprint-goodix53x5-533c-git' ] || exit 97
 case "$FPRINT_CASE" in
     packages-unused|packages-incomplete) exit 1 ;;
     package-query-failed) exit 23 ;;
