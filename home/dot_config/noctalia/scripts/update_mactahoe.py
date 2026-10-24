@@ -236,6 +236,15 @@ def generate_theme(source, target, state):
             else:
                 destination.symlink_to(item.resolve())
 
+        # Projects otherwise falls back to full-color artwork at sidebar sizes.
+        for size in ("16", "22", "24", "symbolic"):
+            directory = staging / "places" / size
+            suffix = "-symbolic.svg" if size == "symbolic" else ".svg"
+            projects = directory / f"folder-projects{suffix}"
+            code = directory / f"folder-code{suffix}"
+            if not projects.exists() and not projects.is_symlink() and code.is_file():
+                projects.symlink_to(code.name)
+
         if not matches:
             raise ValueError(f"No supported folder accents found in {source}")
 
@@ -340,9 +349,9 @@ def select_kde(config_dir):
 
 
 def refresh_gtk_portal():
-    """Refresh an idle portal; never restart when window detection fails."""
+    """Refresh an idle portal; return False when a retry is needed."""
     if not shutil.which("hyprctl") or not os.environ.get("HYPRLAND_INSTANCE_SIGNATURE"):
-        return
+        return True
 
     try:
         result = subprocess.run(
@@ -361,7 +370,7 @@ def refresh_gtk_portal():
         )
         pid = int(result.stdout.strip())
         if pid <= 0:
-            return
+            return True
 
         result = subprocess.run(
             ["hyprctl", "-j", "clients"],
@@ -375,11 +384,11 @@ def refresh_gtk_portal():
             not isinstance(client, dict) or not isinstance(client.get("pid"), int)
             for client in clients
         ):
-            return
+            return False
         # Include unfocused, hidden, and other-workspace dialogs too.
         if any(client["pid"] == pid for client in clients):
             print("Skipping GTK portal refresh: a portal window is open", flush=True)
-            return
+            return False
 
         subprocess.run(
             ["systemctl", "--user", "try-restart", "xdg-desktop-portal-gtk.service"],
@@ -388,8 +397,10 @@ def refresh_gtk_portal():
             text=True,
             timeout=15,
         )
+        return True
     except (OSError, ValueError, subprocess.SubprocessError) as error:
         print(f"Skipping GTK portal refresh: {error}", file=sys.stderr)
+        return False
 
 
 def main():
@@ -432,7 +443,7 @@ def main():
             "mode": mode,
             "source": str(source.resolve()),
             "stamp": source_fingerprint(source),
-            "version": 8,
+            "version": 11,
         }
 
         try:
@@ -448,15 +459,18 @@ def main():
             or not (target / "icon-theme.cache").is_file()
         )
 
+        pending_refresh = icons / f".{THEME}.gtk-refresh"
         if regenerated:
             generate_theme(source, target, state)
+            pending_refresh.touch()
 
         select_gtk(source, regenerated)
         select_qtengine(config_dir, regenerated)
         select_kde(config_dir)
 
-        if regenerated:
-            refresh_gtk_portal()
+        # Retry a refresh skipped for an open chooser without rebuilding icons.
+        if pending_refresh.exists() and refresh_gtk_portal():
+            pending_refresh.unlink()
 
 
 if __name__ == "__main__":
