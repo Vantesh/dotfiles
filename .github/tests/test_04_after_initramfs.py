@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import shlex
 import struct
 import sys
 
@@ -73,6 +74,209 @@ main "$@"''')
                 self.assertEqual(["enrollment"] in calls, enrollment == "yes")
                 if enrollment == "yes":
                     self.assertLess(calls.index(["verify"]), calls.index(["enrollment"]))
+
+
+class SecureBootTests(ScriptCase):
+    def setUp(self):
+        super().setUp()
+        self.etc = self.directory / "etc"
+        self.config = self.etc / "default/limine"
+        self.config.parent.mkdir(parents=True)
+        self.boot = self.directory / "esp"
+        self.boot.mkdir()
+        (self.directory / "sys/firmware/efi/efivars").mkdir(parents=True)
+        self.vendor = self.directory / "sys/class/dmi/id/sys_vendor"
+        self.vendor.parent.mkdir(parents=True)
+        self.vendor.write_text("Fixture firmware\n")
+        self.certificate = self.directory / "db.pem"
+        self.certificate.write_text("-----BEGIN CERTIFICATE-----\nfixturecert\n-----END CERTIFICATE-----\n")
+        self.marker = self.directory / "state/chezmoi/initramfs.pending"
+        self.enrolled = self.directory / "enrolled"
+        self.env.update(SETUP_SECURE_BOOT="1", DISTRO_FAMILY="arch", MARKER=str(self.marker),
+                        ENROLLED=str(self.enrolled), BOOT=str(self.boot), FAILURE="",
+                        STATE='{"installed":true,"setup_mode":false,"secure_boot":true}',
+                        POST_STATE='{"installed":true,"setup_mode":false,"secure_boot":false}',
+                        KEY_CONFIG=json.dumps({"keys": {"db": {"pubkey": str(self.certificate)}}}),
+                        ENROLLED_KEYS='{"DB":[{"Raw":"fixturecert"}]}',
+                        PRESERVE_FIRMWARE_SECURE_BOOT_KEYS="1")
+        for command in ("limine", "mkinitcpio", "limine-enroll-config", "limine-update"):
+            self.stub(command, "exit 97")
+        self.stub("sed", 'exec /usr/bin/sed "$@"')
+        self.stub("findmnt", '[ "$*" = "-rn -o FSTYPE --mountpoint $BOOT" ] || exit 97; echo vfat')
+        self.stub("sudo", r'''case "$1" in
+    bash) [ "$FAILURE" != read ] || exit 23 ;;
+    sbctl|awk|grep|sed) ;;
+    *) exit 97 ;;
+esac
+for arg do
+    case "$arg" in /*) case "$arg" in "$HOME"/*) ;; *) exit 97 ;; esac ;; esac
+done
+exec "$@"''')
+        self.stub("sbctl", r'''case "$*" in
+    '--json status')
+        if [ -f "$ENROLLED" ]; then printf '%s\n' "$POST_STATE"; else printf '%s\n' "$STATE"; fi ;;
+    '--json setup --print-config') printf '%s\n' "$KEY_CONFIG" ;;
+    '--json list-enrolled-keys') printf '%s\n' "$ENROLLED_KEYS" ;;
+    create-keys)
+        [ -f "$MARKER" ] || exit 97
+        [ "$FAILURE" != create ] || exit 23 ;;
+    enroll-keys\ *)
+        [ -f "$MARKER" ] || exit 97
+        [ "$FAILURE" != enroll ] || exit 23
+        touch "$ENROLLED" ;;
+    *) exit 97 ;;
+esac''', log=True)
+        # Implement only this script's jq queries; unknown queries fail the fixture.
+        jq = '''import json, sys
+args = sys.argv[1:]
+query = " ".join(args[-1].split())
+data = json.load(sys.stdin)
+if query == '(.installed | type) == "boolean" and (.setup_mode | type) == "boolean" and (.secure_boot | type) == "boolean"':
+    value = all(type(data.get(key)) is bool for key in ("installed", "setup_mode", "secure_boot"))
+elif query == ".setup_mode and .secure_boot":
+    value = data["setup_mode"] and data["secure_boot"]
+elif query in (".installed", ".setup_mode"):
+    value = data[query[1:]]
+elif query == '.keys.db.pubkey | select(type == "string" and length > 0)':
+    value = data.get("keys", {}).get("db", {}).get("pubkey")
+    if not isinstance(value, str) or not value:
+        sys.exit(1)
+    print(value)
+    sys.exit(0)
+elif query == "any(.DB[]?; .Raw == $certificate)":
+    value = any(item.get("Raw") == args[3] for item in data.get("DB", []))
+else:
+    raise SystemExit("Unexpected jq query: " + query)
+print(json.dumps(value))
+sys.exit(0 if value else 1)
+'''
+        self.stub("jq", f'exec {shlex.quote(sys.executable)} -I -B -c {shlex.quote(jq)} "$@"')
+        source = self.render(SCRIPTS / "run_onchange_after_05_secure_boot.sh.tmpl")
+        source = source.replace("/etc/", f"{self.etc}/").replace("/sys/", f"{self.directory}/sys/")
+        source = source.replace("/usr/share/", f"{self.directory}/share/")
+        source = source.replace("/usr/bin/limine", str(self.bin / "limine"))
+        source = source.replace("\nupdate_config() {", "\nfixture_update_config() {")
+        self.source = source.replace('\nmain "$@"', r'''
+keep_sudo_alive() { return 0; }
+print_box() { return 0; }
+update_config() {
+    printf 'update\t%s\t\n' "$2" >> "$CALLS"
+    [[ -f "$INITRAMFS_PENDING_FILE" ]] || return 97
+    [[ "$FAILURE" != "write-$2" ]] || return 23
+    fixture_update_config "$@"
+}
+main "$@"''')
+        self.reset()
+
+    def reset(self, verification="yes", enrollment="yes"):
+        self.calls.unlink(missing_ok=True)
+        self.marker.unlink(missing_ok=True)
+        self.enrolled.unlink(missing_ok=True)
+        self.config.write_text(f"ESP_PATH={self.boot}\nENABLE_VERIFICATION={verification}\n"
+                               f"ENABLE_ENROLL_LIMINE_CONFIG={enrollment}\n")
+
+    def test_unchanged_trusted_setup_preserves_config_and_existing_pending_request(self):
+        for pending in (False, True):
+            with self.subTest(pending=pending):
+                self.reset()
+                if pending:
+                    self.marker.parent.mkdir(parents=True, exist_ok=True)
+                    self.marker.write_bytes(b"existing request")
+                before = (self.config.read_bytes(), self.config.stat().st_ino, self.config.stat().st_mtime_ns)
+                marker_before = self.marker.stat().st_mtime_ns if pending else None
+                result = self.shell(self.source)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual((self.config.read_bytes(), self.config.stat().st_ino,
+                                  self.config.stat().st_mtime_ns), before)
+                self.assertEqual(self.marker.exists(), pending)
+                if pending:
+                    self.assertEqual(self.marker.read_bytes(), b"existing request")
+                    self.assertEqual(self.marker.stat().st_mtime_ns, marker_before)
+
+    def test_each_changed_setting_requests_rebuild_before_the_real_configuration_write(self):
+        for key in ("ENABLE_VERIFICATION", "ENABLE_ENROLL_LIMINE_CONFIG"):
+            with self.subTest(key=key):
+                self.reset("no" if key == "ENABLE_VERIFICATION" else "yes",
+                           "no" if key == "ENABLE_ENROLL_LIMINE_CONFIG" else "yes")
+                result = self.shell(self.source)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertTrue(self.marker.is_file())
+                self.assertNotIn("=no", self.config.read_text())
+                self.assertEqual([call for call in self.logged_calls() if call[0] == "update"], [["update", key]])
+
+    def test_key_creation_and_enrollment_queue_rebuild_with_unchanged_settings(self):
+        for installed, vendor, preserve in ((False, "Fixture", "1"), (True, "Fixture", "1"),
+                                            (True, "ASUS", "1"), (True, "Fixture", "0")):
+            with self.subTest(installed=installed, vendor=vendor, preserve=preserve):
+                self.reset()
+                self.vendor.write_text(vendor + "\n")
+                self.env.update(STATE=json.dumps({"installed": installed, "setup_mode": True, "secure_boot": False}),
+                                PRESERVE_FIRMWARE_SECURE_BOOT_KEYS=preserve)
+                before = self.config.stat().st_ino
+                result = self.shell(self.source)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertTrue(self.marker.is_file())
+                self.assertEqual(["sbctl", "create-keys"] in self.logged_calls(), not installed)
+                flags = ["sbctl", "enroll-keys", "--microsoft", "--ignore-immutable"]
+                if vendor == "Fixture" and preserve == "1":
+                    flags.append("--firmware-builtin")
+                self.assertIn(flags, self.logged_calls())
+                self.assertEqual(self.config.stat().st_ino, before)
+                self.assertFalse(any(call[0] == "update" for call in self.logged_calls()))
+
+    def test_configuration_write_failures_keep_rebuild_intent(self):
+        for key in ("ENABLE_VERIFICATION", "ENABLE_ENROLL_LIMINE_CONFIG"):
+            with self.subTest(key=key):
+                self.reset("no", "no")
+                self.env["FAILURE"] = "write-" + key
+                result = self.shell(self.source)
+                self.assertEqual(result.returncode, 1, result.stderr)
+                self.assertTrue(self.marker.is_file())
+                self.assertIn("Failed to configure " + key, result.stderr)
+
+    def test_key_operation_and_request_failures_stop_safely(self):
+        for failure, installed in (("create", False), ("enroll", True)):
+            with self.subTest(failure=failure):
+                self.reset()
+                self.env.update(FAILURE=failure, STATE=json.dumps({"installed": installed, "setup_mode": True, "secure_boot": False}))
+                before = self.config.read_bytes()
+                result = self.shell(self.source)
+                self.assertEqual(result.returncode, 1, result.stderr)
+                self.assertTrue(self.marker.is_file())
+                self.assertEqual(self.config.read_bytes(), before)
+                self.assertFalse(self.enrolled.exists())
+        for mutation in ("write", "create", "enroll"):
+            with self.subTest(request_failure_before=mutation):
+                self.reset("no" if mutation == "write" else "yes")
+                blocked = self.directory / "blocked-state"
+                blocked.write_text("not a directory")
+                self.env.update(FAILURE="", XDG_STATE_HOME=str(blocked), MARKER=str(blocked / "chezmoi/initramfs.pending"),
+                                STATE=json.dumps({"installed": mutation != "create", "setup_mode": mutation != "write", "secure_boot": False}))
+                result = self.shell(self.source)
+                self.assertEqual(result.returncode, 1, result.stderr)
+                self.assertIn("Failed to request Secure Boot rebuild", result.stderr)
+                self.assertFalse(any(call[0] == "update" or call[1:2] in (["create-keys"], ["enroll-keys"])
+                                     for call in self.logged_calls()))
+
+    def test_invalid_keys_and_unsafe_firmware_states_remain_rejected(self):
+        cases = (
+            ({"STATE": '{"installed":"true","setup_mode":false,"secure_boot":true}'}, "Unexpected sbctl status"),
+            ({"KEY_CONFIG": "{}"}, "usable db public certificate"),
+            ({"ENROLLED_KEYS": '{"DB":[{"Raw":"untrusted"}]}'}, "not enrolled"),
+            ({"STATE": '{"installed":true,"setup_mode":true,"secure_boot":true}'}, "Disable Secure Boot"),
+            ({"STATE": '{"installed":false,"setup_mode":false,"secure_boot":false}'}, "Enter UEFI Setup Mode"),
+        )
+        defaults = {key: self.env[key] for values, _ in cases for key in values}
+        for changes, error in cases:
+            with self.subTest(error=error):
+                self.reset()
+                self.env.update(defaults)
+                self.env.update(changes)
+                result = self.shell(self.source)
+                self.assertEqual(result.returncode, 1, result.stderr)
+                self.assertIn(error, result.stderr)
+                self.assertFalse(self.marker.exists())
+                self.assertFalse(any(call[0] == "update" for call in self.logged_calls()))
 
 
 class RebuildVerifierTests(ScriptCase):
