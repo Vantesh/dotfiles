@@ -26,6 +26,13 @@ source "$LIB_DIR/common.sh"
 get_bitwarden_email() {
   local email
 
+  if [[ "$NOCONFIRM" == "1" || -n "${CI:-}" || -n "${GITHUB_ACTIONS:-}" ||
+        -n "${GITLAB_CI:-}" || -n "${CODESPACES:-}" ]] ||
+    { [[ ! -t 0 ]] && ! (: </dev/tty) 2>/dev/null; }; then
+    log ERROR "Configure Bitwarden first with 'rbw config set email YOUR_EMAIL', then rerun setup"
+    return 1
+  fi
+
   while true; do
     printf '%b%s%b ' "$COLOR_CYAN" "Enter your Bitwarden email:" "$COLOR_RESET" >&2
 
@@ -56,7 +63,7 @@ get_bitwarden_email() {
 main() {
   local -a packages=(git figlet base-devel)
   local -a missing_packages=()
-  local package email output
+  local package email output rbw_config rbw_config_file
 
   if ! command_exists mise; then
     packages+=(mise)
@@ -84,10 +91,18 @@ main() {
     return 0
   fi
 
-  if ! rbw login >/dev/null 2>&1; then
+  if ! rbw_config="$(rbw config show 2>/dev/null)"; then
+    # A fresh profile has no config file; other read failures must not reset it.
+    rbw_config_file="${XDG_CONFIG_HOME:-$HOME/.config}/rbw${RBW_PROFILE:+-$RBW_PROFILE}/config.json"
+    if [[ -e "$rbw_config_file" || -L "$rbw_config_file" ]]; then
+      die "Failed to read Bitwarden configuration; inspect the error with 'rbw config show'"
+    fi
+    rbw_config=""
+  fi
+
+  if ! grep -qE '^[[:space:]]*"email":[[:space:]]*"[^"]+"' <<< "$rbw_config"; then
     print_box "Bitwarden"
     log STEP "Bitwarden Setup"
-    log INFO "Logging in to Bitwarden"
 
     if ! email="$(get_bitwarden_email)"; then
       die "Failed to read Bitwarden email"
@@ -96,17 +111,15 @@ main() {
     if ! output="$(rbw config set email "$email" 2>&1)"; then
       die "Failed to set rbw email: ${output:-no output}"
     fi
+  fi
 
-    if ! rbw login; then
-      die "Failed to login to Bitwarden"
+  if ! grep -qE '^[[:space:]]*"lock_timeout":[[:space:]]*10800,?[[:space:]]*$' <<< "$rbw_config"; then
+    if ! output="$(rbw config set lock_timeout 10800)"; then
+      log WARN "Failed to set rbw lock_timeout: ${output:-no output}"
     fi
-
-    log INFO "Logged in to Bitwarden"
   fi
 
-  if ! output="$(rbw config set lock_timeout 10800)"; then
-    log WARN "Failed to set rbw lock_timeout: ${output:-no output}"
-  fi
+  rbw login || die "$?" "Failed to login to Bitwarden"
 }
 
 main "$@"
