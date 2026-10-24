@@ -29,7 +29,8 @@ enable_snapper_services() {
   local service
   for service in "${services[@]}"; do
     if ! enable_service "$service"; then
-      log WARN "Failed to enable $service: $LAST_ERROR"
+      log ERROR "Failed to enable $service: $LAST_ERROR"
+      return 1
     else
       log INFO "${COLOR_GREEN}${service}${COLOR_RESET} enabled"
     fi
@@ -249,8 +250,6 @@ main() {
 
   log STEP "Configuring Snapper"
 
-  enable_snapper_services
-
   if ! configure_limine_snapper; then
     die "Failed to configure Limine snapper integration"
   fi
@@ -265,6 +264,10 @@ main() {
 
   if ! optimize_btrfs_fstab; then
     log WARN "Failed to optimize btrfs fstab: $LAST_ERROR"
+  fi
+
+  if ! enable_snapper_services; then
+    die "Failed to enable snapper services"
   fi
 
   log INFO "Snapper configuration complete"
