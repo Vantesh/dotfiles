@@ -67,6 +67,7 @@ main() {
     return 0
   fi
 
+  print_box "Hibernation"
   log STEP "Hibernation Setup"
 
   if ! keep_sudo_alive; then
@@ -131,6 +132,8 @@ main() {
   3) clear_hibernation_retry; return 0 ;;
   *) defer_hibernation_setup; return "$setup_result" ;;
   esac
+
+  configure_zswap || log WARN "Optional zswap setup skipped; hibernation remains configured"
 
   if ! write_system_config "/etc/systemd/sleep.conf.d/hibernation.conf" <<'EOF'; then
 [Sleep]

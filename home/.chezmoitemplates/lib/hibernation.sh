@@ -513,3 +513,93 @@ setup_hibernation() {
   fi
   log INFO "Configured managed Btrfs swapfile resume"
 }
+
+# Optional enhancement after verified swapfile and resume setup.
+configure_zswap() {
+  local fragment=/etc/limine-entry-tool.d/zswap.conf ram_kib active path units unit state extra
+  local cmdline token configured=0
+  local -a tokens
+  cmdline=$(get_limine_cmdline hibernation) || return 1
+  read -r -a tokens <<< "$cmdline"
+  for token in "${tokens[@]}"; do
+    case "$token" in
+    zswap.enabled=0) log SKIP "zswap explicitly disabled"; return 0 ;;
+    zswap.*) configured=1 ;;
+    esac
+  done
+  if [[ "$configured" = 1 ]] || sudo test -e "$fragment" || sudo test -L "$fragment"; then
+    log SKIP "zswap already configured"
+    return 0
+  fi
+  ram_kib=$(awk '/^MemTotal:/ {print $2; exit}' /proc/meminfo) || return 1
+  [[ "$ram_kib" =~ ^[0-9]+$ ]] || return 1
+  if ((ram_kib < 30 * 1024 * 1024)); then
+    log SKIP "RAM below 30 GiB"
+    return 0
+  fi
+
+  active=$(swapon --show=NAME --noheadings --raw) || return 1
+  while IFS= read -r path; do
+    if [[ "$path" =~ ^/dev/zram[0-9]+$ ]]; then
+      log SKIP "ZRAM active on $path"
+      return 0
+    fi
+  done <<< "$active"
+  for path in /{etc,run,usr/lib}/systemd/zram-generator.conf{,.d/*.conf} \
+    /etc/default/zramswap /etc/default/zram-config /etc/conf.d/zram; do
+    if sudo test -e "$path" || sudo test -L "$path"; then
+      log SKIP "ZRAM configured through $path"
+      return 0
+    fi
+  done
+  units=$(systemctl list-unit-files --type=swap,service --no-legend --no-pager 2>&1) || {
+    [[ "$?" = 1 && -z "$units" ]] || return 1
+  }
+  while read -r unit state extra; do
+    [[ -n "$unit" && "$unit" != *@.service ]] || continue
+    if [[ "$unit" = *.swap ]]; then
+      path=$(systemctl show --property=What --value "$unit") || return 1
+      if [[ "$path" =~ ^/dev/zram[0-9]+$ ]]; then
+        log SKIP "ZRAM configured through $unit"
+        return 0
+      fi
+    elif [[ "$unit" = *zram* && "$state" =~ ^(enabled|enabled-runtime|linked|linked-runtime|generated)$ ]]; then
+      log SKIP "ZRAM configured through $unit"
+      return 0
+    fi
+  done <<< "$units"
+  active=$(findmnt --fstab --tab-file /etc/fstab -rn -t swap -o SOURCE 2>&1) || {
+    [[ "$?" = 1 && -z "$active" ]] || return 1
+  }
+  if [[ "$active" =~ (^|$'\n')/dev/zram[0-9]+($|$'\n') ]]; then
+    log SKIP "ZRAM configured through /etc/fstab"
+    return 0
+  fi
+
+  sudo mkdir -p -- /etc/limine-entry-tool.d || return 1
+  edit_system_configs _stage_zswap_config _verify_zswap_config "$fragment" || return 1
+  log INFO "Configured zswap for next boot; reboot required for activation"
+}
+
+_stage_zswap_config() {
+  if sudo test -e "$fragment" || sudo test -L "$fragment"; then return 1; fi
+  printf '%s\n' 'KERNEL_CMDLINE[default]+=" zswap.enabled=1 zswap.compressor=lz4"' > "$1" || return 1
+  request_initramfs_rebuild
+}
+
+_verify_zswap_config() {
+  local updated token enabled=0 compressor=0
+  local -a previous retained tokens
+  updated=$(get_limine_cmdline hibernation) || return 1
+  read -r -a previous <<< "$cmdline"
+  read -r -a tokens <<< "$updated"
+  for token in "${tokens[@]}"; do
+    case "$token" in
+    zswap.enabled=1) enabled=$((enabled + 1)) ;;
+    zswap.compressor=lz4) compressor=$((compressor + 1)) ;;
+    zswap.*) return 1 ;;
+    *) retained+=("$token") ;;
+    esac
+  done
+  [[ "$enabled" = 1 && "$compressor" = 1 && "${retained[*]}" = "${previous[*]}" ]]
+}
