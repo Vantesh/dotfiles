@@ -993,10 +993,12 @@ class BootConfigTests(ScriptCase):
         self.config.write_text(self.original)
         self.marker = self.directory / "state/chezmoi/initramfs.pending"
         self.env["BOOT"] = str(self.boot)
+        self.env["FAIL_STAGING"] = "1"
+        self.stub("tee", 'exec /usr/bin/tee "$@"')
         self.stub("limine-entry-tool", "exit 97")
         self.stub("sudo", r'''case "$1" in
     test|cmp|grep|awk|install|chmod|mv|rm) ;;
-    tee) printf 'stage-write\t\n' >> "$CALLS"; exit 23 ;;
+    tee) if [ "$FAIL_STAGING" = 1 ]; then printf 'stage-write\t\n' >> "$CALLS"; exit 23; fi ;;
     *) exit 97 ;;
 esac
 for arg do
@@ -1019,12 +1021,14 @@ LIMINE_OPTIONS=(timeout=0.5)
         self.assertIn(["stage-write"], self.logged_calls())
         self.assertFalse((self.boot / "limine.conf.new").exists())
 
-    def test_ambiguous_active_config_is_not_overwritten(self):
+    def test_alternative_config_does_not_block_managed_config_update(self):
         alternate = self.boot / "EFI/BOOT/limine.conf"
         alternate.parent.mkdir(parents=True)
         alternate.write_text("recovery config\n")
+        self.env["FAIL_STAGING"] = "0"
         result = self.configure()
-        self.assertEqual(result.returncode, 1, result.stderr)
-        self.assertEqual(self.config.read_text(), self.original)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("timeout: 0.5\n", self.config.read_text())
+        self.assertIn("/Arch\nprotocol: linux\n", self.config.read_text())
         self.assertEqual(alternate.read_text(), "recovery config\n")
-        self.assertFalse(self.marker.exists())
+        self.assertTrue(self.marker.exists())
