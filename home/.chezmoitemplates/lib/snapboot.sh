@@ -24,7 +24,7 @@ readonly MKINITCPIO_DROPIN_DIR="/etc/mkinitcpio.conf.d"
 # Globals:
 #   LAST_ERROR - Set on failure
 # Returns:
-#   0 if root is btrfs, 1 if not, 127 if findmnt missing
+#   0 if root is btrfs, 1 if not, 2 if inspection fails, 127 if findmnt missing
 check_btrfs() {
   LAST_ERROR=""
 
@@ -33,7 +33,13 @@ check_btrfs() {
     return 127
   fi
 
-  if ! findmnt -n -o FSTYPE / 2>/dev/null | grep -q "^btrfs$"; then
+  local filesystem
+  if ! filesystem=$(findmnt -n -o FSTYPE / 2>/dev/null); then
+    LAST_ERROR="Failed to detect root filesystem type"
+    return 2
+  fi
+
+  if [[ "$filesystem" != btrfs ]]; then
     LAST_ERROR="Root filesystem is not btrfs"
     return 1
   fi

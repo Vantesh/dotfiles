@@ -768,3 +768,99 @@ main "$@"''')
             self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(len(set(rendered)), 3)
         self.assertEqual((self.directory / "state/chezmoi/hibernation.pending").stat().st_size, 3)
+
+
+class HibernationDetectionTests(ScriptCase):
+    def setUp(self):
+        super().setUp()
+        self.stub('limine', 'exit 97')
+        self.stub('mkinitcpio', 'exit 97')
+        self.stub('figlet', 'exit 0')
+        self.stub('findmnt', '''[ "$*" = '-n -o FSTYPE /' ] || exit 97
+[ "$DETECTION" != filesystem-failure ] || exit 23
+if [ "$DETECTION" = non-btrfs ]; then echo ext4; else echo btrfs; fi''')
+        self.stub('hostnamectl', '''[ "$*" = chassis ] || exit 97
+[ "$DETECTION" != chassis-failure ] || exit 23
+if [ "$DETECTION" = desktop ]; then echo desktop; else echo laptop; fi''')
+        self.env['DETECTION'] = 'supported'
+        self.pending = self.directory / 'state/chezmoi/hibernation.pending'
+        self.pending.parent.mkdir(parents=True)
+
+    def fixture(self):
+        source = self.render(SCRIPTS / 'run_onchange_after_03_hibernation.sh.tmpl')
+        source = source.replace('/usr/bin/limine', str(self.bin / 'limine'))
+        return source.replace('\nmain "$@"', '''
+keep_sudo_alive() { return 0; }
+# Sentinel: detection reached setup; avoid all storage/configuration operations.
+setup_hibernation() { printf 'setup-hibernation\\t\\n' >> "$CALLS"; return 3; }
+main "$@"''')
+
+    def test_filesystem_detection_preserves_existing_status_contract(self):
+        for scenario, expected in [('supported', 0), ('non-btrfs', 1),
+                                   ('filesystem-failure', 2), ('missing-findmnt', 127)]:
+            with self.subTest(scenario=scenario):
+                self.env['DETECTION'] = scenario
+                detector = self.bin / 'findmnt'
+                if scenario == 'missing-findmnt':
+                    detector.rename(detector.with_suffix('.disabled'))
+                try:
+                    result = self.shell('set -euo pipefail\n' + self.libraries('common.sh', 'snapboot.sh') + '''
+status=0
+check_btrfs || status="$?"
+printf '%s\\n%s\\n' "$status" "$LAST_ERROR"
+''')
+                finally:
+                    if scenario == 'missing-findmnt':
+                        detector.with_suffix('.disabled').rename(detector)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                status, error = result.stdout.splitlines()[:2]
+                self.assertEqual(int(status), expected, result.stdout)
+                if expected:
+                    self.assertTrue(error)
+                else:
+                    self.assertEqual(error, '')
+
+    def test_hardware_gates_keep_failures_pending_and_clear_confirmed_skips(self):
+        for scenario, code, attempted, error in [
+            ('supported', 0, True, ''), ('non-btrfs', 0, False, ''),
+            ('desktop', 0, False, ''), ('missing-findmnt', 1, False, 'findmnt command not found'),
+            ('filesystem-failure', 1, False, 'Failed to detect root filesystem type'),
+            ('chassis-failure', 1, False, 'Failed to detect chassis type'),
+        ]:
+            with self.subTest(scenario=scenario):
+                self.env['DETECTION'] = scenario
+                self.pending.write_text('old')
+                self.calls.unlink(missing_ok=True)
+                detector = self.bin / 'findmnt'
+                if scenario == 'missing-findmnt':
+                    detector.rename(detector.with_suffix('.disabled'))
+                try:
+                    result = self.shell(self.fixture())
+                finally:
+                    if scenario == 'missing-findmnt':
+                        detector.with_suffix('.disabled').rename(detector)
+                self.assertEqual(result.returncode, code, result.stderr)
+                self.assertEqual(self.logged_calls(), [['setup-hibernation']] if attempted else [])
+                if code:
+                    self.assertEqual(self.pending.read_text(), 'old.')
+                    self.assertIn(error, result.stderr)
+                else:
+                    self.assertFalse(self.pending.exists())
+
+    def test_recovered_detection_reaches_setup_after_repeated_deferral(self):
+        self.pending.write_text('.')
+        self.env['DETECTION'] = 'filesystem-failure'
+        rendered = []
+        for expected_size in (2, 3):
+            source = self.fixture()
+            rendered.append(source)
+            result = self.shell(source)
+            self.assertEqual(result.returncode, 1, result.stderr)
+            self.assertEqual(self.pending.stat().st_size, expected_size)
+            self.assertEqual(self.logged_calls(), [])
+        self.assertNotEqual(*rendered)
+        self.env['DETECTION'] = 'supported'
+        result = self.shell(self.fixture())
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(self.logged_calls(), [['setup-hibernation']])
+        self.assertFalse(self.pending.exists())

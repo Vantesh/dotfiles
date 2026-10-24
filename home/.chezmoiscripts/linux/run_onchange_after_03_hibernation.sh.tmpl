@@ -49,13 +49,28 @@ main() {
     return 0
   fi
 
-  if ! check_btrfs; then
+  local btrfs_status=0
+  check_btrfs || btrfs_status="$?"
+  case "$btrfs_status" in
+  0) ;;
+  1)
     log SKIP "Root filesystem is not btrfs, skipping hibernation setup"
     clear_hibernation_retry
     return 0
-  fi
+    ;;
+  *)
+    log ERROR "$LAST_ERROR"
+    defer_hibernation_setup
+    return 1
+    ;;
+  esac
 
   if ! is_laptop; then
+    if [[ -n "$LAST_ERROR" ]]; then
+      log ERROR "$LAST_ERROR"
+      defer_hibernation_setup
+      return 1
+    fi
     log SKIP "Not a laptop, skipping hibernation setup"
     clear_hibernation_retry
     return 0
