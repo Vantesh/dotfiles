@@ -171,9 +171,11 @@ if [[ "${INSTALL_DRIVERS:-1}" == "1" ]]; then
   fi
 
   # Intel drivers
-  if [[ $gpu_info == *"Intel"* ]]; then
+  while IFS= read -r gpu; do
+    [[ "$gpu" =~ \[03[[:xdigit:]]{2}\]: && "$gpu" =~ \[8086:[[:xdigit:]]{4}\] ]] || continue
     package_envs+=",intel"
-  fi
+    break
+  done <<< "$gpu_info"
 else
   log INFO "Skipping driver installation"
 fi
