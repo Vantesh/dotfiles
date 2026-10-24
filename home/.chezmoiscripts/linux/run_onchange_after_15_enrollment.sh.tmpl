@@ -36,7 +36,7 @@ register_warp() {
 enroll_fingerprint() {
   command_exists fprintd-enroll && command_exists gdbus && command_exists pacman || return 0
   # Only offer enrollment for the fingerprint package group used by this setup.
-  pacman -Q -- libfprint-goodix53x5-533c-git fprintd >/dev/null 2>&1 || return 0
+  pacman -Q -- libfprint-goodix53x5-533c-git >/dev/null 2>&1 || return 0
 
   local current_uid target_user target_uid
   current_uid=$(id -u) || return 0
