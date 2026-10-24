@@ -24,7 +24,11 @@ shopt -s nullglob globstar
 
 readonly LIMINE_DEFAULTS="/etc/default/limine"
 readonly SECURE_BOOT_ENABLED="${SETUP_SECURE_BOOT:-{{ ternary "1" "0" (get . "setupSecureBoot" | default false) }}}"
-readonly PRESERVE_FIRMWARE_SECURE_BOOT_KEYS="${PRESERVE_FIRMWARE_SECURE_BOOT_KEYS:-{{ ternary "1" "0" (get . "preserveFirmwareSecureBootKeys" | default true) }}}"
+{{- $preserveFirmwareSecureBootKeys := get . "preserveFirmwareSecureBootKeys" | default true -}}
+{{- if hasKey . "preserveFirmwareSecureBootKeys" -}}
+  {{- $preserveFirmwareSecureBootKeys = get . "preserveFirmwareSecureBootKeys" -}}
+{{- end }}
+readonly PRESERVE_FIRMWARE_SECURE_BOOT_KEYS="${PRESERVE_FIRMWARE_SECURE_BOOT_KEYS:-{{ ternary "1" "0" $preserveFirmwareSecureBootKeys }}}"
 
 # Validates the boolean fields required from sbctl status JSON.
 #
@@ -82,6 +86,10 @@ check_secure_boot_signing_key() {
 # Returns:
 #   0 on success or skipped environments; exits on setup failures
 main() {
+  if [[ "$SECURE_BOOT_ENABLED" != "1" ]]; then
+    log SKIP "Secure Boot setup not enabled"
+    return 0
+  fi
   if [[ "${DISTRO_FAMILY,,}" != *arch* ]] || [[ ! -x /usr/bin/limine ]] || [[ ! -d /sys/firmware/efi/efivars ]]; then
     log SKIP "Limine UEFI setup not available on this system"
     return 0
@@ -95,10 +103,6 @@ main() {
   fi
 
   get_limine_boot_directory >/dev/null || die "Mount the Limine FAT32 boot partition or configure ESP_PATH in $LIMINE_DEFAULTS"
-  if [[ "$SECURE_BOOT_ENABLED" != "1" ]]; then
-    log SKIP "Secure Boot setup not enabled"
-    return 0
-  fi
 
   print_box "Secure Boot" >&2
   log STEP "Secure Boot Configuration"
