@@ -43,14 +43,14 @@ enable_snapper_services() {
 # Outputs: Result and error logs to stderr.
 # Returns: 0 on success, 1 on failure.
 configure_limine_snapper() {
-  if ! request_initramfs_rebuild; then
-    log ERROR "Failed to queue Limine configuration rebuild: $LAST_ERROR"
-    return 1
-  fi
-
   if [[ ! -e "$LIMINE_CONFIG" ]]; then
     if [[ ! -f "$LIMINE_ENTRY_TEMPLATE" ]] || [[ ! -f "$LIMINE_SNAPPER_TEMPLATE" ]]; then
       log ERROR "Limine templates not found"
+      return 1
+    fi
+
+    if ! request_initramfs_rebuild; then
+      log ERROR "Failed to queue Limine configuration rebuild: $LAST_ERROR"
       return 1
     fi
 
@@ -80,9 +80,19 @@ configure_limine_snapper() {
     settings["ENABLE_UKI"]="yes"
   fi
 
-  local key value
+  local key value current_value
   for key in "${!settings[@]}"; do
     value="${settings[$key]}"
+    if ! current_value=$(get_limine_config_value "$key"); then
+      log ERROR "Failed to read $key in Limine config"
+      return 1
+    fi
+    [[ "$current_value" != "$value" ]] || continue
+
+    if ! request_initramfs_rebuild; then
+      log ERROR "Failed to queue Limine configuration rebuild: $LAST_ERROR"
+      return 1
+    fi
 
     if ! update_config "$LIMINE_CONFIG" "$key" "$value"; then
       log ERROR "Failed to update $key in Limine config: $LAST_ERROR"
