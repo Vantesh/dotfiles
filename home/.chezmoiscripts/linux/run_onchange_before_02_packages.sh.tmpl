@@ -9,8 +9,8 @@
 # DISTRO_FAMILY: {{ .distroFamily | quote }}
 # DISTRO: {{ .chezmoi.osRelease.id | quote }}
 
-# INSTALL_DRIVERS: {{ ternary "1" "0" .installDrivers }}
-# SETUP_SNAPPER: {{ ternary "1" "0" .setupSnapper }}
+# INSTALL_DRIVERS: {{ get (.chezmoi.config.scriptEnv | default dict) "INSTALL_DRIVERS" | default "1" | quote }}
+# SETUP_SNAPPER: {{ get (.chezmoi.config.scriptEnv | default dict) "SETUP_SNAPPER" | default "1" | quote }}
 # SKIP_PACKAGES: {{ ternary "1" "0" (eq (env "SKIP_PACKAGES") "1") }}
 
 set -euo pipefail
