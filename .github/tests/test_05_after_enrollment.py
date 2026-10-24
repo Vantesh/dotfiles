@@ -1,6 +1,85 @@
 """Enrollment preserves existing accounts and requires a usable fingerprint reader."""
 
-from helpers import SCRIPTS, ScriptCase
+import os
+
+from helpers import ROOT, SCRIPTS, ScriptCase
+
+
+class AvatarTests(ScriptCase):
+    def test_avatar_external_requires_personal_online_setup(self):
+        external = ROOT / "home/.chezmoiexternals/20-avatar.yaml.tmpl"
+        for personal, offline, enabled in ((True, "", True), (True, "1", False),
+                                           (False, "", False), (False, "1", False)):
+            with self.subTest(personal=personal, offline=offline):
+                self.env["OFFLINE"] = offline
+                source = self.render(external, personal=personal)
+                if enabled:
+                    self.assertIn('".local/share/avatars/profile.png":', source)
+                    self.assertIn('url: "https://github.com/Vantesh.png"', source)
+                    self.assertIn("refreshPeriod: 168h", source)
+                else:
+                    self.assertEqual(source.strip(), "")
+
+    def test_avatar_assignment_skips_unusable_offline_files_and_preserves_errors(self):
+        avatar = self.directory / ".local/share/avatars/profile.png"
+        avatar.parent.mkdir(parents=True)
+        self.stub("figlet", "exit 0")
+        self.stub("id", "echo 1000")
+        self.stub("mise", "exit 0")
+        self.stub("busctl", 'exit "${ASSIGN_STATUS:-0}"', log=True)
+        for offline, kind, status, success in (
+            ("1", "missing", "0", True), ("1", "empty", "0", True),
+            ("1", "directory", "0", True), ("1", "unreadable", "0", True),
+            ("1", "usable", "0", True), ("", "usable", "0", True),
+            ("", "missing", "0", False), ("", "empty", "0", False),
+            ("1", "usable", "23", False), ("", "usable", "23", False),
+        ):
+            with self.subTest(offline=offline, kind=kind, status=status):
+                if kind == "unreadable" and os.geteuid() == 0:
+                    self.skipTest("Root can read files regardless of mode bits")
+                self.calls.unlink(missing_ok=True)
+                if avatar.is_dir():
+                    avatar.rmdir()
+                elif avatar.exists():
+                    avatar.chmod(0o600)
+                    avatar.unlink()
+                if kind == "directory":
+                    avatar.mkdir()
+                elif kind != "missing":
+                    avatar.write_bytes(b"" if kind == "empty" else b"fixture image")
+                    if kind == "unreadable":
+                        avatar.chmod(0)
+                self.env.update(OFFLINE=offline, ASSIGN_STATUS=status)
+                rendered = self.directory / "services.sh"
+                rendered.write_text(self.render(SCRIPTS / "run_onchange_after_14_services.sh.tmpl",
+                                                personal=True))
+                source = ("set -euo pipefail\n" + self.libraries("common.sh")
+                          + "converge_packaged_user_services() { :; }\n"
+                          + "configure_locate_database() { :; }\n"
+                          + self.function(rendered, "main") + "main\n")
+                result = self.shell(source)
+                self.assertEqual(result.returncode == 0, success, result.stderr)
+                calls = self.logged_calls()
+                expected = [["busctl", "call", "org.freedesktop.Accounts",
+                             "/org/freedesktop/Accounts/User1000", "org.freedesktop.Accounts.User",
+                             "SetIconFile", "s", str(avatar)]] if kind == "usable" else []
+                self.assertEqual(calls, expected)
+                if not success:
+                    self.assertIn("ERROR:", result.stderr)
+
+    def test_offline_transition_invalidates_only_personal_services(self):
+        script = SCRIPTS / "run_onchange_after_14_services.sh.tmpl"
+        for personal in (False, True):
+            with self.subTest(personal=personal):
+                self.env.pop("OFFLINE", None)
+                online = self.render(script, personal=personal)
+                self.env["OFFLINE"] = "1"
+                offline = self.render(script, personal=personal)
+                self.assertEqual(online != offline, personal)
+                self.env["OFFLINE"] = "yes"
+                self.assertEqual(offline, self.render(script, personal=personal))
+                self.env["OFFLINE"] = ""
+                self.assertEqual(online, self.render(script, personal=personal))
 
 
 class EnrollmentTests(ScriptCase):

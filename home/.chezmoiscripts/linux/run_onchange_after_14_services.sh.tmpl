@@ -112,11 +112,18 @@ main() {
   fi
 
 {{- if .personal }}
-  if ! busctl call org.freedesktop.Accounts \
-      "/org/freedesktop/Accounts/User$(id -u)" \
-      org.freedesktop.Accounts.User SetIconFile s \
-      "$HOME/.local/share/avatars/profile.png"; then
-    die "Failed to update account profile icon"
+  # OFFLINE: {{ if env "OFFLINE" }}1{{ else }}0{{ end }}
+  local avatar="$HOME/.local/share/avatars/profile.png"
+  if [[ -f "$avatar" && -r "$avatar" && -s "$avatar" ]]; then
+    if ! busctl call org.freedesktop.Accounts \
+        "/org/freedesktop/Accounts/User$(id -u)" \
+        org.freedesktop.Accounts.User SetIconFile s "$avatar"; then
+      die "Failed to update account profile icon"
+    fi
+  elif [[ -n "${OFFLINE:-}" ]]; then
+    log SKIP "Profile icon unavailable in offline mode"
+  else
+    die "Profile icon is missing, empty, or unreadable: $avatar; refresh the avatar external and rerun setup"
   fi
 {{- end }}
 }
