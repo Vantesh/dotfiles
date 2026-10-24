@@ -3,7 +3,6 @@
 #
 # Runs on every apply, after boot-related configuration scripts, so a pending
 # rebuild is retried even when those scripts are skipped by their execution state.
-# Rejects ambiguous config locations without deleting any config.
 # Package post-hooks enroll and sign after publishing rebuilt artifacts.
 # Verify artifacts and the enrolled checksum before clearing the pending request.
 # Rejects failure diagnostics even when package helpers incorrectly return zero.
@@ -61,10 +60,6 @@ main() {
   local boot_directory
   if ! boot_directory="$(get_limine_boot_directory)"; then
     die "Limine FAT32 boot partition not mounted; mount it or configure ESP_PATH in /etc/default/limine; rebuild remains pending"
-  fi
-
-  if ! validate_limine_config_location "$boot_directory"; then
-    die "Ambiguous Limine config location; rebuild remains pending: $LAST_ERROR"
   fi
 
   local uki_mode fallback_mode

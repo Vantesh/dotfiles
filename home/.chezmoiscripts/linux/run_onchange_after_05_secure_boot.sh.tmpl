@@ -5,7 +5,6 @@
 # delegates immutable efivar handling to sbctl, and enables Limine file
 # verification and automatic config checksum enrollment. Rebuilding and signing
 # are deferred.
-# Ambiguous recovery configurations are preserved for manual review.
 # Enabling Secure Boot itself remains a manual firmware setting.
 #
 # Globals:
@@ -72,7 +71,7 @@ check_secure_boot_signing_key() {
   fi
 }
 
-# Validates config location and configures optional Secure Boot using existing helpers.
+# Configures optional Secure Boot using existing helpers.
 # Globals:
 #   DISTRO_FAMILY, SECURE_BOOT_ENABLED - Platform and opt-in checks
 #   PRESERVE_FIRMWARE_SECURE_BOOT_KEYS - Firmware certificate preservation policy
@@ -95,9 +94,7 @@ main() {
     die "Failed to obtain sudo access: $LAST_ERROR"
   fi
 
-  local boot_directory
-  boot_directory="$(get_limine_boot_directory)" || die "Mount the Limine FAT32 boot partition or configure ESP_PATH in $LIMINE_DEFAULTS"
-  validate_limine_config_location "$boot_directory" || die "$LAST_ERROR"
+  get_limine_boot_directory >/dev/null || die "Mount the Limine FAT32 boot partition or configure ESP_PATH in $LIMINE_DEFAULTS"
   if [[ "$SECURE_BOOT_ENABLED" != "1" ]]; then
     log SKIP "Secure Boot setup not enabled"
     return 0

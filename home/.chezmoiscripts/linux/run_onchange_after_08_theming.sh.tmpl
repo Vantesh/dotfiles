@@ -34,7 +34,6 @@ configure_limine_options() {
     LAST_ERROR="Cannot resolve active Limine boot directory; mount the ESP or configure ESP_PATH"
     return 1
   fi
-  validate_limine_config_location "$boot_directory" || return 1
   limine_conf="$boot_directory/limine.conf"
 
   if ! sudo test -f "$limine_conf"; then

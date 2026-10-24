@@ -244,19 +244,6 @@ get_limine_boot_directory() {
   return 1
 }
 
-# The package manages ESP-root limine.conf, but Limine searches other locations
-# first. Existence/equivalence cannot establish ownership of a recovery config.
-validate_limine_config_location() {
-  local directory="$1" candidate
-  LAST_ERROR=""
-  for candidate in EFI/limine/limine.conf EFI/BOOT/limine.conf boot/limine/limine.conf boot/limine.conf limine/limine.conf; do
-    if sudo test -e "$directory/$candidate" || sudo test -L "$directory/$candidate"; then
-      LAST_ERROR="Preserved $directory/$candidate: ownership and active config are ambiguous; review Limine search precedence and move it manually only if obsolete"
-      return 1
-    fi
-  done
-}
-
 # Never initialize persistent defaults from a possibly temporary running boot.
 # Respect explicit package/drop-in defaults, otherwise use the persistent kernel
 # command line. Missing intent requires an operator decision, not a denylist.
