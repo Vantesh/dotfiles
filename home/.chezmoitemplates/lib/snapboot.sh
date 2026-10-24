@@ -257,7 +257,7 @@ for file in /usr/share/limine-entry-tool.d/*.conf /etc/limine-entry-tool.conf /e
   [[ -f "$file" ]] || continue
   operator='\+?='
   case "$file" in
-    /etc/limine-entry-tool.d/01-default.conf|/etc/limine-entry-tool.d/20-quiet-boot.conf|/etc/limine-entry-tool.d/50-hibernation.conf)
+    /etc/limine-entry-tool.d/01-default.conf|/etc/limine-entry-tool.d/20-quiet-boot.conf|/etc/limine-entry-tool.d/50-hibernation.conf|/etc/limine-entry-tool.d/zswap.conf)
       # Managed += fragments add features, not a persistent boot baseline.
       operator='=' ;;
   esac
@@ -459,7 +459,8 @@ if converting:
     luks_uuid, mapping, filesystem_uuid, luks_device_id, kernel_stage, default_stage = sys.argv[2:]
     staged = {name: pathlib.Path(stage) for name, stage in
               ((kernel, kernel_stage), (default, default_stage)) if stage}
-feature_files = {default, managed, '/etc/limine-entry-tool.d/20-quiet-boot.conf'}
+feature_files = {default, managed, '/etc/limine-entry-tool.d/20-quiet-boot.conf',
+                 '/etc/limine-entry-tool.d/zswap.conf'}
 files = (sorted(glob.glob('/usr/share/limine-entry-tool.d/*.conf')) +
          ['/etc/limine-entry-tool.conf'] +
          sorted(set(glob.glob('/etc/limine-entry-tool.d/*.conf')) | {default, managed}) +

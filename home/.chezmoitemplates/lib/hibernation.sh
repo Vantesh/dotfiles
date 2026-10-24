@@ -513,3 +513,212 @@ setup_hibernation() {
   fi
   log INFO "Configured managed Btrfs swapfile resume"
 }
+
+# Read-only policy check; optional staged kernel/default copies are edited only
+# when they exactly match kernel parameters recorded by archinstall.
+_zswap_policy() {
+  sudo python3 -I -B - "$@" <<'PYTHON'
+import os
+import pathlib
+import re
+import subprocess
+import sys
+
+
+def skip(message):
+    print(message)
+    raise SystemExit(0)
+
+
+def text(path):
+    return '\n'.join(line.split('#', 1)[0] for line in path.read_text().splitlines())
+
+
+try:
+    active = subprocess.check_output(
+        ['swapon', '--show=NAME', '--noheadings', '--raw'], text=True, stderr=subprocess.PIPE)
+    for device in active.splitlines():
+        if re.fullmatch(r'/dev/zram[0-9]+', device):
+            skip(f'ZRAM active on {device}')
+    for base in ('/etc', '/run', '/usr/local/lib', '/usr/lib'):
+        generator = pathlib.Path(base) / 'systemd/zram-generator.conf'
+        if generator.exists() or generator.is_symlink() or any(
+                generator.with_name('zram-generator.conf.d').glob('*.conf')):
+            skip('ZRAM configured through zram-generator')
+    for name in ('/etc/default/zramswap', '/etc/default/zram-config', '/etc/conf.d/zram'):
+        path = pathlib.Path(name)
+        if path.exists() or path.is_symlink():
+            skip(f'ZRAM configured through {path}')
+    listing = subprocess.run(
+        ['systemctl', 'list-unit-files', '--type=swap,service', '--no-legend', '--no-pager'],
+        text=True, capture_output=True, check=False)
+    if listing.returncode and not (listing.returncode == 1 and not listing.stdout and not listing.stderr):
+        raise ValueError('Cannot inspect systemd unit configuration')
+    for line in listing.stdout.splitlines():
+        if not line.strip():
+            continue
+        unit, state, *_ = line.split()
+        if '@.' in unit:
+            continue
+        if 'zram' in unit and state in ('enabled', 'enabled-runtime', 'linked', 'linked-runtime', 'generated', 'alias'):
+            skip(f'ZRAM configured through systemd unit {unit}')
+        if unit.endswith('.swap'):
+            device = subprocess.check_output(
+                ['systemctl', 'show', '--property=What', '--value', unit],
+                text=True, stderr=subprocess.PIPE).strip()
+            if re.fullmatch(r'/dev/zram[0-9]+', device):
+                skip(f'ZRAM configured through systemd unit {unit}')
+    local_sources = [pathlib.Path('/etc/fstab'), pathlib.Path('/etc/rc.local')]
+    for base in ('/etc/systemd/system', '/run/systemd/system'):
+        for suffix in ('*.service', '*.swap'):
+            local_sources.extend(pathlib.Path(base).rglob(suffix))
+    local_sources.extend(pathlib.Path('/etc/udev/rules.d').glob('*.rules'))
+    local_sources.extend(pathlib.Path('/etc/init.d').glob('*zram*'))
+    for path in local_sources:
+        if path.is_file() and 'zram' in text(path).lower():
+            skip(f'ZRAM configured through {path}')
+    ram = re.search(r'^MemTotal:\s+([0-9]+)\s+kB$', pathlib.Path('/proc/meminfo').read_text(), re.M)
+    if not ram:
+        skip('Cannot determine physical RAM; skipping zswap')
+    if int(ram[1]) < 30 * 1024 ** 2:
+        skip('Physical RAM below 30 GiB')
+
+    config = pathlib.Path('/etc/limine-entry-tool.d/zswap.conf')
+    content = ('# Managed by chezmoi: optional zswap\n'
+               'KERNEL_CMDLINE[default]+=" zswap.enabled=1 zswap.compressor=lz4"\n')
+    enabled = pathlib.Path('/sys/module/zswap/parameters/enabled')
+    runtime = enabled.read_text().strip().lower() if enabled.exists() else ''
+    if config.exists() or config.is_symlink():
+        if not config.is_symlink() and config.is_file() and config.read_text() == content:
+            if runtime in ('y', '1'):
+                skip('Repository-managed zswap enabled in running kernel')
+            skip('Repository-managed zswap configured for next boot; not enabled in running kernel' if runtime in ('n', '0') else
+                 'Repository-managed zswap configuration; running state unavailable')
+        skip(f'Existing user-managed zswap configuration: {config}')
+
+    kernel = pathlib.Path('/etc/kernel/cmdline')
+    default = pathlib.Path('/etc/limine-entry-tool.d/01-default.conf')
+    stages = dict(zip(map(pathlib.Path, sys.argv[1::2]), map(pathlib.Path, sys.argv[2::2])))
+    sources = [kernel, pathlib.Path('/etc/limine-entry-tool.conf'), pathlib.Path('/etc/default/limine')]
+    for directory in ('/usr/share/limine-entry-tool.d', '/etc/limine-entry-tool.d'):
+        sources.extend(pathlib.Path(directory).glob('*.conf'))
+    parameter = re.compile(r'(?<![\w.])zswap\.[^\s"]+')
+    disabled = {}
+    for path in sources:
+        if not path.exists():
+            continue
+        raw = stages.get(path, path).read_bytes().decode()
+        params = parameter.findall('\n'.join(line.split('#', 1)[0] for line in raw.splitlines()))
+        if not params:
+            continue
+        if params != ['zswap.enabled=0']:
+            skip(f'Existing user-managed zswap configuration: {path}')
+        if path not in (kernel, default) or path.is_symlink():
+            skip(f'zswap explicitly disabled by user configuration: {path}')
+        if path == kernel:
+            argument = raw.strip()
+            start, end = len(raw) - len(raw.lstrip()), len(raw.rstrip())
+        else:
+            matches = list(re.finditer(
+                r'(?m)^[ \t]*KERNEL_CMDLINE\[default\][ \t]*=[ \t]*([^\r\n]+)', raw))
+            if len(matches) != 1:
+                skip(f'zswap explicitly disabled; cannot establish installer ownership: {path}')
+            match = matches[0]
+            argument = match[1].rstrip()
+            start, end = match.start(1), match.start(1) + len(argument)
+            if argument.startswith('"') and argument.endswith('"'):
+                argument, start, end = argument[1:-1], start + 1, end - 1
+        if '\n' in argument or '"' in argument or '--' in argument.split():
+            skip(f'zswap explicitly disabled; cannot establish installer ownership: {path}')
+        disabled[path] = (raw, argument, start, end)
+
+    if runtime in ('y', '1'):
+        skip('zswap enabled in running kernel; existing settings left unchanged')
+    if runtime not in ('n', '0'):
+        skip('Cannot determine running zswap state; skipping zswap')
+    running = parameter.findall(pathlib.Path('/proc/cmdline').read_text())
+    if running and running != ['zswap.enabled=0']:
+        skip('Existing user-managed zswap configuration in running kernel parameters')
+    if disabled:
+        log = pathlib.Path('/var/log/archinstall/install.log')
+        recorded = set()
+        if log.is_file() and not log.is_symlink():
+            metadata = log.stat()
+            if metadata.st_uid == os.geteuid() and not metadata.st_mode & 0o022:
+                recorded = set(re.findall(
+                    r'^\[[^\n]+\] - DEBUG - kernel parameters: ([^\r\n]+)$',
+                    log.read_text(), re.M))
+        for path, (_, argument, _, _) in disabled.items():
+            metadata = path.stat()
+            if metadata.st_uid != os.geteuid() or metadata.st_mode & 0o022 or argument not in recorded:
+                skip(f'zswap explicitly disabled; installer ownership unverified: {path}')
+        if stages:
+            for path, (raw, argument, start, end) in disabled.items():
+                if path not in stages:
+                    raise ValueError('Installer source was not included in the transaction')
+                cleaned = re.sub(r'(?<!\S)zswap\.enabled=0(?!\S)', '', argument)
+                if cleaned == argument or not cleaned.strip():
+                    raise ValueError('Cannot safely remove installer parameter')
+                stages[path].write_bytes((raw[:start] + cleaned + raw[end:]).encode())
+        print('migrate')
+    elif running:
+        skip('zswap explicitly disabled in running parameters; persistent installer source unverified')
+    else:
+        print('eligible')
+except (OSError, ValueError, subprocess.CalledProcessError):
+    raise SystemExit('Cannot inspect optional zswap prerequisites; existing configuration left unchanged')
+PYTHON
+}
+
+# Called only after setup_hibernation has verified swap and published resume.
+configure_zswap() {
+  local fragment=/etc/limine-entry-tool.d/zswap.conf eligibility
+  local -a targets=("$fragment")
+  eligibility=$(_zswap_policy) || return 1
+  case "$eligibility" in
+  eligible) ;;
+  migrate)
+    # Include both installer copies when present, even if only one is effective.
+    local source
+    for source in /etc/kernel/cmdline /etc/limine-entry-tool.d/01-default.conf; do
+      if sudo test -e "$source"; then targets+=("$source"); fi
+    done
+    ;;
+  *) log SKIP "$eligibility"; return 0 ;;
+  esac
+  sudo mkdir -p -- /etc/limine-entry-tool.d || return 1
+  edit_system_configs _stage_zswap_config _verify_zswap_config "${targets[@]}" || return 1
+  if [[ "$eligibility" = migrate ]]; then log INFO "Migrated installer zswap.enabled=0"; fi
+  log INFO "Configured zswap for next boot; reboot required for activation"
+}
+
+_stage_zswap_config() {
+  local policy config_stage="$1" index=1 stage
+  local -a policy_args=()
+  if sudo test -e "$fragment" || sudo test -L "$fragment"; then return 1; fi
+  shift
+  for stage do
+    policy_args+=("${targets[index]}" "$stage")
+    index=$((index + 1))
+  done
+  policy=$(_zswap_policy "${policy_args[@]}") || return 1
+  case "$policy" in eligible | migrate) ;; *) log SKIP "$policy"; return 1 ;; esac
+  printf '%s\n' '# Managed by chezmoi: optional zswap' \
+    'KERNEL_CMDLINE[default]+=" zswap.enabled=1 zswap.compressor=lz4"' > "$config_stage" || return 1
+  request_initramfs_rebuild
+}
+
+_verify_zswap_config() {
+  local cmdline token enabled=0 compressor=0
+  local -a tokens
+  cmdline=$(get_limine_cmdline hibernation) || return 1
+  read -r -a tokens <<< "$cmdline"
+  for token in "${tokens[@]}"; do
+    case "$token" in
+    zswap.enabled=1) enabled=$((enabled + 1)) ;;
+    zswap.compressor=lz4) compressor=$((compressor + 1)) ;;
+    zswap.*) return 1 ;;
+    esac
+  done
+  [[ "$enabled" = 1 && "$compressor" = 1 ]]
+}

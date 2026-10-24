@@ -42,6 +42,307 @@ edit_system_configs edit verify "$ORIGINAL" "$NEW"
         self.assertFalse((self.directory / "new").exists())
 
 
+class ZswapTests(ScriptCase):
+    def fixture(self, name, ram=32, active="", units="", device=""):
+        root = self.directory / name
+        self.etc = root / "etc"
+        self.dropins = self.etc / "limine-entry-tool.d"
+        self.dropins.mkdir(parents=True)
+        (self.etc / "kernel").mkdir()
+        (self.etc / "kernel/cmdline").write_text("root=UUID=filesystem quiet\n")
+        self.resume = self.dropins / "50-hibernation.conf"
+        self.resume.write_text('KERNEL_CMDLINE[default]+= "hibernate.compressor=lz4 resume=UUID=aaaa resume_offset=123"\n')
+        self.original_resume = self.resume.read_bytes()
+        proc = root / "proc"
+        proc.mkdir()
+        (proc / "meminfo").write_text(f"MemTotal: {ram * 1024 ** 2} kB\n")
+        (proc / "cmdline").write_text("root=UUID=filesystem\n")
+        enabled = root / "sys/module/zswap/parameters/enabled"
+        enabled.parent.mkdir(parents=True)
+        enabled.write_text("N\n")
+        self.config = self.dropins / "zswap.conf"
+        self.marker = root / "pending"
+        self.env.update(ACTIVE=active, UNITS=units, UNIT_DEVICE=device)
+        self.stub("swapon", 'printf "%s\\n" "$ACTIVE"', log=True)
+        self.stub("systemctl", """
+case "$*" in
+    'list-unit-files --type=swap,service --no-legend --no-pager') printf '%s\\n' "$UNITS" ;;
+    'show --property=What --value '* ) printf '%s\\n' "$UNIT_DEVICE" ;;
+    *) exit 97 ;;
+esac
+""", log=True)
+        self.stub("sudo", 'exec "$@"')
+        self.stub("python3", 'exec /usr/bin/python3 "$@"')
+        source = self.libraries("common.sh") + (LIB / "snapboot.sh").read_text() + (LIB / "hibernation.sh").read_text()
+        for prefix in ("/usr/local/lib", "/usr/share", "/usr/lib", "/etc", "/run", "/proc", "/sys", "/var"):
+            replacement = str(root / prefix.lstrip("/"))
+            source = source.replace(prefix + "/", replacement + "/").replace(f"'{prefix}'", repr(replacement))
+        source = source.replace('readonly INITRAMFS_PENDING_FILE=', 'INITRAMFS_PENDING_FILE=')
+        return source + f'\nINITRAMFS_PENDING_FILE="{self.marker}"\n'
+
+    def test_ram_threshold_and_repeated_configuration_preserve_resume(self):
+        for ram in (16, 30, 32, 64):
+            with self.subTest(ram=ram):
+                source = self.fixture(f"ram-{ram}", ram=ram)
+                result = self.shell(source + "configure_zswap\n")
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(self.config.exists(), ram >= 30)
+                self.assertEqual(self.resume.read_bytes(), self.original_resume)
+                if ram < 30:
+                    self.assertFalse(self.marker.exists())
+                    continue
+                self.assertEqual(self.config.read_text(),
+                                 '# Managed by chezmoi: optional zswap\n'
+                                 'KERNEL_CMDLINE[default]+=" zswap.enabled=1 zswap.compressor=lz4"\n')
+                self.assertTrue(self.marker.exists())
+                syntax = self.run_process(["/bin/bash", "-n", str(self.config)], name="zswap fragment")
+                self.assertEqual(syntax.returncode, 0, syntax.stderr)
+                before = self.config.stat()
+                self.marker.unlink()
+                repeated = self.shell(source + "configure_zswap\nget_limine_cmdline initramfs\n")
+                self.assertEqual(repeated.returncode, 0, repeated.stderr)
+                self.assertIn("root=UUID=filesystem quiet", repeated.stdout)
+                self.assertIn("resume=UUID=aaaa resume_offset=123", repeated.stdout)
+                self.assertEqual(repeated.stdout.count("zswap.enabled=1"), 1)
+                self.assertEqual(repeated.stdout.count("zswap.compressor=lz4"), 1)
+                self.assertEqual(self.config.stat().st_mtime_ns, before.st_mtime_ns)
+                self.assertEqual(self.config.stat().st_ino, before.st_ino)
+                self.assertFalse(self.marker.exists())
+
+    def test_zram_and_existing_zswap_are_never_modified(self):
+        for scenario in ("active", "generator", "generator-dropin", "zramswap", "service",
+                         "swap-unit", "fstab", "existing", "kernel", "dropin", "both"):
+            with self.subTest(scenario=scenario):
+                source = self.fixture(scenario, active="/dev/zram0" if scenario in ("active", "both") else "",
+                                      units="custom.swap disabled -" if scenario == "swap-unit" else "",
+                                      device="/dev/zram0" if scenario == "swap-unit" else "")
+                files = {
+                    "generator": ("systemd/zram-generator.conf", "[zram0]\n"),
+                    "generator-dropin": ("systemd/zram-generator.conf.d/local.conf", "[zram0]\n"),
+                    "zramswap": ("default/zramswap", "PERCENT=20\n"),
+                    "service": ("systemd/system/custom.service", "[Service]\nExecStart=zramctl /dev/zram0\n"),
+                    "fstab": ("fstab", "/dev/zram0 none swap defaults 0 0\n"),
+                    "existing": ("limine-entry-tool.d/zswap.conf", "# user-owned\n"),
+                    "both": ("limine-entry-tool.d/zswap.conf", 'KERNEL_CMDLINE[default]+=" zswap.enabled=1"\n'),
+                    "kernel": ("kernel/cmdline", "root=UUID=filesystem zswap.enabled=0\n"),
+                    "dropin": ("limine-entry-tool.d/custom.conf", 'KERNEL_CMDLINE[linux]+=" zswap.compressor=zstd"\n'),
+                }
+                path = None
+                if scenario in files:
+                    name, content = files[scenario]
+                    path = self.etc / name
+                    path.parent.mkdir(parents=True, exist_ok=True)
+                    path.write_text(content)
+                result = self.shell(source + "configure_zswap\n")
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(self.config.exists(), scenario in ("existing", "both"))
+                if path:
+                    self.assertEqual(path.read_text(), content)
+                self.assertEqual(self.resume.read_bytes(), self.original_resume)
+                self.assertFalse(self.marker.exists())
+                if scenario == "both":
+                    self.assertIn("ZRAM active on /dev/zram0", result.stderr)
+                    self.assertNotIn("coexist", result.stderr)
+
+    def test_module_availability_does_not_count_as_zram_configuration(self):
+        source = self.fixture("module-only")
+        module = self.etc / "modules-load.d/zram.conf"
+        module.parent.mkdir()
+        module.write_text("zram\n")
+        result = self.shell(source + "configure_zswap\n")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertTrue(self.config.exists())
+
+    def test_zram_priority_reports_active_and_persistent_states(self):
+        for active in (True, False):
+            with self.subTest(active=active):
+                source = self.fixture(f"priority-{active}", active="/dev/zram0" if active else "")
+                kernel = self.etc / "kernel/cmdline"
+                original = "root=UUID=filesystem zswap.enabled=0\n"
+                kernel.write_text(original)
+                generator = self.etc / "systemd/zram-generator.conf"
+                generator.parent.mkdir()
+                generator.write_text("[zram0]\nzram-size=4096\n")
+                result = self.shell(source + "configure_zswap\n")
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertIn("ZRAM active on /dev/zram0" if active else
+                              "ZRAM configured through zram-generator", result.stderr)
+                self.assertNotIn("coexist", result.stderr)
+                self.assertEqual(kernel.read_text(), original)
+                self.assertEqual(generator.read_text(), "[zram0]\nzram-size=4096\n")
+                self.assertFalse(self.config.exists())
+
+    def installer_log(self, argument):
+        log = self.etc.parent / "var/log/archinstall/install.log"
+        log.parent.mkdir(parents=True, exist_ok=True)
+        log.write_text(f"[2026-10-01 12:00:00] - DEBUG - kernel parameters: {argument}\n")
+        return log
+
+    def test_verified_installer_disable_is_removed_transactionally(self):
+        argument = "root=UUID=filesystem zswap.enabled=0 quiet\tconsole=ttyS0"
+        for owner in ("kernel", "default", "both"):
+            with self.subTest(owner=owner):
+                source = self.fixture(f"installer-{owner}")
+                kernel = self.etc / "kernel/cmdline"
+                default = self.dropins / "01-default.conf"
+                if owner in ("kernel", "both"):
+                    kernel.write_text(argument + "\n")
+                if owner in ("default", "both"):
+                    default.write_text(f'# Keep this comment\nKERNEL_CMDLINE[default]= "{argument}"\n')
+                self.installer_log(argument)
+                originals = {path: path.read_text() for path in (kernel, default) if path.exists()}
+                (self.etc.parent / "proc/cmdline").write_text(argument + "\n")
+                result = self.shell(source + "configure_zswap\nget_limine_cmdline initramfs\n")
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertIn("Migrated installer zswap.enabled=0", result.stderr)
+                self.assertIn("Configured zswap for next boot", result.stderr)
+                self.assertTrue(self.config.exists())
+                for path, original in originals.items():
+                    self.assertEqual(path.read_text(), original.replace("zswap.enabled=0", ""))
+                self.assertEqual(self.resume.read_bytes(), self.original_resume)
+                self.assertNotIn("zswap.enabled=0", result.stdout)
+                self.assertEqual(result.stdout.count("zswap.enabled=1"), 1)
+                self.assertEqual(result.stdout.count("zswap.compressor=lz4"), 1)
+                before = self.config.stat().st_mtime_ns
+                self.marker.unlink()
+                repeated = self.shell(source + "configure_zswap\n")
+                self.assertEqual(repeated.returncode, 0, repeated.stderr)
+                self.assertIn("configured for next boot; not enabled in running kernel", repeated.stderr)
+                self.assertNotIn("Migrated installer", repeated.stderr)
+                self.assertEqual(self.config.stat().st_mtime_ns, before)
+                self.assertFalse(self.marker.exists())
+
+    def test_user_disabled_or_unverified_sources_are_preserved(self):
+        argument = "root=UUID=filesystem zswap.enabled=0 quiet"
+        for scenario in ("no-log", "changed", "user-dropin", "writable-log", "writable-source", "other-settings"):
+            with self.subTest(scenario=scenario):
+                source = self.fixture(f"preserve-{scenario}")
+                kernel = self.etc / "kernel/cmdline"
+                kernel.write_text(argument + "\n")
+                if scenario != "no-log":
+                    log = self.installer_log(argument)
+                    if scenario == "changed":
+                        kernel.write_text(argument + " console=ttyS0\n")
+                    elif scenario == "writable-log":
+                        log.chmod(0o666)
+                    elif scenario == "writable-source":
+                        kernel.chmod(0o666)
+                if scenario in ("user-dropin", "other-settings"):
+                    custom = self.dropins / "custom.conf"
+                    custom.write_text('KERNEL_CMDLINE[default]+=" zswap.enabled=0"\n' if
+                                      scenario == "user-dropin" else
+                                      'KERNEL_CMDLINE[default]+=" zswap.compressor=zstd"\n')
+                before = kernel.read_bytes()
+                result = self.shell(source + "configure_zswap\n")
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertTrue("user" in result.stderr or "unverified" in result.stderr, result.stderr)
+                self.assertEqual(kernel.read_bytes(), before)
+                self.assertFalse(self.config.exists())
+                self.assertFalse(self.marker.exists())
+
+    def test_running_enabled_and_unknown_states_are_not_assumed_disabled(self):
+        for scenario in ("running", "external", "unknown", "running-disabled", "managed-running", "managed-pending"):
+            with self.subTest(scenario=scenario):
+                source = self.fixture(f"runtime-{scenario}")
+                runtime = self.etc.parent / "sys/module/zswap/parameters/enabled"
+                if scenario == "unknown":
+                    runtime.unlink()
+                elif scenario in ("running", "external", "managed-running"):
+                    runtime.write_text("Y\n")
+                if scenario.startswith("managed-"):
+                    self.config.write_text('# Managed by chezmoi: optional zswap\n'
+                                           'KERNEL_CMDLINE[default]+=" zswap.enabled=1 zswap.compressor=lz4"\n')
+                if scenario == "external":
+                    (self.etc / "kernel/cmdline").write_text("root=UUID=filesystem zswap.enabled=1\n")
+                elif scenario == "running-disabled":
+                    (self.etc.parent / "proc/cmdline").write_text("zswap.enabled=0\n")
+                result = self.shell(source + "configure_zswap\n")
+                self.assertEqual(result.returncode, 0, result.stderr)
+                expected = {"running": "enabled in running kernel", "external": "user-managed",
+                            "unknown": "Cannot determine running zswap state",
+                            "running-disabled": "persistent installer source unverified",
+                            "managed-running": "Repository-managed zswap enabled in running kernel",
+                            "managed-pending": "configured for next boot; not enabled in running kernel"}[scenario]
+                self.assertIn(expected, result.stderr)
+                self.assertEqual(self.config.exists(), scenario.startswith("managed-"))
+
+    def test_failed_migration_verification_restores_all_sources(self):
+        source = self.fixture("migration-rollback")
+        argument = "root=UUID=filesystem zswap.enabled=0 quiet"
+        kernel = self.etc / "kernel/cmdline"
+        kernel.write_text(argument + "\n")
+        default = self.dropins / "01-default.conf"
+        default.write_text(f'KERNEL_CMDLINE[default]= "{argument}"\n')
+        self.installer_log(argument)
+        late = self.etc / "default/limine"
+        late.parent.mkdir()
+        late.write_text('KERNEL_CMDLINE[default]="root=UUID=filesystem"\n')
+        originals = {path: path.read_bytes() for path in (kernel, default, self.resume)}
+        result = self.shell(source + "configure_zswap || true\n")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("Rolled back", result.stderr)
+        self.assertNotIn("Migrated installer", result.stderr)
+        self.assertFalse(self.config.exists())
+        for path, original in originals.items():
+            self.assertEqual(path.read_bytes(), original)
+
+    def test_overridden_parameters_roll_back_without_changing_resume(self):
+        source = self.fixture("override")
+        late = self.etc / "default/limine"
+        late.parent.mkdir()
+        late.write_text('KERNEL_CMDLINE[default]="root=UUID=filesystem"\n')
+        result = self.shell(source + "configure_zswap || true\n")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertFalse(self.config.exists())
+        self.assertEqual(self.resume.read_bytes(), self.original_resume)
+        self.assertIn("Rolled back", result.stderr)
+
+    def test_inspection_failures_never_publish_optional_configuration(self):
+        for scenario in ("swap-query", "unit-query", "missing-ram", "no-units"):
+            with self.subTest(scenario=scenario):
+                source = self.fixture(scenario)
+                if scenario == "swap-query":
+                    self.stub("swapon", "exit 23")
+                elif scenario == "unit-query":
+                    self.stub("systemctl", "echo 'Cannot inspect units' >&2; exit 1")
+                elif scenario == "missing-ram":
+                    (self.etc.parent / "proc/meminfo").write_text("MemAvailable: 1024 kB\n")
+                elif scenario == "no-units":
+                    self.stub("systemctl", "exit 1")
+                result = self.shell(source + "configure_zswap || true\n")
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(self.config.exists(), scenario == "no-units")
+                self.assertEqual(self.resume.read_bytes(), self.original_resume)
+
+    def test_optional_setup_runs_only_after_hibernation_success(self):
+        source = self.render(SCRIPTS / "run_onchange_after_03_hibernation.sh.tmpl")
+        limine = self.bin / "limine"
+        limine.write_text("")
+        limine.chmod(0o755)
+        source = source.replace("/usr/bin/limine", str(limine))
+        self.stub("sudo", "exit 0")
+        source = source.replace('\nmain "$@"', r'''
+check_btrfs() { return 0; }
+is_laptop() { return 0; }
+command_exists() { return 0; }
+keep_sudo_alive() { return 0; }
+setup_hibernation() { return "$SETUP_RESULT"; }
+configure_zswap() { printf 'zswap\t\n' >> "$CALLS"; return 1; }
+write_system_config() { cat >/dev/null; }
+get_ram_size() { echo 16; }
+get_gpu_info() { echo ""; }
+main "$@"''')
+        for status in (0, 1, 2, 3):
+            with self.subTest(status=status):
+                self.calls.unlink(missing_ok=True)
+                self.env["SETUP_RESULT"] = str(status)
+                result = self.shell(source)
+                self.assertEqual(result.returncode, 1 if status == 1 else 0, result.stderr)
+                self.assertEqual(["zswap"] in self.logged_calls(), status == 0)
+                if status == 0:
+                    self.assertIn("Hibernation setup completed", result.stderr)
+
+
 class HibernationTests(ScriptCase):
     def test_unsafe_filesystem_or_fstab_stops_before_swap_changes(self):
         fstab = self.directory / "fstab"

@@ -132,6 +132,8 @@ main() {
   *) defer_hibernation_setup; return "$setup_result" ;;
   esac
 
+  configure_zswap || log WARN "Optional zswap setup skipped; hibernation remains configured"
+
   if ! write_system_config "/etc/systemd/sleep.conf.d/hibernation.conf" <<'EOF'; then
 [Sleep]
 AllowSuspend=yes
