@@ -1,8 +1,119 @@
 """Before hooks must stop when essential package installation fails."""
 
+import json
 import tomllib
 
-from helpers import ROOT, SCRIPTS, ScriptCase
+from helpers import CHEZMOI, ROOT, SCRIPTS, ScriptCase
+
+
+class SetupPreferenceTests(ScriptCase):
+    features = {
+        "setupSnapper": "Setup Snapper snapshots",
+        "setupHibernation": "Setup hibernation",
+        "setupSecureBoot": "Setup Limine Secure Boot (writes firmware keys)",
+        "preserveFirmwareSecureBootKeys": "Preserve firmware Secure Boot certificates",
+        "installDrivers": "Install drivers",
+    }
+
+    def setUp(self):
+        super().setUp()
+        if not CHEZMOI:
+            self.skipTest("chezmoi is required for configuration initialization")
+        self.source = self.directory / "source"
+        self.source.mkdir()
+        (self.source / ".chezmoi.yaml.tmpl").write_text(
+            (ROOT / "home/.chezmoi.yaml.tmpl").read_text())
+        self.config = self.directory / "chezmoi.yaml"
+        self.stub("git", 'exec /usr/bin/git "$@"')
+        self.command = [CHEZMOI, "--config", str(self.config), "--source", str(self.source),
+                        "--destination", str(self.directory / "destination"), "--no-tty",
+                        "--override-data", '{"chezmoi":{"osRelease":{"id":"arch"}}}']
+
+    def initialize(self, *, answers=None, defaults=True, prompt=False):
+        command = self.command + ["init"]
+        if defaults:
+            command.append("--promptDefaults")
+        if prompt:
+            command.append("--prompt")
+        for question, value in (answers or {}).items():
+            command.extend(["--promptBool", f"{question}={str(value).lower()}"])
+        result = self.run_process(command, name="isolated chezmoi init", input="")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        result = self.run_process(self.command + ["dump-config", "--format=json"],
+                                  name="read generated configuration")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        return json.loads(result.stdout)
+
+    def preferences(self, config):
+        return {key: config["data"][key] for key in self.features}
+
+    def test_personal_enables_every_feature_without_feature_prompts(self):
+        for saved in ({}, {key: False for key in self.features}):
+            with self.subTest(saved=saved):
+                self.config.write_text(json.dumps({"data": saved}))
+                config = self.initialize(answers={"Is this a personal setup": True}, defaults=False,
+                                         prompt=bool(saved))
+                self.assertTrue(config["data"]["personal"])
+                self.assertEqual(self.preferences(config), dict.fromkeys(self.features, True))
+                self.assertTrue(all(config["scriptEnv"][key] == "1" for key in
+                                    ("PERSONAL", "SETUP_SNAPPER", "SETUP_HIBERNATION",
+                                     "SETUP_SECURE_BOOT", "PRESERVE_FIRMWARE_SECURE_BOOT_KEYS", "INSTALL_DRIVERS")))
+
+    def test_nonpersonal_defaults_and_saved_answers_survive_initialization(self):
+        config = self.initialize()
+        self.assertFalse(config["data"]["personal"])
+        self.assertEqual(self.preferences(config), dict.fromkeys(self.features, False))
+        config = self.initialize(prompt=True, answers={self.features["setupSnapper"]: True,
+                                                     self.features["installDrivers"]: True})
+        expected = dict.fromkeys(self.features, False)
+        expected.update(setupSnapper=True, installDrivers=True)
+        self.assertEqual(self.preferences(config), expected)
+        self.assertEqual(self.preferences(self.initialize(defaults=False)), expected)
+        config = self.initialize(prompt=True, answers={self.features["setupHibernation"]: True})
+        expected.update(setupSnapper=False, installDrivers=False, setupHibernation=True)
+        self.assertEqual(self.preferences(config), expected)
+
+    def test_firmware_question_is_only_asked_with_secure_boot(self):
+        answers = {"Is this a personal setup": False,
+                   self.features["setupSnapper"]: False,
+                   self.features["setupHibernation"]: False,
+                   self.features["setupSecureBoot"]: False,
+                   self.features["installDrivers"]: False}
+        config = self.initialize(answers=answers, defaults=False)
+        self.assertFalse(config["data"]["preserveFirmwareSecureBootKeys"])
+        answers[self.features["setupSecureBoot"]] = True
+        answers[self.features["preserveFirmwareSecureBootKeys"]] = True
+        config = self.initialize(answers=answers, defaults=False, prompt=True)
+        self.assertTrue(config["data"]["preserveFirmwareSecureBootKeys"])
+        self.assertEqual(self.preferences(self.initialize(defaults=False)), self.preferences(config))
+
+    def test_skip_packages_only_changes_runtime_flags(self):
+        expected = dict.fromkeys(self.features, True)
+        self.config.write_text(json.dumps({"data": {"personal": False, **expected}}))
+        self.env["SKIP_PACKAGES"] = "1"
+        config = self.initialize(defaults=False)
+        self.assertEqual(self.preferences(config), expected)
+        for key in ("SETUP_SNAPPER", "SETUP_HIBERNATION", "INSTALL_DRIVERS"):
+            self.assertEqual(config["scriptEnv"][key], "0")
+        self.assertEqual(config["scriptEnv"]["SETUP_SECURE_BOOT"], "1")
+        self.env.pop("SKIP_PACKAGES")
+        config = self.initialize(defaults=False)
+        self.assertEqual(self.preferences(config), expected)
+        self.assertEqual(config["scriptEnv"]["INSTALL_DRIVERS"], "1")
+
+    def test_unattended_defaults_and_saved_preferences(self):
+        for control in ("NOCONFIRM", "CI", "GITHUB_ACTIONS", "GITLAB_CI", "CODESPACES"):
+            for personal in (False, True):
+                for saved in ({}, {key: index % 2 == 0 for index, key in enumerate(self.features)}):
+                    with self.subTest(control=control, personal=personal, saved=saved):
+                        self.env[control] = "1"
+                        self.config.write_text(json.dumps({"data": {"personal": personal, **saved}}))
+                        config = self.initialize(defaults=False)
+                        expected = dict.fromkeys(self.features, personal)
+                        if not personal:
+                            expected.update(saved)
+                        self.assertEqual(self.preferences(config), expected)
+                        self.env.pop(control)
 
 
 class DependencyTests(ScriptCase):
