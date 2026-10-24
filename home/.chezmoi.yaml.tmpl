@@ -1,5 +1,4 @@
 {{- $interactive := not (or (eq (env "NOCONFIRM") "1") (env "CI") (env "GITHUB_ACTIONS") (env "GITLAB_CI") (env "CODESPACES")) -}}
-{{- $skipPackages := eq (env "SKIP_PACKAGES") "1" -}}
 
 {{- /* Defaults */ -}}
 {{- $personal := get . "personal" | default false -}}
@@ -66,12 +65,12 @@ scriptEnv:
   PERSONAL: {{ ternary "1" "0" $personal | quote }}
   DISTRO_FAMILY: {{ $distroFamily | quote }}
   DISTRO: {{ .chezmoi.osRelease.id | quote }}
-  SETUP_SNAPPER: {{ ternary "1" "0" (and $setupSnapper (not $skipPackages)) | quote }}
-  SETUP_HIBERNATION: {{ ternary "1" "0" (and $setupHibernation (not $skipPackages)) | quote }}
+  SETUP_SNAPPER: {{ ternary "1" "0" $setupSnapper | quote }}
+  SETUP_HIBERNATION: {{ ternary "1" "0" $setupHibernation | quote }}
   SETUP_SECURE_BOOT: {{ ternary "1" "0" $setupSecureBoot | quote }}
   PRESERVE_FIRMWARE_SECURE_BOOT_KEYS: {{ ternary "1" "0" $preserveFirmwareSecureBootKeys | quote }}
 
-  INSTALL_DRIVERS: {{ ternary "1" "0" (and $installDrivers (not $skipPackages)) | quote }}
+  INSTALL_DRIVERS: {{ ternary "1" "0" $installDrivers | quote }}
 
 
 edit:

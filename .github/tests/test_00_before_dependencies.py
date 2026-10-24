@@ -90,19 +90,71 @@ class SetupPreferenceTests(ScriptCase):
         self.assertTrue(config["data"]["preserveFirmwareSecureBootKeys"])
         self.assertEqual(self.preferences(self.initialize(defaults=False)), self.preferences(config))
 
-    def test_skip_packages_only_changes_runtime_flags(self):
+    def render_setup(self, name):
+        result = self.run_process(
+            [CHEZMOI, "--config", str(self.config), "--source", str(ROOT / "home"),
+             "--destination", str(self.directory), "--working-tree", str(ROOT),
+             "--override-data", '{"chezmoi":{"osRelease":{"id":"arch"}}}', "execute-template"],
+            name=name, input=(SCRIPTS / name).read_text())
+        self.assertEqual(result.returncode, 0, result.stderr)
+        return result.stdout
+
+    def test_skip_packages_is_temporary_and_preserves_hibernation_retry(self):
         expected = dict.fromkeys(self.features, True)
         self.config.write_text(json.dumps({"data": {"personal": False, **expected}}))
         self.env["SKIP_PACKAGES"] = "1"
         config = self.initialize(defaults=False)
         self.assertEqual(self.preferences(config), expected)
-        for key in ("SETUP_SNAPPER", "SETUP_HIBERNATION", "INSTALL_DRIVERS"):
-            self.assertEqual(config["scriptEnv"][key], "0")
-        self.assertEqual(config["scriptEnv"]["SETUP_SECURE_BOOT"], "1")
+        for key in ("SETUP_SNAPPER", "SETUP_HIBERNATION", "INSTALL_DRIVERS", "SETUP_SECURE_BOOT"):
+            self.assertEqual(config["scriptEnv"][key], "1")
+        self.env.update(config["scriptEnv"])
+        self.stub("id", "echo 1000")
+        pending = self.directory / "state/chezmoi/hibernation.pending"
+        pending.parent.mkdir(parents=True)
+        pending.write_text("..")
+        names = ("run_onchange_before_02_packages.sh.tmpl",
+                 "run_onchange_after_01_snapper.sh.tmpl",
+                 "run_onchange_after_03_hibernation.sh.tmpl")
+        skipped = {name: self.render_setup(name) for name in names}
+        for name, source in skipped.items():
+            with self.subTest(script=name):
+                result = self.shell(source)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(pending.read_text(), "..")
         self.env.pop("SKIP_PACKAGES")
+        for name in names:
+            with self.subTest(script=name):
+                normal = self.render_setup(name)
+                self.assertNotEqual(skipped[name], normal)
+                self.assertEqual(normal, self.render_setup(name))
+
+    def test_native_init_migrates_old_execution_flags_without_changing_preferences(self):
+        expected = dict.fromkeys(self.features, False)
+        expected.update(setupSnapper=True, setupHibernation=True)
+        self.config.write_text(json.dumps({
+            "data": {"personal": False, **expected},
+            "scriptEnv": dict.fromkeys(("SETUP_SNAPPER", "SETUP_HIBERNATION", "INSTALL_DRIVERS"), "0"),
+        }))
         config = self.initialize(defaults=False)
         self.assertEqual(self.preferences(config), expected)
-        self.assertEqual(config["scriptEnv"]["INSTALL_DRIVERS"], "1")
+        self.assertEqual(config["scriptEnv"]["SETUP_SNAPPER"], "1")
+        self.assertEqual(config["scriptEnv"]["SETUP_HIBERNATION"], "1")
+        self.assertEqual(config["scriptEnv"]["INSTALL_DRIVERS"], "0")
+
+    def test_only_scripts_using_changed_execution_flags_are_invalidated(self):
+        config = self.initialize()
+        scripts = ("run_onchange_before_02_packages.sh.tmpl",
+                   "run_onchange_after_01_snapper.sh.tmpl",
+                   "run_onchange_after_03_hibernation.sh.tmpl")
+        original = {name: self.render_setup(name) for name in scripts}
+        for flag, affected in (("INSTALL_DRIVERS", scripts[:1]),
+                               ("SETUP_SNAPPER", scripts[:2]),
+                               ("SETUP_HIBERNATION", scripts[2:])):
+            with self.subTest(flag=flag):
+                changed = dict(config["scriptEnv"], **{flag: "1"})
+                self.config.write_text(json.dumps({"data": config["data"], "scriptEnv": changed}))
+                for name in scripts:
+                    self.assertEqual(self.render_setup(name) != original[name], name in affected)
 
     def test_unattended_defaults_and_saved_preferences(self):
         for control in ("NOCONFIRM", "CI", "GITHUB_ACTIONS", "GITLAB_CI", "CODESPACES"):
