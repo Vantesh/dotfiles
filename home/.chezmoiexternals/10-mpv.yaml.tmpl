@@ -1,25 +1,20 @@
 {{- if and (eq .chezmoi.os "linux") (not (env "OFFLINE")) }}
 {{- $modernz := "https://raw.githubusercontent.com/Samillion/ModernZ/579897e8c974c380caa5017dc7b27a69123c1333" }}
 {{- $thumbfast := "https://raw.githubusercontent.com/po5/thumbfast/0f711de3138c9bd6718209d819ac54022c23ded2" }}
-{{- $refresh := "336h" }}
 # Immutable revisions: update the pins deliberately, together with script options.
 ".config/mpv/scripts/modernz.lua":
   type: file
   url: "{{ $modernz }}/modernz.lua"
-  refreshPeriod: {{ $refresh | quote }}
 
 ".config/mpv/scripts/thumbfast.lua":
   type: file
   url: "{{ $thumbfast }}/thumbfast.lua"
-  refreshPeriod: {{ $refresh | quote }}
 
 ".config/mpv/scripts/pause-indicator.lua":
   type: file
   url: "{{ $modernz }}/extras/pause-indicator-lite/pause_indicator_lite.lua"
-  refreshPeriod: {{ $refresh | quote }}
 
 ".config/mpv/fonts/modernz-icons.ttf":
   type: file
   url: "{{ $modernz }}/modernz-icons.ttf"
-  refreshPeriod: {{ $refresh | quote }}
 {{- end }}
