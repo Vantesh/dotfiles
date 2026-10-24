@@ -447,13 +447,14 @@ request_initramfs_rebuild() {
 # Read literal persistent default arguments using Limine's config precedence.
 # Never infer future unlocking from the currently running /proc/cmdline.
 # initramfs accepts a verified LUKS UUID to defer simple cryptdevice validation.
-# convert-unlock takes verified LUKS UUID, mapper, filesystem UUID, and optional
-# private kernel/default stage paths; empty paths perform preflight only.
+# convert-unlock takes verified LUKS UUID, mapper, filesystem UUID, backing-device
+# MAJ:MIN, and optional private kernel/default stage paths; empty paths preflight.
 get_limine_cmdline() {
   sudo python3 -I -B - "${1:?Limine operation required}" "${@:2}" <<'PYTHON'
 import glob
 import pathlib
 import re
+import subprocess
 import sys
 
 mode = sys.argv[1]
@@ -468,7 +469,7 @@ converting = mode == 'convert-unlock'
 fragment = mode == 'fragment-file'
 staged = {}
 if converting:
-    luks_uuid, mapping, filesystem_uuid, kernel_stage, default_stage = sys.argv[2:]
+    luks_uuid, mapping, filesystem_uuid, luks_device_id, kernel_stage, default_stage = sys.argv[2:]
     staged = {name: pathlib.Path(stage) for name, stage in
               ((kernel, kernel_stage), (default, default_stage)) if stage}
 feature_files = {default, managed, '/etc/limine-entry-tool.d/20-quiet-boot.conf'}
@@ -588,14 +589,41 @@ if converting:
     tokens = re.compile(r'(?:[^\s"]+|"[^"]*")+')
     arguments = tokens.findall(value)
     legacy = [token for token in arguments if token.startswith('cryptdevice=')]
-    expected = 'cryptdevice=UUID=' + luks_uuid + ':' + mapping
+    source = re.fullmatch(r'cryptdevice=((?:PART)?UUID=[0-9a-fA-F-]+):' + re.escape(mapping), legacy[0]) if len(legacy) == 1 else None
+    sources = ', '.join(source for source, argument, _ in active_sources
+                        if re.search(r'(?<![\w.=])cryptdevice=', argument))
     roots = [token[5:] for token in arguments if token.startswith('root=')]
-    if (not luks_uuid or not re.fullmatch(r'[\w.+-]+', mapping) or legacy != [expected]
+    if (not luks_uuid or not re.fullmatch(r'[\w.+-]+', mapping) or not source
+            or not re.fullmatch(r'[0-9]+:[0-9]+', luks_device_id)
             or value.count('"') % 2 or '--' in arguments
             or len(roots) != 1 or roots[0] not in ('UUID=' + filesystem_uuid, '/dev/mapper/' + mapping)):
-        sources = ', '.join(source for source, argument, _ in active_sources
-                            if re.search(r'(?<![\w.=])cryptdevice=', argument))
-        raise SystemExit(f'Cannot convert installer cryptdevice in {sources}: require one unquoted cryptdevice=UUID=<verified LUKS UUID>:<active mapper> and matching root=; reconcile these persistent arguments manually')
+        raise SystemExit(f'Cannot convert installer cryptdevice in {sources}: require one unquoted cryptdevice=UUID=<uuid>:<active mapper> or cryptdevice=PARTUUID=<partuuid>:<active mapper> and matching root=; reconcile these persistent arguments manually')
+    expected = legacy[0]
+
+    def block_output(*args):
+        try:
+            return subprocess.check_output(args, text=True, stderr=subprocess.PIPE).strip()
+        except (OSError, subprocess.CalledProcessError) as error:
+            raise SystemExit(f'Cannot verify installer LUKS device in {sources} ({args[0]}); configuration was not changed') from error
+
+    def resolve_identifier(identifier):
+        # Scan without cached results and reject duplicate identifiers, even if
+        # a /dev/disk/by-* symlink happens to select the active root device.
+        devices = block_output('blkid', '-c', '/dev/null', '-t', identifier, '-o', 'device').splitlines()
+        if len(devices) != 1:
+            raise SystemExit(f'Installer {identifier} in {sources} is missing or ambiguous; configuration was not changed')
+        device = devices[0]
+        if block_output('lsblk', '-dnro', 'MAJ:MIN', device) != luks_device_id:
+            raise SystemExit(f'Installer {identifier} in {sources} does not resolve to the active LUKS backing device; configuration was not changed')
+        return device
+
+    identifier = source[1]
+    device = resolve_identifier(identifier)
+    if (block_output('blkid', '-p', '-s', 'TYPE', '-o', 'value', device) != 'crypto_LUKS'
+            or block_output('blkid', '-p', '-s', 'UUID', '-o', 'value', device) != luks_uuid):
+        raise SystemExit(f'Installer device in {sources} is not the verified root LUKS container; configuration was not changed')
+    if identifier != 'UUID=' + luks_uuid:
+        resolve_identifier('UUID=' + luks_uuid)
     selections = any(token.startswith(('rd.luks.name=', 'luks.name=', 'rd.luks.uuid=', 'luks.uuid=')) for token in arguments)
     replacement = '' if selections else 'rd.luks.name=' + luks_uuid + '=' + mapping
     if not selections:
@@ -731,8 +759,8 @@ BASH
 
 # Verify a single Btrfs device and its ancestry, not its name. Called first for
 # root (before mutations), then for the actual swapfile (before publication).
-# Sets caller-local resume_uuid (the filesystem UUID), luks_uuid and root_mapping
-# through Bash dynamic scope; never guesses encryption from a mapper name.
+# Sets caller-local resume_uuid (filesystem UUID), luks_uuid, luks_device_id
+# (backing-device MAJ:MIN) and root_mapping through Bash dynamic scope.
 inspect_btrfs_device() {
   local target="$1" identity mount_point source filesystem uuid extra device metadata device_id block_fs block_uuid devices path types parent parent_id status kind backing resolved
   local -a parents
@@ -770,6 +798,7 @@ inspect_btrfs_device() {
   LAST_ERROR="Unsupported block-device topology for $target"
   types=$(lsblk -srn -o TYPE "$device" 2>/dev/null) || return 3
   luks_uuid=""
+  luks_device_id=""
   root_mapping=""
   case "$types" in
   disk | $'part\ndisk') ;;
@@ -797,6 +826,7 @@ inspect_btrfs_device() {
     [[ -n "$root_mapping" ]] || return 3
     resolved=$(readlink -e -- "/dev/mapper/$root_mapping") || return 3
     [[ $(lsblk -dnro MAJ:MIN "$resolved" 2>/dev/null) = "$device_id" ]] || return 3
+    luks_device_id="$parent_id"
     ;;
   *) return 3 ;;
   esac
@@ -885,8 +915,8 @@ mkinitcpio_hook_exists() {
 configure_systemd_initramfs() {
   # inspect_btrfs_device also populates the filesystem UUID through dynamic scope.
   # shellcheck disable=SC2034
-  local resume_uuid luks_uuid root_mapping cmdline current effective ordered hook content phase=before seen=" " snapshot_required=false
-  local convert=false kernel_present=false default_present=false unlock_devices
+  local resume_uuid luks_uuid luks_device_id root_mapping cmdline current effective ordered hook content phase=before seen=" " snapshot_required=false
+  local convert=false kernel_present=false default_present=false
   local obsolete_hooks=" udev encrypt keymap consolefont resume btrfs-overlayfs "
   local -a hooks previous final_hooks middle=() tail=()
   validate_mkinitcpio_dropins || return 1
@@ -897,16 +927,9 @@ configure_systemd_initramfs() {
   }
   if [[ "$cmdline" =~ (^|[[:space:]\"])cryptdevice= ]]; then
     convert=true
-    if ! cmdline=$(get_limine_cmdline convert-unlock "$luks_uuid" "$root_mapping" "$resume_uuid" "" "") ||
+    if ! cmdline=$(get_limine_cmdline convert-unlock "$luks_uuid" "$root_mapping" "$resume_uuid" "$luks_device_id" "" "") ||
       ! get_mkinitcpio_hooks unlock-check >/dev/null; then
       LAST_ERROR="Cannot safely convert installer unlocking; see the persistent source/keyfile diagnostics; configuration was not changed"
-      return 1
-    fi
-    # The superblock UUID is already verified against the active backing device.
-    # Refuse duplicate UUIDs rather than generate an ambiguous boot selector.
-    if ! unlock_devices=$(sudo blkid -t "UUID=$luks_uuid" -o device) ||
-      [[ -z "$unlock_devices" || "$unlock_devices" = *$'\n'* ]]; then
-      LAST_ERROR="LUKS UUID=$luks_uuid is missing or ambiguous; resolve duplicate device identifiers before converting persistent unlocking; configuration was not changed"
       return 1
     fi
     if sudo test -f /etc/kernel/cmdline && ! sudo test -L /etc/kernel/cmdline; then kernel_present=true; fi
@@ -1012,7 +1035,7 @@ _stage_initramfs_unlock() {
   local kernel_stage="" default_stage="" candidate
   if [[ "$kernel_present" = true ]]; then kernel_stage="$1"; shift; fi
   if [[ "$default_present" = true ]]; then default_stage="$1"; shift; fi
-  candidate=$(get_limine_cmdline convert-unlock "$luks_uuid" "$root_mapping" "$resume_uuid" "$kernel_stage" "$default_stage") || return 1
+  candidate=$(get_limine_cmdline convert-unlock "$luks_uuid" "$root_mapping" "$resume_uuid" "$luks_device_id" "$kernel_stage" "$default_stage") || return 1
   [[ "$candidate" = "$cmdline" ]] && verify_systemd_unlock "$candidate" || return 1
   [[ $(get_mkinitcpio_hooks candidate "$content") = "$effective" ]] || return 1
   printf '%s\n' "$content" > "$1" || return 1
