@@ -122,6 +122,7 @@ exec "$@"''')
                     self.assertEqual(generator.read_text(), "[zram0]\nzram-size=4096\n")
 
     def test_only_successful_hibernation_configures_zswap(self):
+        self.stub("figlet", "exit 0")
         for status in (0, 1, 2, 3, "optional-failure"):
             with self.subTest(status=status):
                 self.fixture(f"setup-{status}")
@@ -664,6 +665,7 @@ esac""",
         self.assertEqual(result.stdout.strip(), "base systemd block filesystems fsck")
 
     def test_failed_swap_setup_does_not_publish_resume_and_keeps_retry_pending(self):
+        self.stub("figlet", "exit 0")
         script = self.resume_fixture(encrypted=True)
         script = script.replace(
             "setup_hibernation\n",
