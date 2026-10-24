@@ -124,6 +124,7 @@ main() {
     if ! jq -e '.setup_mode' <<<"$state" >/dev/null; then
       die "Enter UEFI Setup Mode with Secure Boot disabled, then retry; use systemctl reboot --firmware-setup to open firmware settings"
     fi
+    request_initramfs_rebuild || die "Failed to request Secure Boot rebuild: $LAST_ERROR"
     sudo sbctl create-keys || die "Failed to create Secure Boot keys"
     log INFO "Created Secure Boot signing keys"
   fi
@@ -153,6 +154,7 @@ main() {
       log INFO "Not preserving firmware-builtin Secure Boot certificates"
     fi
     log WARN "Enrolling Secure Boot keys replaces the firmware key databases"
+    request_initramfs_rebuild || die "Failed to request Secure Boot rebuild: $LAST_ERROR"
     sudo sbctl enroll-keys "${enrollment_flags[@]}" || die "Failed to enroll Secure Boot keys; leave Secure Boot disabled"
     state="$(sudo sbctl --json status)" || die "Failed to verify Secure Boot state after enrollment"
     if ! validate_sbctl_status "$state"; then
@@ -165,11 +167,13 @@ main() {
   fi
 
   check_secure_boot_signing_key "$key_config"
-  local key
+  local key current_value
   for key in ENABLE_VERIFICATION ENABLE_ENROLL_LIMINE_CONFIG; do
+    current_value="$(get_limine_config_value "$key")" || die "Failed to read $key"
+    [[ "$current_value" != yes ]] || continue
+    request_initramfs_rebuild || die "Failed to request Secure Boot rebuild: $LAST_ERROR"
     update_config "$LIMINE_DEFAULTS" "$key" yes || die "Failed to configure $key: $LAST_ERROR"
   done
-  request_initramfs_rebuild || die "Failed to request Secure Boot rebuild: $LAST_ERROR"
   log INFO "Enabled Limine file verification and automatic config checksum enrollment"
 }
 
