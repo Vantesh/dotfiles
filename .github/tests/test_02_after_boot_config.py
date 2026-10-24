@@ -1,5 +1,7 @@
 """Boot-option writes must preserve a usable config and a pending rebuild."""
 
+from itertools import product
+
 from helpers import LIB, SCRIPTS, ScriptCase
 
 
@@ -23,9 +25,28 @@ class SystemdInitramfsTests(ScriptCase):
         self.stub("sort", 'exec /usr/bin/sort "$@"')
         self.stub("tee", 'exec /usr/bin/tee "$@"')
         self.stub("python3", 'exec /usr/bin/python3 "$@"')
-        self.stub("blkid", r'''[ "$*" = '-t UUID=bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb -o device' ] || exit 97
-echo /dev/fixture-container
-[ "$FAILURE" != ambiguous ] || echo /dev/duplicate-container''')
+        self.stub("blkid", r'''case "$*" in
+    '-c /dev/null -t UUID=bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb -o device'|\
+    '-c /dev/null -t PARTUUID=fd8ce3d8-1e48-4b0e-91a8-24cdb2f14ce1 -o device')
+        [ "$FAILURE" != source-missing ] || exit 2
+        if [ "$FAILURE" = source-device ]; then echo /dev/other-container; else echo /dev/fixture-container; fi
+        if [ "$FAILURE" = source-ambiguous ] || [ "$FAILURE:$4" = ambiguous:UUID=bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb ]; then
+            echo /dev/duplicate-container
+        fi ;;
+    '-p -s TYPE -o value /dev/fixture-container')
+        if [ "$FAILURE" = not-luks ]; then echo ext4; else echo crypto_LUKS; fi ;;
+    '-p -s UUID -o value /dev/fixture-container')
+        if [ "$FAILURE" = source-uuid ]; then echo dddddddd-dddd-dddd-dddd-dddddddddddd;
+        else echo bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb; fi ;;
+    *) exit 97 ;;
+esac''', log=True)
+        self.stub("lsblk", r'''case "$*" in
+    '-dnro MAJ:MIN /dev/fixture-container')
+        [ "$FAILURE" != not-block ] || exit 23
+        echo 8:2 ;;
+    '-dnro MAJ:MIN /dev/other-container') echo 8:3 ;;
+    *) exit 97 ;;
+esac''', log=True)
         (self.etc / "kernel").mkdir()
         (self.etc / "limine-entry-tool.d").mkdir()
         self.kernel = self.etc / "kernel/cmdline"
@@ -87,9 +108,10 @@ main || exit 1
 inspect_btrfs_device() {
     [[ "$FAILURE" != identity ]] || return 3
     resume_uuid=aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa
-    luks_uuid=""; root_mapping=""
+    luks_uuid=""; luks_device_id=""; root_mapping=""
     if [[ "$ENCRYPTED" = 1 ]]; then
         luks_uuid=bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb
+        luks_device_id=8:2
         root_mapping="${MAPPING:-root}"
     fi
 }
@@ -383,10 +405,13 @@ mkinitcpio_hook_exists() { [[ "$1:$FAILURE" != sd-encrypt:hook ]]; }
                     self.assertFalse(self.marker.exists())
 
     def test_fresh_luks_conversion_updates_active_sources_without_losing_tokens(self):
-        legacy = "cryptdevice=UUID=bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:data-volume.v2"
         named = "rd.luks.name=bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb=data-volume.v2"
-        for sources in ("both", "kernel", "default", "no-kernel", "no-default", "filesystem-root"):
-            with self.subTest(sources=sources):
+        for identifier, sources in product(
+            ("UUID=bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb", "PARTUUID=fd8ce3d8-1e48-4b0e-91a8-24cdb2f14ce1"),
+            ("both", "kernel", "default", "no-kernel", "no-default", "filesystem-root"),
+        ):
+            with self.subTest(identifier=identifier, sources=sources):
+                legacy = f"cryptdevice={identifier}:data-volume.v2"
                 self.managed.unlink(missing_ok=True)
                 self.marker.unlink(missing_ok=True)
                 self.persistent_sources(legacy, mapping="data-volume.v2")
@@ -429,6 +454,42 @@ mkinitcpio_hook_exists() { [[ "$1:$FAILURE" != sd-encrypt:hook ]]; }
                 self.assertEqual([path.read_bytes() for path in paths], after)
                 self.assertFalse(self.marker.exists())
 
+    def test_archinstall_partuuid_uses_container_uuid_and_preserves_root_arguments(self):
+        legacy = "cryptdevice=PARTUUID=fd8ce3d8-1e48-4b0e-91a8-24cdb2f14ce1:root"
+        named = "rd.luks.name=bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb=root"
+        arguments = legacy + " root=/dev/mapper/root zswap.enabled=0 rootflags=subvol=@ rw rootfstype=btrfs\n"
+        self.env["ENCRYPTED"] = "1"
+        self.kernel.write_text(arguments)
+        result = self.configure(persistent=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(self.kernel.read_text(), arguments.replace(legacy, named))
+        self.assertFalse(self.defaults.exists())
+        self.assertIn(" sd-encrypt ", result.stdout)
+        self.marker.unlink()
+        after = (self.kernel.read_bytes(), self.managed.read_bytes())
+        self.calls.unlink()
+        result = self.configure(persistent=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual((self.kernel.read_bytes(), self.managed.read_bytes()), after)
+        self.assertFalse(self.marker.exists())
+        self.assertEqual(self.logged_calls(), [])
+
+    def test_unverified_installer_devices_never_publish_arguments_or_hooks(self):
+        for identifier, failure in product(
+            ("UUID=bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb", "PARTUUID=fd8ce3d8-1e48-4b0e-91a8-24cdb2f14ce1"),
+            ("source-missing", "source-ambiguous", "source-device", "not-block", "not-luks", "source-uuid", "ambiguous"),
+        ):
+            with self.subTest(identifier=identifier, failure=failure):
+                self.env["FAILURE"] = failure
+                self.persistent_sources(f"cryptdevice={identifier}:root")
+                paths = (self.kernel, self.defaults, self.main)
+                before = [path.read_bytes() for path in paths]
+                result = self.configure(persistent=True)
+                self.assertNotEqual(result.returncode, 0, result.stderr)
+                self.assertEqual([path.read_bytes() for path in paths], before)
+                self.assertFalse(self.managed.exists())
+                self.assertFalse(self.marker.exists())
+
     def test_matching_busybox_and_systemd_selections_reuse_existing_policy(self):
         legacy = "cryptdevice=UUID=bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:root"
         named = "rd.luks.name=bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb=root"
@@ -445,7 +506,9 @@ mkinitcpio_hook_exists() { [[ "$1:$FAILURE" != sd-encrypt:hook ]]; }
         legacy = "cryptdevice=UUID=bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:root"
         for unlock in (
             legacy + ":allow-discards", legacy + " " + legacy,
-            legacy.replace("UUID=", "PARTUUID="),
+            legacy.replace("UUID=", "PARTUUID="),  # Unresolvable PARTUUID, not the LUKS UUID.
+            "cryptdevice=PARTUUID=fd8ce3d8-1e48-4b0e-91a8-24cdb2f14ce1:other",
+            legacy + " cryptdevice=PARTUUID=fd8ce3d8-1e48-4b0e-91a8-24cdb2f14ce1:root",
             legacy.replace("UUID=bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb", "/dev/sda2"),
             legacy.replace("bbbbbbbb", "aaaaaaaa"), legacy.replace(":root", ":other"),
             legacy + " cryptkey=rootfs:/keyfile", legacy + " crypto=sha256:aes:256:0:",

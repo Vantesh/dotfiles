@@ -219,7 +219,7 @@ setup_hibernation
             + script
             + r"""
 inspect_btrfs_device / || { printf '%s\n' "$LAST_ERROR" >&2; exit 1; }
-printf '%s|%s|%s\n' "$resume_uuid" "$luks_uuid" "$root_mapping"
+printf '%s|%s|%s|%s\n' "$resume_uuid" "$luks_uuid" "$root_mapping" "$luks_device_id"
 get_btrfs_root_device
 """
         )
@@ -227,7 +227,7 @@ get_btrfs_root_device
         self.assertEqual(
             result.stdout.splitlines(),
             [
-                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa|bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb|data[system]:v2",
+                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa|bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb|data[system]:v2|8:17",
                 str(self.directory / "dev/mapper/data[system]:v2"),
             ],
         )
