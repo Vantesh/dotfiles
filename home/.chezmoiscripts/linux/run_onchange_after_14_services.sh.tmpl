@@ -110,6 +110,15 @@ main() {
   ); then
     die "Failed to apply system services/firewall/login shell with mise"
   fi
+
+{{- if .personal }}
+  if ! busctl call org.freedesktop.Accounts \
+      "/org/freedesktop/Accounts/User$(id -u)" \
+      org.freedesktop.Accounts.User SetIconFile s \
+      "$HOME/.local/share/avatars/profile.png"; then
+    die "Failed to update account profile icon"
+  fi
+{{- end }}
 }
 
 main "$@"
