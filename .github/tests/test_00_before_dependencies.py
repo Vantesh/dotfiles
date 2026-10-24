@@ -1,6 +1,9 @@
 """Before hooks must stop when essential package installation fails."""
 
 import json
+import os
+import pty
+import subprocess
 import tomllib
 
 from helpers import CHEZMOI, ROOT, SCRIPTS, ScriptCase
@@ -151,6 +154,141 @@ if [[ "$(id -u)" -eq 0 ]]; then""",
         self.assertNotEqual(result.returncode, 0)
         self.assertEqual(len(self.logged_calls()), 1)
         self.assertEqual(self.logged_calls()[0][0], "mise")
+
+
+class RbwPrerequisiteTests(ScriptCase):
+    def setUp(self):
+        super().setUp()
+        self.env.update(CHEZMOI_SOURCE_DIR=str(SCRIPTS.parents[1]), PERSONAL="1")
+        self.source = (SCRIPTS / "run_before_00-install-pre-requisites.sh").read_text()
+        self.config = {
+            "email": "fixture@example.invalid", "sso_id": None, "base_url": None,
+            "identity_url": None, "ui_url": None, "notifications_url": None,
+            "lock_timeout": 10800, "sync_interval": 3600,
+            "pinentry": "pinentry", "client_cert_path": None,
+        }
+        config_file = self.directory / "config/rbw/config.json"
+        config_file.parent.mkdir(parents=True)
+        config_file.write_text("{}")
+        self.stub("pacman", "exit 0")
+        self.stub("mise", "exit 97")
+        self.stub("figlet", "exit 0")
+        self.stub("rbw", '''
+case "$*" in
+  "config show")
+    printf '%s\\n' "$RBW_CONFIG"
+    printf '%s\\n' "${RBW_CONFIG_ERROR:-}" >&2
+    exit "${RBW_CONFIG_STATUS:-0}" ;;
+  "config set email fixture@example.invalid"|"config set lock_timeout 10800") exit 0 ;;
+  login)
+    printf '%s\\n' "${RBW_LOGIN_ERROR:-}" >&2
+    exit "${RBW_LOGIN_STATUS:-0}" ;;
+  *) exit 97 ;;
+esac
+''', log=True)
+
+    def run_prerequisite(self, *, email=None):
+        self.env["RBW_CONFIG"] = json.dumps(self.config, indent=2)
+        if email is None:
+            return self.shell(self.source)
+        script = self.directory / "fixture.sh"
+        script.write_text(self.source)
+        master, slave = pty.openpty()
+        try:
+            os.write(master, (email + "\n").encode())
+            return subprocess.run(
+                ["/bin/bash", str(script)], stdin=slave, cwd=self.directory,
+                env=self.env, capture_output=True, text=True, timeout=15,
+            )
+        finally:
+            os.close(master)
+            os.close(slave)
+
+    def test_matching_configuration_preserves_unlocked_agent(self):
+        result = self.run_prerequisite()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(self.logged_calls(), [["rbw", "config", "show"], ["rbw", "login"]])
+
+    def test_only_changed_timeout_is_set_before_login(self):
+        self.config["lock_timeout"] = 3600
+        result = self.run_prerequisite()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(self.logged_calls(), [
+            ["rbw", "config", "show"], ["rbw", "config", "set", "lock_timeout", "10800"],
+            ["rbw", "login"],
+        ])
+
+    def test_login_error_keeps_original_diagnostic_and_status_without_reconfiguration(self):
+        self.env.update(RBW_LOGIN_STATUS="23", RBW_LOGIN_ERROR="fixture pinentry failed")
+        result = self.run_prerequisite()
+        self.assertEqual(result.returncode, 23, result.stderr)
+        self.assertIn("fixture pinentry failed", result.stderr)
+        self.assertNotIn("Enter your Bitwarden email", result.stderr)
+        self.assertEqual(self.logged_calls(), [["rbw", "config", "show"], ["rbw", "login"]])
+
+    def test_configuration_read_failure_never_reconfigures_or_logs_in(self):
+        self.env.update(RBW_CONFIG_STATUS="23", RBW_CONFIG_ERROR="fixture unreadable config")
+        for profile in ("", "work"):
+            with self.subTest(profile=profile):
+                self.calls.unlink(missing_ok=True)
+                self.env["RBW_PROFILE"] = profile
+                if profile:
+                    (self.directory / "config/rbw/config.json").unlink()
+                    config_file = self.directory / "config/rbw-work/config.json"
+                    config_file.parent.mkdir()
+                    config_file.write_text("{invalid")
+                result = self.run_prerequisite(email="fixture@example.invalid")
+                self.assertNotEqual(result.returncode, 0)
+                self.assertEqual(self.logged_calls(), [["rbw", "config", "show"]])
+
+    def test_missing_email_is_configured_before_first_login(self):
+        for missing in (None, ""):
+            with self.subTest(email=missing):
+                self.calls.unlink(missing_ok=True)
+                self.config["email"] = missing
+                result = self.run_prerequisite(email="fixture@example.invalid")
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(self.logged_calls(), [
+                    ["rbw", "config", "show"],
+                    ["rbw", "config", "set", "email", "fixture@example.invalid"],
+                    ["rbw", "login"],
+                ])
+
+    def test_absent_configuration_preserves_interactive_first_time_setup(self):
+        (self.directory / "config/rbw/config.json").unlink()
+        self.env.update(RBW_CONFIG_STATUS="1", RBW_CONFIG_ERROR="fixture no such file")
+        for profile in (None, "", "work"):
+            with self.subTest(profile=profile):
+                self.calls.unlink(missing_ok=True)
+                if profile is not None:
+                    self.env["RBW_PROFILE"] = profile
+                result = self.run_prerequisite(email="fixture@example.invalid")
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(self.logged_calls(), [
+                    ["rbw", "config", "show"],
+                    ["rbw", "config", "set", "email", "fixture@example.invalid"],
+                    ["rbw", "config", "set", "lock_timeout", "10800"], ["rbw", "login"],
+                ])
+
+    def test_missing_email_without_interaction_fails_with_configuration_instruction(self):
+        self.config["email"] = None
+        for controls in ({"NOCONFIRM": "1"}, {"CI": "1"}, {}):
+            with self.subTest(controls=controls):
+                self.calls.unlink(missing_ok=True)
+                self.env.pop("NOCONFIRM", None)
+                self.env.pop("CI", None)
+                self.env.update(controls)
+                result = self.run_prerequisite()
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("rbw config set email", result.stderr)
+                self.assertNotIn("Enter your Bitwarden email", result.stderr)
+                self.assertEqual(self.logged_calls(), [["rbw", "config", "show"]])
+
+    def test_public_setup_does_not_touch_bitwarden(self):
+        self.env["PERSONAL"] = "0"
+        result = self.run_prerequisite()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(self.logged_calls(), [])
 
 
 class NvidiaPackageTests(ScriptCase):
