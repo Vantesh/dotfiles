@@ -1,4 +1,4 @@
-{{- if .personal }}
+{{- if and .personal (not (env "OFFLINE")) }}
 ".local/share/avatars/profile.png":
   type: file
   url: "https://github.com/Vantesh.png"
