@@ -219,9 +219,6 @@ def main():
         if args.personal:
             selected, family, kernels = personal_packages(args.distro.lower())
             groups.extend(selected)
-        if not ("intel" in groups or family):
-            if subprocess.run(["pacman", "-T", "vulkan-driver"], stdout=subprocess.DEVNULL).returncode:
-                raise ValueError("No installed Vulkan provider; install a compatible provider before baseline dependencies can choose NVIDIA utilities.")
         if family == "legacy":
             subprocess.run(["mise", "--env", "nvidia-legacy-utils", "bootstrap", "packages", "apply", "--yes"], check=True)
         subprocess.run(["mise", "--env", ",".join(groups), "bootstrap", "packages", "apply", "--yes"], check=True)

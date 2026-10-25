@@ -122,7 +122,8 @@
 "pacman:rust" = { env = "packages" }
 "pacman:go" = { env = "packages" }
 "pacman:cava" = { env = "packages" }
-"pacman:zed" = { env = "packages" }
+# Zed requires a Vulkan driver; keep it out of hardware-independent baseline installs.
+"pacman:zed" = { env = "personal" }
 "pacman:obsidian" = { env = "packages" }
 "pacman:qbittorrent" = { env = "packages" }
 "pacman:brave-bin" = { env = "packages" }

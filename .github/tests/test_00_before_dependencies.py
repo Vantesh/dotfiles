@@ -5,6 +5,7 @@ import os
 import pty
 import shutil
 import subprocess
+import tomllib
 
 from helpers import CHEZMOI, ROOT, SCRIPTS, ScriptCase
 
@@ -71,7 +72,7 @@ class SetupPreferenceTests(ScriptCase):
         self.stub("chezmoi", f'exec {CHEZMOI} "$@"')
         self.stub("id", 'echo 1000')
         self.stub("yay", "exit 97")
-        self.stub("pacman", '[ "$1" = -Q ] || [ "$1" = -T ] || exit 97')
+        self.stub("pacman", '[ "$1" = -Q ] || exit 127')
         self.stub("pacman-conf", '[ "$*" = --repo-list ] || exit 97; echo chaotic-aur')
         self.stub("sudo", r'''case "$*" in
     -v|'-n true'|'pacman -Syu --noconfirm') exit 0 ;;
@@ -330,7 +331,8 @@ class PackageTests(ScriptCase):
         self.stub("yay", "exit 97")
         self.stub("pacman-conf", "echo chaotic-aur")
         self.stub("pacman", r'''case "$*" in
-    '-Q chaotic-keyring chaotic-mirrorlist'|'-T vulkan-driver'|-Dk) exit 0 ;;
+    '-Q chaotic-keyring chaotic-mirrorlist'|-Dk) exit 0 ;;
+    '-T vulkan-driver') exit 127 ;;
     -Q) printf '%s\n' "$PACKAGES" ;;
     '-Q nvidia-utils') echo "nvidia-utils $DRIVER_VERSION-1" ;;
     '-Q nvidia-580xx-utils') echo "nvidia-580xx-utils $DRIVER_VERSION-1" ;;
@@ -369,7 +371,7 @@ exit "$MISE_STATUS"''', log=True)
             command.append("--personal")
         return self.run_process(command, name="package orchestration")
 
-    def test_nonpersonal_packages_prepare_xdg_and_do_not_inspect_hardware(self):
+    def test_fresh_kvm_nonpersonal_packages_need_no_vulkan_provider_or_hardware_probe(self):
         for name in ("lspci", "hostnamectl", "rbw", "systemctl", "sbctl"):
             self.stub(name, "exit 97", log=True)
         self.env.update(MISE_ENV="personal", MISE_CONFIG_FILE="/unrelated/config.toml")
@@ -380,12 +382,14 @@ exit "$MISE_STATUS"''', log=True)
         self.assertTrue(all(call[0] in ("sudo", "mise") for call in self.logged_calls()))
         observed = json.loads((self.directory / "observed.json").read_text())
         self.assertEqual(observed["GOPATH"], str(self.directory / "data/go"))
+        declarations = tomllib.loads((ROOT / "mise/conf.d/packages.toml").read_text())["bootstrap"]["packages"]
+        # Zed requires a Vulkan driver; it must not let baseline resolution pull NVIDIA.
+        self.assertEqual(declarations["pacman:zed"]["env"], "personal")
 
     def test_chaotic_trust_upgrade_and_mise_helper_are_ordered_and_repeatable(self):
         (self.bin / "yay").unlink()
         self.stub("pacman", r'''case "$*" in
     '-Q chaotic-keyring chaotic-mirrorlist') test -f "$HOME/trust-installed" ;;
-    '-T vulkan-driver') exit 0 ;;
     *) exit 97 ;;
 esac''')
         self.stub("pacman-conf", 'echo core; if test -f "$HOME/repo-enabled"; then echo chaotic-aur; fi')
