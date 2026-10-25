@@ -224,7 +224,7 @@ Edit `.tmpl` files directly in the source repo. Use `chezmoi add` to import deli
 
 ## Script tests
 
-Setup-script tests require Python 3.11+, Loguru (`python-loguru`), Bash, and chezmoi; static checks also require ShellCheck.
+Setup-script tests require Python 3.13+, Loguru (`python-loguru`), Bash, and chezmoi; static checks also require ShellCheck and Ruff. `ruff.toml` defines the Python lint and formatting standards. Run `ruff check .` and `ruff format --check .` directly, or use the existing validator below, which also checks both profiles of the Python modifier templates. Use `ruff format .` to apply formatting.
 
 ```bash
 python3 -B -m unittest discover -s .github/tests -v
