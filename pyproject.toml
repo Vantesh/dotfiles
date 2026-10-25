@@ -1,0 +1,20 @@
+[tool.basedpyright]
+include = ["home/.chezmoitemplates", ".github/tests"]
+exclude = ["**/__pycache__", "**/.venv", "**/.pytest_cache", "**/.ruff_cache"]
+extraPaths = ["home/.chezmoitemplates", ".github/tests"]
+pythonVersion = "3.13"
+pythonPlatform = "Linux"
+typeCheckingMode = "recommended"
+failOnWarnings = true
+
+# pytest runs the retained unittest lifecycle: setUp initializes fixture fields.
+# These tests assert side effects, not write counts or public subclassing APIs.
+[[tool.basedpyright.executionEnvironments]]
+root = ".github/tests"
+reportUninitializedInstanceVariable = false
+reportUnannotatedClassAttribute = false
+reportUnusedCallResult = false
+
+[tool.pytest.ini_options]
+minversion = "9.0"
+testpaths = [".github/tests"]

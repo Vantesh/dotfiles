@@ -11,10 +11,14 @@ from helpers import CHEZMOI, LIB, ROOT, SCRIPTS, ScriptCase
 def main():
     shellcheck = shutil.which("shellcheck")
     ruff = shutil.which("ruff")
-    if not CHEZMOI or not shellcheck or not ruff:
-        raise SystemExit("Validation requires chezmoi, Bash, ShellCheck, and Ruff on PATH")
+    basedpyright = shutil.which("basedpyright")
+    if not CHEZMOI or not shellcheck or not ruff or not basedpyright:
+        raise SystemExit(
+            "Validation requires chezmoi, Bash, ShellCheck, Ruff, and BasedPyright on PATH"
+        )
     subprocess.run([ruff, "check", "--no-cache", "."], cwd=ROOT, check=True)
     subprocess.run([ruff, "format", "--no-cache", "--check", "."], cwd=ROOT, check=True)
+    subprocess.run([basedpyright], cwd=ROOT, check=True)
 
     fixture = ScriptCase()
     fixture.setUp()
@@ -24,7 +28,7 @@ def main():
         for path in paths:
             if path.suffix not in (".sh", ".tmpl"):
                 continue
-            sources = set()
+            sources: set[str] = set()
             for personal in (False, True) if path.suffix == ".tmpl" else (False,):
                 source = (
                     fixture.render(path, personal=personal)
@@ -49,6 +53,7 @@ def main():
             compile(path.read_text(), str(path), "exec")
         # Chezmoi's Python modifiers need rendering before Ruff can parse them.
         modifier_count = 0
+        rendered_modifiers: list[str] = []
         for path in sorted((ROOT / "home").rglob("*.tmpl")):
             if not path.read_text().startswith("#!/usr/bin/env python3"):
                 continue
@@ -70,14 +75,22 @@ def main():
                         text=True,
                         check=True,
                     )
+                rendered = fixture.directory / f"{path.parent.name}-{personal}.py"
+                _ = rendered.write_text(source)
+                rendered_modifiers.append(str(rendered))
                 modifier_count += 1
+        subprocess.run(
+            [basedpyright, "--project", str(ROOT / "pyproject.toml"), *rendered_modifiers],
+            cwd=ROOT,
+            check=True,
+        )
         mise_paths = sorted((ROOT / "mise").rglob("*.toml"))
         for path in mise_paths:
             tomllib.loads(path.read_text())
         print(f"Mise TOML syntax: {len(mise_paths)} files passed")
         print(
             f"Bash syntax and ShellCheck: {shell_count} shell sources/renderings passed "
-            f"({lint_count} distinct linted)"
+            + f"({lint_count} distinct linted)"
         )
         print(
             f"Python syntax: {len(python_paths)} files and {modifier_count} modifier renderings passed"

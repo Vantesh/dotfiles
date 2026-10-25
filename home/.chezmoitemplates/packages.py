@@ -9,12 +9,13 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
+from typing import cast
 
 from bootstrap import configure_logging
 from loguru import logger
 
 
-def prepare_xdg():
+def prepare_xdg() -> None:
     home = Path.home()
     for name, default in {
         "XDG_CONFIG_HOME": home / ".config",
@@ -64,7 +65,7 @@ def prepare_xdg():
         stage = None
         try:
             with tempfile.NamedTemporaryFile(mode="w", dir=settings.parent, delete=False) as stage:
-                stage.write("""<settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
+                _ = stage.write("""<settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
   xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0
                       https://maven.apache.org/xsd/settings-1.0.0.xsd">
@@ -77,7 +78,7 @@ def prepare_xdg():
                 Path(stage.name).unlink()
 
 
-def setup_chaotic_aur():
+def setup_chaotic_aur() -> None:
     trust_missing = (
         subprocess.run(
             ["pacman", "-Q", "chaotic-keyring", "chaotic-mirrorlist"],
@@ -98,12 +99,12 @@ def setup_chaotic_aur():
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         ).returncode:
-            subprocess.run(
+            _ = subprocess.run(
                 ["sudo", "pacman-key", "--recv-key", key, "--keyserver", "keyserver.ubuntu.com"],
                 check=True,
             )
-        subprocess.run(["sudo", "pacman-key", "--lsign-key", key], check=True)
-        subprocess.run(
+        _ = subprocess.run(["sudo", "pacman-key", "--lsign-key", key], check=True)
+        _ = subprocess.run(
             [
                 "sudo",
                 "pacman",
@@ -117,7 +118,7 @@ def setup_chaotic_aur():
         )
     if enable:
         logger.info("Enabling Chaotic-AUR.")
-        subprocess.run(
+        _ = subprocess.run(
             ["sudo", "tee", "-a", "/etc/pacman.conf"],
             check=True,
             text=True,
@@ -127,20 +128,20 @@ def setup_chaotic_aur():
     marker = Path(os.environ["XDG_STATE_HOME"]) / "chezmoi/chaotic-aur-updated"
     if enable or not marker.is_file():
         logger.info("Running the initial full system upgrade.")
-        subprocess.run(["sudo", "pacman", "-Syu", "--noconfirm"], check=True)
+        _ = subprocess.run(["sudo", "pacman", "-Syu", "--noconfirm"], check=True)
         # Keep the existing marker only for this one-time prerequisite. Chezmoi
         # owns package execution state; failed upgrades must never record success.
         marker.touch()
 
 
-def personal_packages(distro):
+def personal_packages(distro: str) -> tuple[list[str], str | None, list[str]]:
     groups = ["personal", "driver-utils"]
     pci = subprocess.run(["lspci", "-nn"], check=True, capture_output=True, text=True).stdout
     displays = [line for line in pci.splitlines() if re.search(r"\[03[0-9a-fA-F]{2}\]:", line)]
     if any("[8086:" in line.lower() for line in displays):
         groups.append("intel")
     nvidia = [line for line in displays if "[10de:" in line.lower()]
-    families = set()
+    families: set[str] = set()
     for line in nvidia:
         architecture = re.search(r"\b(GM|GP|GV|TU|GA|AD|GB)[0-9]{3}[A-Z]*\b", line)
         families.add(
@@ -207,7 +208,7 @@ def personal_packages(distro):
         for name in installed
         if name in ("linux", "linux-zen", "linux-lts", "linux-hardened", "linux-cachyos")
     ]
-    headers = []
+    headers: list[str] = []
     for kernel in kernels:
         header = kernel + "-headers"
         if header not in installed:
@@ -220,7 +221,7 @@ def personal_packages(distro):
         # Mise skips version pins on pacman packages. Install only exact pairs;
         # never refresh metadata or upgrade a kernel to acquire its headers.
         logger.info("Installing matching kernel headers.")
-        subprocess.run(
+        _ = subprocess.run(
             ["sudo", "pacman", "-S", "--needed", "--noconfirm", "--", *headers], check=True
         )
         for target in headers:
@@ -236,7 +237,7 @@ def personal_packages(distro):
                 )
     groups.append("nvidia-" + family)
     if distro in ("cachyos", "garuda"):
-        subprocess.run(["pacman", "-Dk"], check=True, stdout=subprocess.DEVNULL)
+        _ = subprocess.run(["pacman", "-Dk"], check=True, stdout=subprocess.DEVNULL)
     elif stem + "-dkms" not in installed:
         fixed = {
             kernel
@@ -258,7 +259,7 @@ def personal_packages(distro):
     return groups, family, kernels
 
 
-def verify_nvidia(family, kernels):
+def verify_nvidia(family: str, kernels: list[str]) -> None:
     utilities = "nvidia-580xx-utils" if family == "legacy" else "nvidia-utils"
     package = subprocess.run(
         ["pacman", "-Q", utilities], check=True, capture_output=True, text=True
@@ -295,17 +296,20 @@ def verify_nvidia(family, kernels):
             )
 
 
-def main():
+def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--root", type=Path, required=True)
-    parser.add_argument("--distro", required=True)
-    parser.add_argument("--personal", action="store_true")
+    _ = parser.add_argument("--root", type=Path, required=True)
+    _ = parser.add_argument("--distro", required=True)
+    _ = parser.add_argument("--personal", action="store_true")
     args = parser.parse_args()
+    root_argument = cast("Path", args.root)
+    distro = cast("str", args.distro)
+    personal = cast("bool", args.personal)
     file_sink = None
     try:
         file_sink = configure_logging()
         prepare_xdg()
-        root = args.root.resolve()
+        root = root_argument.resolve()
         os.chdir(root)
         for name in (
             "MISE_CONFIG_FILE",
@@ -314,7 +318,7 @@ def main():
             "MISE_OVERRIDE_CONFIG_FILENAMES",
             "MISE_ENV",
         ):
-            os.environ.pop(name, None)
+            _ = os.environ.pop(name, None)
         os.environ.update(
             MISE_CONFIG_DIR="/dev/null",
             MISE_SYSTEM_CONFIG_DIR="/dev/null",
@@ -324,7 +328,7 @@ def main():
         )
         setup_chaotic_aur()
         if not (shutil.which("yay") or shutil.which("paru")):
-            subprocess.run(
+            _ = subprocess.run(
                 ["mise", "--env", "aur-helper", "bootstrap", "packages", "apply", "--yes"],
                 check=True,
             )
@@ -333,15 +337,15 @@ def main():
                     "Mise did not provide an AUR helper; install yay or paru before retrying."
                 )
         groups, family, kernels = ["packages"], None, []
-        if args.personal:
-            selected, family, kernels = personal_packages(args.distro.lower())
+        if personal:
+            selected, family, kernels = personal_packages(distro.lower())
             groups.extend(selected)
         if family == "legacy":
-            subprocess.run(
+            _ = subprocess.run(
                 ["mise", "--env", "nvidia-legacy-utils", "bootstrap", "packages", "apply", "--yes"],
                 check=True,
             )
-        subprocess.run(
+        _ = subprocess.run(
             ["mise", "--env", ",".join(groups), "bootstrap", "packages", "apply", "--yes"],
             check=True,
         )
@@ -349,9 +353,10 @@ def main():
             verify_nvidia(family, kernels)
         return 0
     except subprocess.CalledProcessError as error:
+        command = cast("list[str]", error.cmd)
         logger.error(
             "Package setup: {} failed (exit {}); correct the tool's error and retry.",
-            error.cmd[0],
+            command[0],
             error.returncode,
         )
         return error.returncode

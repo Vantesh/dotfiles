@@ -1,5 +1,8 @@
 """Before hooks must stop when essential package installation fails."""
 
+# JSON fixture assertions and runpy inspect dynamic application objects.
+# pyright: reportAny=false
+
 import json
 import os
 import pty
@@ -8,16 +11,19 @@ import shutil
 import subprocess
 import tomllib
 from types import SimpleNamespace
+from typing import override
 from unittest.mock import MagicMock, patch
 
 from helpers import CHEZMOI, ROOT, SCRIPTS, ScriptCase
 
 
 class SetupPreferenceTests(ScriptCase):
-    def setUp(self):
+    @override
+    def setUp(self) -> None:
         super().setUp()
         if not CHEZMOI:
             self.skipTest("chezmoi is required for profile initialization")
+        self.chezmoi = CHEZMOI
         self.source = self.directory / "source"
         self.source.mkdir()
         (self.source / ".chezmoi.yaml.tmpl").write_text(
@@ -26,7 +32,7 @@ class SetupPreferenceTests(ScriptCase):
         self.config = self.directory / "chezmoi.yaml"
         self.stub("git", 'exec /usr/bin/git "$@"')
         self.command = [
-            CHEZMOI,
+            self.chezmoi,
             "--config",
             str(self.config),
             "--source",
@@ -36,7 +42,7 @@ class SetupPreferenceTests(ScriptCase):
             "--no-tty",
         ]
 
-    def test_fresh_profiles_persist_only_the_personal_choice(self):
+    def test_fresh_profiles_persist_only_the_personal_choice(self) -> None:
         for personal in (False, True):
             with self.subTest(personal=personal):
                 self.config.unlink(missing_ok=True)
@@ -73,7 +79,7 @@ class SetupPreferenceTests(ScriptCase):
                 self.assertEqual(json.loads(repeated.stdout)["data"], config["data"])
                 self.env.pop("NOCONFIRM")
 
-    def test_arch_family_is_accepted_and_non_arch_is_rejected(self):
+    def test_arch_family_is_accepted_and_non_arch_is_rejected(self) -> None:
         for release, accepted in (
             ({"id": "arch", "idLike": ""}, True),
             ({"id": "cachyos", "idLike": "arch"}, True),
@@ -96,12 +102,17 @@ class SetupPreferenceTests(ScriptCase):
                 if accepted:
                     self.assertIn("personal: false", self.config.read_text())
 
-    def test_nonpersonal_apply_installs_baseline_without_provisioning_and_reapplies_cleanly(self):
+    def test_nonpersonal_apply_installs_baseline_without_provisioning_and_reapplies_cleanly(
+        self,
+    ) -> None:
         # Exercise real chezmoi rendering, hooks and file modifiers in a private home.
         # Only external package operations are substituted; any personal operation fails.
         self.env.update(NOCONFIRM="1", OFFLINE="1", CHEZMOI_SOURCE_DIR=str(ROOT / "home"))
         for name in ("python3", "sleep", "ln"):
-            (self.bin / name).symlink_to(shutil.which(name))
+            target = shutil.which(name)
+            if target is None:
+                self.fail(f"Required test utility not found: {name}")
+            (self.bin / name).symlink_to(target)
         self.stub("chezmoi", f'exec {CHEZMOI} "$@"')
         self.stub("id", "echo 1000")
         self.stub("yay", "exit 97")
@@ -132,7 +143,7 @@ esac""",
         ):
             self.stub(name, 'echo "Unexpected personal operation" >&2; exit 97', log=True)
         command = [
-            CHEZMOI,
+            self.chezmoi,
             "--config",
             str(self.config),
             "--source",
@@ -180,7 +191,7 @@ esac""",
         )
         self.assertFalse(any(call[0] not in ("sudo", "mise") for call in calls), calls)
 
-    def test_personal_secret_settings_are_applied_once_and_excluded_from_nonpersonal(self):
+    def test_personal_secret_settings_are_applied_once_and_excluded_from_nonpersonal(self) -> None:
         self.stub(
             "rbw",
             '[ "$*" = "get --field client_id spotify" ] || exit 97; echo fixture-client-id',
@@ -196,7 +207,7 @@ esac""",
                         personal=personal,
                     )
                 )
-                command = [shutil.which("python3"), str(script)]
+                command = ["/usr/bin/python3", str(script)]
                 result = self.run_process(command, input="{}", name="apply secret settings")
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertEqual(
@@ -213,7 +224,7 @@ esac""",
                     [["rbw", "get", "--field", "client_id", "spotify"]] if personal else [],
                 )
 
-    def test_spotifast_vault_failure_keeps_private_diagnostics_off_the_terminal(self):
+    def test_spotifast_vault_failure_keeps_private_diagnostics_off_the_terminal(self) -> None:
         self.stub("rbw", 'echo "private-vault-canary" >&2; exit 23')
         script = self.directory / "spotifast.py"
         script.write_text(self.render(ROOT / "home/dot_config/spotifast/modify_settings.json.tmpl"))
@@ -229,7 +240,7 @@ esac""",
 
 
 class DependencyTests(ScriptCase):
-    def test_prerequisite_install_failure_stops_public_setup(self):
+    def test_prerequisite_install_failure_stops_public_setup(self) -> None:
         self.env.update(CHEZMOI_SOURCE_DIR=str(SCRIPTS.parents[1]), PERSONAL="0")
         self.stub("pacman", "exit 1")
         self.stub("sudo", "exit 23", log=True)
@@ -241,7 +252,8 @@ class DependencyTests(ScriptCase):
 
 
 class BootstrapTests(ScriptCase):
-    def setUp(self):
+    @override
+    def setUp(self) -> None:
         super().setUp()
         self.env.update(CHEZMOI_SOURCE_DIR=str(ROOT / "home"), PERSONAL="1")
         self.source = (SCRIPTS / "run_before_00-install-pre-requisites.sh").read_text()
@@ -264,7 +276,7 @@ esac""",
             log=True,
         )
 
-    def run_prerequisite(self, *, email=None):
+    def run_prerequisite(self, *, email: str | None = None) -> subprocess.CompletedProcess[str]:
         self.env["RBW_CONFIG"] = json.dumps(self.config)
         if email is None:
             return self.shell(self.source)
@@ -286,7 +298,7 @@ esac""",
             os.close(master)
             os.close(slave)
 
-    def test_python_bootstrap_runs_nonpersonal_without_secret_access(self):
+    def test_python_bootstrap_runs_nonpersonal_without_secret_access(self) -> None:
         self.env["PERSONAL"] = "0"
         result = self.run_process(
             ["/usr/bin/python3", "-B", str(self.bootstrap)], name="Python bootstrap"
@@ -295,7 +307,7 @@ esac""",
         self.assertEqual(self.logged_calls(), [])
         self.assertFalse((self.logs / "setup.log").exists())
 
-    def test_prerequisites_are_installed_once_and_reapplication_is_quiet(self):
+    def test_prerequisites_are_installed_once_and_reapplication_is_quiet(self) -> None:
         self.env.update(PERSONAL="0", INSTALLED=str(self.directory / "installed"))
         (self.bin / "mise").unlink()
         self.stub(
@@ -343,13 +355,13 @@ esac""",
             ],
         )
 
-    def test_personal_authentication_preserves_configuration_on_repeat(self):
+    def test_personal_authentication_preserves_configuration_on_repeat(self) -> None:
         for _ in range(2):
             result = self.run_prerequisite()
             self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(self.logged_calls(), [["rbw", "config", "show"], ["rbw", "login"]] * 2)
 
-    def test_personal_authentication_failure_keeps_status_without_exposing_output(self):
+    def test_personal_authentication_failure_keeps_status_without_exposing_output(self) -> None:
         self.env.update(RBW_LOGIN_STATUS="23", RBW_LOGIN_ERROR="secret-token-canary")
         result = self.run_prerequisite()
         self.assertEqual(result.returncode, 23, result.stderr)
@@ -362,7 +374,7 @@ esac""",
         self.assertIn("23", diagnostics)
         self.assertEqual(self.logged_calls(), [["rbw", "config", "show"], ["rbw", "login"]])
 
-    def test_missing_required_command_is_recorded_without_exception_details(self):
+    def test_missing_required_command_is_recorded_without_exception_details(self) -> None:
         (self.bin / "rbw").unlink()
         result = self.run_prerequisite()
         self.assertEqual(result.returncode, 1, result.stderr)
@@ -373,7 +385,7 @@ esac""",
         self.assertNotIn("Traceback", diagnostics)
         self.assertNotIn(self.config["email"], diagnostics)
 
-    def test_fresh_personal_authentication_requires_email_and_supports_a_terminal(self):
+    def test_fresh_personal_authentication_requires_email_and_supports_a_terminal(self) -> None:
         self.config_file.unlink()
         self.config = {}
         self.env.update(RBW_CONFIG_STATUS="1", NOCONFIRM="1")
@@ -394,13 +406,13 @@ esac""",
             ],
         )
 
-    def test_unreadable_existing_vault_configuration_is_not_reset(self):
+    def test_unreadable_existing_vault_configuration_is_not_reset(self) -> None:
         self.env.update(RBW_CONFIG_STATUS="23")
         result = self.run_prerequisite()
         self.assertEqual(result.returncode, 23, result.stderr)
         self.assertEqual(self.logged_calls(), [["rbw", "config", "show"]])
 
-    def test_private_logs_rotate_at_five_mib_and_keep_five_archives(self):
+    def test_private_logs_rotate_at_five_mib_and_keep_five_archives(self) -> None:
         code = """import runpy, sys
 namespace = runpy.run_path(sys.argv[1])
 namespace['configure_logging']()
@@ -420,7 +432,7 @@ namespace['logger'].remove()
             self.assertEqual(path.stat().st_uid, os.getuid())
             self.assertIn(b"rotation-test", path.read_bytes()[:200])
 
-    def test_terminal_logging_uses_color_only_when_allowed(self):
+    def test_terminal_logging_uses_color_only_when_allowed(self) -> None:
         code = """import runpy, sys
 namespace = runpy.run_path(sys.argv[1])
 namespace['configure_logging']()
@@ -450,7 +462,7 @@ namespace['logger'].warning('terminal check')
                     os.close(master)
                     os.close(slave)
 
-    def test_symlinked_log_directory_is_rejected_before_bootstrap_operations(self):
+    def test_symlinked_log_directory_is_rejected_before_bootstrap_operations(self) -> None:
         external = self.directory / "external"
         external.mkdir()
         self.logs.parent.mkdir(parents=True)
@@ -463,7 +475,7 @@ namespace['logger'].warning('terminal check')
         self.assertEqual(self.logged_calls(), [])
         self.assertEqual(list(external.iterdir()), [])
 
-    def test_nonregular_log_file_fails_without_blocking_or_installing_packages(self):
+    def test_nonregular_log_file_fails_without_blocking_or_installing_packages(self) -> None:
         self.logs.mkdir(parents=True)
         os.mkfifo(self.logs / "setup.log", 0o600)
         self.env["PERSONAL"] = "0"
@@ -481,7 +493,8 @@ esac""",
 
 
 class PackageTests(ScriptCase):
-    def setUp(self):
+    @override
+    def setUp(self) -> None:
         super().setUp()
         self.packages = ROOT / "home/.chezmoitemplates/packages.py"
         self.env.update(
@@ -545,7 +558,9 @@ exit "$MISE_STATUS"''',
             log=True,
         )
 
-    def apply_packages(self, *, personal=False, distro="arch"):
+    def apply_packages(
+        self, *, personal: bool = False, distro: str = "arch"
+    ) -> subprocess.CompletedProcess[str]:
         command = [
             "/usr/bin/python3",
             "-B",
@@ -559,7 +574,7 @@ exit "$MISE_STATUS"''',
             command.append("--personal")
         return self.run_process(command, name="package orchestration")
 
-    def test_fresh_kvm_nonpersonal_packages_need_no_vulkan_provider_or_hardware_probe(self):
+    def test_fresh_kvm_nonpersonal_packages_need_no_vulkan_provider_or_hardware_probe(self) -> None:
         for name in ("lspci", "hostnamectl", "rbw", "systemctl", "sbctl"):
             self.stub(name, "exit 97", log=True)
         self.env.update(MISE_ENV="personal", MISE_CONFIG_FILE="/unrelated/config.toml")
@@ -578,7 +593,7 @@ exit "$MISE_STATUS"''',
         # Zed requires a Vulkan driver; it must not let baseline resolution pull NVIDIA.
         self.assertEqual(declarations["pacman:zed"]["env"], "personal")
 
-    def test_chaotic_trust_upgrade_and_mise_helper_are_ordered_and_repeatable(self):
+    def test_chaotic_trust_upgrade_and_mise_helper_are_ordered_and_repeatable(self) -> None:
         (self.bin / "yay").unlink()
         self.stub(
             "pacman",
@@ -627,7 +642,7 @@ fi""",
         self.assertEqual((self.directory / "pacman.conf").read_text().count("[chaotic-aur]"), 1)
         self.assertTrue((self.directory / "state/chezmoi/chaotic-aur-updated").is_file())
 
-    def test_personal_package_groups_and_legacy_provider_order(self):
+    def test_personal_package_groups_and_legacy_provider_order(self) -> None:
         for gpu, version, family, module in (
             (
                 "NVIDIA Corporation GP106 [10de:1234]",
@@ -658,7 +673,7 @@ fi""",
                 if family == "nvidia-legacy":
                     self.assertEqual(calls[0][1:3], ["--env", "nvidia-legacy-utils"])
 
-    def test_derivatives_leave_nvidia_modules_to_the_distribution(self):
+    def test_derivatives_leave_nvidia_modules_to_the_distribution(self) -> None:
         self.env["GPU"] = "NVIDIA Corporation GA106 [10de:1234]"
         for distro in ("cachyos", "garuda"):
             with self.subTest(distro=distro):
@@ -671,7 +686,7 @@ fi""",
                 self.assertIn("nvidia-current", groups)
                 self.assertNotIn("nvidia-open", groups)
 
-    def test_conflicting_drivers_or_kernel_headers_stop_before_mise(self):
+    def test_conflicting_drivers_or_kernel_headers_stop_before_mise(self) -> None:
         self.env["GPU"] = "NVIDIA Corporation GA106 [10de:1234]"
         for packages in ("linux 6.18-1\nlinux-headers 6.17-1", "nvidia-580xx-utils 580.119.02-1"):
             with self.subTest(packages=packages):
@@ -681,7 +696,7 @@ fi""",
                 self.assertNotEqual(result.returncode, 0)
                 self.assertFalse(any(call[0] == "mise" for call in self.logged_calls()))
 
-    def test_missing_nvidia_module_fails_after_installation(self):
+    def test_missing_nvidia_module_fails_after_installation(self) -> None:
         self.env["GPU"] = "NVIDIA Corporation GA106 [10de:1234]"
         self.stub("modinfo", "exit 23")
         result = self.apply_packages(personal=True)
@@ -689,7 +704,7 @@ fi""",
         self.assertIn("6.18-fixture", result.stderr)
         self.assertTrue(any(call[0] == "mise" for call in self.logged_calls()))
 
-    def test_xdg_reapplication_preserves_custom_paths_and_existing_maven_settings(self):
+    def test_xdg_reapplication_preserves_custom_paths_and_existing_maven_settings(self) -> None:
         self.env.update(
             GNUPGHOME=str(self.directory / "private-gnupg"),
             CARGO_HOME=str(self.directory / "custom-cargo"),
@@ -703,6 +718,7 @@ fi""",
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(settings.read_text(), "existing-private-settings")
             self.assertEqual(settings.stat().st_mtime_ns, before)
+            self.assertNotIn("existing-private-settings", result.stderr)
         observed = json.loads((self.directory / "observed.json").read_text())
         self.assertEqual(observed["CARGO_HOME"], self.env["CARGO_HOME"])
         self.assertEqual(observed["GNUPGHOME"], self.env["GNUPGHOME"])
@@ -710,16 +726,17 @@ fi""",
             sum(call == ["sudo", "pacman", "-Syu", "--noconfirm"] for call in self.logged_calls()),
             1,
         )
-        self.assertNotIn("existing-private-settings", result.stderr)
 
-    def test_failed_initial_upgrade_does_not_record_success_or_run_mise(self):
+    def test_failed_initial_upgrade_does_not_record_success_or_run_mise(self) -> None:
         self.env["UPGRADE_STATUS"] = "23"
         result = self.apply_packages()
         self.assertEqual(result.returncode, 23, result.stderr)
         self.assertFalse((self.directory / "state/chezmoi/chaotic-aur-updated").exists())
         self.assertFalse(any(call[0] == "mise" for call in self.logged_calls()))
 
-    def test_chezmoi_retries_failures_and_tracks_only_package_dependencies(self):
+    def test_chezmoi_retries_failures_and_tracks_only_package_dependencies(self) -> None:
+        if not CHEZMOI:
+            self.skipTest("chezmoi is required for package change detection")
         repository = self.directory / "source"
         templates = repository / "home/.chezmoitemplates"
         scripts = repository / "home/.chezmoiscripts/linux"
@@ -767,7 +784,8 @@ fi""",
 
 
 class PythonApplicationTests(ScriptCase):
-    def setUp(self):
+    @override
+    def setUp(self) -> None:
         super().setUp()
         # Only Kitty's embedded TUI imports are unavailable in the CI container.
         dependencies = {
@@ -786,7 +804,7 @@ class PythonApplicationTests(ScriptCase):
         with patch.dict("sys.modules", dependencies):
             self.search = runpy.run_path(str(ROOT / "home/dot_config/kitty/search.py"))
 
-    def test_kitty_search_rejects_bad_window_ids_before_remote_operations(self):
+    def test_kitty_search_rejects_bad_window_ids_before_remote_operations(self) -> None:
         self.stub("kitty", "exit 0", log=True)
         for arguments in (["search.py"], ["search.py", "invalid"]):
             with (
@@ -797,7 +815,7 @@ class PythonApplicationTests(ScriptCase):
                 self.search["main"](arguments)
         self.assertEqual(self.logged_calls(), [])
 
-    def test_kitty_search_displays_marker_errors_and_recovers_after_editing(self):
+    def test_kitty_search_displays_marker_errors_and_recovers_after_editing(self) -> None:
         self.stub(
             "kitty",
             r"""if [ "$2" = create-marker ]; then

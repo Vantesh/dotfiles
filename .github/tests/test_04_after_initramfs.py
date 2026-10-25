@@ -4,13 +4,15 @@ import hashlib
 import json
 import shlex
 import struct
+import subprocess
 import sys
+from typing import override
 
 from helpers import LIB, SCRIPTS, ScriptCase
 
 
 class InitramfsTests(ScriptCase):
-    def test_pending_request_is_cleared_only_after_a_verified_rebuild(self):
+    def test_pending_request_is_cleared_only_after_a_verified_rebuild(self) -> None:
         boot = self.directory / "esp"
         boot.mkdir()
         marker = self.directory / "state/chezmoi/initramfs.pending"
@@ -93,7 +95,8 @@ main "$@"''',
 
 
 class SecureBootTests(ScriptCase):
-    def setUp(self):
+    @override
+    def setUp(self) -> None:
         super().setUp()
         self.etc = self.directory / "etc"
         self.config = self.etc / "default/limine"
@@ -199,16 +202,16 @@ main "$@"''',
         )
         self.reset()
 
-    def reset(self, verification="yes", enrollment="yes"):
+    def reset(self, verification: str = "yes", enrollment: str = "yes") -> None:
         self.calls.unlink(missing_ok=True)
         self.marker.unlink(missing_ok=True)
         self.enrolled.unlink(missing_ok=True)
         self.config.write_text(
             f"ESP_PATH={self.boot}\nENABLE_VERIFICATION={verification}\n"
-            f"ENABLE_ENROLL_LIMINE_CONFIG={enrollment}\n"
+            + f"ENABLE_ENROLL_LIMINE_CONFIG={enrollment}\n"
         )
 
-    def test_unchanged_trusted_setup_preserves_config_and_existing_pending_request(self):
+    def test_unchanged_trusted_setup_preserves_config_and_existing_pending_request(self) -> None:
         for pending in (False, True):
             with self.subTest(pending=pending):
                 self.reset()
@@ -236,7 +239,9 @@ main "$@"''',
                     self.assertEqual(self.marker.read_bytes(), b"existing request")
                     self.assertEqual(self.marker.stat().st_mtime_ns, marker_before)
 
-    def test_each_changed_setting_requests_rebuild_before_the_real_configuration_write(self):
+    def test_each_changed_setting_requests_rebuild_before_the_real_configuration_write(
+        self,
+    ) -> None:
         for key in ("ENABLE_VERIFICATION", "ENABLE_ENROLL_LIMINE_CONFIG"):
             with self.subTest(key=key):
                 self.reset(
@@ -251,7 +256,7 @@ main "$@"''',
                     [call for call in self.logged_calls() if call[0] == "update"], [["update", key]]
                 )
 
-    def test_key_creation_and_enrollment_queue_rebuild_with_unchanged_settings(self):
+    def test_key_creation_and_enrollment_queue_rebuild_with_unchanged_settings(self) -> None:
         for installed, vendor in ((False, "Fixture"), (True, "Fixture"), (True, "ASUS")):
             with self.subTest(installed=installed, vendor=vendor):
                 self.reset()
@@ -273,7 +278,7 @@ main "$@"''',
                 self.assertEqual(self.config.stat().st_ino, before)
                 self.assertFalse(any(call[0] == "update" for call in self.logged_calls()))
 
-    def test_configuration_write_failures_keep_rebuild_intent(self):
+    def test_configuration_write_failures_keep_rebuild_intent(self) -> None:
         for key in ("ENABLE_VERIFICATION", "ENABLE_ENROLL_LIMINE_CONFIG"):
             with self.subTest(key=key):
                 self.reset("no", "no")
@@ -283,7 +288,7 @@ main "$@"''',
                 self.assertTrue(self.marker.is_file())
                 self.assertIn("Failed to configure " + key, result.stderr)
 
-    def test_key_operation_and_request_failures_stop_safely(self):
+    def test_key_operation_and_request_failures_stop_safely(self) -> None:
         for failure, installed in (("create", False), ("enroll", True)):
             with self.subTest(failure=failure):
                 self.reset()
@@ -326,7 +331,7 @@ main "$@"''',
                     )
                 )
 
-    def test_invalid_keys_and_unsafe_firmware_states_remain_rejected(self):
+    def test_invalid_keys_and_unsafe_firmware_states_remain_rejected(self) -> None:
         cases = (
             (
                 {"STATE": '{"installed":"true","setup_mode":false,"secure_boot":true}'},
@@ -357,7 +362,8 @@ main "$@"''',
 
 
 class RebuildVerifierTests(ScriptCase):
-    def setUp(self):
+    @override
+    def setUp(self) -> None:
         super().setUp()
         self.machine = "0123456789abcdef" * 2
         machine_file = self.directory / "machine-id"
@@ -396,7 +402,9 @@ printf '%s\\n' init usr/lib/modules/fixture-version/kernel/fixture.ko""",
             "protocol: linux\nkernel_path: boot():/old/missing-kernel\n"
         )
 
-    def write_uki(self, kernel=b"fixture kernel", initrd=b"fixture initramfs"):
+    def write_uki(
+        self, kernel: bytes = b"fixture kernel", initrd: bytes = b"fixture initramfs"
+    ) -> None:
         # One fixed PE32+ image with two bounded, padded sections; never executable.
         image = bytearray(0x600)
         image[:2] = b"MZ"
@@ -415,7 +423,7 @@ printf '%s\\n' init usr/lib/modules/fixture-version/kernel/fixture.ko""",
             image[raw : raw + len(payload)] = payload
         (self.boot / "fixture.efi").write_bytes(image)
 
-    def verify(self, entries, *, uki=False):
+    def verify(self, entries: str, *, uki: bool = False) -> subprocess.CompletedProcess[str]:
         (self.boot / "limine.conf").write_text(
             f"/+Fixture\ncomment: machine-id={self.machine}\n" + entries
         )
@@ -460,7 +468,7 @@ printf '%s\\n' init usr/lib/modules/fixture-version/kernel/fixture.ko""",
             input=output,
         )
 
-    def test_current_artifacts_are_verified_independently_of_snapshot_history(self):
+    def test_current_artifacts_are_verified_independently_of_snapshot_history(self) -> None:
         for uki in (False, True):
             with self.subTest(protocol="UKI" if uki else "Linux"):
                 self.write_uki()
@@ -468,7 +476,7 @@ printf '%s\\n' init usr/lib/modules/fixture-version/kernel/fixture.ko""",
                 result = self.verify(entries + self.history, uki=uki)
                 self.assertEqual(result.returncode, 0, result.stderr)
 
-    def test_missing_current_entry_or_stale_artifact_cannot_verify_a_rebuild(self):
+    def test_missing_current_entry_or_stale_artifact_cannot_verify_a_rebuild(self) -> None:
         result = self.verify(self.history)
         self.assertNotEqual(result.returncode, 0, result.stderr)
         self.assertIn("missing or ambiguous", result.stderr)
@@ -496,7 +504,7 @@ printf '%s\\n' init usr/lib/modules/fixture-version/kernel/fixture.ko""",
                 }[failure]
                 self.assertIn(diagnostic, result.stderr)
 
-    def test_enrolled_checksum_matches_final_config_without_modifying_efi(self):
+    def test_enrolled_checksum_matches_final_config_without_modifying_efi(self) -> None:
         config = self.boot / "limine.conf"
         config.write_text("timeout: 5\n/+Fixture\n")
         checksum = hashlib.blake2b(config.read_bytes()).hexdigest().encode()

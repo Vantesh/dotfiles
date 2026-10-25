@@ -179,3 +179,7 @@
 "pacman:inotify-tools" = { env = "snapper" }
 "pacman:snap-pac" = { env = "snapper" }
 "pacman:limine-snapper-sync" = { env = "snapper" }
+
+# Development checks only; provisioning does not need these tools.
+"pacman:python-pytest" = { env = "python-dev" }
+"pacman:npm" = { env = "python-dev" }

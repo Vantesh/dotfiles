@@ -10,3 +10,6 @@ ignore = ["S603", "S607"]
 [lint.per-file-ignores]
 # SVG input is the locally installed icon theme, not downloaded XML.
 "home/dot_config/noctalia/scripts/update_mactahoe.py" = ["S314"]
+
+# Native pytest assertions are executable tests, not runtime security checks.
+".github/tests/test_*.py" = ["S101"]

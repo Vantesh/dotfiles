@@ -7,6 +7,7 @@ on:
       - "home/**"
       - "mise/**"
       - "ruff.toml"
+      - "pyproject.toml"
       - ".github/tests/**"
       - ".github/workflows/ci-dots.yaml"
 
@@ -16,6 +17,7 @@ permissions:
 env:
   NOCONFIRM: "1"
   OFFLINE: "1"
+  MISE_TRUSTED_CONFIG_PATHS: ${{ github.workspace }}/mise
 
 jobs:
   test-dotfiles:
@@ -35,7 +37,7 @@ jobs:
           persist-credentials: false
 
       - name: Install dependencies
-        run: pacman -Syu --noconfirm git git-delta bash shellcheck chezmoi diffutils python python-loguru ruff
+        run: pacman -Syu --noconfirm git git-delta bash shellcheck chezmoi diffutils python python-loguru ruff python-pytest mise npm
 
       - name: Configure isolated home
         run: |
@@ -54,8 +56,9 @@ jobs:
       - name: Test and lint setup scripts
         run: |
           set -euo pipefail
-          python3 -B -m unittest discover -s .github/tests -v
-          python3 -B .github/tests/validate.py
+          mise --env python-dev install
+          mise --env python-dev exec -- python3 -B .github/tests/validate.py
+          pytest -q
 
       - name: Apply and verify dotfiles
         run: |

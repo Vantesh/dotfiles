@@ -1,10 +1,14 @@
 """Verify display-manager handoff ordering without invoking systemctl."""
 
+import subprocess
+from typing import override
+
 from helpers import SCRIPTS, ScriptCase
 
 
 class LoginManagerTests(ScriptCase):
-    def setUp(self):
+    @override
+    def setUp(self) -> None:
         super().setUp()
         self.env.update(
             LY_STATE="enabled",
@@ -28,7 +32,7 @@ class LoginManagerTests(ScriptCase):
         )
         self.stub("systemctl", "exit 97", log=True)
 
-    def migrate(self):
+    def migrate(self) -> subprocess.CompletedProcess[str]:
         function = self.function(
             SCRIPTS / "run_onchange_after_09_login_manager.sh.tmpl",
             "migrate_display_managers",
@@ -49,7 +53,7 @@ class LoginManagerTests(ScriptCase):
             name="display-manager handoff",
         )
 
-    def test_ly_is_enabled_and_verified_before_previous_manager_and_getty_disable(self):
+    def test_ly_is_enabled_and_verified_before_previous_manager_and_getty_disable(self) -> None:
         result = self.migrate()
         self.assertEqual(result.returncode, 0, result.stderr)
         calls = self.logged_calls()
@@ -69,7 +73,7 @@ class LoginManagerTests(ScriptCase):
         )
         self.assertFalse(any(call[0] == "systemctl" for call in calls))
 
-    def test_failed_ly_verification_leaves_previous_manager_and_getty_enabled(self):
+    def test_failed_ly_verification_leaves_previous_manager_and_getty_enabled(self) -> None:
         self.env["LY_STATE"] = "disabled"
         result = self.migrate()
         self.assertNotEqual(result.returncode, 0)

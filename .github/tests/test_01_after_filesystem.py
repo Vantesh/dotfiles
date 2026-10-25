@@ -1,10 +1,14 @@
 """Shared rollback safety and the hibernation workflow that edits fstab."""
 
+import subprocess
+from typing import override
+
 from helpers import LIB, SCRIPTS, ScriptCase
 
 
 class ConfigRollbackTests(ScriptCase):
-    def setUp(self):
+    @override
+    def setUp(self) -> None:
         super().setUp()
         self.original = self.directory / "config"
         self.original.write_text("original\n")
@@ -22,7 +26,7 @@ done
 exec "$@"''',
         )
 
-    def transaction(self, verify):
+    def transaction(self, verify: str) -> subprocess.CompletedProcess[str]:
         return self.shell(
             self.libraries("common.sh")
             + r"""
@@ -34,7 +38,7 @@ edit_system_configs edit verify "$ORIGINAL" "$NEW"
 """
         )
 
-    def test_failed_or_interrupted_postcheck_rolls_back_only_its_own_files(self):
+    def test_failed_or_interrupted_postcheck_rolls_back_only_its_own_files(self) -> None:
         for verify, status in (("return 1", 1), ('kill -TERM "$BASHPID"', 143)):
             with self.subTest(verify=verify):
                 result = self.transaction(verify)
@@ -43,7 +47,7 @@ edit_system_configs edit verify "$ORIGINAL" "$NEW"
                 self.assertEqual(self.original.stat().st_mode & 0o777, 0o640)
                 self.assertFalse((self.directory / "new").exists())
 
-    def test_rollback_preserves_configuration_changed_by_another_actor(self):
+    def test_rollback_preserves_configuration_changed_by_another_actor(self) -> None:
         result = self.transaction('printf "user edit\\n" > "$ORIGINAL"; return 1')
         self.assertNotEqual(result.returncode, 0)
         self.assertEqual(self.original.read_text(), "user edit\n")
@@ -56,7 +60,7 @@ class ZswapTests(ScriptCase):
         "rd.luks.name=bbbb=root root=/dev/mapper/root rootflags=subvol=@ rootfstype=btrfs rw quiet"
     )
 
-    def fixture(self, name, ram=32):
+    def fixture(self, name: str, ram: int = 32) -> str:
         self.root = self.directory / name
         self.etc = self.root / "etc"
         self.etc.mkdir(parents=True)
@@ -117,7 +121,7 @@ exec "$@"''',
         functions += self.function(LIB / "snapboot.sh", "get_limine_cmdline")
         return self.libraries("common.sh", "snapboot.sh") + self.paths(functions)
 
-    def paths(self, source):
+    def paths(self, source: str) -> str:
         return (
             source.replace("/{etc,run,usr/lib}", str(self.root) + "/{etc,run,usr/lib}")
             .replace("/etc/", str(self.etc) + "/")
@@ -125,14 +129,14 @@ exec "$@"''',
             .replace("/proc/", str(self.root / "proc") + "/")
         )
 
-    def test_zram_detection_skips_configuration(self):
+    def test_zram_detection_skips_configuration(self) -> None:
         for scenario in ("active", "generator-inactive", "swap-unit", "service", "fstab"):
             with self.subTest(scenario=scenario):
                 source = self.fixture(scenario)
+                generator = self.etc / "systemd/zram-generator.conf"
                 if scenario == "active":
                     self.env["ACTIVE"] = "/dev/zram0"
                 elif scenario == "generator-inactive":
-                    generator = self.etc / "systemd/zram-generator.conf"
                     generator.parent.mkdir()
                     generator.write_text("[zram0]\nzram-size=4096\n")
                 elif scenario == "swap-unit":
@@ -149,7 +153,7 @@ exec "$@"''',
                 if scenario == "generator-inactive":
                     self.assertEqual(generator.read_text(), "[zram0]\nzram-size=4096\n")
 
-    def test_only_successful_hibernation_configures_zswap(self):
+    def test_only_successful_hibernation_configures_zswap(self) -> None:
         for status in (0, 1, 2, 3, "optional-failure"):
             with self.subTest(status=status):
                 self.fixture(f"setup-{status}")
@@ -180,7 +184,7 @@ main "$@"''',
                 if status == "optional-failure":
                     self.assertIn("Hibernation setup completed", result.stderr)
 
-    def test_low_memory_skips_configuration(self):
+    def test_low_memory_skips_configuration(self) -> None:
         source = self.fixture("small", ram=16)
         result = self.shell(source + "configure_zswap\n")
         self.assertEqual(result.returncode, 0, result.stderr)
@@ -188,7 +192,7 @@ main "$@"''',
         self.assertFalse(self.config.exists())
         self.assertFalse(self.marker.exists())
 
-    def test_repeat_preserves_existing_fragment(self):
+    def test_repeat_preserves_existing_fragment(self) -> None:
         source = self.fixture("repeat")
         result = self.shell(source + "configure_zswap\n")
         self.assertEqual(result.returncode, 0, result.stderr)
@@ -201,7 +205,7 @@ main "$@"''',
         self.assertEqual(self.config.stat().st_ino, before.st_ino)
         self.assertFalse(self.marker.exists())
 
-    def test_explicit_preferences_are_preserved(self):
+    def test_explicit_preferences_are_preserved(self) -> None:
         for owner in ("kernel", "default", "dropin"):
             for preference in ("0", "1", "1 zswap.enabled=0"):
                 with self.subTest(owner=owner, preference=preference):
@@ -234,14 +238,14 @@ main "$@"''',
                     self.assertFalse(self.config.exists())
                     self.assertFalse(self.marker.exists())
 
-    def test_running_preferences_do_not_override_persistent_configuration(self):
+    def test_running_preferences_do_not_override_persistent_configuration(self) -> None:
         source = self.fixture("running-only")
         (self.root / "proc/cmdline").write_text("zswap.enabled=0\n")
         result = self.shell(source + "configure_zswap\n")
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(self.config.read_text(), self.fragment)
 
-    def test_fragment_retains_encrypted_root_parameters(self):
+    def test_fragment_retains_encrypted_root_parameters(self) -> None:
         source = self.fixture("fragment")
         original_resume = self.resume.read_bytes()
         result = self.shell(source + "configure_zswap\nget_limine_cmdline initramfs\n")
@@ -259,7 +263,7 @@ main "$@"''',
 
 
 class HibernationTests(ScriptCase):
-    def test_unsafe_filesystem_or_fstab_stops_before_swap_changes(self):
+    def test_unsafe_filesystem_or_fstab_stops_before_swap_changes(self) -> None:
         fstab = self.directory / "fstab"
         fstab.write_text("# existing fstab\n")
         swap = self.directory / "swap"
@@ -305,12 +309,12 @@ create_btrfs_swap
     def resume_fixture(
         self,
         *,
-        encrypted=False,
-        failure="",
-        mapping="system-volume.v2",
-        mapper_source=False,
-        whole_device=False,
-    ):
+        encrypted: bool = False,
+        failure: str = "",
+        mapping: str = "system-volume.v2",
+        mapper_source: bool = False,
+        whole_device: bool = False,
+    ) -> str:
         swap = self.directory / "swap"
         swap.mkdir(exist_ok=True)
         (swap / "swapfile").touch()
@@ -441,7 +445,7 @@ setup_hibernation
 """
         )
 
-    def test_detector_resolves_subvolume_sources_and_mapper_aliases(self):
+    def test_detector_resolves_subvolume_sources_and_mapper_aliases(self) -> None:
         script = self.resume_fixture(
             encrypted=True, mapping="data[system]:v2", mapper_source=True
         ).rsplit("setup_hibernation\n", 1)[0]
@@ -463,7 +467,7 @@ get_btrfs_root_device
             ],
         )
 
-    def test_resume_uses_verified_filesystem_for_plain_and_luks_btrfs(self):
+    def test_resume_uses_verified_filesystem_for_plain_and_luks_btrfs(self) -> None:
         for encrypted, whole_device in (
             (False, False),
             (True, False),
@@ -486,7 +490,7 @@ get_btrfs_root_device
                     self.logged_calls(),
                 )
 
-    def test_ambiguous_identity_or_offset_never_publishes_resume(self):
+    def test_ambiguous_identity_or_offset_never_publishes_resume(self) -> None:
         for failure in (
             "identity",
             "uuid",
@@ -516,7 +520,7 @@ get_btrfs_root_device
                     any(call[0] in ("defaults", "update-limine") for call in self.logged_calls())
                 )
 
-    def test_other_persistent_swap_is_left_untouched(self):
+    def test_other_persistent_swap_is_left_untouched(self) -> None:
         self.stub("swapon", "echo /dev/other", log=True)
         self.stub("systemctl", "exit 0")
         self.stub("findmnt", "echo '/dev/other none swap defaults'", log=True)
@@ -525,7 +529,7 @@ get_btrfs_root_device
         self.assertIn("manual", result.stderr.lower())
         self.assertFalse(any(call[0] == "sudo" for call in self.logged_calls()))
 
-    def test_unchanged_resume_does_not_request_another_rebuild(self):
+    def test_unchanged_resume_does_not_request_another_rebuild(self) -> None:
         script = self.resume_fixture(encrypted=True).rsplit("setup_hibernation\n", 1)[0]
         boot = self.directory / "boot-options"
         dropins = self.directory / "initramfs-options"
@@ -577,7 +581,7 @@ setup_hibernation || exit 1
             (boot / "50-hibernation.conf").read_text(),
         )
 
-    def test_valid_managed_file_is_reused_but_unregistered_file_is_not_adopted(self):
+    def test_valid_managed_file_is_reused_but_unregistered_file_is_not_adopted(self) -> None:
         swap = self.directory / "swap"
         swap.mkdir()
         swapfile = swap / "swapfile"
@@ -640,7 +644,7 @@ create_btrfs_swap
                 self.assertEqual(fstab.read_text(), entries)
                 self.assertFalse(any("mkswapfile" in call for call in self.logged_calls()))
 
-    def test_swap_unit_inventory_accepts_no_matches_but_rejects_command_errors(self):
+    def test_swap_unit_inventory_accepts_no_matches_but_rejects_command_errors(self) -> None:
         self.stub("swapon", "exit 0")
         self.stub("findmnt", "echo '/dev/mapper/root / btrfs defaults'")
         self.stub(
@@ -675,7 +679,7 @@ esac""",
                 )
                 self.assertEqual(result.returncode, expected, result.stderr)
 
-    def test_zram_is_preserved_and_inactive_or_multiple_persistent_swaps_skip(self):
+    def test_zram_is_preserved_and_inactive_or_multiple_persistent_swaps_skip(self) -> None:
         self.stub("swapon", 'printf "%s\\n" "$ACTIVE"')
         self.stub("findmnt", 'printf "%s\\n" "$TABLE"')
         self.stub("systemctl", "exit 0")
@@ -694,7 +698,7 @@ esac""",
                 )
                 self.assertEqual(result.returncode, status, result.stderr)
 
-    def test_cmdline_preflight_checks_prospective_defaults_and_rejects_overrides(self):
+    def test_cmdline_preflight_checks_prospective_defaults_and_rejects_overrides(self) -> None:
         etc = self.directory / "etc"
         etc.mkdir()
         (etc / "kernel").mkdir()
@@ -736,7 +740,7 @@ esac""",
         )
         self.assertNotEqual(self.shell(script).returncode, 0)
 
-    def test_hook_verification_matches_mkinitcpio_version_order(self):
+    def test_hook_verification_matches_mkinitcpio_version_order(self) -> None:
         etc = self.directory / "etc"
         etc.mkdir()
         (etc / "mkinitcpio.conf").write_text("HOOKS=(base systemd block filesystems)\n")
@@ -755,7 +759,7 @@ esac""",
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout.strip(), "base systemd block filesystems fsck")
 
-    def test_failed_swap_setup_does_not_publish_resume_and_keeps_retry_pending(self):
+    def test_failed_swap_setup_does_not_publish_resume_and_keeps_retry_pending(self) -> None:
         script = self.resume_fixture(encrypted=True)
         script = script.replace(
             "setup_hibernation\n",
@@ -859,10 +863,10 @@ main "$@"''',
                 )
                 self.assertNotIn("setup completed", result.stderr)
 
-    def test_consecutive_deferrals_keep_changing_the_onchange_retry_state(self):
+    def test_consecutive_deferrals_keep_changing_the_onchange_retry_state(self) -> None:
         path = SCRIPTS / "run_onchange_after_03_hibernation.sh.tmpl"
         self.stub("limine", "exit 97")
-        rendered = []
+        rendered: list[str] = []
         for _ in range(3):
             source = self.render(path)
             rendered.append(source)
@@ -882,7 +886,8 @@ main "$@"''',
 
 
 class HibernationDetectionTests(ScriptCase):
-    def setUp(self):
+    @override
+    def setUp(self) -> None:
         super().setUp()
         self.stub("limine", "exit 97")
         self.stub("mkinitcpio", "exit 97")
@@ -902,7 +907,7 @@ if [ "$DETECTION" = desktop ]; then echo desktop; else echo laptop; fi""",
         self.pending = self.directory / "state/chezmoi/hibernation.pending"
         self.pending.parent.mkdir(parents=True)
 
-    def fixture(self):
+    def fixture(self) -> str:
         source = self.render(SCRIPTS / "run_onchange_after_03_hibernation.sh.tmpl")
         source = source.replace("/usr/bin/limine", str(self.bin / "limine"))
         return source.replace(
@@ -914,7 +919,7 @@ setup_hibernation() { printf 'setup-hibernation\\t\\n' >> "$CALLS"; return 3; }
 main "$@"''',
         )
 
-    def test_filesystem_detection_preserves_existing_status_contract(self):
+    def test_filesystem_detection_preserves_existing_status_contract(self) -> None:
         for scenario, expected in [
             ("supported", 0),
             ("non-btrfs", 1),
@@ -947,7 +952,7 @@ printf '%s\\n%s\\n' "$status" "$LAST_ERROR"
                 else:
                     self.assertEqual(error, "")
 
-    def test_hardware_gates_keep_failures_pending_and_clear_confirmed_skips(self):
+    def test_hardware_gates_keep_failures_pending_and_clear_confirmed_skips(self) -> None:
         for scenario, code, attempted, error in [
             ("supported", 0, True, ""),
             ("non-btrfs", 0, False, ""),
@@ -976,10 +981,10 @@ printf '%s\\n%s\\n' "$status" "$LAST_ERROR"
                 else:
                     self.assertFalse(self.pending.exists())
 
-    def test_recovered_detection_reaches_setup_after_repeated_deferral(self):
+    def test_recovered_detection_reaches_setup_after_repeated_deferral(self) -> None:
         self.pending.write_text(".")
         self.env["DETECTION"] = "filesystem-failure"
-        rendered = []
+        rendered: list[str] = []
         for expected_size in (2, 3):
             source = self.fixture()
             rendered.append(source)

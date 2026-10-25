@@ -10,11 +10,12 @@ import subprocess
 import sys
 from contextlib import nullcontext
 from pathlib import Path
+from typing import cast
 
 from loguru import logger
 
 
-def install_prerequisites():
+def install_prerequisites() -> int:
     packages = ["git", "base-devel"]
     if not shutil.which("mise"):
         packages.append("mise")
@@ -42,7 +43,7 @@ def install_prerequisites():
     return result.returncode
 
 
-def configure_bitwarden():
+def configure_bitwarden() -> int:
     # Vault diagnostics and config can contain personal data; never log them.
     result = subprocess.run(
         ["rbw", "config", "show"], capture_output=True, text=True, errors="replace"
@@ -64,13 +65,14 @@ def configure_bitwarden():
         config = {}
     else:
         try:
-            config = json.loads(result.stdout)
+            parsed = cast("object", json.loads(result.stdout))
         except json.JSONDecodeError:
             logger.error("Bitwarden configuration is invalid JSON; inspect 'rbw config show'.")
             return 1
-        if not isinstance(config, dict):
+        if not isinstance(parsed, dict):
             logger.error("Bitwarden configuration must be an object; inspect 'rbw config show'.")
             return 1
+        config = cast("dict[str, object]", parsed)
 
     email = config.get("email")
     if not isinstance(email, str) or not email:
@@ -137,9 +139,9 @@ def configure_bitwarden():
     return result.returncode
 
 
-def configure_logging():
+def configure_logging() -> int:
     logger.remove()
-    logger.add(
+    _ = logger.add(
         sys.stderr,
         format="<green>{time:HH:mm:ss}</green> | <level>{level: <7}</level> | <level>{message}</level>",
         colorize=sys.stderr.isatty()
@@ -164,7 +166,7 @@ def configure_logging():
         log_dir.chmod(0o700)
 
     # Loguru uses this native open() hook for the current file and every rotation.
-    def private_log_file(path, flags):
+    def private_log_file(path: str, flags: int) -> int:
         # A FIFO must not block before the regular-file check below can reject it.
         descriptor = os.open(path, flags | os.O_NOFOLLOW | os.O_NONBLOCK, 0o600)
         try:
@@ -193,7 +195,7 @@ def configure_logging():
     )
 
 
-def main():
+def main() -> int:
     file_sink = None
     try:
         file_sink = configure_logging()
@@ -202,7 +204,8 @@ def main():
             return status
         return configure_bitwarden()
     except OSError as error:
-        operation = error.filename if error.filename in ("pacman", "sudo", "rbw") else "Bootstrap"
+        filename = cast("object", error.filename)
+        operation = filename if filename in ("pacman", "sudo", "rbw") else "Bootstrap"
         try:
             logger.error(
                 "{} stopped (OS error {}); check prerequisite commands, configuration and setup-log permissions.",

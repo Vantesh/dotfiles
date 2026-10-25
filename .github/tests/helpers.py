@@ -8,6 +8,7 @@ import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+from typing import override
 
 ROOT = Path(__file__).resolve().parents[2]
 LIB = ROOT / "home/.chezmoitemplates/lib"
@@ -16,13 +17,21 @@ CHEZMOI = shutil.which("chezmoi")
 
 
 class ScriptCase(unittest.TestCase):
-    def __str__(self):
+    directory: Path
+    bin: Path
+    calls: Path
+    env: dict[str, str]
+
+    @override
+    def __str__(self) -> str:
         return self._testMethodName.removeprefix("test_").replace("_", " ").capitalize()
 
-    def shortDescription(self):
+    @override
+    def shortDescription(self) -> None:
         return None
 
-    def setUp(self):
+    @override
+    def setUp(self) -> None:
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
         self.directory = Path(temporary.name)
@@ -67,7 +76,7 @@ class ScriptCase(unittest.TestCase):
             (self.bin / command).symlink_to(target)
         self.stub("sudo", 'echo "Unexpected sudo: $*" >&2; exit 97')
 
-    def stub(self, name, body, *, log=False):
+    def stub(self, name: str, body: str, *, log: bool = False) -> None:
         # Retained fixtures use single-line arguments without tabs.
         logging = (
             (f'printf "%s\\t" {shlex.quote(name)} "$@" >> "$CALLS"\nprintf "\\n" >> "$CALLS"\n')
@@ -79,12 +88,14 @@ class ScriptCase(unittest.TestCase):
         path.write_text("#!/bin/sh\n" + logging + body + "\n")
         path.chmod(0o755)
 
-    def logged_calls(self):
+    def logged_calls(self) -> list[list[str]]:
         if not self.calls.exists():
             return []
         return [line.split("\t")[:-1] for line in self.calls.read_text().splitlines()]
 
-    def run_process(self, command, *, name, input=None):
+    def run_process(
+        self, command: list[str], *, name: str, input: str | None = None
+    ) -> subprocess.CompletedProcess[str]:
         try:
             return subprocess.run(
                 command,
@@ -99,15 +110,17 @@ class ScriptCase(unittest.TestCase):
         except subprocess.TimeoutExpired:
             self.fail(f"{name} timed out after 15s")
 
-    def shell(self, script, *, name="shell fixture"):
+    def shell(
+        self, script: str, *, name: str = "shell fixture"
+    ) -> subprocess.CompletedProcess[str]:
         path = self.directory / "fixture.sh"
         path.write_text(script)
         return self.run_process(["/bin/bash", str(path)], name=name)
 
-    def libraries(self, *names):
+    def libraries(self, *names: str) -> str:
         return "".join(f"source {shlex.quote(str(LIB / name))}\n" for name in names)
 
-    def function(self, path, name):
+    def function(self, path: Path, name: str) -> str:
         match = re.search(
             rf"^{re.escape(name)}\(\) \{{\n.*?^\}}",
             path.read_text(),
@@ -117,7 +130,7 @@ class ScriptCase(unittest.TestCase):
             self.fail(f"{path}: function {name!r} not found")
         return match.group() + "\n"
 
-    def render(self, path, *, personal=True):
+    def render(self, path: Path, *, personal: bool = True) -> str:
         if not CHEZMOI:
             self.skipTest("chezmoi is required for setup template rendering")
         config = self.directory / "chezmoi.json"

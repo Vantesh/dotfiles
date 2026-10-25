@@ -1,12 +1,13 @@
 """Enrollment preserves existing accounts and requires a usable fingerprint reader."""
 
 import os
+from typing import override
 
 from helpers import ROOT, SCRIPTS, ScriptCase
 
 
 class AvatarTests(ScriptCase):
-    def test_avatar_external_requires_personal_online_setup(self):
+    def test_avatar_external_requires_personal_online_setup(self) -> None:
         external = ROOT / "home/.chezmoiexternals/20-avatar.yaml.tmpl"
         for personal, offline, enabled in (
             (True, "", True),
@@ -24,7 +25,7 @@ class AvatarTests(ScriptCase):
                 else:
                     self.assertEqual(source.strip(), "")
 
-    def test_avatar_assignment_skips_unusable_offline_files_and_preserves_errors(self):
+    def test_avatar_assignment_skips_unusable_offline_files_and_preserves_errors(self) -> None:
         avatar = self.directory / ".local/share/avatars/profile.png"
         avatar.parent.mkdir(parents=True)
         self.stub("id", "echo 1000")
@@ -93,7 +94,7 @@ class AvatarTests(ScriptCase):
                 if not success:
                     self.assertIn("ERROR:", result.stderr)
 
-    def test_offline_transition_invalidates_only_personal_services(self):
+    def test_offline_transition_invalidates_only_personal_services(self) -> None:
         script = SCRIPTS / "run_onchange_after_14_services.sh.tmpl"
         for personal in (False, True):
             with self.subTest(personal=personal):
@@ -109,11 +110,12 @@ class AvatarTests(ScriptCase):
 
 
 class EnrollmentTests(ScriptCase):
-    def setUp(self):
+    @override
+    def setUp(self) -> None:
         super().setUp()
         self.source = self.render(SCRIPTS / "run_onchange_after_15_enrollment.sh.tmpl")
 
-    def test_warp_registration_is_created_once_without_connecting(self):
+    def test_warp_registration_is_created_once_without_connecting(self) -> None:
         registration = self.directory / "registration"
         self.env["REGISTRATION"] = str(registration)
         self.stub(
@@ -146,7 +148,7 @@ esac
             ],
         )
 
-    def test_warp_preserves_existing_registration_and_reports_unavailable_setup(self):
+    def test_warp_preserves_existing_registration_and_reports_unavailable_setup(self) -> None:
         self.stub(
             "warp-cli",
             """
@@ -183,7 +185,9 @@ esac
                 if scenario in ("unavailable", "failed"):
                     self.assertIn("WARN:", result.stderr)
 
-    def test_fingerprint_enrollment_requires_a_reader_without_prints_and_interactive_consent(self):
+    def test_fingerprint_enrollment_requires_a_reader_without_prints_and_interactive_consent(
+        self,
+    ) -> None:
         terminal = self.directory / "terminal"
         enrolled = self.directory / "enrolled"
         self.env["ENROLLED"] = str(enrolled)

@@ -15,23 +15,38 @@ import sys
 import tempfile
 from itertools import pairwise
 from pathlib import Path
+from typing import Literal, NotRequired, TypedDict, cast
 
 
-def require(condition, message):
+class KernelInventory(TypedDict):
+    machine: str
+    kernels: dict[str, list[str]]
+    fallback: str
+    uki: bool
+
+
+class BootEntry(TypedDict):
+    options: dict[str, list[str]]
+    machine: str
+    snapshot: bool
+    kernel: NotRequired[str]
+
+
+def require(condition: object, message: str) -> None:
     if not condition:
         raise ValueError(message)
 
 
-def digest(path):
+def digest(path: Path) -> str:
     with path.open("rb") as stream:
         return hashlib.file_digest(stream, "blake2b").hexdigest()
 
 
-def inventory(fallback, uki):
+def inventory(fallback: str, uki: str) -> KernelInventory:
     require(uki in ("", "no", "yes"), "unsupported ENABLE_UKI")
     machine = Path("/etc/machine-id").read_text().strip()
     require(re.fullmatch(r"[0-9a-f]{32}", machine), "invalid machine-id")
-    kernels = {}
+    kernels: dict[str, list[str]] = {}
     for builtin in sorted(Path("/usr/lib/modules").glob("*/modules.builtin")):
         source = builtin.parent / "vmlinuz"
         owner = subprocess.run(
@@ -46,14 +61,14 @@ def inventory(fallback, uki):
     return {"machine": machine, "kernels": kernels, "fallback": fallback, "uki": uki == "yes"}
 
 
-def is_snapshot_menu(name):
+def is_snapshot_menu(name: str) -> bool:
     """Recognize limine-snapper-sync's menu, including expanded headings."""
     return name.lstrip("+").strip() == "Snapshots"
 
 
-def entries(config):
-    stack = []
-    result = []
+def entries(config: str) -> list[BootEntry]:
+    stack: list[BootEntry] = []
+    result: list[BootEntry] = []
     for line in config.splitlines():
         line = line.strip()
         if not line or line.startswith("#"):
@@ -70,7 +85,7 @@ def entries(config):
             # limine-snapper-sync repeats kernel IDs beneath its Snapshots menu.
             # Those historical entries are not targets of the current rebuild.
             snapshot = is_snapshot_menu(heading[2])
-            entry = {
+            entry: BootEntry = {
                 "options": {},
                 "machine": stack[-1]["machine"] if stack else "",
                 "snapshot": snapshot or bool(stack and stack[-1]["snapshot"]),
@@ -81,14 +96,14 @@ def entries(config):
             key, value = (part.strip() for part in line.split(":", 1))
             key = key.lower()
             if key == "comment":
-                for field, identifier in re.findall(
-                    r"(?:^|\s)(machine-id|kernel-id)=([^\s]+)", value
-                ):
-                    field = "machine" if field == "machine-id" else "kernel"
+                for match in re.finditer(r"(?:^|\s)(machine-id|kernel-id)=([^\s]+)", value):
+                    field: Literal["machine", "kernel"] = (
+                        "machine" if match[1] == "machine-id" else "kernel"
+                    )
+                    identifier = match[2]
+                    previous = stack[-1].get(field, "")
                     require(
-                        field not in stack[-1]
-                        or not stack[-1][field]
-                        or stack[-1][field] == identifier,
+                        not previous or previous == identifier,
                         f"ambiguous {field} identifier",
                     )
                     stack[-1][field] = identifier
@@ -97,7 +112,7 @@ def entries(config):
     return result
 
 
-def uki_sections(path):
+def uki_sections(path: Path) -> dict[bytes, bytes]:
     """Read bounded PE section payloads, excluding file-alignment padding.
 
     This checks the payload layout, not EFI signatures or firmware acceptance.
@@ -105,34 +120,40 @@ def uki_sections(path):
     """
     data = path.read_bytes()
     require(len(data) >= 64 and data[:2] == b"MZ", f"invalid PE DOS header: {path}")
-    pe = struct.unpack_from("<I", data, 60)[0]
+    pe = cast("tuple[int]", struct.unpack_from("<I", data, 60))[0]
     require(
         64 <= pe <= len(data) - 24 and data[pe : pe + 4] == b"PE\0\0",
         f"invalid PE/COFF header: {path}",
     )
-    count = struct.unpack_from("<H", data, pe + 6)[0]
-    optional_size = struct.unpack_from("<H", data, pe + 20)[0]
+    count = cast("tuple[int]", struct.unpack_from("<H", data, pe + 6))[0]
+    optional_size = cast("tuple[int]", struct.unpack_from("<H", data, pe + 20))[0]
     optional = pe + 24
     table = optional + optional_size
     require(
         count and optional_size >= 2 and table + count * 40 <= len(data),
         f"truncated PE section table: {path}",
     )
-    magic = struct.unpack_from("<H", data, optional)[0]
+    magic = cast("tuple[int]", struct.unpack_from("<H", data, optional))[0]
     require(
         magic in (0x10B, 0x20B) and optional_size >= (96 if magic == 0x10B else 112),
         f"unsupported PE optional header: {path}",
     )
-    image_size, headers_size = struct.unpack_from("<II", data, optional + 56)
+    image_size, headers_size = cast(
+        "tuple[int, int]", struct.unpack_from("<II", data, optional + 56)
+    )
     require(
         table + count * 40 <= headers_size <= len(data) and image_size >= headers_size,
         f"invalid PE header bounds: {path}",
     )
-    sections, raw_ranges, virtual_ranges = {}, [], []
+    sections: dict[bytes, bytes] = {}
+    raw_ranges: list[tuple[int, int]] = []
+    virtual_ranges: list[tuple[int, int]] = []
     for index in range(count):
         offset = table + index * 40
         name = data[offset : offset + 8].rstrip(b"\0")
-        size, address, raw_size, raw_offset = struct.unpack_from("<IIII", data, offset + 8)
+        size, address, raw_size, raw_offset = cast(
+            "tuple[int, int, int, int]", struct.unpack_from("<IIII", data, offset + 8)
+        )
         if raw_size:
             require(
                 headers_size <= raw_offset and raw_offset + raw_size <= len(data),
@@ -164,7 +185,7 @@ def uki_sections(path):
     return sections
 
 
-def verify_initramfs(image, version):
+def verify_initramfs(image: Path, version: str) -> None:
     archive = subprocess.run(
         ["lsinitcpio", "--cpio", "--list", "--nocolor", str(image)],
         capture_output=True,
@@ -183,7 +204,7 @@ def verify_initramfs(image, version):
     )
 
 
-def verify(boot, expected, output, fallback, uki):
+def verify(boot: Path, expected: KernelInventory, output: str, fallback: str, uki: str) -> None:
     require(
         inventory(fallback, uki) == expected,
         "installed kernel inventory or rebuild mode changed during rebuild",
@@ -194,7 +215,7 @@ def verify(boot, expected, output, fallback, uki):
     output = re.sub(r"\x1b\[[0-9;]*[A-Za-z]", "", output)
     builds = re.split(r"(?m)^Building (initramfs|fallback initramfs|UKI|UKI fallback) for ", output)
 
-    def resource(value):
+    def resource(value: str) -> Path:
         match = re.fullmatch(r"boot\(\):(/[^#]+)(?:#([0-9a-fA-F]{128}))?", value)
         if match is None or any(char in value for char in "$%{}"):
             raise ValueError(f"unsupported resource: {value}")
@@ -228,11 +249,11 @@ def verify(boot, expected, output, fallback, uki):
                 f"missing or ambiguous generated kernel entry: {variant} (found {len(matches)} current entries)",
             )
             options = matches[0]
-            uki = expected["uki"]
+            is_uki = expected["uki"]
             # Options retain repeated values; require exactly one supported protocol.
-            protocols = (["efi"], ["efi_chainload"], ["uefi"]) if uki else (["linux"],)
+            protocols = (["efi"], ["efi_chainload"], ["uefi"]) if is_uki else (["linux"],)
             require(options.get("protocol") in protocols, f"unsupported protocol for {variant}")
-            allowed_paths = ("image_path",) if uki else ("kernel_path", "module_path")
+            allowed_paths = ("image_path",) if is_uki else ("kernel_path", "module_path")
             require(
                 not any(
                     key.endswith("_path") and key not in allowed_paths or key == "efi_dtb"
@@ -241,11 +262,11 @@ def verify(boot, expected, output, fallback, uki):
                 f"unsupported resource layout for {variant}",
             )
             paths = options.get("path", []) + options.get(
-                "image_path" if uki else "kernel_path", []
+                "image_path" if is_uki else "kernel_path", []
             )
             require(len(paths) == 1, f"ambiguous kernel/EFI path for {variant}")
             payload = resource(paths[0])
-            if uki:
+            if is_uki:
                 sections = uki_sections(payload)
                 require(
                     hashlib.blake2b(sections[b".linux"]).hexdigest() == kernel_hash,
@@ -253,7 +274,7 @@ def verify(boot, expected, output, fallback, uki):
                 )
                 with tempfile.TemporaryDirectory(prefix="chezmoi-uki-") as temporary:
                     image = Path(temporary) / "initramfs"
-                    image.write_bytes(sections[b".initrd"])
+                    _ = image.write_bytes(sections[b".initrd"])
                     verify_initramfs(image, version)
             else:
                 require(digest(payload) == kernel_hash, f"deployed kernel differs from {source}")
@@ -262,7 +283,7 @@ def verify(boot, expected, output, fallback, uki):
                 verify_initramfs(resource(modules[0]), version)
             if variant == name or expected["fallback"] in ("yes", name):
                 progress = name + " (" + version + ")"
-                kinds = ("UKI", "UKI fallback") if uki else ("initramfs", "fallback initramfs")
+                kinds = ("UKI", "UKI fallback") if is_uki else ("initramfs", "fallback initramfs")
                 kind = kinds[0 if variant == name else 1]
                 require(
                     any(
@@ -270,7 +291,7 @@ def verify(boot, expected, output, fallback, uki):
                         and block.startswith(progress + "\n")
                         and re.search(r"(?m)^==> Initcpio image generation successful\s*$", block)
                         and (
-                            not uki
+                            not is_uki
                             or re.search(
                                 r"(?m)^==> Unified kernel image generation successful\s*$", block
                             )
@@ -282,7 +303,7 @@ def verify(boot, expected, output, fallback, uki):
     print("Verified generated boot entries, kernel payloads, and initramfs archives")
 
 
-def verify_enrollment(boot):
+def verify_enrollment(boot: Path) -> None:
     # Match the integration's architecture-based target, never a firmware setting.
     arch = os.uname().machine
     suffix = {
@@ -319,10 +340,16 @@ try:
         else:
             require(mode == "verify", "unknown verification mode")
             verify(
-                Path(directory).resolve(), json.loads(sys.argv[5]), sys.stdin.read(), fallback, uki
+                Path(directory).resolve(),
+                cast("KernelInventory", json.loads(sys.argv[5])),
+                sys.stdin.read(),
+                fallback,
+                uki,
             )
 except (OSError, ValueError, subprocess.CalledProcessError) as error:
-    if isinstance(error, subprocess.CalledProcessError) and error.stderr:
-        print(error.stderr, file=sys.stderr, end="")
+    if isinstance(error, subprocess.CalledProcessError):
+        stderr = cast("str | None", error.stderr)
+        if stderr:
+            print(stderr, file=sys.stderr, end="")
     print(f"Limine rebuild verification failed: {error}", file=sys.stderr)
     sys.exit(1)
