@@ -75,7 +75,7 @@ Each policy hook authenticates through native sudo before one synchronous privil
 
 ## Common services and Fish
 
-The service after-hook runs native Mise service and login-shell provisioning for both profiles. Common system units are NetworkManager, Bluetooth, `fstrim.timer`, `reflector.timer`, `pacman-filesdb-refresh.timer`, `paccache.timer` and `pkgfile-update.timer`. The existing disabled/masked `systemd-networkd-wait-online.service` policy is retained. Personal-only WARP, SSH agent and NVIDIA sleep services keep their existing enrollment or hardware boundaries. UFW rules/activation and Ly lifecycle remain personal-only and unchanged.
+The Python service after-hook (`14_services`) runs native Mise service and login-shell provisioning for both profiles. Common system units are NetworkManager, Bluetooth, `fstrim.timer`, `reflector.timer`, `pacman-filesdb-refresh.timer`, `paccache.timer` and `pkgfile-update.timer`. The existing disabled/masked `systemd-networkd-wait-online.service` policy is retained. Personal-only WARP, SSH agent and NVIDIA sleep services keep their existing enrollment or hardware boundaries. UFW rules/activation and Ly lifecycle remain personal-only and unchanged.
 
 A short state-aware loop retains the existing packaged user units: GNOME Keyring's socket/service, MPRIS proxy and udiskie. System services run first; healthy user units are not re-enabled or restarted, and unavailable optional units are skipped. These are existing unit identities, rather than newly generated Mise user services. Personal snapshot exclusions for locate and avatar assignment remain gated. Nonpersonal Reflector uses its packaged defaults; the existing personal Pacman/Reflector customization remains in its earlier phase.
 
@@ -101,7 +101,7 @@ Run-script contents and existing configuration inputs control reapplication. Pac
 
 ## Bootstrap logs
 
-The Python authentication, package, sudo/faillock, Pacman policy and Snapper workflows use Loguru. Terminal messages show time, level and a short action or error; color is enabled only on a suitable TTY and respects `NO_COLOR`. Successful checks stay quiet. Later provisioning hooks still use their existing Bash logging.
+Python provisioning workflows use the shared Loguru configuration. Terminal messages show time, level and a short action or error; color is enabled only on a suitable TTY and respects `NO_COLOR`. Successful checks stay quiet. Deferred Bash provisioning retains its existing logging.
 
 Diagnostics are written to `$XDG_STATE_HOME/chezmoi/logs/setup.log`, falling back to `~/.local/state/chezmoi/logs/setup.log`. The log directory is private (`0700`); current and rotated logs are user-owned with mode `0600`. Loguru rotates at 5 MiB and retains five rotated files. The file is opened only when a message is logged, so successful no-op checks do not create or append a setup log.
 

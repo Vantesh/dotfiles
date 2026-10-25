@@ -1,6 +1,7 @@
 """Common workstation tasks preserve service scopes and personal-only provisioning."""
 
 import json
+import os
 import shlex
 import shutil
 import tomllib
@@ -9,43 +10,23 @@ from typing import cast
 
 import pytest
 from helpers import CHEZMOI, ROOT, SCRIPTS
-from test_setup import calls, run_setup, stub
+from test_setup import calls, render_python, run_setup, stub
 from test_setup import env as env
 
-HOOK = "run_onchange_after_14_services.sh.tmpl"
+HOOK = "run_onchange_after_14_services.py.tmpl"
 
 
-def render_services(env: dict[str, str], personal: bool) -> list[str]:
-    assert CHEZMOI is not None, "chezmoi is required for workstation validation"
+def render_services(
+    env: dict[str, str], personal: bool, *, source: Path = ROOT / "home"
+) -> list[str]:
     home = Path(env["HOME"])
-    config = home / "render.json"
-    config.write_text("{}")
-    result = run_setup(
-        env,
-        [
-            CHEZMOI,
-            "--config",
-            str(config),
-            "--source",
-            str(ROOT / "home"),
-            "--working-tree",
-            str(ROOT),
-            "--destination",
-            str(home),
-            "--override-data",
-            json.dumps({"personal": personal, "distroFamily": "arch"}),
-            "execute-template",
-        ],
-        input=(SCRIPTS / HOOK).read_text(),
-    )
-    assert result.returncode == 0, result.stderr
-    script = home / "services.sh"
+    script = render_python(env, HOOK, personal=personal, source=source)
     # Validate the fixed binary check against an isolated executable in these tests.
     fish = home / "fish"
     fish.write_text("#!/bin/sh\nexit 0\n")
     fish.chmod(0o755)
-    script.write_text(result.stdout.replace("/usr/bin/fish", str(fish)))
-    return ["/bin/bash", str(script)]
+    script.write_text(script.read_text().replace("/usr/bin/fish", str(fish)))
+    return ["/usr/bin/python3", "-B", str(script)]
 
 
 @pytest.fixture
@@ -223,7 +204,8 @@ def test_invalid_account_or_fish_stops_before_tasks(
 ) -> None:
     command = render_services(workstation, False)
     if invalid == "root":
-        stub(workstation, "id", "echo 0")
+        script = Path(command[-1])
+        script.write_text(script.read_text().replace("if os.getuid() == 0:", "if True:"))
     elif invalid == "fish":
         (tmp_path / "fish").chmod(0o644)
     else:
@@ -232,3 +214,162 @@ def test_invalid_account_or_fish_stops_before_tasks(
     assert result.returncode != 0
     assert "ERROR" in result.stderr
     assert calls(workstation) == []
+
+
+@pytest.mark.parametrize("personal", [False, True], ids=["nonpersonal", "personal"])
+def test_locate_and_avatar_remain_personal_and_retryable(
+    workstation: dict[str, str], tmp_path: Path, personal: bool
+) -> None:
+    source = tmp_path / "source with spaces/home"
+    scripts = source / ".chezmoiscripts/linux"
+    scripts.mkdir(parents=True)
+    shutil.copytree(ROOT / "mise", source.parent / "mise")
+    shutil.copytree(ROOT / "home/.chezmoitemplates/lib", source / ".chezmoitemplates/lib")
+    updatedb = tmp_path / "etc/updatedb.conf"
+    updatedb.parent.mkdir()
+    updatedb.write_text('# preserve\nPRUNENAMES=".git cache"\nOTHER="keep"\n')
+    updatedb.chmod(0o640)
+    text = (
+        (SCRIPTS / HOOK)
+        .read_text()
+        .replace('Path("/etc/updatedb.conf")', f"Path({str(updatedb)!r})")
+        .replace("if os.geteuid() != 0:", "if False:")
+    )
+    (scripts / HOOK).write_text(text)
+    helper = source / ".chezmoitemplates/lib/policy_files.py"
+    helper.write_text(
+        helper.read_text().replace("parent.st_uid != 0", "parent.st_uid != os.getuid()")
+    )
+    avatar = tmp_path / ".local/share/avatars/profile.png"
+    avatar.parent.mkdir(parents=True)
+    avatar.write_bytes(b"fixture-avatar")
+    stub(workstation, "updatedb", "exit 97", log=True)
+    stub(workstation, "busctl", 'exit "${AVATAR_STATUS:-0}"', log=True)
+    stub(
+        workstation,
+        "sudo",
+        """case "$1" in
+    -v) exit 0 ;;
+    -n) shift; exec "$@" ;;
+    systemctl) exit 23 ;;
+    *) exit 97 ;;
+esac""",
+        log=True,
+    )
+    command = render_services(workstation, personal, source=source)
+    first = run_setup(workstation, command)
+    assert first.returncode == 0, first.stderr
+    before = updatedb.stat().st_mtime_ns
+    for _ in range(2):
+        result = run_setup(workstation, command)
+        assert result.returncode == 0, result.stderr
+    assert updatedb.stat().st_mtime_ns == before
+    assert updatedb.stat().st_mode & 0o777 == 0o640
+    expected = ".git cache .snapshots" if personal else ".git cache"
+    assert updatedb.read_text() == f'# preserve\nPRUNENAMES="{expected}"\nOTHER="keep"\n'
+    recorded = calls(workstation)
+    assert any(call[0] == "sudo" for call in recorded) == personal
+    assert any(call[0] == "busctl" for call in recorded) == personal
+    assert not any(call[0] == "updatedb" for call in recorded)
+    if personal:
+        assert "indexing is deferred" in first.stderr
+        assert next(
+            index for index, call in enumerate(recorded) if "--configure-locate" in call
+        ) < next(index for index, call in enumerate(recorded) if call[0] == "mise")
+        workstation["AVATAR_STATUS"] = "23"
+        failed = run_setup(workstation, command)
+        assert failed.returncode == 23
+
+
+def test_masked_static_user_unit_is_unmasked_and_started_once(workstation: dict[str, str]) -> None:
+    stub(
+        workstation,
+        "systemctl",
+        """case "$*" in
+    '--user show --property=UnitFileState --value -- udiskie') echo static ;;
+    '--user show '*' -- udiskie')
+        if test -f "$HOME/unmasked"; then echo LoadState=loaded; echo UnitFileState=static; else echo LoadState=masked; echo UnitFileState=masked; fi
+        if test -f "$HOME/active"; then echo ActiveState=active; else echo ActiveState=inactive; fi ;;
+    '--user show '*) echo LoadState=not-found ;;
+    '--user --quiet unmask -- udiskie') touch "$HOME/unmasked" ;;
+    '--user --quiet start -- udiskie') touch "$HOME/active" ;;
+    *) exit 97 ;;
+esac""",
+        log=True,
+    )
+    command = render_services(workstation, False)
+    for _ in range(2):
+        result = run_setup(workstation, command)
+        assert result.returncode == 0, result.stderr
+    recorded = calls(workstation)
+    assert recorded.count(["systemctl", "--user", "--quiet", "unmask", "--", "udiskie"]) == 1
+    assert recorded.count(["systemctl", "--user", "--quiet", "start", "--", "udiskie"]) == 1
+    assert not any("enable" in call or "restart" in call for call in recorded)
+
+
+@pytest.mark.parametrize(
+    ("offline", "kind", "status", "success"),
+    [
+        ("1", "missing", "0", True),
+        ("1", "empty", "0", True),
+        ("1", "directory", "0", True),
+        ("1", "unreadable", "0", True),
+        ("1", "usable", "0", True),
+        ("", "usable", "0", True),
+        ("", "missing", "0", False),
+        ("", "empty", "0", False),
+        ("1", "usable", "23", False),
+        ("", "usable", "23", False),
+    ],
+)
+def test_avatar_assignment_skips_unusable_offline_files_and_preserves_errors(
+    workstation: dict[str, str], tmp_path: Path, offline: str, kind: str, status: str, success: bool
+) -> None:
+    if kind == "unreadable" and os.geteuid() == 0:
+        pytest.skip("Root can read files regardless of mode bits")
+    avatar = tmp_path / ".local/share/avatars/profile.png"
+    avatar.parent.mkdir(parents=True)
+    if kind == "directory":
+        avatar.mkdir()
+    elif kind != "missing":
+        avatar.write_bytes(b"" if kind == "empty" else b"fixture image")
+        if kind == "unreadable":
+            avatar.chmod(0)
+    workstation["OFFLINE"] = offline
+    stub(workstation, "busctl", f"exit {status}", log=True)
+    result = run_setup(workstation, render_services(workstation, True))
+    assert (result.returncode == 0) == success, result.stderr
+    expected = (
+        [
+            [
+                "busctl",
+                "call",
+                "org.freedesktop.Accounts",
+                f"/org/freedesktop/Accounts/User{os.getuid()}",
+                "org.freedesktop.Accounts.User",
+                "SetIconFile",
+                "s",
+                str(avatar),
+            ]
+        ]
+        if kind == "usable"
+        else []
+    )
+    assert [call for call in calls(workstation) if call[0] == "busctl"] == expected
+    if not success:
+        assert "[ERROR]" in result.stderr
+
+
+@pytest.mark.parametrize("personal", [False, True], ids=["nonpersonal", "personal"])
+def test_offline_transition_invalidates_only_personal_services(
+    workstation: dict[str, str], personal: bool
+) -> None:
+    workstation.pop("OFFLINE", None)
+    online = render_python(workstation, HOOK, personal=personal).read_text()
+    workstation["OFFLINE"] = "1"
+    offline = render_python(workstation, HOOK, personal=personal).read_text()
+    assert (online != offline) == personal
+    workstation["OFFLINE"] = "yes"
+    assert offline == render_python(workstation, HOOK, personal=personal).read_text()
+    workstation["OFFLINE"] = ""
+    assert online == render_python(workstation, HOOK, personal=personal).read_text()

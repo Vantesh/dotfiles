@@ -104,7 +104,13 @@ def render_python(
             "--destination",
             str(home),
             "--override-data",
-            json.dumps({"personal": personal, "chezmoi": {"osRelease": {"id": distro}}}),
+            json.dumps(
+                {
+                    "personal": personal,
+                    "distroFamily": "arch",
+                    "chezmoi": {"osRelease": {"id": distro}},
+                }
+            ),
             "execute-template",
         ],
         input=(source / ".chezmoiscripts/linux" / name).read_text(),
