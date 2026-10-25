@@ -53,13 +53,25 @@ A small shell entry point installs Arch’s `python` and `python-loguru` package
 
 Service, firewall, login-shell and other provisioning declarations apply only to personal setups. Fish configuration is included in both profiles.
 
+## Package execution and early XDG setup
+
+Chezmoi’s package before-hook runs `.chezmoitemplates/packages.py`. It prepares the XDG paths needed by package builds, establishes Chaotic-AUR trust and configuration, completes the initial full system upgrade, and then delegates installation to Mise. Git/base-devel/Mise prerequisites remain in the earlier bootstrap. A missing AUR helper is installed through the `aur-helper` group in `mise/conf.d/packages.toml`; an existing yay or paru is retained.
+
+The existing `chezmoi/chaotic-aur-updated` marker under XDG state records only a successful initial upgrade. Failures retry on the next apply. Package execution state belongs to Chezmoi: changes to `mise/config.toml`, `mise/conf.d/packages.toml`, the coordinator, or the selected profile rerun the package hook. Unrelated service, theme or authentication edits do not. Add a dependency hash to that hook if package declarations move into another file.
+
+Nonpersonal runs select only baseline packages. Personal runs add the declared hardware groups: Intel, the supported NVIDIA families, laptop utilities, the known Goodix reader and available Limine/mkinitcpio integration. CachyOS/Garuda keep their distribution-managed NVIDIA modules. Unknown or mixed NVIDIA architectures require manual driver setup. Existing driver-family conflicts, mismatched kernel headers and missing kernel modules still stop setup; legacy NVIDIA utilities precede the rest of that driver stack. Exact kernel/header pairs use pacman directly because Mise cannot install pacman version pins.
+
+Early setup respects XDG overrides and prepares private GnuPG storage, Bash/Python history parents and create-only Maven settings. Only Rust/Go/GnuPG build variables are exported for package commands; application session settings stay in `environment.d/00-xdg.conf.tmpl`. Existing Maven settings are preserved, and unused tool cache directories are left for their tools to create.
+
+`OFFLINE` continues to control supported external downloads; it does not turn package setup into an offline installer. Pacman/AUR still need the packages and repository access they normally require. Package commands remain unattended (`--yes`/`--noconfirm`); sudo authentication is still required. Mise applies missing packages without `--update`, avoiding a separate database refresh or partial system upgrade.
+
 ## Bootstrap logs
 
-The Python prerequisite bootstrap uses Loguru. Terminal messages show time, level and a short action or error; color is enabled only on a suitable TTY and respects `NO_COLOR`. Successful checks stay quiet. The remaining provisioning hooks still use their existing Bash logging.
+The Python prerequisite bootstrap and package coordinator use Loguru. Terminal messages show time, level and a short action or error; color is enabled only on a suitable TTY and respects `NO_COLOR`. Successful checks stay quiet. Later provisioning hooks still use their existing Bash logging.
 
-Diagnostics are written to `$XDG_STATE_HOME/chezmoi/logs/setup.log`, falling back to `~/.local/state/chezmoi/logs/setup.log`. The log directory is private (`0700`); current and rotated logs are user-owned with mode `0600`. Loguru rotates at 5 MiB and retains five rotated files. The file is opened only when a message is logged, so an unchanged apply does not create or append a bootstrap log.
+Diagnostics are written to `$XDG_STATE_HOME/chezmoi/logs/setup.log`, falling back to `~/.local/state/chezmoi/logs/setup.log`. The log directory is private (`0700`); current and rotated logs are user-owned with mode `0600`. Loguru rotates at 5 MiB and retains five rotated files. The file is opened only when a message is logged, so successful no-op checks do not create or append a setup log.
 
-Vault output, email arguments, tokens and subprocess environments are not recorded. Authentication errors report the failing operation and exit status with a retry hint; use rbw directly when deeper vault diagnostics are needed. A logging/storage error stops the bootstrap rather than continuing without private diagnostics. Run chezmoi as the regular account; sudo is used only for package installation. Python/Loguru installation failures occur before the logger is available and use pacman's terminal diagnostics.
+Vault output, email arguments, tokens and subprocess environments are not recorded. Authentication errors report the failing operation and exit status with a retry hint; use rbw directly when deeper vault diagnostics are needed. A logging/storage error stops Python setup rather than continuing without private diagnostics. Run chezmoi as the regular account; sudo is used only for package installation. Python/Loguru installation failures occur before the logger is available and use pacman's terminal diagnostics.
 
 ## Btrfs layout
 

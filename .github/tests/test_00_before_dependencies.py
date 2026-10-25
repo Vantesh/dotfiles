@@ -5,7 +5,6 @@ import os
 import pty
 import shutil
 import subprocess
-import tomllib
 
 from helpers import CHEZMOI, ROOT, SCRIPTS, ScriptCase
 
@@ -142,26 +141,6 @@ class DependencyTests(ScriptCase):
         self.assertEqual([call[0] for call in self.logged_calls()], ["sudo"])
         self.assertEqual(self.logged_calls()[0][1:3], ["pacman", "-S"])
 
-    def test_package_installer_failure_is_not_reported_as_success(self):
-        source = self.render(SCRIPTS / "run_onchange_before_02_packages.sh.tmpl", personal=False)
-        # Bypass completed prerequisites, not the installer or its failure handling.
-        source = source.replace(
-            'if [[ "$(id -u)" -eq 0 ]]; then',
-            """
-keep_sudo_alive() { return 0; }
-setup_xdg() { return 0; }
-setup_chaotic_aur() { return 0; }
-install_aur_helper() { return 0; }
-is_laptop() { return 1; }
-if [[ "$(id -u)" -eq 0 ]]; then""",
-        )
-        self.stub("id", "echo 1000")
-        self.stub("pacman", '[ "$1" = -T ] || exit 97')
-        self.stub("mise", "exit 23", log=True)
-        result = self.shell(source)
-        self.assertNotEqual(result.returncode, 0)
-        self.assertEqual(len(self.logged_calls()), 1)
-        self.assertEqual(self.logged_calls()[0][0], "mise")
 
 
 class BootstrapTests(ScriptCase):
@@ -340,179 +319,199 @@ namespace['logger'].warning('terminal check')
         self.assertEqual(list(external.iterdir()), [])
 
 
-class NvidiaPackageTests(ScriptCase):
+class PackageTests(ScriptCase):
     def setUp(self):
         super().setUp()
-        self.source = self.render(SCRIPTS / "run_onchange_before_02_packages.sh.tmpl")
-        self.source = self.source.replace(
-            'if [[ "$(id -u)" -eq 0 ]]; then',
-            """
-keep_sudo_alive() { return 0; }
-setup_xdg() { return 0; }
-setup_chaotic_aur() { return 0; }
-install_aur_helper() { return 0; }
-is_laptop() { return 1; }
-
-if [[ "$(id -u)" -eq 0 ]]; then""",
-        )
-        self.env.update(
-            DISTRO="arch",
-            MODULE_FAILURE="", FAILURE_RELEASE="6.12-fixture",
-        )
+        self.packages = ROOT / "home/.chezmoitemplates/packages.py"
+        self.env.update(NOCONFIRM="1", OFFLINE="1", PACKAGES="linux 6.18-1\nlinux-headers 6.18-1",
+                        GPU="Intel Corporation [8086:1234]", DRIVER_VERSION="615.78.08",
+                        MISE_STATUS="0", UPGRADE_STATUS="0")
         self.stub("id", "echo 1000")
-        self.stub(
-            "lspci",
-            'printf "01:00.0 VGA compatible controller [0300]: NVIDIA Corporation %s [10de:1234]\\n" "$GPU"',
-        )
-        self.stub(
-            "pacman",
-            """case "$*" in
-    -Q) printf '%s\\n' "$PACKAGES" ;;
-    '-Q nvidia-utils'|'-Q nvidia-580xx-utils')
-        printf '%s\\n' "$PACKAGES" | awk -v name="$2" '$1 == name { print; found=1 } END { exit !found }' ;;
+        self.stub("yay", "exit 97")
+        self.stub("pacman-conf", "echo chaotic-aur")
+        self.stub("pacman", r'''case "$*" in
+    '-Q chaotic-keyring chaotic-mirrorlist'|'-T vulkan-driver'|-Dk) exit 0 ;;
+    -Q) printf '%s\n' "$PACKAGES" ;;
+    '-Q nvidia-utils') echo "nvidia-utils $DRIVER_VERSION-1" ;;
+    '-Q nvidia-580xx-utils') echo "nvidia-580xx-utils $DRIVER_VERSION-1" ;;
     '-Qql linux') echo /usr/lib/modules/6.18-fixture/pkgbase ;;
-    '-Qql linux-lts') echo /usr/lib/modules/6.12-fixture/pkgbase ;;
     *) exit 97 ;;
-esac""",
-        )
-        self.stub(
-            "modinfo",
-            """[ "$#" = 5 ] && [ "$1" = -k ] && [ "$3" = -F ] && [ "$5" = nvidia ] || exit 97
-if [ "$2" = "$FAILURE_RELEASE" ] && [ "$MODULE_FAILURE" = missing ]; then exit 1; fi
-case "$4" in
-    vermagic)
-        if [ "$2" = "$FAILURE_RELEASE" ] && [ "$MODULE_FAILURE" = wrong-abi ]; then
-            echo 'wrong-release SMP'
-        else
-            printf '%s SMP\\n' "$2"
-        fi ;;
-    version)
-        if [ "$2" = "$FAILURE_RELEASE" ] && [ "$MODULE_FAILURE" = stale ]; then
-            echo 580.119.02
-        else
-            echo 615.78.08
-        fi ;;
+esac''')
+        self.stub("sudo", r'''[ "$*" = 'pacman -Syu --noconfirm' ] || exit 97
+exit "$UPGRADE_STATUS"''', log=True)
+        self.stub("hostnamectl", "echo laptop")
+        self.stub("lspci", 'printf "01:00.0 VGA compatible controller [0300]: %s\n" "$GPU"')
+        self.stub("limine", "exit 97")
+        self.stub("mkinitcpio", "exit 97")
+        self.stub("modinfo", r'''case "$*" in
+    '-k 6.18-fixture -F vermagic nvidia') echo '6.18-fixture SMP' ;;
+    '-k 6.18-fixture -F version nvidia') echo "$DRIVER_VERSION" ;;
     *) exit 97 ;;
-esac""",
-        )
-        self.stub("mise", "exit 0", log=True)
+esac''')
+        self.stub("mise", r'''/usr/bin/python3 -B - <<'CHECK'
+import json, os
+from pathlib import Path
+assert Path(os.environ['GNUPGHOME']).is_dir()
+assert Path(os.environ['GNUPGHOME']).stat().st_mode & 0o777 == 0o700
+assert not os.environ.get('MISE_ENV')
+assert not os.environ.get('MISE_CONFIG_FILE')
+assert os.environ['OFFLINE'] == '1' and os.environ['NOCONFIRM'] == '1'
+Path(os.environ['HOME'], 'observed.json').write_text(json.dumps({
+    key: os.environ.get(key) for key in ('XDG_CONFIG_HOME', 'XDG_DATA_HOME', 'XDG_STATE_HOME',
+                                       'GOPATH', 'CARGO_HOME', 'GNUPGHOME')}))
+CHECK
+[ "$?" = 0 ] || exit 98
+exit "$MISE_STATUS"''', log=True)
 
-    def test_matching_partial_stacks_keep_the_selected_packages_and_installed_module(
-        self,
-    ):
-        for gpu, packages, family, module_group in (
-            (
-                "GP106",
-                "nvidia-580xx-utils 580.119.02-1",
-                "nvidia-legacy",
-                "nvidia-legacy-dkms",
-            ),
-            ("GA106", "nvidia-utils 590.48.01-1", "nvidia-current", "nvidia-open"),
-            (
-                "GA106",
-                "nvidia-utils 590.48.01-1\nnvidia-open 590.48.01-1",
-                "nvidia-current",
-                None,
-            ),
+    def apply_packages(self, *, personal=False, distro="arch"):
+        command = ["/usr/bin/python3", "-B", str(self.packages), "--root", str(ROOT), "--distro", distro]
+        if personal:
+            command.append("--personal")
+        return self.run_process(command, name="package orchestration")
+
+    def test_nonpersonal_packages_prepare_xdg_and_do_not_inspect_hardware(self):
+        for name in ("lspci", "hostnamectl", "rbw", "systemctl", "sbctl"):
+            self.stub(name, "exit 97", log=True)
+        self.env.update(MISE_ENV="personal", MISE_CONFIG_FILE="/unrelated/config.toml")
+        result = self.apply_packages()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual([call for call in self.logged_calls() if call[0] == "mise"],
+                         [["mise", "--env", "packages", "bootstrap", "packages", "apply", "--yes"]])
+        self.assertTrue(all(call[0] in ("sudo", "mise") for call in self.logged_calls()))
+        observed = json.loads((self.directory / "observed.json").read_text())
+        self.assertEqual(observed["GOPATH"], str(self.directory / "data/go"))
+
+    def test_chaotic_trust_upgrade_and_mise_helper_are_ordered_and_repeatable(self):
+        (self.bin / "yay").unlink()
+        self.stub("pacman", r'''case "$*" in
+    '-Q chaotic-keyring chaotic-mirrorlist') test -f "$HOME/trust-installed" ;;
+    '-T vulkan-driver') exit 0 ;;
+    *) exit 97 ;;
+esac''')
+        self.stub("pacman-conf", 'echo core; if test -f "$HOME/repo-enabled"; then echo chaotic-aur; fi')
+        self.stub("sudo", r'''test -d "$GNUPGHOME" || exit 98
+case "$*" in
+    'pacman-key --list-keys 3056513887B78AEB') exit 1 ;;
+    'pacman-key --recv-key 3056513887B78AEB --keyserver keyserver.ubuntu.com'|'pacman-key --lsign-key 3056513887B78AEB') exit 0 ;;
+    'pacman -U --needed --noconfirm '*) touch "$HOME/trust-installed" ;;
+    'tee -a /etc/pacman.conf') cat >> "$HOME/pacman.conf"; touch "$HOME/repo-enabled" ;;
+    'pacman -Syu --noconfirm') test -f "$HOME/trust-installed" && test -f "$HOME/repo-enabled" ;;
+    *) exit 97 ;;
+esac''', log=True)
+        self.stub("mise", r'''if [ "$*" = '--env aur-helper bootstrap packages apply --yes' ]; then
+    printf '#!/bin/sh\nexit 97\n' > "$HOME/bin/yay"
+    chmod 755 "$HOME/bin/yay"
+elif [ "$*" != '--env packages bootstrap packages apply --yes' ]; then
+    exit 97
+fi''', log=True)
+        for _ in range(2):
+            result = self.apply_packages()
+            self.assertEqual(result.returncode, 0, result.stderr)
+        calls = self.logged_calls()
+        self.assertEqual([call[1] for call in calls[:6]], ["pacman-key", "pacman-key", "pacman-key", "pacman", "tee", "pacman"])
+        self.assertEqual([call[2] for call in calls if call[0] == "mise"], ["aur-helper", "packages", "packages"])
+        self.assertEqual((self.directory / "pacman.conf").read_text().count("[chaotic-aur]"), 1)
+        self.assertTrue((self.directory / "state/chezmoi/chaotic-aur-updated").is_file())
+
+    def test_personal_package_groups_and_legacy_provider_order(self):
+        for gpu, version, family, module in (
+            ("NVIDIA Corporation GP106 [10de:1234]", "580.119.02", "nvidia-legacy", "nvidia-legacy-dkms"),
+            ("NVIDIA Corporation GA106 [10de:1234]", "615.78.08", "nvidia-current", "nvidia-open"),
         ):
-            with self.subTest(gpu=gpu, packages=packages):
-                self.env.update(GPU=gpu, PACKAGES=packages)
+            with self.subTest(family=family):
                 self.calls.unlink(missing_ok=True)
-                result = self.shell(self.source)
+                self.env.update(GPU=gpu, DRIVER_VERSION=version)
+                result = self.apply_packages(personal=True)
                 self.assertEqual(result.returncode, 0, result.stderr)
-                calls = self.logged_calls()
+                calls = [call for call in self.logged_calls() if call[0] == "mise"]
                 groups = calls[-1][2].split(",")
-                self.assertIn("personal", groups)
-                self.assertIn(family, groups)
-                if module_group:
-                    self.assertIn(module_group, groups)
-                else:
-                    self.assertNotIn("nvidia-open", groups)
+                for group in ("packages", "personal", "driver-utils", "laptop", "limine-mkinitcpio", "snapper", family, module):
+                    self.assertIn(group, groups)
                 if family == "nvidia-legacy":
                     self.assertEqual(calls[0][1:3], ["--env", "nvidia-legacy-utils"])
 
-    def test_conflicting_standard_stacks_stop_before_nvidia_installation(self):
-        for gpu, package in (
-            ("GP106", "nvidia-utils"),
-            ("GA106", "nvidia-580xx-utils"),
-            ("GP106", "lib32-nvidia-utils"),
-            ("GP106", "nvidia-open-dkms"),
-        ):
-            with self.subTest(gpu=gpu, package=package):
-                self.env.update(GPU=gpu, PACKAGES=f"{package} 580.119.02-1")
+    def test_derivatives_leave_nvidia_modules_to_the_distribution(self):
+        self.env["GPU"] = "NVIDIA Corporation GA106 [10de:1234]"
+        for distro in ("cachyos", "garuda"):
+            with self.subTest(distro=distro):
                 self.calls.unlink(missing_ok=True)
-                result = self.shell(self.source)
-                self.assertEqual(result.returncode, 1, result.stderr)
-                self.assertIn(package, result.stderr)
-                self.assertEqual(self.logged_calls(), [])
-
-    def test_fixed_modules_cover_every_installed_kernel_before_skipping_selection(self):
-        kernels = (
-            "linux 6.18-1\nlinux-headers 6.18-1\n"
-            "linux-lts 6.12-1\nlinux-lts-headers 6.12-1\n"
-            "nvidia-utils 615.78.08-1\n"
-        )
-        declarations = tomllib.loads(
-            (ROOT / "mise/conf.d/packages.toml").read_text()
-        )["bootstrap"]["packages"]
-        for modules, expected_group, expected_package in (
-            ("nvidia-open-lts 615.78.08-1", "nvidia-open-linux", "pacman:nvidia-open"),
-            ("nvidia-open 615.78.08-1", "nvidia-open-lts", "pacman:nvidia-open-lts"),
-            ("nvidia-open 615.78.08-1\nnvidia-open-lts 615.78.08-1", None, None),
-            ("nvidia-open-dkms 615.78.08-1", None, None),
-        ):
-            with self.subTest(modules=modules):
-                self.env.update(GPU="GA106", PACKAGES=kernels + modules)
-                self.calls.unlink(missing_ok=True)
-                result = self.shell(self.source)
+                result = self.apply_packages(personal=True, distro=distro)
                 self.assertEqual(result.returncode, 0, result.stderr)
-                groups = self.logged_calls()[-1][2].split(",")
+                groups = [call for call in self.logged_calls() if call[0] == "mise"][-1][2].split(",")
                 self.assertIn("nvidia-current", groups)
-                self.assertEqual(
-                    {group for group in groups if group.startswith("nvidia-open")},
-                    {expected_group} if expected_group else set(),
-                )
-                if expected_package:
-                    self.assertEqual(declarations[expected_package]["env"], expected_group)
+                self.assertNotIn("nvidia-open", groups)
 
-    def test_uncovered_kernels_do_not_replace_installed_fixed_modules_with_dkms(self):
-        for kernel in ("linux-zen", "linux-hardened"):
-            with self.subTest(kernel=kernel):
-                self.env.update(
-                    GPU="GA106",
-                    PACKAGES=(
-                        "linux 6.18-1\nlinux-headers 6.18-1\n"
-                        f"{kernel} 6.18-1\n{kernel}-headers 6.18-1\n"
-                        "nvidia-utils 615.78.08-1\nnvidia-open 615.78.08-1"
-                    ),
-                )
+    def test_conflicting_drivers_or_kernel_headers_stop_before_mise(self):
+        self.env["GPU"] = "NVIDIA Corporation GA106 [10de:1234]"
+        for packages in ("linux 6.18-1\nlinux-headers 6.17-1", "nvidia-580xx-utils 580.119.02-1"):
+            with self.subTest(packages=packages):
                 self.calls.unlink(missing_ok=True)
-                result = self.shell(self.source)
-                self.assertEqual(result.returncode, 1, result.stderr)
-                self.assertIn(kernel, result.stderr)
-                self.assertEqual(self.logged_calls(), [])
+                self.env["PACKAGES"] = packages
+                result = self.apply_packages(personal=True)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertFalse(any(call[0] == "mise" for call in self.logged_calls()))
 
-    def test_dkms_package_presence_does_not_hide_missing_or_mismatched_kernel_modules(self):
-        kernels = (
-            "linux 6.18-1\nlinux-headers 6.18-1\n"
-            "linux-lts 6.12-1\nlinux-lts-headers 6.12-1\n"
-            "nvidia-utils 615.78.08-1\n"
-        )
-        for failure, release, dkms_package in (
-            ("missing", "6.12-fixture", "nvidia-open-dkms 615.78.08-1"),
-            ("missing", "6.18-fixture", "nvidia-open-dkms 615.78.08-1"),
-            ("wrong-abi", "6.12-fixture", "nvidia-open-dkms 615.78.08-1"),
-            ("stale", "6.12-fixture", "nvidia-open-dkms 615.78.08-1"),
-            ("missing", "6.12-fixture", ""),
-            ("", "6.12-fixture", "nvidia-open-dkms 615.78.08-1"),
-        ):
-            with self.subTest(failure=failure, release=release, installed=bool(dkms_package)):
-                self.env.update(
-                    GPU="GA106", PACKAGES=kernels + dkms_package,
-                    MODULE_FAILURE=failure, FAILURE_RELEASE=release,
-                )
-                self.calls.unlink(missing_ok=True)
-                result = self.shell(self.source)
-                self.assertEqual(result.returncode, 1 if failure else 0, result.stderr)
-                if failure:
-                    self.assertIn(release, result.stderr)
+    def test_missing_nvidia_module_fails_after_installation(self):
+        self.env["GPU"] = "NVIDIA Corporation GA106 [10de:1234]"
+        self.stub("modinfo", "exit 23")
+        result = self.apply_packages(personal=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("6.18-fixture", result.stderr)
+        self.assertTrue(any(call[0] == "mise" for call in self.logged_calls()))
+
+    def test_xdg_reapplication_preserves_custom_paths_and_existing_maven_settings(self):
+        self.env.update(GNUPGHOME=str(self.directory / "private-gnupg"),
+                        CARGO_HOME=str(self.directory / "custom-cargo"))
+        settings = self.directory / "config/maven/settings.xml"
+        settings.parent.mkdir(parents=True)
+        settings.write_text("existing-private-settings")
+        before = settings.stat().st_mtime_ns
+        for _ in range(2):
+            result = self.apply_packages()
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(settings.read_text(), "existing-private-settings")
+            self.assertEqual(settings.stat().st_mtime_ns, before)
+        observed = json.loads((self.directory / "observed.json").read_text())
+        self.assertEqual(observed["CARGO_HOME"], self.env["CARGO_HOME"])
+        self.assertEqual(observed["GNUPGHOME"], self.env["GNUPGHOME"])
+        self.assertEqual(sum(call == ["sudo", "pacman", "-Syu", "--noconfirm"] for call in self.logged_calls()), 1)
+        self.assertNotIn("existing-private-settings", result.stderr)
+
+    def test_failed_initial_upgrade_does_not_record_success_or_run_mise(self):
+        self.env["UPGRADE_STATUS"] = "23"
+        result = self.apply_packages()
+        self.assertEqual(result.returncode, 23, result.stderr)
+        self.assertFalse((self.directory / "state/chezmoi/chaotic-aur-updated").exists())
+        self.assertFalse(any(call[0] == "mise" for call in self.logged_calls()))
+
+    def test_chezmoi_retries_failures_and_tracks_only_package_dependencies(self):
+        repository = self.directory / "source"
+        templates = repository / "home/.chezmoitemplates"
+        scripts = repository / "home/.chezmoiscripts/linux"
+        templates.mkdir(parents=True)
+        scripts.mkdir(parents=True)
+        shutil.copytree(ROOT / "mise", repository / "mise")
+        for name in ("bootstrap.py", "packages.py"):
+            shutil.copy(ROOT / "home/.chezmoitemplates" / name, templates / name)
+        launcher = "run_onchange_before_02_packages.sh.tmpl"
+        shutil.copy(SCRIPTS / launcher, scripts / launcher)
+        config = self.directory / "chezmoi.json"
+        config.write_text(json.dumps({"data": {"personal": False, "distroFamily": "arch"}}))
+        command = [CHEZMOI, "--config", str(config), "--source", str(repository / "home"),
+                   "--working-tree", str(repository), "--destination", str(self.directory / "target"),
+                   "--no-tty", "apply"]
+        self.env["MISE_STATUS"] = "23"
+        failed = self.run_process(command, name="failed package apply")
+        self.assertNotEqual(failed.returncode, 0)
+        self.env["MISE_STATUS"] = "0"
+        for target, expected in ((None, 2), (None, 2),
+                (repository / "mise/conf.d/services.toml", 2),
+                (repository / "mise/conf.d/packages.toml", 3),
+                (templates / "bootstrap.py", 3), (templates / "packages.py", 4)):
+            with self.subTest(target=target, expected=expected):
+                if target:
+                    with target.open("a") as stream:
+                        stream.write("\n# changed\n")
+                result = self.run_process(command, name="package change detection")
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(sum(call[0] == "mise" for call in self.logged_calls()), expected)

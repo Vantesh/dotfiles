@@ -1,4 +1,7 @@
 [bootstrap.packages]
+# Establish the AUR helper before selecting any aur: declarations.
+"pacman:yay" = { env = "aur-helper" }
+
 # Core
 "pacman:fish" = { env = "packages" }
 "pacman:uwsm" = { env = "packages" }
