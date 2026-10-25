@@ -4,7 +4,7 @@
 
 - Target fresh installations on Arch-based distributions. Preserve existing Arch-family detection and CachyOS/Garuda behavior; add no legacy migrations or speculative hardware/OS compatibility.
 - Both profiles receive common packages, non-secret dotfiles, common system/user services, Fish as the login shell and common desktop preferences/assets (including public font, icon and cursor downloads). Secrets, personal-only services, hardware, filesystem/boot provisioning and firewall configuration remain personal-only.
-- Keep responsibilities clear: Chezmoi owns configuration, profiles and execution triggers; Mise owns package/service declarations; Fish is the interactive shell; Python handles meaningful orchestration.
+- Keep responsibilities clear: Chezmoi owns configuration, profiles and execution triggers; Mise owns package/service declarations; Fish is the interactive shell; direct Python scripts in `home/.chezmoiscripts/linux/` own provisioning workflows. Shared Python helpers live in `home/.chezmoitemplates/lib/`; `.chezmoiscripts/` accepts scripts only. Keep the initial missing-prerequisite bootstrap in shell.
 - Reapplying the new architecture must be safe and idempotent. Preserve necessary Btrfs, swapfile, hibernation, Zswap, Limine and Secure Boot protections. Do not start another phase without explicit authorization.
 
 ## Python and safety
@@ -22,7 +22,7 @@ Contributors manage development tools themselves. The repository configures and 
 
 Run `python3 -B .github/tests/validate.py` before committing Python changes. It coordinates Ruff, BasedPyright, pytest and the retained shell/template/configuration checks, running the suite once. The independent tool commands are documented in `.github/README.md`. Report missing or unsupported tools; never claim an unavailable check passed.
 
-Reject zero-file type checks. Verify hidden-source discovery with `basedpyright --verbose`; use `useDefaultExcludes = false` only when supported by the installed checker. Keep functional corrections distinguishable from formatting changes where practical.
+Validate both profiles of Python run templates as well as settings modifiers; keep rendered paths unique and Python out of Bash checks. Reject zero-file type checks. Verify hidden-source discovery with `basedpyright --verbose`; use `useDefaultExcludes = false` only when supported by the installed checker. Keep functional corrections distinguishable from formatting changes where practical.
 
 ## Git and phase completion
 

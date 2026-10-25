@@ -16,7 +16,9 @@ import pytest
 from helpers import CHEZMOI, ROOT, SCRIPTS
 
 PYTHON = "/usr/bin/python3"
-BOOTSTRAP = ROOT / "home/.chezmoitemplates/bootstrap.py"
+AUTHENTICATION = "run_before_00_authentication.py.tmpl"
+PACKAGES = "run_onchange_before_02_packages.py.tmpl"
+LOGGING = ROOT / "home/.chezmoitemplates/lib/provision_logging.py"
 
 
 @pytest.fixture
@@ -76,6 +78,43 @@ def run_setup(
     )
 
 
+def render_python(
+    env: dict[str, str],
+    name: str,
+    *,
+    personal: bool = True,
+    distro: str = "arch",
+    source: Path = ROOT / "home",
+) -> Path:
+    """Render a real workflow for focused subprocess and filesystem tests."""
+    assert CHEZMOI is not None
+    home = Path(env["HOME"])
+    config = home / "python-render.json"
+    config.write_text("{}")
+    result = run_setup(
+        env,
+        [
+            CHEZMOI,
+            "--config",
+            str(config),
+            "--source",
+            str(source),
+            "--working-tree",
+            str(source.parent),
+            "--destination",
+            str(home),
+            "--override-data",
+            json.dumps({"personal": personal, "chezmoi": {"osRelease": {"id": distro}}}),
+            "execute-template",
+        ],
+        input=(source / ".chezmoiscripts/linux" / name).read_text(),
+    )
+    assert result.returncode == 0, result.stderr
+    rendered = home / name.removesuffix(".tmpl")
+    rendered.write_text(result.stdout)
+    return rendered
+
+
 @pytest.fixture
 def profile_command(tmp_path: Path) -> list[str]:
     assert CHEZMOI is not None, "chezmoi is required for profile validation"
@@ -107,6 +146,10 @@ def test_fresh_profile_persists_only_its_personal_choice(
     result = run_setup(env, command + ["dump-config", "--format=json"])
     config = cast("dict[str, object]", json.loads(result.stdout))
     assert config["data"] == {"personal": personal, "distroFamily": "arch"}
+    assert cast("dict[str, object]", config["interpreters"])["py"] == {
+        "command": PYTHON,
+        "args": ["-B"],
+    }
     assert config["scriptEnv"] == {
         "PERSONAL": "1" if personal else "0",
         "DISTRO": "arch",
@@ -340,6 +383,12 @@ esac""",
     return ["/bin/bash", str(script)]
 
 
+@pytest.fixture
+def authentication(env: dict[str, str], bootstrap: list[str]) -> list[str]:
+    assert bootstrap  # The shared fixture prepares the private vault commands.
+    return [PYTHON, "-B", str(render_python(env, AUTHENTICATION))]
+
+
 def test_prerequisite_install_failure_stops_setup(
     env: dict[str, str], bootstrap: list[str]
 ) -> None:
@@ -379,29 +428,27 @@ def test_prerequisites_install_in_one_transaction_and_reapply_quietly(
     assert repeated.returncode == 0, repeated.stderr
     assert repeated.stderr == ""
     assert [call for call in calls(env) if call[0] == "sudo"] == [["sudo", *install]]
-    assert [call for call in calls(env) if call[0] == "rbw"] == (
-        [["rbw", "config", "show"], ["rbw", "login"]] * 2 if personal else []
-    )
+    assert not any(call[0] == "rbw" for call in calls(env))
     assert not (tmp_path / "state/chezmoi/logs/setup.log").exists()
 
 
 def test_personal_authentication_preserves_existing_configuration(
-    env: dict[str, str], bootstrap: list[str]
+    env: dict[str, str], authentication: list[str]
 ) -> None:
     for _ in range(2):
-        result = run_setup(env, bootstrap)
+        result = run_setup(env, authentication)
         assert result.returncode == 0, result.stderr
     assert calls(env) == [["rbw", "config", "show"], ["rbw", "login"]] * 2
 
 
 @pytest.mark.parametrize("missing_command", [False, True], ids=["login-failure", "missing-rbw"])
 def test_authentication_failures_preserve_status_and_private_diagnostics(
-    env: dict[str, str], bootstrap: list[str], tmp_path: Path, missing_command: bool
+    env: dict[str, str], authentication: list[str], tmp_path: Path, missing_command: bool
 ) -> None:
     env.update(RBW_LOGIN_STATUS="23", RBW_LOGIN_ERROR="secret-token-canary")
     if missing_command:
         (tmp_path / "bin/rbw").unlink()
-    result = run_setup(env, bootstrap)
+    result = run_setup(env, authentication)
     assert result.returncode == (1 if missing_command else 23), result.stderr
     diagnostics = (
         result.stdout + result.stderr + (tmp_path / "state/chezmoi/logs/setup.log").read_text()
@@ -415,11 +462,11 @@ def test_authentication_failures_preserve_status_and_private_diagnostics(
 
 
 def test_fresh_authentication_requires_an_email_and_supports_a_terminal(
-    env: dict[str, str], bootstrap: list[str], tmp_path: Path
+    env: dict[str, str], authentication: list[str], tmp_path: Path
 ) -> None:
     (tmp_path / "config/rbw/config.json").unlink()
     env.update(RBW_CONFIG="{}", RBW_CONFIG_STATUS="1", NOCONFIRM="1")
-    result = run_setup(env, bootstrap)
+    result = run_setup(env, authentication)
     assert result.returncode != 0
     assert "rbw config set email" in result.stderr
     Path(env["CALLS"]).unlink()
@@ -428,7 +475,7 @@ def test_fresh_authentication_requires_an_email_and_supports_a_terminal(
     try:
         os.write(master, b"fixture@example.invalid\n")
         result = subprocess.run(
-            bootstrap,
+            authentication,
             stdin=slave,
             cwd=tmp_path,
             env=env,
@@ -450,10 +497,10 @@ def test_fresh_authentication_requires_an_email_and_supports_a_terminal(
 
 
 def test_unreadable_vault_configuration_is_not_reset(
-    env: dict[str, str], bootstrap: list[str]
+    env: dict[str, str], authentication: list[str]
 ) -> None:
     env["RBW_CONFIG_STATUS"] = "23"
-    result = run_setup(env, bootstrap)
+    result = run_setup(env, authentication)
     assert result.returncode == 23, result.stderr
     assert calls(env) == [["rbw", "config", "show"]]
 
@@ -463,7 +510,7 @@ def test_python_bootstrap_is_quiet_and_logs_are_private_and_bounded(
 ) -> None:
     env["PERSONAL"] = "0"
     stub(env, "pacman", "exit 97", log=True)
-    quiet = run_setup(env, [PYTHON, "-B", str(BOOTSTRAP)])
+    quiet = run_setup(env, [PYTHON, "-B", str(render_python(env, AUTHENTICATION, personal=False))])
     assert quiet.returncode == 0, quiet.stderr
     assert quiet.stderr == "" and calls(env) == []
     assert not (tmp_path / "state/chezmoi/logs/setup.log").exists()
@@ -474,7 +521,7 @@ for _ in range(7):
     namespace['logger'].debug('rotation-test ' + 'x' * (5 * 1024 * 1024))
 namespace['logger'].remove()
 """
-    result = run_setup(env, [PYTHON, "-B", "-c", code, str(BOOTSTRAP)])
+    result = run_setup(env, [PYTHON, "-B", "-c", code, str(LOGGING)])
     assert result.returncode == 0, result.stderr
     logs = tmp_path / "state/chezmoi/logs"
     assert logs.stat().st_mode & 0o777 == 0o700
@@ -494,7 +541,8 @@ def test_terminal_color_and_log_locations(
     probe = tmp_path / "logging_probe.py"
     probe.write_text("""import sys
 sys.path.insert(0, sys.argv[1])
-from bootstrap import configure_logging, logger
+from lib.provision_logging import configure_logging
+from loguru import logger
 configure_logging()
 logger.warning('terminal check')
 """)
@@ -506,7 +554,7 @@ logger.warning('terminal check')
     master, slave = pty.openpty()
     try:
         result = subprocess.run(
-            [PYTHON, "-B", str(probe), str(BOOTSTRAP.parent)],
+            [PYTHON, "-B", str(probe), str(LOGGING.parent.parent)],
             env=env,
             stdout=subprocess.PIPE,
             stderr=slave,
@@ -524,7 +572,7 @@ logger.warning('terminal check')
         persisted = (tmp_path / "state/chezmoi/logs/setup.log").read_text()
         assert re.fullmatch(
             r"\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\] \[WARNING\] "
-            + r"\[logging_probe.py:5\] terminal check\n",
+            + r"\[logging_probe.py:6\] terminal check\n",
             persisted,
         ), persisted
     finally:
@@ -541,20 +589,20 @@ def test_symlinked_log_directory_is_rejected_before_bootstrap(
     logs.parent.mkdir(parents=True)
     logs.symlink_to(external, target_is_directory=True)
     stub(env, "pacman", "exit 0", log=True)
-    result = run_setup(env, [PYTHON, "-B", str(BOOTSTRAP)])
+    result = run_setup(env, [PYTHON, "-B", str(render_python(env, AUTHENTICATION))])
     assert result.returncode != 0
     assert calls(env) == []
     assert list(external.iterdir()) == []
 
 
 def test_fifo_log_file_does_not_block_or_allow_package_installation(
-    env: dict[str, str], bootstrap: list[str], tmp_path: Path
+    env: dict[str, str], authentication: list[str], tmp_path: Path
 ) -> None:
     logs = tmp_path / "state/chezmoi/logs"
     logs.mkdir(parents=True)
     os.mkfifo(logs / "setup.log", 0o600)
     env.update(PERSONAL="1", RBW_LOGIN_STATUS="23")
-    result = run_setup(env, bootstrap)
+    result = run_setup(env, authentication)
     assert result.returncode == 1, result.stderr
     assert "Traceback" not in result.stderr
     assert calls(env) == [["rbw", "config", "show"], ["rbw", "login"]]
@@ -640,18 +688,9 @@ exit "$MISE_STATUS"''',
 def apply_packages(
     env: dict[str, str], *, personal: bool = False, distro: str = "arch"
 ) -> subprocess.CompletedProcess[str]:
-    command = [
-        PYTHON,
-        "-B",
-        str(ROOT / "home/.chezmoitemplates/packages.py"),
-        "--root",
-        str(ROOT),
-        "--distro",
-        distro,
-    ]
-    if personal:
-        command.append("--personal")
-    return run_setup(env, command)
+    return run_setup(
+        env, [PYTHON, "-B", str(render_python(env, PACKAGES, personal=personal, distro=distro))]
+    )
 
 
 def test_fresh_kvm_baseline_needs_no_vulkan_provider_or_personal_probes(
@@ -890,9 +929,8 @@ def test_chezmoi_retries_failures_and_tracks_only_package_dependencies(
     templates.mkdir(parents=True)
     scripts.mkdir(parents=True)
     shutil.copytree(ROOT / "mise", repository / "mise")
-    for name in ("bootstrap.py", "packages.py"):
-        shutil.copy(ROOT / "home/.chezmoitemplates" / name, templates / name)
-    launcher = "run_onchange_before_02_packages.sh.tmpl"
+    shutil.copytree(ROOT / "home/.chezmoitemplates/lib", templates / "lib")
+    launcher = PACKAGES
     shutil.copy(SCRIPTS / launcher, scripts / launcher)
     config = tmp_path / "chezmoi.json"
     config.write_text(json.dumps({"data": {"personal": False, "distroFamily": "arch"}}))
@@ -919,8 +957,8 @@ def test_chezmoi_retries_failures_and_tracks_only_package_dependencies(
         (None, 2),
         (repository / "mise/conf.d/services.toml", 2),
         (repository / "mise/conf.d/packages.toml", 3),
-        (templates / "bootstrap.py", 3),
-        (templates / "packages.py", 4),
+        (templates / "lib/provision_logging.py", 3),
+        (scripts / launcher, 4),
     ):
         if target:
             with target.open("a") as stream:
@@ -928,3 +966,87 @@ def test_chezmoi_retries_failures_and_tracks_only_package_dependencies(
         result = run_setup(package_env, command)
         assert result.returncode == 0, result.stderr
         assert sum(call[0] == "mise" for call in calls(package_env)) == expected, target
+
+
+@pytest.mark.parametrize("personal", [False, True], ids=["nonpersonal", "personal"])
+def test_direct_python_execution_follows_bootstrap_and_real_source_imports(
+    env: dict[str, str], tmp_path: Path, bootstrap: list[str], personal: bool
+) -> None:
+    assert CHEZMOI is not None
+    repository = tmp_path / "checkout with spaces"
+    source = repository / "home"
+    scripts = source / ".chezmoiscripts/linux"
+    scripts.mkdir(parents=True)
+    (repository / ".chezmoiroot").write_text("home\n")
+    shutil.copy(ROOT / "home/.chezmoi.yaml.tmpl", source / ".chezmoi.yaml.tmpl")
+    shutil.copytree(LOGGING.parent, source / ".chezmoitemplates/lib")
+    for name in ("run_before_00-install-pre-requisites.sh", AUTHENTICATION):
+        shutil.copy(SCRIPTS / name, scripts / name)
+    # Observe only execution context; the authentication workflow itself remains
+    # intact. Poison PATH Python so the configured interpreter is essential.
+    probe = scripts / "run_before_00_execution_probe.py.tmpl"
+    probe.write_text("""#!/usr/bin/python3 -B
+import json, sys
+from pathlib import Path
+source = Path({{ .chezmoi.sourceDir | toJson }})
+sys.path.insert(0, str(source / ".chezmoitemplates"))
+from lib.provision_logging import configure_logging
+assert (Path.home() / "installed").exists()
+with (Path.home() / "execution.jsonl").open("a") as stream:
+    stream.write(json.dumps({"file": __file__, "cwd": str(Path.cwd()), "source": str(source), "interpreter": sys.executable, "bytecode": sys.dont_write_bytecode, "logging": configure_logging.__module__}) + "\\n")
+""")
+    stub(env, "python3", "exit 97", log=True)
+    stub(env, "pacman", '[ "$1" = -Q ] && test -f "$HOME/installed"')
+    stub(
+        env,
+        "sudo",
+        '[ "${INSTALL_STATUS:-0}" = 0 ] || exit "$INSTALL_STATUS"; touch "$HOME/installed"',
+        log=True,
+    )
+    command = [
+        CHEZMOI,
+        "--config",
+        str(tmp_path / "chezmoi.yaml"),
+        "--source",
+        str(repository),
+        "--working-tree",
+        str(repository),
+        "--destination",
+        str(tmp_path),
+        "--no-tty",
+        "--override-data",
+        '{"chezmoi":{"osRelease":{"id":"arch"}}}',
+    ]
+    result = run_setup(
+        env, command + ["init", "--promptBool", f"Is this a personal setup={str(personal).lower()}"]
+    )
+    assert result.returncode == 0, result.stderr
+    env["INSTALL_STATUS"] = "23"
+    failed = run_setup(env, command + ["apply"])
+    assert failed.returncode != 0
+    assert not (tmp_path / "execution.jsonl").exists()
+    assert not any(call[0] == "rbw" for call in calls(env))
+    env["INSTALL_STATUS"] = "0"
+    for _ in range(2):
+        result = run_setup(env, command + ["apply"])
+        assert result.returncode == 0, result.stderr
+    contexts = [
+        cast("dict[str, object]", json.loads(line))
+        for line in (tmp_path / "execution.jsonl").read_text().splitlines()
+    ]
+    assert len(contexts) == 2
+    for context in contexts:
+        assert context["source"] == str(source)
+        assert context["cwd"] == str(tmp_path)
+        assert context["interpreter"] == PYTHON
+        assert context["bytecode"] is True
+        assert context["logging"] == "lib.provision_logging"
+        executable = Path(str(context["file"]))
+        assert executable.parent != scripts and not executable.exists()
+    observed = calls(env)
+    assert not any(call[0] == "python3" for call in observed)
+    assert sum(call[0] == "rbw" and call[1] == "login" for call in observed) == (
+        2 if personal else 0
+    )
+    assert sum(call[0] == "sudo" for call in observed) == 2
+    assert bootstrap  # Reuse the established private prerequisite/vault fixture.

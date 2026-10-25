@@ -14,5 +14,3 @@ if [[ ${#missing[@]} -gt 0 ]]; then
   printf '[%(%Y-%m-%d %H:%M:%S)T] [INFO] Installing bootstrap dependencies\n' -1 >&2
   sudo pacman -S --needed --noconfirm -- "${missing[@]}"
 fi
-
-exec /usr/bin/python3 -B "${CHEZMOI_SOURCE_DIR:-$(chezmoi source-path)}/.chezmoitemplates/bootstrap.py"

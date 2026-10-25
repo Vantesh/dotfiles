@@ -33,6 +33,11 @@ scriptEnv:
   DISTRO: {{ .chezmoi.osRelease.id | quote }}
 
 
+interpreters:
+  py:
+    command: /usr/bin/python3
+    args: ["-B"]
+
 edit:
   command: zeditor
   args: ["--wait"]

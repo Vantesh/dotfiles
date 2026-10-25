@@ -49,15 +49,15 @@ Mise files in the repository (`chezmoi cd`):
 - `mise/conf.d/firewall.toml` → firewall rules.
 - `mise/conf.d/pacman-hooks.toml` → package-cache cleanup hooks.
 
-The shell entry point checks `python`, `python-loguru`, `git`, `base-devel` and `mise`, adding `rbw` and `pinentry` only for personal setups. It installs missing packages in one native Pacman transaction before Python starts. Python then configures private logging and personal-only Bitwarden authentication; it does not install prerequisites again. Desktop package selection stays in Mise.
+The shell entry point checks `python`, `python-loguru`, `git`, `base-devel` and `mise`, adding `rbw` and `pinentry` only for personal setups. It installs missing packages in one native Pacman transaction before Python starts. The next before-script, `.chezmoiscripts/linux/run_before_00_authentication.py.tmpl`, configures private logging and personal-only Bitwarden authentication; it does not install prerequisites again. Desktop package selection stays in Mise.
 
 Common services and Fish login-shell setup apply to both profiles. `mise/config.personal.toml` adds the existing WARP and UFW service declarations only in the personal environment; the firewall phase remains personal-only. Fish's interactive configuration stays under Chezmoi.
 
 ## Package execution and early XDG setup
 
-Chezmoi’s package before-hook runs `.chezmoitemplates/packages.py`. It prepares the XDG paths needed by package builds, establishes Chaotic-AUR trust and configuration, completes the initial full system upgrade, and then delegates installation to Mise. Runtime and package prerequisites are established by the earlier shell bootstrap. A missing AUR helper is installed through the `aur-helper` group in `mise/conf.d/packages.toml`; an existing yay or paru is retained.
+Chezmoi directly runs `.chezmoiscripts/linux/run_onchange_before_02_packages.py.tmpl`. It prepares the XDG paths needed by package builds, establishes Chaotic-AUR trust and configuration, completes the initial full system upgrade, and then delegates installation to Mise. Runtime and package prerequisites are established by the earlier shell bootstrap. A missing AUR helper is installed through the `aur-helper` group in `mise/conf.d/packages.toml`; an existing yay or paru is retained.
 
-The existing `chezmoi/chaotic-aur-updated` marker under XDG state records only a successful initial upgrade. Failures retry on the next apply. Package execution state belongs to Chezmoi: changes to `mise/config.toml`, `mise/conf.d/packages.toml`, the coordinator, or the selected profile rerun the package hook. Unrelated service, theme or authentication edits do not. Add a dependency hash to that hook if package declarations move into another file.
+The existing `chezmoi/chaotic-aur-updated` marker under XDG state records only a successful initial upgrade. Failures retry on the next apply. Package execution state belongs to Chezmoi: changes to `mise/config.toml`, `mise/conf.d/packages.toml`, the Python run script, or the selected profile rerun the package hook. Unrelated service, theme or authentication edits do not. Add a dependency hash to that hook if package declarations move into another file.
 
 Nonpersonal runs select only baseline packages and require no installed Vulkan provider. Zed is personal-only because its package requires a Vulkan driver. Personal runs add the declared hardware groups: Intel, the supported NVIDIA families, laptop utilities, the known Goodix reader and available Limine/mkinitcpio integration. CachyOS/Garuda keep their distribution-managed NVIDIA modules. Unknown or mixed NVIDIA architectures require manual driver setup. Existing driver-family conflicts, mismatched kernel headers and missing kernel modules still stop setup; legacy NVIDIA utilities precede the rest of that driver stack. Exact kernel/header pairs use pacman directly because Mise cannot install pacman version pins.
 
@@ -81,9 +81,19 @@ Mise supplies the existing theme and font packages. Chezmoi externals retain App
 
 SF Pro Text still comes from Apple's official DMG and installs under `~/.local/share/fonts/SF-Pro-Text`. Its checksum manifest skips intact fonts; completion is recorded only after the font cache refresh succeeds. `OFFLINE` skips missing SF Pro and MacTahoe downloads, as well as the existing externals; removing it makes those hooks eligible again. A correctly installed SF Pro collection is not downloaded or cached again. Failed hooks remain retryable through Chezmoi.
 
+## Python execution
+
+The prerequisite installer remains shell because Python may not exist yet. Authentication runs next on every personal apply, followed by the package before-script; Snapper remains a personal-only after-script. Chezmoi explicitly uses `/usr/bin/python3 -B` for Python scripts. Public package/desktop setup stays available to both profiles.
+
+The workflows live directly in `.chezmoiscripts/linux/`; the shared `configure_logging()` implementation lives in `.chezmoitemplates/lib/provision_logging.py`. Each rendered workflow imports from its source directory using a quoted Chezmoi value, independent of the working directory and global `PYTHONPATH`. Ordinary library files cannot live under `.chezmoiscripts/`, where Chezmoi requires scripts.
+
+Chezmoi executes temporary rendered files. Snapper locates its retained boot helper in the real source directory and waits for its privileged fstab self-invocation to finish before Chezmoi removes the temporary script. The privileged branch retains its root check and avoids configuring logs in the regular account's private directory.
+
+Run-script contents and existing configuration inputs control reapplication. Package declarations and profile/distro selection retain their meaningful triggers; shared logging changes do not automatically rerun package or filesystem provisioning. Deliberate helper-only reruns can use a scoped Chezmoi state reset. No library-wide fingerprint scheme is used.
+
 ## Bootstrap logs
 
-The Python prerequisite bootstrap and package coordinator use Loguru. Terminal messages show time, level and a short action or error; color is enabled only on a suitable TTY and respects `NO_COLOR`. Successful checks stay quiet. Later provisioning hooks still use their existing Bash logging.
+The Python authentication, package and Snapper workflows use Loguru. Terminal messages show time, level and a short action or error; color is enabled only on a suitable TTY and respects `NO_COLOR`. Successful checks stay quiet. Later provisioning hooks still use their existing Bash logging.
 
 Diagnostics are written to `$XDG_STATE_HOME/chezmoi/logs/setup.log`, falling back to `~/.local/state/chezmoi/logs/setup.log`. The log directory is private (`0700`); current and rotated logs are user-owned with mode `0600`. Loguru rotates at 5 MiB and retains five rotated files. The file is opened only when a message is logged, so successful no-op checks do not create or append a setup log.
 
@@ -110,7 +120,7 @@ Btrfs volume
 /boot                  EFI System Partition
 ```
 
-The personal Snapper hook is a thin launcher for `.chezmoitemplates/snapshots.py`. Python verifies a writable Btrfs root mounted from `@`, validates existing `root`/`/.snapshots` state, and lets native Snapper create its configuration and snapshot subvolume. Conflicting layouts or orphaned snapshot trees stop setup for manual inspection; nothing is deleted or adopted automatically. CachyOS/Garuda retain their existing preconfigured-Snapper skip.
+The personal Snapper workflow runs directly from `.chezmoiscripts/linux/run_onchange_after_01_snapshots.py.tmpl`. Python verifies a writable Btrfs root mounted from `@`, validates existing `root`/`/.snapshots` state, and lets native Snapper create its configuration and snapshot subvolume. Conflicting layouts or orphaned snapshot trees stop setup for manual inspection; nothing is deleted or adopted automatically. CachyOS/Garuda retain their existing preconfigured-Snapper skip.
 
 Snapper's number cleanup (limit 10), disabled timeline creation and empty pre/post cleanup (minimum age 1800 seconds) are unchanged. Only differing settings are applied. The two snapshot units remain enable-only; healthy units are untouched. Locate snapshot exclusions stay in the existing personal services hook.
 
@@ -257,9 +267,9 @@ basedpyright
 pytest -q
 ```
 
-`python3 -B .github/tests/validate.py` coordinates these checks plus both profiles of rendered Python settings modifiers, shell/Python syntax and Mise TOML validation. It runs pytest once; do not run the suite again through unittest. `ruff.toml` and `pyproject.toml` target Python 3.14; pytest discovers the retained tests under `.github/tests`. Native pytest migration remains a separate task.
+`python3 -B .github/tests/validate.py` coordinates these checks plus both profiles of rendered Python run scripts and settings modifiers, shell/Python syntax and Mise TOML validation. It runs pytest once; do not run the suite again through unittest. `ruff.toml` and `pyproject.toml` target Python 3.14; pytest discovers the retained tests under `.github/tests`. Native pytest migration remains a separate task.
 
-BasedPyright explicitly includes `.github/tests` and `home/.chezmoitemplates`; confirm actual discovery with `basedpyright --verbose`. BasedPyright 1.40.2 (Pyright 1.1.414) has the [upstream hidden-directory regression](https://github.com/microsoft/pyright/issues/11861): it checks zero files and rejects `useDefaultExcludes`. That installation cannot validate this layout; the validator fails rather than accepting an empty check. The option is appropriate only with a checker release that supports it. Tool versions are managed externally, with no pinned installer or fallback here. Kitty's embedded module and the separate theme updater retain Ruff/syntax checks outside the provisioning type-check scope.
+BasedPyright explicitly includes `.github/tests`, `home/.chezmoiscripts` and `home/.chezmoitemplates/lib`; confirm actual discovery with `basedpyright --verbose`. BasedPyright 1.40.2 (Pyright 1.1.414) has the [upstream hidden-directory regression](https://github.com/microsoft/pyright/issues/11861): it checks zero files and rejects `useDefaultExcludes`. That installation cannot validate this layout; the validator fails rather than accepting an empty check. The option is appropriate only with a checker release that supports it. Tool versions are managed externally, with no pinned installer or fallback here. Kitty's embedded module and the separate theme updater retain Ruff/syntax checks outside the provisioning type-check scope.
 
 CI invokes the same validator and reports missing prerequisites. The stock Arch container does not provide the complete development toolchain; a suitable runner/image must supply it separately. This repository does not bootstrap one.
 

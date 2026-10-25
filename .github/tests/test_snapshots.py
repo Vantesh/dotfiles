@@ -1,17 +1,33 @@
 """Snapper orchestration and root-fstab safety without privileged host operations."""
 
 import json
+import runpy
 import shutil
 import subprocess
 import sys
+from collections.abc import Callable
 from pathlib import Path
 from typing import cast
 
 import pytest
-import snapshots
 from helpers import CHEZMOI, ROOT, SCRIPTS
-from test_setup import calls, run_setup, stub
+from test_setup import calls, render_python, run_setup, stub
 from test_setup import env as env
+
+HOOK = "run_onchange_after_01_snapshots.py.tmpl"
+SETTINGS = {
+    "NUMBER_CLEANUP": "yes",
+    "NUMBER_LIMIT": "10",
+    "TIMELINE_CREATE": "no",
+    "EMPTY_PRE_POST_CLEANUP": "yes",
+    "EMPTY_PRE_POST_MIN_AGE": "1800",
+}
+
+
+@pytest.fixture
+def optimize_fstab(env: dict[str, str]) -> Callable[[Path], bool]:
+    namespace = runpy.run_path(str(render_python(env, HOOK)))
+    return cast("Callable[[Path], bool]", namespace["optimize_fstab"])
 
 
 @pytest.fixture
@@ -22,15 +38,15 @@ def snapper(env: dict[str, str], tmp_path: Path) -> dict[str, str]:
         (Path(env["PATH"]) / name).symlink_to(executable)
     limine = tmp_path / "limine"
     limine.touch(mode=0o755)
-    # Copy the actual module/launcher and replace only the unavailable fixed
+    # Copy the actual workflow and replace only the unavailable fixed
     # bootloader binary in the isolated fixture, never live filesystem paths.
     source = tmp_path / "source"
     scripts = source / ".chezmoiscripts/linux"
     scripts.mkdir(parents=True)
-    shutil.copy(SCRIPTS / "run_onchange_after_01_snapper.sh.tmpl", scripts)
+    shutil.copy(SCRIPTS / HOOK, scripts)
     templates = source / ".chezmoitemplates"
     shutil.copytree(ROOT / "home/.chezmoitemplates", templates)
-    module = templates / "snapshots.py"
+    module = scripts / HOOK
     module.write_text(
         module.read_text().replace('Path("/usr/bin/limine")', f"Path({str(limine)!r})")
     )
@@ -152,7 +168,7 @@ def test_snapper_apply_and_state_based_reapplication(
             "SUBVOLUME": "/",
             "FSTYPE": "btrfs",
             "UNMANAGED": "preserve",
-            **snapshots.SETTINGS,
+            **SETTINGS,
         }
         (tmp_path / "snapper.json").write_text(json.dumps(settings))
         (tmp_path / "snapshots/42/snapshot").mkdir(parents=True)
@@ -161,7 +177,7 @@ def test_snapper_apply_and_state_based_reapplication(
     result = run_setup(snapper, command)
     assert result.returncode == 0, result.stderr
     settings = cast("dict[str, str]", json.loads((tmp_path / "snapper.json").read_text()))
-    assert settings.items() >= snapshots.SETTINGS.items()
+    assert settings.items() >= SETTINGS.items()
     assert settings["UNMANAGED"] == "preserve"
     observed = calls(snapper)
     assert [call for call in observed if call[0] == "boot"] == [
@@ -187,7 +203,7 @@ def test_snapper_apply_and_state_based_reapplication(
     assert calls(snapper) == observed
     # Force the real trigger to run again: native state must avoid configuration
     # creation, unchanged settings and repeated unit activation independently.
-    module = tmp_path / "source/.chezmoitemplates/snapshots.py"
+    module = tmp_path / "source/.chezmoiscripts/linux" / HOOK
     module.write_text(module.read_text() + "\n# Recheck actual configured state.\n")
     result = run_setup(snapper, command)
     assert result.returncode == 0, result.stderr
@@ -246,14 +262,7 @@ def test_failure_status_and_retry_preserve_completed_work(
     snapper: dict[str, str], tmp_path: Path, failure: str
 ) -> None:
     snapper["FAIL_COMMAND"] = failure
-    command = [
-        sys.executable,
-        "-B",
-        str(tmp_path / "source/.chezmoitemplates/snapshots.py"),
-        "--personal",
-        "--distro",
-        "arch",
-    ]
+    command = [sys.executable, "-B", str(render_python(snapper, HOOK, source=tmp_path / "source"))]
     result = run_setup(snapper, command)
     assert result.returncode == 23, result.stderr
     assert "exit 23" in result.stderr
@@ -271,7 +280,7 @@ FSTAB = "# preserve comments\nUUID=root / btrfs rw,relatime,subvol=/@ 0 0 # root
 
 
 def test_root_fstab_is_atomic_idempotent_and_leaves_swap_alone(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, optimize_fstab: Callable[[Path], bool]
 ) -> None:
     path = tmp_path / "fstab"
     path.write_text(FSTAB)
@@ -284,11 +293,11 @@ def test_root_fstab_is_atomic_idempotent_and_leaves_swap_alone(
         return subprocess.CompletedProcess(command, 0)
 
     monkeypatch.setattr(subprocess, "run", reload)
-    assert snapshots.optimize_fstab(path)
+    assert optimize_fstab(path)
     assert path.read_text() == FSTAB.replace("rw,relatime,subvol=/@ ", "rw,noatime,subvol=/@ ")
     assert path.stat().st_mode & 0o777 == 0o640
     before = path.stat().st_mtime_ns
-    assert not snapshots.optimize_fstab(path)
+    assert not optimize_fstab(path)
     assert path.stat().st_mtime_ns == before
     assert commands == [["systemctl", "daemon-reload"]]
 
@@ -297,7 +306,10 @@ def test_root_fstab_is_atomic_idempotent_and_leaves_swap_alone(
     "concurrent_edit", [False, True], ids=["rollback", "preserve-intervening-edit"]
 )
 def test_failed_reload_restores_only_its_own_fstab_edit(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, concurrent_edit: bool
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    concurrent_edit: bool,
+    optimize_fstab: Callable[[Path], bool],
 ) -> None:
     path = tmp_path / "fstab"
     path.write_text(FSTAB)
@@ -310,23 +322,25 @@ def test_failed_reload_restores_only_its_own_fstab_edit(
 
     monkeypatch.setattr(subprocess, "run", fail)
     with pytest.raises(subprocess.CalledProcessError) as error:
-        snapshots.optimize_fstab(path)
+        optimize_fstab(path)
     assert error.value.returncode == 23
     assert path.read_text() == ("manual edit\n" if concurrent_edit else FSTAB)
     assert not list(tmp_path.glob(".fstab.chezmoi.*"))
 
 
-def test_symlinked_fstab_is_refused(tmp_path: Path) -> None:
+def test_symlinked_fstab_is_refused(tmp_path: Path, optimize_fstab: Callable[[Path], bool]) -> None:
     target = tmp_path / "original"
     target.write_text(FSTAB)
     path = tmp_path / "fstab"
     path.symlink_to(target)
     with pytest.raises(OSError):
-        snapshots.optimize_fstab(path)
+        optimize_fstab(path)
     assert target.read_text() == FSTAB
 
 
-def test_interrupted_reload_restores_fstab(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_interrupted_reload_restores_fstab(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, optimize_fstab: Callable[[Path], bool]
+) -> None:
     path = tmp_path / "fstab"
     path.write_text(FSTAB)
 
@@ -336,6 +350,49 @@ def test_interrupted_reload_restores_fstab(tmp_path: Path, monkeypatch: pytest.M
 
     monkeypatch.setattr(subprocess, "run", interrupt)
     with pytest.raises(SystemExit) as error:
-        snapshots.optimize_fstab(path)
+        optimize_fstab(path)
     assert error.value.code == 143
     assert path.read_text() == FSTAB
+
+
+def test_rendered_snapper_reexecutes_synchronously_without_source_environment(
+    snapper: dict[str, str], tmp_path: Path
+) -> None:
+    # Exercise the actual self-execution branch with a harmless temporary fstab.
+    # UID checks are changed only in this copied fixture, never in production.
+    hook = tmp_path / "source/.chezmoiscripts/linux" / HOOK
+    fstab = tmp_path / "fstab"
+    fstab.write_text(FSTAB)
+    hook.write_text(
+        hook.read_text()
+        .replace('FSTAB = Path("/etc/fstab")', f"FSTAB = Path({str(fstab)!r})")
+        .replace("if os.geteuid() != 0:", "if False:")
+    )
+    stub(
+        snapper,
+        "systemctl",
+        'if [ "$1" = daemon-reload ]; then exit 0; fi; if [ "$1" = is-enabled ]; then echo enabled; exit 0; fi; exit 97',
+    )
+    stub(
+        snapper,
+        "sudo",
+        """case "$1" in
+    */python|*/python3)
+        unset CHEZMOI_SOURCE_DIR PERSONAL DISTRO PYTHONPATH
+        exec "$@" ;;
+    test)
+        [ "$3" = /.snapshots ] || exit 97
+        exec /usr/bin/test "$2" "$HOME/snapshots" ;;
+    snapper|btrfs|systemctl) exec "$@" ;;
+    *) exit 97 ;;
+esac""",
+        log=True,
+    )
+    result = run_setup(snapper, apply_command(tmp_path))
+    assert result.returncode == 0, result.stderr
+    assert fstab.read_text() == FSTAB.replace("rw,relatime,subvol=/@ ", "rw,noatime,subvol=/@ ")
+    reexec = next(call for call in calls(snapper) if "--optimize-fstab" in call)
+    executable = Path(reexec[-2])
+    assert executable.parent != hook.parent and not executable.exists()
+    assert executable.name.endswith(".01_snapshots.py")
+    assert (tmp_path / "snapper.json").is_file()

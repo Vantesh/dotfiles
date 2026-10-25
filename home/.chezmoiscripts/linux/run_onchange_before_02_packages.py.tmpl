@@ -1,6 +1,8 @@
+#!/usr/bin/python3 -B
+# mise/config.toml: {{ include "../mise/config.toml" | sha256sum }}
+# mise/conf.d/packages.toml: {{ include "../mise/conf.d/packages.toml" | sha256sum }}
 """Prepare package prerequisites, then let Mise apply the declared package groups."""
 
-import argparse
 import os
 import re
 import shutil
@@ -11,8 +13,10 @@ import tempfile
 from pathlib import Path
 from typing import cast
 
-from bootstrap import configure_logging
 from loguru import logger
+
+SOURCE_DIR = Path({{ .chezmoi.sourceDir | toJson }})
+sys.path.insert(0, str(SOURCE_DIR / ".chezmoitemplates"))
 
 
 def prepare_xdg() -> None:
@@ -297,14 +301,14 @@ def verify_nvidia(family: str, kernels: list[str]) -> None:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
-    _ = parser.add_argument("--root", type=Path, required=True)
-    _ = parser.add_argument("--distro", required=True)
-    _ = parser.add_argument("--personal", action="store_true")
-    args = parser.parse_args()
-    root_argument = cast("Path", args.root)
-    distro = cast("str", args.distro)
-    personal = cast("bool", args.personal)
+    from lib.provision_logging import configure_logging
+
+    if os.geteuid() == 0:
+        print("ERROR: Run package setup as a regular user.", file=sys.stderr)
+        return 1
+    root_argument = SOURCE_DIR.parent
+    distro = {{ .chezmoi.osRelease.id | toJson }}
+    personal = {{ if .personal }}True{{ else }}False{{ end }}
     file_sink = None
     try:
         file_sink = configure_logging()

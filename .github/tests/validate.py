@@ -52,7 +52,7 @@ def main():
     try:
         paths = sorted(SCRIPTS.rglob("*")) + sorted(LIB.glob("*.sh"))
         for path in paths:
-            if path.suffix not in (".sh", ".tmpl"):
+            if path.suffix not in (".sh", ".tmpl") or path.name.endswith(".py.tmpl"):
                 continue
             sources: set[str] = set()
             for personal in (False, True) if path.suffix == ".tmpl" else (False,):
@@ -77,11 +77,14 @@ def main():
         )
         for path in python_paths:
             compile(path.read_text(), str(path), "exec")
-        # Chezmoi's Python modifiers need rendering before Ruff can parse them.
-        modifier_count = 0
-        rendered_modifiers: list[str] = []
+        # Render Python run scripts and settings modifiers before linting/type checking.
+        template_count = 0
+        rendered_python: list[str] = []
         for path in sorted((ROOT / "home").rglob("*.tmpl")):
-            if not path.read_text().startswith("#!/usr/bin/env python3"):
+            if not (
+                path.name.endswith(".py.tmpl")
+                or path.read_text().startswith("#!/usr/bin/env python3")
+            ):
                 continue
             for personal in (False, True):
                 source = fixture.render(path, personal=personal)
@@ -93,7 +96,7 @@ def main():
                             *arguments,
                             "--no-cache",
                             "--stdin-filename",
-                            str(path.with_suffix(".py")),
+                            str(path.with_suffix("").with_suffix(".py")),
                             "-",
                         ],
                         cwd=ROOT,
@@ -101,12 +104,14 @@ def main():
                         text=True,
                         check=True,
                     )
-                rendered = fixture.directory / f"{path.parent.name}-{personal}.py"
+                relative = path.relative_to(ROOT).with_suffix("").with_suffix(".py")
+                rendered = fixture.directory / "rendered" / str(personal) / relative
+                rendered.parent.mkdir(parents=True, exist_ok=True)
                 _ = rendered.write_text(source)
-                rendered_modifiers.append(str(rendered))
-                modifier_count += 1
+                rendered_python.append(str(rendered))
+                template_count += 1
         subprocess.run(
-            ["basedpyright", "--project", str(ROOT / "pyproject.toml"), *rendered_modifiers],
+            ["basedpyright", "--project", str(ROOT / "pyproject.toml"), *rendered_python],
             cwd=ROOT,
             check=True,
         )
@@ -119,7 +124,7 @@ def main():
             + f"({lint_count} distinct linted)"
         )
         print(
-            f"Python syntax: {len(python_paths)} files and {modifier_count} modifier renderings passed"
+            f"Python syntax: {len(python_paths)} files and {template_count} Python template renderings passed"
         )
     finally:
         fixture.doCleanups()

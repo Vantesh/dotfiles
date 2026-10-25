@@ -1,5 +1,5 @@
 [tool.basedpyright]
-include = ["home/.chezmoitemplates", ".github/tests"]
+include = ["home/.chezmoiscripts", "home/.chezmoitemplates/lib", ".github/tests"]
 exclude = ["**/__pycache__", "**/.venv", "**/.pytest_cache", "**/.ruff_cache"]
 extraPaths = ["home/.chezmoitemplates", ".github/tests"]
 pythonVersion = "3.14"

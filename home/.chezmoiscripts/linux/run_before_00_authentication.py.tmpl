@@ -1,10 +1,10 @@
+{{ if .personal -}}
+#!/usr/bin/python3 -B
 """Private logging and personal authentication after the shell establishes prerequisites."""
 
-import errno
 import json
 import os
 import re
-import stat
 import subprocess
 import sys
 from contextlib import nullcontext
@@ -12,6 +12,9 @@ from pathlib import Path
 from typing import cast
 
 from loguru import logger
+
+SOURCE_DIR = Path({{ .chezmoi.sourceDir | toJson }})
+sys.path.insert(0, str(SOURCE_DIR / ".chezmoitemplates"))
 
 
 def configure_bitwarden() -> int:
@@ -110,66 +113,9 @@ def configure_bitwarden() -> int:
     return result.returncode
 
 
-def configure_logging() -> int:
-    logger.remove()
-    _ = logger.add(
-        sys.stderr,
-        # A callable format omits Loguru's automatic exception suffix on stderr.
-        format=lambda _: (
-            "<green>[{time:YYYY-MM-DD HH:mm:ss}]</green> <level>[{level}] {message}</level>\n"
-        ),
-        colorize=sys.stderr.isatty()
-        and "NO_COLOR" not in os.environ
-        and os.environ.get("TERM") != "dumb",
-        level="INFO",
-        diagnose=False,
-        backtrace=False,
-        catch=False,
-    )
-
-    log_dir = (
-        Path(os.environ.get("XDG_STATE_HOME") or Path.home() / ".local/state") / "chezmoi/logs"
-    )
-    log_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
-    directory = log_dir.lstat()
-    if not stat.S_ISDIR(directory.st_mode) or directory.st_uid != os.getuid():
-        raise PermissionError(
-            errno.EACCES, "Setup logs require a user-owned directory, not a symlink"
-        )
-    if stat.S_IMODE(directory.st_mode) != 0o700:
-        log_dir.chmod(0o700)
-
-    # Loguru uses this native open() hook for the current file and every rotation.
-    def private_log_file(path: str, flags: int) -> int:
-        # A FIFO must not block before the regular-file check below can reject it.
-        descriptor = os.open(path, flags | os.O_NOFOLLOW | os.O_NONBLOCK, 0o600)
-        try:
-            info = os.fstat(descriptor)
-            if not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid():
-                raise PermissionError(errno.EACCES, "Setup logs require a user-owned regular file")
-            if stat.S_IMODE(info.st_mode) != 0o600:
-                os.fchmod(descriptor, 0o600)
-        except OSError:
-            os.close(descriptor)
-            raise
-        return descriptor
-
-    return logger.add(
-        log_dir / "setup.log",
-        level="DEBUG",
-        colorize=False,
-        format="[{time:YYYY-MM-DD HH:mm:ss}] [{level}] [{file.name}:{line}] {message}",
-        rotation=5 * 1024 * 1024,
-        retention=5,
-        delay=True,
-        opener=private_log_file,
-        diagnose=False,
-        backtrace=False,
-        catch=False,
-    )
-
-
 def main() -> int:
+    from lib.provision_logging import configure_logging
+
     file_sink = None
     try:
         file_sink = configure_logging()
@@ -198,3 +144,4 @@ def main() -> int:
 if __name__ == "__main__":
     status = main()
     sys.exit(status if status >= 0 else 128 - status)
+{{ end -}}

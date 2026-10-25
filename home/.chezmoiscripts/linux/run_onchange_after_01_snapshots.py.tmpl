@@ -1,3 +1,8 @@
+{{ if .personal -}}
+#!/usr/bin/python3 -B
+# snapper_boot.sh: {{ include ".chezmoitemplates/lib/snapper_boot.sh" | sha256sum }}
+# snapboot.sh: {{ include ".chezmoitemplates/lib/snapboot.sh" | sha256sum }}
+# common.sh: {{ include ".chezmoitemplates/lib/common.sh" | sha256sum }}
 """Provision the existing personal root Snapper configuration on the supported Btrfs layout."""
 
 import argparse
@@ -16,12 +21,14 @@ from pathlib import Path
 from typing import Never, cast
 from uuid import UUID
 
-from bootstrap import configure_logging
 from loguru import logger
+
+SOURCE_DIR = Path({{ .chezmoi.sourceDir | toJson }})
+sys.path.insert(0, str(SOURCE_DIR / ".chezmoitemplates"))
 
 LIMINE = Path("/usr/bin/limine")
 FSTAB = Path("/etc/fstab")
-BOOT_HELPER = Path(__file__).parent / "lib/snapper_boot.sh"
+BOOT_HELPER = SOURCE_DIR / ".chezmoitemplates/lib/snapper_boot.sh"
 SETTINGS = {
     "NUMBER_CLEANUP": "yes",
     "NUMBER_LIMIT": "10",
@@ -273,8 +280,6 @@ def enable_services() -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    _ = parser.add_argument("--personal", action="store_true")
-    _ = parser.add_argument("--distro", default="")
     _ = parser.add_argument("--optimize-fstab", action="store_true", help=argparse.SUPPRESS)
     args = parser.parse_args()
     # A narrowly scoped privileged entry point: no selectable system paths and
@@ -297,8 +302,8 @@ def main() -> int:
             return error.returncode if isinstance(error, subprocess.CalledProcessError) else 1
         except KeyboardInterrupt:
             return 130
-    if not cast("bool", args.personal):
-        return 0
+    from lib.provision_logging import configure_logging
+
     file_sink = None
     try:
         file_sink = configure_logging()
@@ -306,8 +311,9 @@ def main() -> int:
             raise ValueError(
                 "Run Snapper setup as the regular account; sudo is used only for system operations."
             )
+        distro = {{ .chezmoi.osRelease.id | toJson }}
         if (
-            cast("str", args.distro).lower() in ("cachyos", "garuda")
+            distro.lower() in ("cachyos", "garuda")
             or not os.access(LIMINE, os.X_OK)
             or not shutil.which("mkinitcpio")
         ):
@@ -356,3 +362,4 @@ def main() -> int:
 if __name__ == "__main__":
     status = main()
     sys.exit(status if status >= 0 else 128 - status)
+{{ end -}}
