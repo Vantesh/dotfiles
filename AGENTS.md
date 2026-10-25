@@ -9,7 +9,7 @@
 
 ## Python and safety
 
-- Write modern, readable Python for the target in `ruff.toml`. Prefer pathlib, context managers, straightforward functions and useful type annotations. Keep dependencies minimal.
+- Write modern, readable Python 3.14, matching `ruff.toml` and `pyproject.toml`. Prefer pathlib, context managers, straightforward functions and useful type annotations. Keep dependencies minimal.
 - Use BasedPyright in recommended mode for static type checking and Ruff for linting and formatting: `ruff check .` and `ruff format --check .`. Fix real violations; avoid blanket exclusions and widespread suppressions. Format with `ruff format .`.
 - Do not introduce generic runners, namespace classes, speculative abstractions or function-wrapper hell. Keep one-line operations direct; share helpers only for meaningful repeated responsibilities or invariants.
 - Preserve unmanaged configuration, ownership and permissions. Avoid unnecessary rewrites. Publish important configuration atomically, create temporary files safely, clean them up, and do not follow untrusted symlinks in privileged writes.
@@ -18,16 +18,11 @@
 - Use Loguru directly for Python provisioning. Keep terminal output concise and TTY-aware, respect `NO_COLOR`, and preserve private XDG logs (0700 directories, 0600 files), rotation and retention. Keep `diagnose=False` and `backtrace=False`; never log secrets, vault responses, sensitive arguments or environments. Logging failures must not report provisioning success.
 - pytest is the sole Python test runner. New tests use native pytest functions and ordinary assertions; retained unittest tests are temporary and migrate incrementally alongside relevant code. Keep fixtures/utilities small and test only supported behavior, real requirements and meaningful failures: idempotency, profile isolation, secret-safe diagnostics, failure propagation and necessary publication/boot/filesystem safety. Do not pursue test counts, coverage targets, hypothetical matrices or tests for trivial helpers.
 
-Ruff, BasedPyright and pytest must pass before committing Python changes. With the Mise `python-dev` environment active:
+Contributors manage development tools themselves. The repository configures and validates tools; it never installs, bootstraps or substitutes them. Require Python 3.14, Ruff, BasedPyright and pytest on PATH; report missing tools by executable name and fail without installing anything.
 
-```sh
-ruff check .
-ruff format --check .
-basedpyright
-pytest -q
-```
+Run `python3 -B .github/tests/validate.py` before committing Python changes. It coordinates Ruff, BasedPyright, pytest and the retained shell/template/configuration checks, running the suite once. The independent tool commands are documented in `.github/README.md`. Report missing or unsupported tools; never claim an unavailable check passed.
 
-`python3 -B .github/tests/validate.py` coordinates static checks, including type-checking rendered Python modifiers, ShellCheck and Mise syntax. CI runs this validator and pytest once each. Keep functional corrections distinguishable from formatting changes where practical.
+Reject zero-file type checks. Verify hidden-source discovery with `basedpyright --verbose`; use `useDefaultExcludes = false` only when supported by the installed checker. Keep functional corrections distinguishable from formatting changes where practical.
 
 ## Git and phase completion
 

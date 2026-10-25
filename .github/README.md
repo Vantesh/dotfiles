@@ -42,7 +42,7 @@ Both profiles support repeated application. Previous dotfiles versions and profi
 
 Mise files in the repository (`chezmoi cd`):
 
-- `mise/config.toml` → required Mise version; `mise/config.python-dev.toml` → the pinned development type checker.
+- `mise/config.toml` → required Mise version.
 - `mise/conf.d/packages.toml` → baseline packages and personal hardware groups.
 - `mise/conf.d/services.toml` → system services and timers.
 - `mise/conf.d/login-shell.toml` → sets Fish as the default login shell (`/usr/bin/fish`).
@@ -224,20 +224,20 @@ Edit `.tmpl` files directly in the source repo. Use `chezmoi add` to import deli
 
 ## Script tests
 
-Setup-script checks use Python 3.13+, Loguru (`python-loguru`), Bash, chezmoi, ShellCheck and Ruff. BasedPyright and pytest are development tools; they are not prerequisites of the provisioning bootstrap. Install them through the existing Mise configuration:
+Validation requires separately provided Python 3.14, Ruff, BasedPyright, pytest 9+, chezmoi, Bash and ShellCheck. Python and Loguru remain runtime dependencies of the actual dotfiles bootstrap. The repository does not install development tools or manage a development environment.
 
 ```bash
-mise --env python-dev bootstrap packages apply --yes
-mise --env python-dev install
-mise --env python-dev exec -- python3 -B .github/tests/validate.py
+ruff check .
+ruff format --check .
+basedpyright
 pytest -q
 ```
 
-The development package group supplies npm and Arch's `python-pytest`; Mise installs BasedPyright through its npm backend. The checker is pinned to 1.39.0 because newer releases exclude hidden source directories despite explicit includes. When upgrading it, confirm that `.github/tests` and `.chezmoitemplates` are actually analyzed.
+`python3 -B .github/tests/validate.py` coordinates these checks plus both profiles of rendered Python settings modifiers, shell/Python syntax and Mise TOML validation. It runs pytest once; do not run the suite again through unittest. `ruff.toml` and `pyproject.toml` target Python 3.14; pytest discovers the retained tests under `.github/tests`. Native pytest migration remains a separate task.
 
-`ruff.toml` keeps the lint/format rules. `pyproject.toml` configures recommended-mode Python 3.13 type checking of provisioning/verification code and tests, plus pytest discovery under `.github/tests`. The validator also checks both profiles of the rendered Python settings modifiers. Kitty's embedded module and the separate theme updater retain Ruff/syntax validation; they are outside the provisioning type-check scope.
+BasedPyright explicitly includes `.github/tests` and `home/.chezmoitemplates`; confirm actual discovery with `basedpyright --verbose`. BasedPyright 1.40.2 (Pyright 1.1.414) has the [upstream hidden-directory regression](https://github.com/microsoft/pyright/issues/11861): it checks zero files and rejects `useDefaultExcludes`. That installation cannot validate this layout; the validator fails rather than accepting an empty check. The option is appropriate only with a checker release that supports it. Tool versions are managed externally, with no pinned installer or fallback here. Kitty's embedded module and the separate theme updater retain Ruff/syntax checks outside the provisioning type-check scope.
 
-Activate the `python-dev` Mise environment, or use `mise --env python-dev exec -- basedpyright`, to run the checker directly. pytest 9 or newer runs the retained unittest classes and subtests without a plugin. Native pytest migration is a separate task; the suite is not run through unittest as well.
+CI invokes the same validator and reports missing prerequisites. The stock Arch container does not provide the complete development toolchain; a suitable runner/image must supply it separately. This repository does not bootstrap one.
 
 ## Reminders
 
