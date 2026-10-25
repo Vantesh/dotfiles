@@ -3,6 +3,7 @@
 import json
 import os
 import pty
+import re
 import select
 import shlex
 import shutil
@@ -347,6 +348,11 @@ chmod 755 "$HOME/bin/mise"''',
     result = run_setup(env, bootstrap)
     assert result.returncode == 0, result.stderr
     assert (tmp_path / "installed").exists()
+    assert re.fullmatch(
+        r"\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\] \[INFO\] "
+        + r"Installing prerequisites: git, base-devel, mise\n",
+        result.stderr,
+    ), result.stderr
     log = tmp_path / "state/chezmoi/logs/setup.log"
     modified = log.stat().st_mtime_ns
     repeated = run_setup(env, bootstrap)
@@ -460,12 +466,16 @@ namespace['logger'].remove()
 
 
 @pytest.mark.parametrize("no_color", [False, True], ids=["tty-color", "no-color-override"])
-def test_terminal_color_respects_no_color(env: dict[str, str], no_color: bool) -> None:
-    code = """import runpy, sys
-namespace = runpy.run_path(sys.argv[1])
-namespace['configure_logging']()
-namespace['logger'].warning('terminal check')
-"""
+def test_terminal_color_and_log_locations(
+    env: dict[str, str], tmp_path: Path, no_color: bool
+) -> None:
+    probe = tmp_path / "logging_probe.py"
+    probe.write_text("""import sys
+sys.path.insert(0, sys.argv[1])
+from bootstrap import configure_logging, logger
+configure_logging()
+logger.warning('terminal check')
+""")
     env["TERM"] = "linux"
     if no_color:
         env["NO_COLOR"] = ""
@@ -474,7 +484,7 @@ namespace['logger'].warning('terminal check')
     master, slave = pty.openpty()
     try:
         result = subprocess.run(
-            [PYTHON, "-B", "-c", code, str(BOOTSTRAP)],
+            [PYTHON, "-B", str(probe), str(BOOTSTRAP.parent)],
             env=env,
             stdout=subprocess.PIPE,
             stderr=slave,
@@ -484,8 +494,17 @@ namespace['logger'].warning('terminal check')
         assert result.returncode == 0
         assert select.select([master], [], [], 2)[0], "No terminal diagnostic received"
         output = os.read(master, 4096).decode()
-        assert "terminal check" in output
         assert ("\x1b[" in output) == (not no_color)
+        plain = re.sub(r"\x1b\[[0-9;]*m", "", output).replace("\r\n", "\n")
+        assert re.fullmatch(
+            r"\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\] \[WARNING\] terminal check\n", plain
+        ), plain
+        persisted = (tmp_path / "state/chezmoi/logs/setup.log").read_text()
+        assert re.fullmatch(
+            r"\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\] \[WARNING\] "
+            + r"\[logging_probe.py:5\] terminal check\n",
+            persisted,
+        ), persisted
     finally:
         os.close(master)
         os.close(slave)
@@ -524,6 +543,18 @@ esac""",
     result = run_setup(env, bootstrap)
     assert result.returncode == 1, result.stderr
     assert "Traceback" not in result.stderr
+    assert calls(env) == []
+    # An XDG failure must also remain concise when its file diagnostic cannot be written.
+    gnupg = tmp_path / "data/gnupg"
+    gnupg.parent.mkdir(parents=True)
+    private = tmp_path / "private-key"
+    private.write_text("private-file-canary")
+    gnupg.symlink_to(private)
+    failed = apply_packages(env)
+    assert failed.returncode == 1, failed.stderr
+    assert "Traceback" not in failed.stderr
+    assert "private-file-canary" not in failed.stderr
+    assert gnupg.read_text() == "private-file-canary"
     assert calls(env) == []
 
 
@@ -616,6 +647,7 @@ def test_fresh_kvm_baseline_needs_no_vulkan_provider_or_personal_probes(
     package_env.update(MISE_ENV="personal", MISE_CONFIG_FILE="/unrelated/config.toml")
     result = apply_packages(package_env)
     assert result.returncode == 0, result.stderr
+    assert "Installing baseline packages with Mise." in result.stderr
     recorded = calls(package_env)
     assert [call for call in recorded if call[0] == "mise"] == [
         ["mise", "--env", "packages", "bootstrap", "packages", "apply", "--yes"]
@@ -689,6 +721,9 @@ fi""",
     package_env["UPGRADE_STATUS"] = "23"
     failed = apply_packages(package_env)
     assert failed.returncode == 23, failed.stderr
+    assert "sudo pacman -Syu --noconfirm failed (exit 23)" in failed.stderr
+    assert failed.stderr.count("[ERROR]") == 1
+    assert "Traceback" not in failed.stderr
     assert not marker.exists()
     assert not any(call[0] == "mise" for call in calls(package_env))
     package_env["UPGRADE_STATUS"] = "0"
@@ -766,10 +801,20 @@ def test_derivatives_keep_distribution_managed_nvidia_modules(
     ["linux 6.18-1\nlinux-headers 6.17-1", "nvidia-580xx-utils 580.119.02-1"],
     ids=["mismatched-headers", "conflicting-userspace"],
 )
-def test_driver_conflicts_stop_before_mise(package_env: dict[str, str], packages: str) -> None:
+def test_driver_conflicts_stop_before_mise(
+    package_env: dict[str, str], tmp_path: Path, packages: str
+) -> None:
     package_env.update(GPU="NVIDIA Corporation GA106 [10de:1234]", PACKAGES=packages)
     result = apply_packages(package_env, personal=True)
     assert result.returncode != 0
+    assert result.stderr.count("[ERROR]") == 1
+    assert "Traceback" not in result.stderr
+    persisted = (tmp_path / "state/chezmoi/logs/setup.log").read_text()
+    assert persisted.count("[ERROR]") == 1
+    assert "Traceback (most recent call last):" in persisted
+    assert "in personal_packages" in persisted
+    assert "raise ValueError(" in persisted
+    assert "ValueError:" in persisted
     assert not any(call[0] == "mise" for call in calls(package_env))
 
 
@@ -805,6 +850,19 @@ def test_xdg_reapplication_preserves_custom_paths_and_maven_settings(
     assert observed["GNUPGHOME"] == package_env["GNUPGHOME"]
     assert Path(package_env["GNUPGHOME"]).stat().st_mode & 0o777 == 0o700
     assert calls(package_env).count(["sudo", "pacman", "-Syu", "--noconfirm"]) == 1
+    # A mistaken custom GnuPG path must preserve the file and explain the Python failure.
+    package_env["GNUPGHOME"] = str(settings)
+    recorded = calls(package_env)
+    failed = apply_packages(package_env)
+    assert failed.returncode == 1, failed.stderr
+    assert "File exists" in failed.stderr
+    assert "Traceback" not in failed.stderr
+    persisted = (tmp_path / "state/chezmoi/logs/setup.log").read_text()
+    assert "FileExistsError:" in persisted
+    assert "in prepare_xdg" in persisted
+    assert "existing-private-settings" not in persisted + failed.stderr
+    assert settings.read_text() == "existing-private-settings"
+    assert calls(package_env) == recorded
 
 
 def test_chezmoi_retries_failures_and_tracks_only_package_dependencies(

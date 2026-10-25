@@ -328,6 +328,7 @@ def main() -> int:
         )
         setup_chaotic_aur()
         if not (shutil.which("yay") or shutil.which("paru")):
+            logger.info("Installing the AUR helper with Mise.")
             _ = subprocess.run(
                 ["mise", "--env", "aur-helper", "bootstrap", "packages", "apply", "--yes"],
                 check=True,
@@ -341,10 +342,14 @@ def main() -> int:
             selected, family, kernels = personal_packages(distro.lower())
             groups.extend(selected)
         if family == "legacy":
+            logger.info("Installing legacy NVIDIA utilities before driver packages.")
             _ = subprocess.run(
                 ["mise", "--env", "nvidia-legacy-utils", "bootstrap", "packages", "apply", "--yes"],
                 check=True,
             )
+        logger.info(
+            "Installing baseline{} packages with Mise.", " and personal" if personal else ""
+        )
         _ = subprocess.run(
             ["mise", "--env", ",".join(groups), "bootstrap", "packages", "apply", "--yes"],
             check=True,
@@ -352,27 +357,30 @@ def main() -> int:
         if family and kernels:
             verify_nvidia(family, kernels)
         return 0
-    except subprocess.CalledProcessError as error:
-        command = cast("list[str]", error.cmd)
-        logger.error(
-            "Package setup: {} failed (exit {}); correct the tool's error and retry.",
-            command[0],
-            error.returncode,
-        )
-        return error.returncode
-    except ValueError as error:
-        logger.error("{}", str(error))
-        return 1
-    except OSError as error:
+    except (subprocess.CalledProcessError, ValueError, OSError) as error:
+        status = error.returncode if isinstance(error, subprocess.CalledProcessError) else 1
         try:
-            logger.error(
-                "Package setup stopped (OS error {}); check required commands, XDG paths and log permissions.",
-                error.errno,
-            )
+            if isinstance(error, subprocess.CalledProcessError):
+                command = cast("list[str]", error.cmd)
+                # Package commands contain public package names/options, never vault arguments.
+                logger.error(
+                    "Package setup: {} failed (exit {}); resolve the command's error and retry.",
+                    " ".join(command),
+                    error.returncode,
+                )
+            elif isinstance(error, ValueError):
+                logger.opt(exception=True).error("Package setup stopped: {}", str(error))
+            else:
+                logger.opt(exception=True).error(
+                    "Package setup stopped (OS error {}: {}); check required commands, XDG paths and log permissions.",
+                    error.errno,
+                    error.strerror,
+                )
         except OSError:
+            # The terminal sink reports first, even when the file is unwritable.
             if file_sink is not None:
                 logger.remove(file_sink)
-        return 1
+        return status
     except KeyboardInterrupt:
         logger.warning("Package setup interrupted; rerun chezmoi apply when ready.")
         return 130

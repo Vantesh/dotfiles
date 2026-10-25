@@ -143,7 +143,10 @@ def configure_logging() -> int:
     logger.remove()
     _ = logger.add(
         sys.stderr,
-        format="<green>{time:HH:mm:ss}</green> | <level>{level: <7}</level> | <level>{message}</level>",
+        # A callable format omits Loguru's automatic exception suffix on stderr.
+        format=lambda _: (
+            "<green>[{time:YYYY-MM-DD HH:mm:ss}]</green> <level>[{level}] {message}</level>\n"
+        ),
         colorize=sys.stderr.isatty()
         and "NO_COLOR" not in os.environ
         and os.environ.get("TERM") != "dumb",
@@ -184,7 +187,7 @@ def configure_logging() -> int:
         log_dir / "setup.log",
         level="DEBUG",
         colorize=False,
-        format="{time:YYYY-MM-DD HH:mm:ss.SSS ZZ} | {level: <7} | {function}:{line} | {message}",
+        format="[{time:YYYY-MM-DD HH:mm:ss}] [{level}] [{file.name}:{line}] {message}",
         rotation=5 * 1024 * 1024,
         retention=5,
         delay=True,
