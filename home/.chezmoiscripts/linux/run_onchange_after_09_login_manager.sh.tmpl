@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+{{ if .personal -}}
 # 09_login_manager.sh - Configure Ly display manager
 # Exit codes: 0 (success), 1 (failure)
 # The EXIT callback reads rollback in the same configuration-helper subshell.
@@ -313,3 +314,5 @@ main() {
 }
 
 main "$@"
+
+{{ end -}}

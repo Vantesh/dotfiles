@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+{{ if .personal -}}
 # 04_quiet_boot.sh - Configure quiet boot parameters
 # Exit codes: 0 (success), 1 (failure)
 
@@ -49,3 +50,5 @@ main() {
 }
 
 main "$@"
+
+{{ end -}}

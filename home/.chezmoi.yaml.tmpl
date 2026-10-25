@@ -3,12 +3,6 @@
 {{- /* Defaults */ -}}
 {{- $personal := get . "personal" | default false -}}
 
-{{- $setupSnapper := get . "setupSnapper" | default false -}}
-{{- $setupHibernation := get . "setupHibernation" | default false -}}
-{{- $setupSecureBoot := get . "setupSecureBoot" | default false -}}
-{{- $preserveFirmwareSecureBootKeys := get . "preserveFirmwareSecureBootKeys" | default false -}}
-{{- $installDrivers := get . "installDrivers" | default false -}}
-
 {{- /* Arch-only setup */ -}}
 {{- $distroFamily := "" -}}
 {{- if .chezmoi.osRelease -}}
@@ -25,52 +19,18 @@
   {{- $personal = promptBoolOnce . "personal" "Is this a personal setup" false -}}
 {{- end -}}
 
-{{- if $personal -}}
-  {{- $setupSnapper = true -}}
-  {{- $setupHibernation = true -}}
-  {{- $setupSecureBoot = true -}}
-  {{- $preserveFirmwareSecureBootKeys = true -}}
-  {{- $installDrivers = true -}}
-  {{- if $interactive -}}
-    {{- writeToStdout "\n\033[1;32mINFO:\033[0m Personal setup enables Bitwarden-backed private configuration.\n\n" -}}
-  {{- end -}}
-{{- else if $interactive -}}
-  {{- $setupSnapper = promptBoolOnce . "setupSnapper" "Setup Snapper snapshots" false -}}
-  {{- $setupHibernation = promptBoolOnce . "setupHibernation" "Setup hibernation" false -}}
-  {{- $setupSecureBoot = promptBoolOnce . "setupSecureBoot" "Setup Limine Secure Boot (writes firmware keys)" false -}}
-  {{- if $setupSecureBoot -}}
-    {{- $preserveFirmwareSecureBootKeys = promptBoolOnce . "preserveFirmwareSecureBootKeys" "Preserve firmware Secure Boot certificates" false -}}
-  {{- end -}}
-  {{- $installDrivers = promptBoolOnce . "installDrivers" "Install drivers" false -}}
-{{- end -}}
-
-{{- if $interactive -}}
-  {{- if $setupSecureBoot -}}
-    {{- writeToStdout "\n\033[1;33mWARN:\033[0m First-time key enrollment requires UEFI Setup Mode with Secure Boot disabled. Enable Secure Boot only after applying successfully.\n\n" -}}
-  {{- end -}}
-  {{- writeToStdout "\n\033[1;32mTIP:\033[0m Reconfigure saved choices with \033[1mchezmoi init --prompt\033[0m\n\n" -}}
+{{- if and $interactive $personal -}}
+  {{- writeToStdout "Personal setup uses Bitwarden and provisions this system. First-time Secure Boot enrollment requires UEFI Setup Mode with Secure Boot disabled. Enable Secure Boot only after applying successfully.\n" -}}
 {{- end -}}
 
 data:
   personal: {{ $personal }}
   distroFamily: {{ $distroFamily | quote }}
-  setupSnapper: {{ $setupSnapper }}
-  setupHibernation: {{ $setupHibernation }}
-  setupSecureBoot: {{ $setupSecureBoot }}
-  preserveFirmwareSecureBootKeys: {{ $preserveFirmwareSecureBootKeys }}
-
-  installDrivers: {{ $installDrivers }}
 
 scriptEnv:
   PERSONAL: {{ ternary "1" "0" $personal | quote }}
   DISTRO_FAMILY: {{ $distroFamily | quote }}
   DISTRO: {{ .chezmoi.osRelease.id | quote }}
-  SETUP_SNAPPER: {{ ternary "1" "0" $setupSnapper | quote }}
-  SETUP_HIBERNATION: {{ ternary "1" "0" $setupHibernation | quote }}
-  SETUP_SECURE_BOOT: {{ ternary "1" "0" $setupSecureBoot | quote }}
-  PRESERVE_FIRMWARE_SECURE_BOOT_KEYS: {{ ternary "1" "0" $preserveFirmwareSecureBootKeys | quote }}
-
-  INSTALL_DRIVERS: {{ ternary "1" "0" $installDrivers | quote }}
 
 
 edit:

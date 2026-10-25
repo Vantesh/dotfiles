@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
+{{ if .personal -}}
 
-# 15_finalize.sh - Finalize setup after other scripts
+# 99_finalize.sh - Finalize setup after other scripts
 #
-# Offers a firmware reboot when Secure Boot setup is enabled but firmware
-# Secure Boot is inactive. Other setups retain the normal reboot prompt.
+# Offers a firmware reboot when personal Secure Boot provisioning completes
+# but firmware Secure Boot is inactive. Otherwise offers a normal reboot.
 # Unattended applies never reboot automatically.
 #
 # Globals:
-#   SETUP_SECURE_BOOT - Secure Boot opt-in from chezmoi configuration
 #   NOCONFIRM, CI - Disable reboot prompts in unattended environments
 # Exit codes: 0 (success), 1 (failure)
 
@@ -20,29 +20,25 @@ shopt -s nullglob globstar
 print_box "Setup Complete"
 printf "\n"
 
-readonly SECURE_BOOT_SETUP="${SETUP_SECURE_BOOT:-{{ ternary "1" "0" (get . "setupSecureBoot" | default false) }}}"
-
 reboot_args=(reboot)
 reboot_prompt="Would you like to reboot now?"
 reboot_log="Rebooting system"
 reboot_hint="Reboot skipped. Please reboot manually later to apply all changes."
 
-if [[ "$SECURE_BOOT_SETUP" = "1" ]]; then
-  if command_exists sbctl && command_exists jq &&
-    secure_boot_status="$(sbctl --json status)" &&
-    jq -e '(.secure_boot | type) == "boolean"' <<<"$secure_boot_status" >/dev/null; then
-    if jq -e '.secure_boot' <<<"$secure_boot_status" >/dev/null; then
-      log INFO "Secure Boot is already enabled in firmware"
-    else
-      log INFO "Secure Boot setup completed; enable Secure Boot in UEFI firmware settings"
-      reboot_args+=(--firmware-setup)
-      reboot_prompt="Would you like to reboot into UEFI firmware settings to enable Secure Boot?"
-      reboot_log="Rebooting into UEFI firmware settings"
-      reboot_hint="Reboot skipped. Run systemctl reboot --firmware-setup later to enable Secure Boot."
-    fi
+if command_exists sbctl && command_exists jq &&
+  secure_boot_status="$(sbctl --json status)" &&
+  jq -e '(.secure_boot | type) == "boolean"' <<<"$secure_boot_status" >/dev/null; then
+  if jq -e '.secure_boot' <<<"$secure_boot_status" >/dev/null; then
+    log INFO "Secure Boot is already enabled in firmware"
   else
-    log WARN "Could not check Secure Boot status; run sudo sbctl status before enabling Secure Boot in UEFI settings"
+    log INFO "Secure Boot setup completed; enable Secure Boot in UEFI firmware settings"
+    reboot_args+=(--firmware-setup)
+    reboot_prompt="Would you like to reboot into UEFI firmware settings to enable Secure Boot?"
+    reboot_log="Rebooting into UEFI firmware settings"
+    reboot_hint="Reboot skipped. Run systemctl reboot --firmware-setup later to enable Secure Boot."
   fi
+else
+  log WARN "Could not check Secure Boot status; run sudo sbctl status before enabling Secure Boot in UEFI settings"
 fi
 
 if [[ "${NOCONFIRM:-0}" != "1" ]] &&
@@ -53,3 +49,5 @@ if [[ "${NOCONFIRM:-0}" != "1" ]] &&
 else
   log INFO "$reboot_hint"
 fi
+
+{{ end -}}

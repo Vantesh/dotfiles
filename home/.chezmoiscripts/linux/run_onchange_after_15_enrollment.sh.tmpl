@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+{{ if .personal -}}
 # 15_enrollment.sh - Register WARP and offer fingerprint enrollment
 #
 # Runs after services and before finalization when its rendered content changes.
@@ -110,3 +111,5 @@ main() {
 }
 
 main "$@"
+
+{{ end -}}

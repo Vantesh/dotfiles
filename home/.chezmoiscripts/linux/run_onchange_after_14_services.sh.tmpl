@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+{{ if .personal -}}
 
 # data: distroFamily={{ .distroFamily | quote }}
 # Packaged user units, locate maintenance, and native mise services/firewall/login shell.
@@ -129,3 +130,5 @@ main() {
 }
 
 main "$@"
+
+{{ end -}}

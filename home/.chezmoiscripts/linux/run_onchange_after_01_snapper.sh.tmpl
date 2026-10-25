@@ -1,10 +1,8 @@
 #!/usr/bin/env bash
+{{ if .personal -}}
 # 01_snapper.sh - Set up snapper for btrfs snapshots
 # Exit codes: 0 (success), 1 (failure)
 
-# setup-snapper: {{ .setupSnapper }}
-# SETUP_SNAPPER: {{ get (.chezmoi.config.scriptEnv | default dict) "SETUP_SNAPPER" | default "1" | quote }}
-# SKIP_PACKAGES: {{ ternary "1" "0" (eq (env "SKIP_PACKAGES") "1") }}
 # distro: {{ .chezmoi.osRelease.id | quote }}
 # distro-family: {{ .distroFamily | quote }}
 
@@ -223,11 +221,6 @@ optimize_btrfs_fstab() {
 }
 
 main() {
-  if [[ "${SETUP_SNAPPER:-1}" != "1" || "${SKIP_PACKAGES:-0}" == "1" ]]; then
-    log INFO "Skipping snapper setup"
-    return 0
-  fi
-
   if [[ ! -x /usr/bin/limine ]]; then
     log WARN "Unsupported bootloader (only Limine is supported), skipping Snapper setup"
     return 0
@@ -286,3 +279,5 @@ main() {
 }
 
 main "$@"
+
+{{ end -}}

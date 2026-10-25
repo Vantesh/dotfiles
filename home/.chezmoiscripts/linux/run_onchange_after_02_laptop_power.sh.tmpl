@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
+{{ if .personal -}}
 # 02_laptop_power.sh - Configure laptop power management
 # Exit codes: 0 (success or skipped), 1 (failure)
 
-# SKIP_PACKAGES: {{ ternary "1" "0" (eq (env "SKIP_PACKAGES") "1") }}
 
 set -euo pipefail
 
@@ -38,10 +38,6 @@ configure_auto_cpufreq() {
   local load_state bluetooth_boot_off=false daemon_install_status=0
 
   if [[ ! -x "$AUTO_CPUFREQ_BIN" ]]; then
-    if [[ "${SKIP_PACKAGES:-0}" == "1" ]]; then
-      log SKIP "auto-cpufreq is not installed and package installation is disabled"
-      return 0
-    fi
     if command_exists auto-cpufreq; then
       die "Existing auto-cpufreq is not an upstream installation; migrate it before running laptop setup"
     fi
@@ -94,3 +90,5 @@ main() {
 }
 
 main "$@"
+
+{{ end -}}

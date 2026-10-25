@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+{{ if .personal -}}
 set -euo pipefail
 
 {{ include ".chezmoitemplates/lib/common.sh" }}
@@ -55,3 +56,5 @@ manifest_stage=$(mktemp "$fonts_dir/.installed.sha256.XXXXXX")
 mv -Tf -- "$manifest_stage" "$completion_file"
 manifest_stage=''
 log INFO "Installed ${#fonts[@]} SF Pro Text fonts in $fonts_dir"
+
+{{ end -}}

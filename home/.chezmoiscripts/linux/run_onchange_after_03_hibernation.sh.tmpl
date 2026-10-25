@@ -1,10 +1,8 @@
 #!/usr/bin/env bash
+{{ if .personal -}}
 # 03_hibernation.sh - Configure laptop swap, resume, sleep, and NVIDIA power management
 # Exit codes: 0 (success or skipped), 1 (failure)
 
-# setup-hibernation: {{ .setupHibernation }}
-# SETUP_HIBERNATION: {{ get (.chezmoi.config.scriptEnv | default dict) "SETUP_HIBERNATION" | default "1" | quote }}
-# SKIP_PACKAGES: {{ ternary "1" "0" (eq (env "SKIP_PACKAGES") "1") }}
 {{ $stateHome := env "XDG_STATE_HOME" | default (joinPath .chezmoi.homeDir ".local/state") -}}
 # retry-generation: {{ with stat (joinPath $stateHome "chezmoi/hibernation.pending") }}{{ .size }}{{ else }}0{{ end }}
 
@@ -37,18 +35,6 @@ defer_hibernation_setup() {
 main() {
   local gpu_info
   local ram_size
-
-  if [[ "${SKIP_PACKAGES:-0}" == "1" ]]; then
-    log INFO "Skipping hibernation setup (package installation is disabled)"
-    return 0
-  fi
-
-  # Exit early if hibernation setup is disabled
-  if [[ "${SETUP_HIBERNATION:-1}" != "1" ]]; then
-    log INFO "Skipping hibernation setup (disabled in configuration)"
-    clear_hibernation_retry
-    return 0
-  fi
 
   if [[ ! -x /usr/bin/limine ]]; then
     log WARN "Unsupported bootloader (only Limine is supported), skipping hibernation setup"
@@ -232,3 +218,5 @@ EOF
 }
 
 main "$@"
+
+{{ end -}}

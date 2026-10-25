@@ -16,7 +16,7 @@
 
 ## Fresh install
 
-Start from an installed Arch system with network access and a regular user with sudo access. Back up existing configuration first.
+Start from a fresh Arch Linux or Arch-based installation with network access and a regular user with sudo access. Arch-family detection and the existing CachyOS/Garuda handling are retained. Other operating systems are unsupported.
 
 Support is best effort; I only test this setup on machines I own.
 
@@ -28,27 +28,32 @@ sudo pacman -S --needed chezmoi
 chezmoi init --apply vantesh
 ```
 
-Setup installs its remaining prerequisites and prompts for Snapper, hibernation, Secure Boot, and drivers.
+Setup installs its prerequisites and asks one question: **Is this a personal setup?** The answer defaults to No and is saved for subsequent applies.
+
+- **Nonpersonal:** installs baseline packages and applies nonsecret dotfiles. It does not access Bitwarden, provision drivers, configure services, firewall, login shell or login manager, customize desktop preferences, modify boot/filesystem/firmware settings, enroll devices, or reboot.
+- **Personal:** adds private configuration and the existing driver, Btrfs/Snapper, swapfile/hibernation, Zswap, Limine/Secure Boot, desktop and service provisioning. Hardware and system-integrity checks still apply. Authentication and enrollment can require interaction.
+
+Both profiles support repeated application. Previous dotfiles versions and profile transitions are unsupported; use manual cleanup or a fresh installation rather than expecting migration. Nonpersonal installs retain the existing package prerequisites, including Chaotic-AUR trust/repository setup, the initial full system upgrade, and an AUR helper. A compatible Vulkan provider must already be installed so baseline dependencies cannot select an unintended driver stack.
 
 > [!WARNING]
 > **If you are not me, answer No to “Is this a personal setup”.** This option is for me only. It expects my private Bitwarden entries and their exact fields; missing or incorrect entries will make setup fail.
->
-> If you answered Yes by mistake, run `chezmoi init --prompt` and choose No before retrying.
 
 ## Customizing the setup
 
 Mise files in the repository (`chezmoi cd`):
 
 - `mise/config.toml` → required mise version.
-- `mise/conf.d/packages.toml` → packages and optional groups.
+- `mise/conf.d/packages.toml` → baseline packages and personal hardware groups.
 - `mise/conf.d/services.toml` → system services and timers.
 - `mise/conf.d/login-shell.toml` → sets Fish as the default login shell (`/usr/bin/fish`).
 - `mise/conf.d/firewall.toml` → firewall rules.
 - `mise/conf.d/pacman-hooks.toml` → package-cache cleanup hooks.
 
+Service, firewall, login-shell and other provisioning declarations apply only to personal setups. Fish configuration is included in both profiles.
+
 ## Btrfs layout
 
-This is the Btrfs layout I use; these dotfiles do not create it. Optional hibernation can add `@swap`, and Snapper manages `/.snapshots`.
+This is the Btrfs layout I use; these dotfiles do not create it. Personal hibernation can add `@swap`, and Snapper manages `/.snapshots`.
 
 ```text
 Btrfs volume
@@ -71,7 +76,7 @@ Btrfs volume
 
 - **Limine** with systemd-based mkinitcpio on supported Btrfs installations, independently of hibernation.
 - **LUKS roots:** `sd-encrypt` is included for verified, directly LUKS-backed Btrfs roots; plain roots omit it.
-- **Optional:** Plymouth, Secure Boot, Snapper snapshots, and laptop hibernation. Snapper is independent of hibernation.
+- **Personal:** Secure Boot, Snapper snapshots, and supported laptop hibernation are selected automatically. Snapper is independent of hibernation. Existing Plymouth is retained. Zswap is configured after successful hibernation setup on machines with at least 30 GiB RAM, unless explicit settings or existing Zram prevent it; setup does not install Zram.
 
 This setup intentionally uses `systemd.tpm2_measured_os=0` to disable systemd's additional measured-OS/NvPCR services and avoid their errors on newer systemd versions. This changes TPM measurements; it is more than a logging option. See the [Arch Linux discussion](https://bbs.archlinux.org/viewtopic.php?id=314939&p=2).
 

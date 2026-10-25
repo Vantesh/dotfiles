@@ -3,6 +3,7 @@
 import json
 import os
 import pty
+import shutil
 import subprocess
 import tomllib
 
@@ -10,18 +11,10 @@ from helpers import CHEZMOI, ROOT, SCRIPTS, ScriptCase
 
 
 class SetupPreferenceTests(ScriptCase):
-    features = {
-        "setupSnapper": "Setup Snapper snapshots",
-        "setupHibernation": "Setup hibernation",
-        "setupSecureBoot": "Setup Limine Secure Boot (writes firmware keys)",
-        "preserveFirmwareSecureBootKeys": "Preserve firmware Secure Boot certificates",
-        "installDrivers": "Install drivers",
-    }
-
     def setUp(self):
         super().setUp()
         if not CHEZMOI:
-            self.skipTest("chezmoi is required for configuration initialization")
+            self.skipTest("chezmoi is required for profile initialization")
         self.source = self.directory / "source"
         self.source.mkdir()
         (self.source / ".chezmoi.yaml.tmpl").write_text(
@@ -29,146 +22,111 @@ class SetupPreferenceTests(ScriptCase):
         self.config = self.directory / "chezmoi.yaml"
         self.stub("git", 'exec /usr/bin/git "$@"')
         self.command = [CHEZMOI, "--config", str(self.config), "--source", str(self.source),
-                        "--destination", str(self.directory / "destination"), "--no-tty",
-                        "--override-data", '{"chezmoi":{"osRelease":{"id":"arch"}}}']
+                        "--destination", str(self.directory / "destination"), "--no-tty"]
 
-    def initialize(self, *, answers=None, defaults=True, prompt=False):
-        command = self.command + ["init"]
-        if defaults:
-            command.append("--promptDefaults")
-        if prompt:
-            command.append("--prompt")
-        for question, value in (answers or {}).items():
-            command.extend(["--promptBool", f"{question}={str(value).lower()}"])
-        result = self.run_process(command, name="isolated chezmoi init", input="")
-        self.assertEqual(result.returncode, 0, result.stderr)
-        result = self.run_process(self.command + ["dump-config", "--format=json"],
-                                  name="read generated configuration")
-        self.assertEqual(result.returncode, 0, result.stderr)
-        return json.loads(result.stdout)
-
-    def preferences(self, config):
-        return {key: config["data"][key] for key in self.features}
-
-    def test_personal_enables_every_feature_without_feature_prompts(self):
-        for saved in ({}, {key: False for key in self.features}):
-            with self.subTest(saved=saved):
-                self.config.write_text(json.dumps({"data": saved}))
-                config = self.initialize(answers={"Is this a personal setup": True}, defaults=False,
-                                         prompt=bool(saved))
-                self.assertTrue(config["data"]["personal"])
-                self.assertEqual(self.preferences(config), dict.fromkeys(self.features, True))
-                self.assertTrue(all(config["scriptEnv"][key] == "1" for key in
-                                    ("PERSONAL", "SETUP_SNAPPER", "SETUP_HIBERNATION",
-                                     "SETUP_SECURE_BOOT", "PRESERVE_FIRMWARE_SECURE_BOOT_KEYS", "INSTALL_DRIVERS")))
-
-    def test_nonpersonal_defaults_and_saved_answers_survive_initialization(self):
-        config = self.initialize()
-        self.assertFalse(config["data"]["personal"])
-        self.assertEqual(self.preferences(config), dict.fromkeys(self.features, False))
-        config = self.initialize(prompt=True, answers={self.features["setupSnapper"]: True,
-                                                     self.features["installDrivers"]: True})
-        expected = dict.fromkeys(self.features, False)
-        expected.update(setupSnapper=True, installDrivers=True)
-        self.assertEqual(self.preferences(config), expected)
-        self.assertEqual(self.preferences(self.initialize(defaults=False)), expected)
-        config = self.initialize(prompt=True, answers={self.features["setupHibernation"]: True})
-        expected.update(setupSnapper=False, installDrivers=False, setupHibernation=True)
-        self.assertEqual(self.preferences(config), expected)
-
-    def test_firmware_question_is_only_asked_with_secure_boot(self):
-        answers = {"Is this a personal setup": False,
-                   self.features["setupSnapper"]: False,
-                   self.features["setupHibernation"]: False,
-                   self.features["setupSecureBoot"]: False,
-                   self.features["installDrivers"]: False}
-        config = self.initialize(answers=answers, defaults=False)
-        self.assertFalse(config["data"]["preserveFirmwareSecureBootKeys"])
-        answers[self.features["setupSecureBoot"]] = True
-        answers[self.features["preserveFirmwareSecureBootKeys"]] = True
-        config = self.initialize(answers=answers, defaults=False, prompt=True)
-        self.assertTrue(config["data"]["preserveFirmwareSecureBootKeys"])
-        self.assertEqual(self.preferences(self.initialize(defaults=False)), self.preferences(config))
-
-    def render_setup(self, name):
-        result = self.run_process(
-            [CHEZMOI, "--config", str(self.config), "--source", str(ROOT / "home"),
-             "--destination", str(self.directory), "--working-tree", str(ROOT),
-             "--override-data", '{"chezmoi":{"osRelease":{"id":"arch"}}}', "execute-template"],
-            name=name, input=(SCRIPTS / name).read_text())
-        self.assertEqual(result.returncode, 0, result.stderr)
-        return result.stdout
-
-    def test_skip_packages_is_temporary_and_preserves_hibernation_retry(self):
-        expected = dict.fromkeys(self.features, True)
-        self.config.write_text(json.dumps({"data": {"personal": False, **expected}}))
-        self.env["SKIP_PACKAGES"] = "1"
-        config = self.initialize(defaults=False)
-        self.assertEqual(self.preferences(config), expected)
-        for key in ("SETUP_SNAPPER", "SETUP_HIBERNATION", "INSTALL_DRIVERS", "SETUP_SECURE_BOOT"):
-            self.assertEqual(config["scriptEnv"][key], "1")
-        self.env.update(config["scriptEnv"])
-        self.stub("id", "echo 1000")
-        pending = self.directory / "state/chezmoi/hibernation.pending"
-        pending.parent.mkdir(parents=True)
-        pending.write_text("..")
-        names = ("run_onchange_before_02_packages.sh.tmpl",
-                 "run_onchange_after_01_snapper.sh.tmpl",
-                 "run_onchange_after_03_hibernation.sh.tmpl")
-        skipped = {name: self.render_setup(name) for name in names}
-        for name, source in skipped.items():
-            with self.subTest(script=name):
-                result = self.shell(source)
+    def test_fresh_profiles_persist_only_the_personal_choice(self):
+        for personal in (False, True):
+            with self.subTest(personal=personal):
+                self.config.unlink(missing_ok=True)
+                command = self.command + ["--override-data",
+                    '{"chezmoi":{"osRelease":{"id":"arch"}}}']
+                result = self.run_process(command + ["init", "--promptBool",
+                    f"Is this a personal setup={str(personal).lower()}"], name="initialize profile")
                 self.assertEqual(result.returncode, 0, result.stderr)
-                self.assertEqual(pending.read_text(), "..")
-        self.env.pop("SKIP_PACKAGES")
-        for name in names:
-            with self.subTest(script=name):
-                normal = self.render_setup(name)
-                self.assertNotEqual(skipped[name], normal)
-                self.assertEqual(normal, self.render_setup(name))
+                result = self.run_process(command + ["dump-config", "--format=json"], name="read profile")
+                config = json.loads(result.stdout)
+                self.assertEqual(config["data"], {"personal": personal, "distroFamily": "arch"})
+                self.assertEqual(config["scriptEnv"], {
+                    "PERSONAL": "1" if personal else "0", "DISTRO": "arch", "DISTRO_FAMILY": "arch"})
+                # Reinitializing this architecture preserves the selected profile.
+                self.env["NOCONFIRM"] = "1"
+                result = self.run_process(command + ["init"], name="repeat initialization")
+                self.assertEqual(result.returncode, 0, result.stderr)
+                repeated = self.run_process(command + ["dump-config", "--format=json"], name="read repeated profile")
+                self.assertEqual(json.loads(repeated.stdout)["data"], config["data"])
+                self.env.pop("NOCONFIRM")
 
-    def test_native_init_migrates_old_execution_flags_without_changing_preferences(self):
-        expected = dict.fromkeys(self.features, False)
-        expected.update(setupSnapper=True, setupHibernation=True)
-        self.config.write_text(json.dumps({
-            "data": {"personal": False, **expected},
-            "scriptEnv": dict.fromkeys(("SETUP_SNAPPER", "SETUP_HIBERNATION", "INSTALL_DRIVERS"), "0"),
-        }))
-        config = self.initialize(defaults=False)
-        self.assertEqual(self.preferences(config), expected)
-        self.assertEqual(config["scriptEnv"]["SETUP_SNAPPER"], "1")
-        self.assertEqual(config["scriptEnv"]["SETUP_HIBERNATION"], "1")
-        self.assertEqual(config["scriptEnv"]["INSTALL_DRIVERS"], "0")
+    def test_arch_family_is_accepted_and_non_arch_is_rejected(self):
+        for release, accepted in (({"id": "arch", "idLike": ""}, True),
+                                  ({"id": "cachyos", "idLike": "arch"}, True),
+                                  ({"id": "debian", "idLike": ""}, False)):
+            with self.subTest(release=release):
+                self.config.unlink(missing_ok=True)
+                template = (ROOT / "home/.chezmoi.yaml.tmpl").read_text()
+                # init supplies native OS metadata; substitute just that input.
+                (self.source / ".chezmoi.yaml.tmpl").write_text(
+                    '{{- $_ := set .chezmoi "osRelease" (fromJson '
+                    + json.dumps(json.dumps(release)) + ') -}}\n' + template)
+                result = self.run_process(self.command + ["init", "--promptDefaults"],
+                                          name="initialize distribution")
+                self.assertEqual(result.returncode == 0, accepted, result.stdout + result.stderr)
+                if accepted:
+                    self.assertIn("personal: false", self.config.read_text())
 
-    def test_only_scripts_using_changed_execution_flags_are_invalidated(self):
-        config = self.initialize()
-        scripts = ("run_onchange_before_02_packages.sh.tmpl",
-                   "run_onchange_after_01_snapper.sh.tmpl",
-                   "run_onchange_after_03_hibernation.sh.tmpl")
-        original = {name: self.render_setup(name) for name in scripts}
-        for flag, affected in (("INSTALL_DRIVERS", scripts[:1]),
-                               ("SETUP_SNAPPER", scripts[:2]),
-                               ("SETUP_HIBERNATION", scripts[2:])):
-            with self.subTest(flag=flag):
-                changed = dict(config["scriptEnv"], **{flag: "1"})
-                self.config.write_text(json.dumps({"data": config["data"], "scriptEnv": changed}))
-                for name in scripts:
-                    self.assertEqual(self.render_setup(name) != original[name], name in affected)
+    def test_nonpersonal_apply_installs_baseline_without_provisioning_and_reapplies_cleanly(self):
+        # Exercise real chezmoi rendering, hooks and file modifiers in a private home.
+        # Only external package operations are substituted; any personal operation fails.
+        self.env.update(NOCONFIRM="1", OFFLINE="1", CHEZMOI_SOURCE_DIR=str(ROOT / "home"))
+        for name in ("python3", "sleep", "ln"):
+            (self.bin / name).symlink_to(shutil.which(name))
+        self.stub("chezmoi", f'exec {CHEZMOI} "$@"')
+        self.stub("id", 'echo 1000')
+        self.stub("figlet", "exit 0")
+        self.stub("yay", "exit 97")
+        self.stub("pacman", '[ "$1" = -Q ] || [ "$1" = -T ] || exit 97')
+        self.stub("pacman-conf", '[ "$*" = --repo-list ] || exit 97; echo chaotic-aur')
+        self.stub("sudo", r'''case "$*" in
+    -v|'-n true'|'pacman -Syu --noconfirm') exit 0 ;;
+    *) echo "Unexpected provisioning: $*" >&2; exit 97 ;;
+esac''', log=True)
+        self.stub("mise", '[ "$*" = "--env packages bootstrap packages apply --yes" ] || exit 97', log=True)
+        for name in ("rbw", "lspci", "hostnamectl", "systemctl", "gsettings", "sbctl", "findmnt", "busctl"):
+            self.stub(name, 'echo "Unexpected personal operation" >&2; exit 97', log=True)
+        command = [CHEZMOI, "--config", str(self.config), "--source", str(ROOT),
+                   "--working-tree", str(ROOT), "--destination", str(self.directory), "--no-tty",
+                   "--override-data", '{"chezmoi":{"osRelease":{"id":"arch"}}}']
+        result = self.run_process(command + ["init", "--data=false"], name="initialize nonpersonal")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        before = None
+        for attempt in range(2):
+            result = self.run_process(command + ["apply"], name="apply nonpersonal")
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertTrue((self.directory / ".config/fish/config.fish").is_file())
+            self.assertFalse((self.directory / ".ssh/id_rsa").exists())
+            self.assertFalse((self.directory / ".config/git/identity").exists())
+            self.assertNotIn("CHEZMOI_GITHUB_ACCESS_TOKEN", (self.directory / ".config/fish/conf.d/secrets.fish").read_text()
+                             if (self.directory / ".config/fish/conf.d/secrets.fish").exists() else "")
+            result = self.run_process(command + ["verify", "--exclude=scripts"], name="verify nonpersonal files")
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            current = {str(path.relative_to(self.directory)): (path.read_bytes(), path.stat().st_mtime_ns)
+                       for path in (self.directory / ".config").rglob("*")
+                       if path.is_file() and not path.is_symlink()}
+            if attempt:
+                self.assertEqual(current, before)
+            before = current
+        calls = self.logged_calls()
+        self.assertEqual([call for call in calls if call[0] == "mise"],
+                         [["mise", "--env", "packages", "bootstrap", "packages", "apply", "--yes"]])
+        self.assertFalse(any(call[0] not in ("sudo", "mise") for call in calls), calls)
 
-    def test_unattended_defaults_and_saved_preferences(self):
-        for control in ("NOCONFIRM", "CI", "GITHUB_ACTIONS", "GITLAB_CI", "CODESPACES"):
-            for personal in (False, True):
-                for saved in ({}, {key: index % 2 == 0 for index, key in enumerate(self.features)}):
-                    with self.subTest(control=control, personal=personal, saved=saved):
-                        self.env[control] = "1"
-                        self.config.write_text(json.dumps({"data": {"personal": personal, **saved}}))
-                        config = self.initialize(defaults=False)
-                        expected = dict.fromkeys(self.features, personal)
-                        if not personal:
-                            expected.update(saved)
-                        self.assertEqual(self.preferences(config), expected)
-                        self.env.pop(control)
+    def test_personal_secret_settings_are_applied_once_and_excluded_from_nonpersonal(self):
+        self.stub("rbw", '[ "$*" = "get --field client_id spotify" ] || exit 97; echo fixture-client-id', log=True)
+        for personal in (False, True):
+            with self.subTest(personal=personal):
+                self.calls.unlink(missing_ok=True)
+                script = self.directory / "spotifast.py"
+                script.write_text(self.render(ROOT / "home/dot_config/spotifast/modify_settings.json.tmpl",
+                                              personal=personal))
+                command = [shutil.which("python3"), str(script)]
+                result = self.run_process(command, input="{}", name="apply secret settings")
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(json.loads(result.stdout).get("web_client_id"),
+                                 "fixture-client-id" if personal else None)
+                repeated = self.run_process(command, input=result.stdout, name="reapply secret settings")
+                self.assertEqual(repeated.returncode, 0, repeated.stderr)
+                self.assertEqual(repeated.stdout, result.stdout)
+                self.assertEqual(self.logged_calls(),
+                                 [["rbw", "get", "--field", "client_id", "spotify"]] if personal else [])
 
 
 class DependencyTests(ScriptCase):
@@ -185,7 +143,7 @@ class DependencyTests(ScriptCase):
         self.assertEqual(self.logged_calls()[0][1:3], ["pacman", "-S"])
 
     def test_package_installer_failure_is_not_reported_as_success(self):
-        source = self.render(SCRIPTS / "run_onchange_before_02_packages.sh.tmpl")
+        source = self.render(SCRIPTS / "run_onchange_before_02_packages.sh.tmpl", personal=False)
         # Bypass completed prerequisites, not the installer or its failure handling.
         source = source.replace(
             'if [[ "$(id -u)" -eq 0 ]]; then',
@@ -197,7 +155,6 @@ install_aur_helper() { return 0; }
 is_laptop() { return 1; }
 if [[ "$(id -u)" -eq 0 ]]; then""",
         )
-        self.env.update(INSTALL_DRIVERS="0", SETUP_SNAPPER="0")
         self.stub("id", "echo 1000")
         self.stub("figlet", "exit 0")
         self.stub("pacman", '[ "$1" = -T ] || exit 97')
@@ -359,7 +316,7 @@ is_laptop() { return 1; }
 if [[ "$(id -u)" -eq 0 ]]; then""",
         )
         self.env.update(
-            INSTALL_DRIVERS="1", SETUP_SNAPPER="0", DISTRO="arch",
+            DISTRO="arch",
             MODULE_FAILURE="", FAILURE_RELEASE="6.12-fixture",
         )
         self.stub("id", "echo 1000")
@@ -426,6 +383,7 @@ esac""",
                 self.assertEqual(result.returncode, 0, result.stderr)
                 calls = self.logged_calls()
                 groups = calls[-1][2].split(",")
+                self.assertIn("personal", groups)
                 self.assertIn(family, groups)
                 if module_group:
                     self.assertIn(module_group, groups)

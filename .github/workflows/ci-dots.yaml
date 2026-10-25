@@ -14,7 +14,6 @@ permissions:
 
 env:
   NOCONFIRM: "1"
-  SKIP_PACKAGES: "1"
   OFFLINE: "1"
 
 jobs:

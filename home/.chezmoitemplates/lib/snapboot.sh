@@ -299,7 +299,7 @@ _stage_limine_defaults() {
     { printf '%s' "$initial_defaults"; cat -- "$1"; } > "$1.initialized" || return 1
     mv -f -- "$1.initialized" "$1" || return 1
   fi
-  get_limine_cmdline deduplicate-file "$1" "${SETUP_HIBERNATION:-1}" >/dev/null || return 1
+  get_limine_cmdline deduplicate-file "$1" >/dev/null || return 1
   if ! sudo cmp -s -- /etc/limine-entry-tool.d/01-default.conf "$1"; then
     request_initramfs_rebuild || return 1
   fi
@@ -662,9 +662,7 @@ if converting:
 if deduplicate:
     # Keep token spelling and all intervening bytes, including quoted values.
     tokens = re.compile(r'(?:[^\s"]+|"[^"]*")+')
-    owners = {'/etc/limine-entry-tool.d/20-quiet-boot.conf'}
-    if sys.argv[3] == '1':
-        owners.add(managed)
+    owners = {'/etc/limine-entry-tool.d/20-quiet-boot.conf', managed}
     supplied = set()
     default_active = False
     for name in files:

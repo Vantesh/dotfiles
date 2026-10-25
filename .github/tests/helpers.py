@@ -94,14 +94,13 @@ class ScriptCase(unittest.TestCase):
             self.fail(f"{path}: function {name!r} not found")
         return match.group() + "\n"
 
-    def render(self, path, *, personal=False):
+    def render(self, path, *, personal=True):
         if not CHEZMOI:
             self.skipTest("chezmoi is required for setup template rendering")
         config = self.directory / "chezmoi.json"
         config.write_text("{}")
         data = {
-            "personal": personal, "distroFamily": "arch", "setupSnapper": True,
-            "setupHibernation": True, "installDrivers": True,
+            "personal": personal, "distroFamily": "arch",
             "font": {"ui": {"name": "Fixture Sans", "size": 11}},
             "chezmoi": {"os": "linux", "osRelease": {"id": "arch"},
                         "workingTree": str(ROOT), "homeDir": str(self.directory)},

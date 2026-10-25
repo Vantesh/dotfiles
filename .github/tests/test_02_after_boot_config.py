@@ -75,7 +75,6 @@ esac""",
             FAILURE="",
             ENCRYPTED="0",
             UKI_OPTIONS="",
-            SETUP_HIBERNATION="0",
             UNLOCK="rd.luks.name=bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb=root",
         )
 
@@ -199,7 +198,6 @@ mkinitcpio_hook_exists() { [[ "$1:$FAILURE" != sd-encrypt:hook ]]; }
     def test_defaults_remove_only_exact_active_owner_tokens_and_preserve_other_bytes(
         self,
     ):
-        self.env["SETUP_HIBERNATION"] = "1"
         base = "rd.luks.name=container=data rd.luks.options=container=tpm2-device=auto root=/dev/mapper/data rootflags=subvol=/custom rw rootfstype=btrfs"
         custom = 'custom=quiet systemd.setenv="WORDS=quiet splash extra" nvidia_drm.modeset=1'
         original = f'# keep quiet and splash here\nKERNEL_CMDLINE[default]= "{base} quiet splash hibernate.compressor=lz4 resume=UUID=filesystem resume_offset=123 loglevel=3 {custom}"\nOTHER=yes\n\n'
@@ -231,7 +229,7 @@ mkinitcpio_hook_exists() { [[ "$1:$FAILURE" != sd-encrypt:hook ]]; }
         self.assertEqual(self.defaults.read_text(), expected)
         self.assertFalse(self.marker.exists())
 
-    def test_default_cleanup_respects_missing_disabled_and_overridden_owners(self):
+    def test_default_cleanup_respects_missing_and_overridden_owners(self):
         original = 'KERNEL_CMDLINE[default]= "root=UUID=filesystem quiet resume_offset=123 loglevel=7 loglevel=3"\n'
         quiet = self.defaults.with_name("20-quiet-boot.conf")
         hibernation = self.defaults.with_name("50-hibernation.conf")
@@ -239,7 +237,6 @@ mkinitcpio_hook_exists() { [[ "$1:$FAILURE" != sd-encrypt:hook ]]; }
         late.parent.mkdir()
         for case in (
             "missing",
-            "disabled",
             "inactive",
             "overridden",
             "conflict",
@@ -256,12 +253,7 @@ mkinitcpio_hook_exists() { [[ "$1:$FAILURE" != sd-encrypt:hook ]]; }
                 independent = self.etc / "limine-entry-tool.conf"
                 for path in (quiet, hibernation, late, independent):
                     path.unlink(missing_ok=True)
-                self.env["SETUP_HIBERNATION"] = "0"
-                if case == "disabled":
-                    hibernation.write_text(
-                        'KERNEL_CMDLINE[default]+= "resume_offset=123"\n'
-                    )
-                elif case == "inactive":
+                if case == "inactive":
                     quiet.write_text('# KERNEL_CMDLINE[default]+= "quiet"\n')
                 elif case == "overridden":
                     quiet.write_text('KERNEL_CMDLINE[default]+= "quiet"\n')
@@ -274,7 +266,6 @@ mkinitcpio_hook_exists() { [[ "$1:$FAILURE" != sd-encrypt:hook ]]; }
                         'KERNEL_CMDLINE[default]= "root=UUID=filesystem loglevel=7 quiet"\n'
                     )
                 elif case == "quoted-conflict":
-                    self.env["SETUP_HIBERNATION"] = "1"
                     hibernation.write_text(
                         'KERNEL_CMDLINE[default]+= "resume=UUID=managed"\n'
                     )
@@ -293,7 +284,6 @@ mkinitcpio_hook_exists() { [[ "$1:$FAILURE" != sd-encrypt:hook ]]; }
                         'KERNEL_CMDLINE[linux-custom]= "root=UUID=custom quiet"\n'
                     )
                 elif case == "alias-conflict":
-                    self.env["SETUP_HIBERNATION"] = "1"
                     hibernation.write_text(
                         'KERNEL_CMDLINE[default]+= "resume_offset=123"\n'
                     )
@@ -415,7 +405,7 @@ mkinitcpio_hook_exists() { [[ "$1:$FAILURE" != sd-encrypt:hook ]]; }
                 self.managed.unlink(missing_ok=True)
                 self.marker.unlink(missing_ok=True)
                 self.persistent_sources(legacy, mapping="data-volume.v2")
-                self.env.update(LAPTOP="0", SETUP_HIBERNATION="0", SETUP_SNAPPER="0")
+                self.env.update(LAPTOP="0")
                 custom = 'custom=cryptdevice=unchanged  systemd.setenv="WORDS=hello world"\tloglevel=3'
                 for path in (self.kernel, self.defaults):
                     path.write_text(path.read_text().replace(legacy, legacy + "  " + custom))
@@ -638,14 +628,9 @@ mkinitcpio_hook_exists() { [[ "$1:$FAILURE" != sd-encrypt:hook ]]; }
                     self.assertEqual(result.returncode, 0, result.stderr)
                     self.assertFalse(self.marker.exists())
 
-    def test_baseline_systemd_hooks_are_independent_of_device_and_optional_features(self):
-        for laptop, encrypted, hibernation, snapper in (
-            ("0", "0", "0", "0"),
-            ("0", "1", "0", "1"),
-            ("1", "0", "0", "1"),
-            ("1", "1", "1", "0"),
-        ):
-            with self.subTest(laptop=laptop, encrypted=encrypted, hibernation=hibernation):
+    def test_baseline_systemd_hooks_support_plain_and_encrypted_roots(self):
+        for encrypted in ("0", "1"):
+            with self.subTest(encrypted=encrypted):
                 self.managed.unlink(missing_ok=True)
                 self.marker.unlink(missing_ok=True)
                 unlock = self.env["UNLOCK"] if encrypted == "1" else ""
@@ -655,10 +640,7 @@ mkinitcpio_hook_exists() { [[ "$1:$FAILURE" != sd-encrypt:hook ]]; }
                         path.write_text(path.read_text().replace(
                             "root=/dev/mapper/root", "root=UUID=aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
                         ))
-                self.env.update(
-                    ENCRYPTED=encrypted, LAPTOP=laptop,
-                    SETUP_HIBERNATION=hibernation, SETUP_SNAPPER=snapper,
-                )
+                self.env["ENCRYPTED"] = encrypted
                 before = (self.kernel.read_bytes(), self.defaults.read_bytes())
                 result = self.configure(persistent=True, entrypoint=True)
                 self.assertEqual(result.returncode, 0, result.stderr)
@@ -836,7 +818,7 @@ add_mkinitcpio_overlay_hook
             "publish",
         ):
             with self.subTest(failure=failure):
-                self.env.update(ENCRYPTED="1", FAILURE=failure, SETUP_SNAPPER="0")
+                self.env.update(ENCRYPTED="1", FAILURE=failure)
                 self.main.write_text(self.original)
                 self.managed.write_text(previous)
                 self.marker.unlink(missing_ok=True)
@@ -930,7 +912,7 @@ add_mkinitcpio_overlay_hook
                 self.assertFalse(self.managed.exists())
                 self.assertFalse(self.marker.exists())
 
-    def test_standalone_snapper_selects_once_with_hibernation_disabled(self):
+    def test_snapper_hook_is_applied_once(self):
         function = self.function(
             SCRIPTS / "run_onchange_after_01_snapper.sh.tmpl",
             "add_mkinitcpio_overlay_hook",

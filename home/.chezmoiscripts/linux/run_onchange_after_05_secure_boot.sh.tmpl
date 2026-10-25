@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+{{ if .personal -}}
 # 05_secure_boot.sh - Configure optional Limine Secure Boot
 #
 # Opt-in setup preserves existing keys, enrolls only in UEFI Setup Mode,
@@ -9,8 +10,6 @@
 #
 # Globals:
 #   DISTRO_FAMILY - Distribution family from chezmoi scriptEnv
-#   SETUP_SECURE_BOOT - Explicit opt-in from chezmoi configuration
-#   PRESERVE_FIRMWARE_SECURE_BOOT_KEYS - Firmware certificate preservation policy
 #   LAST_ERROR - Error message from the last failed operation
 # Exit codes:
 #   0 (success or skipped), 1 (failure), 127 (missing dependency)
@@ -23,13 +22,6 @@ shopt -s nullglob globstar
 {{ include ".chezmoitemplates/lib/snapboot.sh" }}
 
 readonly LIMINE_DEFAULTS="/etc/default/limine"
-readonly SECURE_BOOT_ENABLED="${SETUP_SECURE_BOOT:-{{ ternary "1" "0" (get . "setupSecureBoot" | default false) }}}"
-{{- $preserveFirmwareSecureBootKeys := get . "preserveFirmwareSecureBootKeys" | default true -}}
-{{- if hasKey . "preserveFirmwareSecureBootKeys" -}}
-  {{- $preserveFirmwareSecureBootKeys = get . "preserveFirmwareSecureBootKeys" -}}
-{{- end }}
-readonly PRESERVE_FIRMWARE_SECURE_BOOT_KEYS="${PRESERVE_FIRMWARE_SECURE_BOOT_KEYS:-{{ ternary "1" "0" $preserveFirmwareSecureBootKeys }}}"
-
 # Validates the boolean fields required from sbctl status JSON.
 #
 # Arguments:
@@ -78,7 +70,6 @@ check_secure_boot_signing_key() {
 # Configures optional Secure Boot using existing helpers.
 # Globals:
 #   DISTRO_FAMILY, SECURE_BOOT_ENABLED - Platform and opt-in checks
-#   PRESERVE_FIRMWARE_SECURE_BOOT_KEYS - Firmware certificate preservation policy
 #   LIMINE_DEFAULTS - Limine configuration to update
 #   LAST_ERROR - Error state from shared helpers
 # Outputs:
@@ -86,10 +77,6 @@ check_secure_boot_signing_key() {
 # Returns:
 #   0 on success or skipped environments; exits on setup failures
 main() {
-  if [[ "$SECURE_BOOT_ENABLED" != "1" ]]; then
-    log SKIP "Secure Boot setup not enabled"
-    return 0
-  fi
   if [[ "${DISTRO_FAMILY,,}" != *arch* ]] || [[ ! -x /usr/bin/limine ]] || [[ ! -d /sys/firmware/efi/efivars ]]; then
     log SKIP "Limine UEFI setup not available on this system"
     return 0
@@ -136,23 +123,19 @@ main() {
       --microsoft
       --ignore-immutable
     )
-    if [[ "$PRESERVE_FIRMWARE_SECURE_BOOT_KEYS" = "1" ]]; then
-      local system_vendor=""
-      if [[ -r /sys/class/dmi/id/sys_vendor ]]; then
-        IFS= read -r system_vendor < /sys/class/dmi/id/sys_vendor || true
-      fi
-      case "${system_vendor,,}" in
-      *asus* | *gigabyte*)
-        log WARN "Skipped firmware-builtin certificate preservation for $system_vendor firmware"
-        ;;
-      *)
-        enrollment_flags+=(--firmware-builtin)
-        log INFO "Preserving firmware-builtin Secure Boot certificates"
-        ;;
-      esac
-    else
-      log INFO "Not preserving firmware-builtin Secure Boot certificates"
+    local system_vendor=""
+    if [[ -r /sys/class/dmi/id/sys_vendor ]]; then
+      IFS= read -r system_vendor < /sys/class/dmi/id/sys_vendor || true
     fi
+    case "${system_vendor,,}" in
+    *asus* | *gigabyte*)
+      log WARN "Skipped firmware-builtin certificate preservation for $system_vendor firmware"
+      ;;
+    *)
+      enrollment_flags+=(--firmware-builtin)
+      log INFO "Preserving firmware-builtin Secure Boot certificates"
+      ;;
+    esac
     log WARN "Enrolling Secure Boot keys replaces the firmware key databases"
     request_initramfs_rebuild || die "Failed to request Secure Boot rebuild: $LAST_ERROR"
     sudo sbctl enroll-keys "${enrollment_flags[@]}" || die "Failed to enroll Secure Boot keys; leave Secure Boot disabled"
@@ -178,3 +161,5 @@ main() {
 }
 
 main "$@"
+
+{{ end -}}

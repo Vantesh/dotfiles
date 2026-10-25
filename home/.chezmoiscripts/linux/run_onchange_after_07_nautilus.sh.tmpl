@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+{{ if .personal -}}
 # Application preferences are independent of the desktop theme and UI font.
 set -euo pipefail
 
@@ -9,3 +10,5 @@ fi
 
 gsettings set org.gnome.nautilus.icon-view default-zoom-level "small-plus"
 gsettings set org.gnome.nautilus.preferences show-delete-permanently true
+
+{{ end -}}

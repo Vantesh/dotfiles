@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+{{ if .personal -}}
 # Noctalia owns the user's theme; mirror its current settings for root.
 set -euo pipefail
 
@@ -33,3 +34,5 @@ for version in 3 4; do
     fi
   } | sudo tee "/root/.config/gtk-$version.0/settings.ini" >/dev/null
 done
+
+{{ end -}}

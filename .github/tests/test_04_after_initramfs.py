@@ -92,13 +92,12 @@ class SecureBootTests(ScriptCase):
         self.certificate.write_text("-----BEGIN CERTIFICATE-----\nfixturecert\n-----END CERTIFICATE-----\n")
         self.marker = self.directory / "state/chezmoi/initramfs.pending"
         self.enrolled = self.directory / "enrolled"
-        self.env.update(SETUP_SECURE_BOOT="1", DISTRO_FAMILY="arch", MARKER=str(self.marker),
+        self.env.update(DISTRO_FAMILY="arch", MARKER=str(self.marker),
                         ENROLLED=str(self.enrolled), BOOT=str(self.boot), FAILURE="",
                         STATE='{"installed":true,"setup_mode":false,"secure_boot":true}',
                         POST_STATE='{"installed":true,"setup_mode":false,"secure_boot":false}',
                         KEY_CONFIG=json.dumps({"keys": {"db": {"pubkey": str(self.certificate)}}}),
-                        ENROLLED_KEYS='{"DB":[{"Raw":"fixturecert"}]}',
-                        PRESERVE_FIRMWARE_SECURE_BOOT_KEYS="1")
+                        ENROLLED_KEYS='{"DB":[{"Raw":"fixturecert"}]}')
         for command in ("limine", "mkinitcpio", "limine-enroll-config", "limine-update"):
             self.stub(command, "exit 97")
         self.stub("sed", 'exec /usr/bin/sed "$@"')
@@ -205,20 +204,18 @@ main "$@"''')
                 self.assertEqual([call for call in self.logged_calls() if call[0] == "update"], [["update", key]])
 
     def test_key_creation_and_enrollment_queue_rebuild_with_unchanged_settings(self):
-        for installed, vendor, preserve in ((False, "Fixture", "1"), (True, "Fixture", "1"),
-                                            (True, "ASUS", "1"), (True, "Fixture", "0")):
-            with self.subTest(installed=installed, vendor=vendor, preserve=preserve):
+        for installed, vendor in ((False, "Fixture"), (True, "Fixture"), (True, "ASUS")):
+            with self.subTest(installed=installed, vendor=vendor):
                 self.reset()
                 self.vendor.write_text(vendor + "\n")
-                self.env.update(STATE=json.dumps({"installed": installed, "setup_mode": True, "secure_boot": False}),
-                                PRESERVE_FIRMWARE_SECURE_BOOT_KEYS=preserve)
+                self.env.update(STATE=json.dumps({"installed": installed, "setup_mode": True, "secure_boot": False}))
                 before = self.config.stat().st_ino
                 result = self.shell(self.source)
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertTrue(self.marker.is_file())
                 self.assertEqual(["sbctl", "create-keys"] in self.logged_calls(), not installed)
                 flags = ["sbctl", "enroll-keys", "--microsoft", "--ignore-immutable"]
-                if vendor == "Fixture" and preserve == "1":
+                if vendor == "Fixture":
                     flags.append("--firmware-builtin")
                 self.assertIn(flags, self.logged_calls())
                 self.assertEqual(self.config.stat().st_ino, before)

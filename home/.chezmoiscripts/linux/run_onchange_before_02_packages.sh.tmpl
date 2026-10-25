@@ -9,9 +9,6 @@
 # DISTRO_FAMILY: {{ .distroFamily | quote }}
 # DISTRO: {{ .chezmoi.osRelease.id | quote }}
 
-# INSTALL_DRIVERS: {{ get (.chezmoi.config.scriptEnv | default dict) "INSTALL_DRIVERS" | default "1" | quote }}
-# SETUP_SNAPPER: {{ get (.chezmoi.config.scriptEnv | default dict) "SETUP_SNAPPER" | default "1" | quote }}
-# SKIP_PACKAGES: {{ ternary "1" "0" (eq (env "SKIP_PACKAGES") "1") }}
 
 set -euo pipefail
 
@@ -22,11 +19,6 @@ set -euo pipefail
 
 if [[ "$(id -u)" -eq 0 ]]; then
   die "Do not run this script as root."
-fi
-
-if [[ "${SKIP_PACKAGES:-0}" == "1" ]]; then
-  log INFO "Skipping package installation"
-  exit 0
 fi
 
 if ! keep_sudo_alive; then
@@ -50,8 +42,8 @@ print_box "Packages"
 package_envs={{ ternary "packages,personal" "packages" .personal | quote }}
 nvidia_branch=""
 
-# Drivers
-if [[ "${INSTALL_DRIVERS:-1}" == "1" ]]; then
+# Personal drivers and hardware-specific package groups
+{{ if .personal -}}
   package_envs+=",driver-utils"
 
   # Use installed package versions, not the release still running before reboot.
@@ -176,9 +168,6 @@ if [[ "${INSTALL_DRIVERS:-1}" == "1" ]]; then
     package_envs+=",intel"
     break
   done <<< "$gpu_info"
-else
-  log INFO "Skipping driver installation"
-fi
 
 # Fingerprint packages are independent of graphics driver provisioning.
 fingerprint_goodix=false
@@ -208,15 +197,15 @@ else
 fi
 
 # Snapper packages
-if [[ "${SETUP_SNAPPER:-1}" != "1" ]]; then
-  log INFO "Skipping Snapper installation"
-elif [[ ! -x /usr/bin/limine ]]; then
+if [[ ! -x /usr/bin/limine ]]; then
   log WARN "Unsupported bootloader (only Limine is supported), skipping Snapper installation"
 elif ! command_exists mkinitcpio; then
   log WARN "mkinitcpio not found, skipping Snapper installation"
 else
   package_envs+=",snapper"
 fi
+
+{{ end -}}
 
 # Zed's generic vulkan-driver dependency can otherwise select nvidia-utils,
 # even when NVIDIA provisioning is skipped. Do not choose a replacement driver.
@@ -247,6 +236,7 @@ if ! (
   die "Failed to install selected packages with mise"
 fi
 
+{{ if .personal -}}
 if [[ -n "$nvidia_branch" ]] && [[ ${#installed_kernels[@]} -gt 0 ]]; then
   command_exists modinfo || die "modinfo not found; cannot verify installed NVIDIA modules"
   nvidia_utils=nvidia-utils
@@ -272,3 +262,4 @@ if [[ -n "$nvidia_branch" ]] && [[ ${#installed_kernels[@]} -gt 0 ]]; then
     fi
   done
 fi
+{{ end -}}

@@ -127,7 +127,7 @@
 "pacman:localsend" = { env = "packages" }
 "pacman:vesktop" = { env = "packages" }
 
-# Optional groups selected by the package phase; never part of the baseline.
+# Personal hardware groups selected by the package phase; never part of the baseline.
 # Driver utilities
 "pacman:mesa-utils" = { env = "driver-utils" }
 "pacman:libva-utils" = { env = "driver-utils" }
@@ -167,7 +167,7 @@
 "pacman:limine-mkinitcpio-hook" = { env = "limine-mkinitcpio" }
 "pacman:sbctl" = { env = "limine-mkinitcpio" }
 
-# Opt-in Snapper integration on supported Limine/mkinitcpio installations
+# Personal Snapper integration on supported Limine/mkinitcpio installations
 "pacman:snapper" = { env = "snapper" }
 "pacman:btrfs-assistant" = { env = "snapper" }
 "pacman:btrfs-progs" = { env = "snapper" }

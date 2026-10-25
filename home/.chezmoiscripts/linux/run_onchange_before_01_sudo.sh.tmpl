@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+{{ if .personal -}}
 # 01_sudo.sh - Configure sudo and faillock settings
 # Exit codes: 0 (success), 1 (failure)
 
@@ -158,3 +159,5 @@ main() {
 }
 
 main "$@"
+
+{{ end -}}
