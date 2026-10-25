@@ -105,7 +105,11 @@ def configure_bitwarden():
         except OSError:
             logger.error("No interactive terminal. {}", instruction)
             return 1
-        result = subprocess.run(["rbw", "config", "set", "email", email], capture_output=True)
+        result = subprocess.run(
+            ["rbw", "config", "set", "email", email],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
         if result.returncode:
             logger.error("Cannot set Bitwarden email (exit {}).", result.returncode)
             return result.returncode
@@ -113,7 +117,9 @@ def configure_bitwarden():
 
     if config.get("lock_timeout") != 10800:
         result = subprocess.run(
-            ["rbw", "config", "set", "lock_timeout", "10800"], capture_output=True
+            ["rbw", "config", "set", "lock_timeout", "10800"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
         )
         if result.returncode:
             logger.warning("Cannot set Bitwarden lock timeout (exit {}).", result.returncode)
@@ -122,7 +128,7 @@ def configure_bitwarden():
 
     # rbw uses pinentry for authentication. Keep stdin/environment available,
     # but discard command output rather than risking credentials in diagnostics.
-    result = subprocess.run(["rbw", "login"], capture_output=True)
+    result = subprocess.run(["rbw", "login"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     if result.returncode:
         logger.error(
             "Bitwarden login failed (exit {}); check pinentry and vault access, then retry.",
@@ -159,7 +165,8 @@ def configure_logging():
 
     # Loguru uses this native open() hook for the current file and every rotation.
     def private_log_file(path, flags):
-        descriptor = os.open(path, flags | os.O_NOFOLLOW, 0o600)
+        # A FIFO must not block before the regular-file check below can reject it.
+        descriptor = os.open(path, flags | os.O_NOFOLLOW | os.O_NONBLOCK, 0o600)
         try:
             info = os.fstat(descriptor)
             if not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid():

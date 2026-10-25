@@ -24,9 +24,13 @@ def main():
         managed_settings = MANAGED_SETTINGS.copy()
 {{- if .personal }}
         if not current.get("web_client_id"):
-            client_id = subprocess.check_output(
-                ["rbw", "get", "--field", "client_id", "spotify"], text=True
-            ).strip()
+            client_id = subprocess.run(
+                ["rbw", "get", "--field", "client_id", "spotify"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.DEVNULL,
+                text=True,
+                check=True,
+            ).stdout.strip()
             if not client_id:
                 raise ValueError("Spotify client_id from rbw is empty")
             managed_settings["web_client_id"] = client_id

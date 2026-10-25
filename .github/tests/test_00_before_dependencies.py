@@ -3,9 +3,12 @@
 import json
 import os
 import pty
+import runpy
 import shutil
 import subprocess
 import tomllib
+from types import SimpleNamespace
+from unittest.mock import MagicMock, patch
 
 from helpers import CHEZMOI, ROOT, SCRIPTS, ScriptCase
 
@@ -209,6 +212,20 @@ esac""",
                     self.logged_calls(),
                     [["rbw", "get", "--field", "client_id", "spotify"]] if personal else [],
                 )
+
+    def test_spotifast_vault_failure_keeps_private_diagnostics_off_the_terminal(self):
+        self.stub("rbw", 'echo "private-vault-canary" >&2; exit 23')
+        script = self.directory / "spotifast.py"
+        script.write_text(self.render(ROOT / "home/dot_config/spotifast/modify_settings.json.tmpl"))
+        result = self.run_process(
+            ["/usr/bin/python3", "-B", str(script)],
+            input="{}",
+            name="failed Spotifast vault lookup",
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(result.stdout, "")
+        self.assertNotIn("private-vault-canary", result.stderr)
+        self.assertIn("23", result.stderr)
 
 
 class DependencyTests(ScriptCase):
@@ -445,6 +462,22 @@ namespace['logger'].warning('terminal check')
         self.assertNotEqual(result.returncode, 0)
         self.assertEqual(self.logged_calls(), [])
         self.assertEqual(list(external.iterdir()), [])
+
+    def test_nonregular_log_file_fails_without_blocking_or_installing_packages(self):
+        self.logs.mkdir(parents=True)
+        os.mkfifo(self.logs / "setup.log", 0o600)
+        self.env["PERSONAL"] = "0"
+        self.stub(
+            "pacman",
+            r"""case "$*" in
+    '-Q python'|'-Q python-loguru') exit 0 ;;
+    *) exit 1 ;;
+esac""",
+        )
+        result = self.run_prerequisite()
+        self.assertEqual(result.returncode, 1, result.stderr)
+        self.assertNotIn("Traceback", result.stderr)
+        self.assertEqual(self.logged_calls(), [])
 
 
 class PackageTests(ScriptCase):
@@ -731,3 +764,59 @@ fi""",
                 result = self.run_process(command, name="package change detection")
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertEqual(sum(call[0] == "mise" for call in self.logged_calls()), expected)
+
+
+class PythonApplicationTests(ScriptCase):
+    def setUp(self):
+        super().setUp()
+        # Only Kitty's embedded TUI imports are unavailable in the CI container.
+        dependencies = {
+            name: MagicMock()
+            for name in (
+                "kittens.tui.handler",
+                "kittens.tui.line_edit",
+                "kittens.tui.loop",
+                "kittens.tui.operations",
+                "kitty.config",
+                "kitty.key_encoding",
+                "kitty.typing_compat",
+            )
+        }
+        dependencies["kittens.tui.handler"].Handler = object
+        with patch.dict("sys.modules", dependencies):
+            self.search = runpy.run_path(str(ROOT / "home/dot_config/kitty/search.py"))
+
+    def test_kitty_search_rejects_bad_window_ids_before_remote_operations(self):
+        self.stub("kitty", "exit 0", log=True)
+        for arguments in (["search.py"], ["search.py", "invalid"]):
+            with (
+                self.subTest(arguments=arguments),
+                patch.dict(os.environ, self.env, clear=True),
+                self.assertRaises(SystemExit),
+            ):
+                self.search["main"](arguments)
+        self.assertEqual(self.logged_calls(), [])
+
+    def test_kitty_search_displays_marker_errors_and_recovers_after_editing(self):
+        self.stub(
+            "kitty",
+            r"""if [ "$2" = create-marker ]; then
+    echo 'Invalid regular expression' >&2; exit 23
+fi""",
+            log=True,
+        )
+        handler = self.search["Search"].__new__(self.search["Search"])
+        handler.window_ids = [1]
+        handler.line_edit = SimpleNamespace(current_input="[")
+        handler.mode = "regex"
+        handler.error = ""
+        with patch.dict(os.environ, self.env, clear=True):
+            handler.mark()
+            self.assertIn("Invalid regular expression", handler.error)
+            self.assertEqual(
+                [call[2] for call in self.logged_calls()], ["create-marker", "remove-marker"]
+            )
+            self.stub("kitty", "exit 0")
+            handler.line_edit.current_input = "valid"
+            handler.mark()
+            self.assertEqual(handler.error, "")
