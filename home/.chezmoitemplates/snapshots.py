@@ -1,0 +1,358 @@
+"""Provision the existing personal root Snapper configuration on the supported Btrfs layout."""
+
+import argparse
+import csv
+import io
+import json
+import os
+import re
+import shutil
+import signal
+import stat
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+from typing import Never, cast
+from uuid import UUID
+
+from bootstrap import configure_logging
+from loguru import logger
+
+LIMINE = Path("/usr/bin/limine")
+FSTAB = Path("/etc/fstab")
+BOOT_HELPER = Path(__file__).parent / "lib/snapper_boot.sh"
+SETTINGS = {
+    "NUMBER_CLEANUP": "yes",
+    "NUMBER_LIMIT": "10",
+    "TIMELINE_CREATE": "no",
+    "EMPTY_PRE_POST_CLEANUP": "yes",
+    "EMPTY_PRE_POST_MIN_AGE": "1800",
+}
+
+
+def mount_info(target: str) -> dict[str, str | None]:
+    result = subprocess.run(
+        ["findmnt", "--json", "--output", "TARGET,FSTYPE,FSROOT,UUID,OPTIONS", "--target", target],
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    raw = cast("object", json.loads(result.stdout))
+    if not isinstance(raw, dict):
+        raise ValueError(f"Invalid mount metadata for {target}.")
+    data = cast("dict[str, object]", raw)
+    mounts = data.get("filesystems")
+    if not isinstance(mounts, list):
+        raise ValueError(f"Expected one unambiguous mount for {target}.")
+    entries = cast("list[object]", mounts)
+    if len(entries) != 1 or not isinstance(entries[0], dict):
+        raise ValueError(f"Expected one unambiguous mount for {target}.")
+    values = cast("dict[str, object]", entries[0])
+    if not all(value is None or isinstance(value, str) for value in values.values()):
+        raise ValueError(f"Invalid mount metadata for {target}.")
+    mount = cast("dict[str, str | None]", values)
+    return mount
+
+
+def snapper_config(command: str, columns: str) -> dict[str, str]:
+    result = subprocess.run(
+        [
+            "sudo",
+            "snapper",
+            "--csvout",
+            "--no-headers",
+            "-c",
+            "root",
+            command,
+            "--columns",
+            columns,
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    rows = list(csv.reader(io.StringIO(result.stdout)))
+    if any(len(row) != 2 for row in rows) or len({row[0] for row in rows}) != len(rows):
+        raise ValueError(f"Ambiguous Snapper {command} output; inspect Snapper before retrying.")
+    return dict(rows)
+
+
+def inspect_layout() -> tuple[bool, dict[str, str] | None]:
+    root = mount_info("/")
+    if root.get("fstype") != "btrfs":
+        return False, None
+    if (
+        root.get("target") != "/"
+        or root.get("fsroot") != "/@"
+        or "rw" not in (root.get("options") or "").split(",")
+    ):
+        raise ValueError("Snapper requires a writable root mounted from @; refusing this layout.")
+    identity = UUID(root.get("uuid") or "")
+    _ = subprocess.run(
+        ["sudo", "btrfs", "subvolume", "show", "/"],
+        check=True,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.PIPE,
+        text=True,
+        timeout=30,
+    )
+    configs = snapper_config("list-configs", "config,subvolume")
+    exists = "root" in configs
+    if (exists and configs["root"] != "/") or any(
+        name != "root" and path == "/" for name, path in configs.items()
+    ):
+        raise ValueError("A conflicting Snapper configuration owns root; refusing to replace it.")
+    symlink = subprocess.run(["sudo", "test", "-L", "/.snapshots"], check=False)
+    if symlink.returncode != 1:
+        if symlink.returncode:
+            symlink.check_returncode()
+        raise ValueError("Refusing a symlinked /.snapshots.")
+    snapshots = subprocess.run(["sudo", "test", "-e", "/.snapshots"], check=False)
+    if snapshots.returncode not in (0, 1):
+        snapshots.check_returncode()
+    if snapshots.returncode == 0:
+        if not exists:
+            raise ValueError(
+                "/.snapshots already exists without the root Snapper configuration; preserve it and resolve the conflict manually."
+            )
+        snapshot_mount = mount_info("/.snapshots")
+        if (
+            UUID(snapshot_mount.get("uuid") or "") != identity
+            or snapshot_mount.get("fstype") != "btrfs"
+            or (snapshot_mount.get("target"), snapshot_mount.get("fsroot"))
+            not in (("/", "/@"), ("/.snapshots", "/@/.snapshots"))
+        ):
+            raise ValueError("/.snapshots is outside the supported root Btrfs layout.")
+        _ = subprocess.run(
+            ["sudo", "btrfs", "subvolume", "show", "/.snapshots"],
+            check=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
+            text=True,
+            timeout=30,
+        )
+    elif exists:
+        raise ValueError(
+            "The root Snapper configuration exists but /.snapshots is missing; resolve the incomplete setup before retrying."
+        )
+    current = snapper_config("get-config", "key,value") if exists else None
+    if current is not None and (
+        current.get("SUBVOLUME") != "/" or current.get("FSTYPE") != "btrfs"
+    ):
+        raise ValueError(
+            "Snapper root does not describe the root Btrfs subvolume; refusing to change it."
+        )
+    return True, current
+
+
+def configure_snapper(current: dict[str, str] | None) -> None:
+    if current is None:
+        _ = subprocess.run(
+            ["sudo", "snapper", "-c", "root", "create-config", "/"],
+            check=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        logger.info("Created the root Snapper configuration.")
+        current = snapper_config("get-config", "key,value")
+    if current.get("SUBVOLUME") != "/" or current.get("FSTYPE") != "btrfs":
+        raise ValueError(
+            "Snapper root does not describe the root Btrfs subvolume; refusing to change it."
+        )
+    changes = [f"{key}={value}" for key, value in SETTINGS.items() if current.get(key) != value]
+    if changes:
+        _ = subprocess.run(
+            ["sudo", "snapper", "-c", "root", "set-config", *changes],
+            check=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        logger.info("Updated root Snapper cleanup and retention settings.")
+
+
+def optimize_fstab(path: Path) -> bool:
+    """Atomically update only root's relatime option, rolling back a failed reload."""
+    with os.fdopen(os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)) as stream:
+        before = os.fstat(stream.fileno())
+        if not stat.S_ISREG(before.st_mode):
+            raise ValueError("Refusing a non-regular fstab.")
+        original = stream.read()
+    lines = original.splitlines(keepends=True)
+    root_entries = 0
+    for index, line in enumerate(lines):
+        if line.lstrip().startswith("#"):
+            continue
+        fields = list(re.finditer(r"\S+", line.split("#", 1)[0]))
+        if len(fields) < 4 or fields[1][0] != "/" or fields[2][0] != "btrfs":
+            continue
+        root_entries += 1
+        options = fields[3][0].split(",")
+        if "subvol=@swap" in options or "subvol=/@swap" in options:
+            raise ValueError("Root fstab entry points to @swap; refusing to change it.")
+        if "relatime" in options:
+            options = list(
+                dict.fromkeys("noatime" if option == "relatime" else option for option in options)
+            )
+            lines[index] = line[: fields[3].start()] + ",".join(options) + line[fields[3].end() :]
+    if root_entries != 1:
+        raise ValueError(
+            "Expected exactly one root Btrfs fstab entry; refusing to edit unrelated mounts."
+        )
+    updated = "".join(lines)
+    if updated == original:
+        return False
+
+    def publish(content: str, expected: os.stat_result, expected_content: str) -> os.stat_result:
+        stage: Path | None = None
+        try:
+            with tempfile.NamedTemporaryFile(
+                mode="w", dir=path.parent, prefix=".fstab.chezmoi.", delete=False
+            ) as stream:
+                stage = Path(stream.name)
+                os.fchown(stream.fileno(), before.st_uid, before.st_gid)
+                os.fchmod(stream.fileno(), stat.S_IMODE(before.st_mode))
+                _ = stream.write(content)
+                stream.flush()
+                os.fsync(stream.fileno())
+            # Preserve an intervening edit rather than overwriting another actor.
+            with os.fdopen(os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)) as current:
+                info = os.fstat(current.fileno())
+                if (info.st_dev, info.st_ino, info.st_ctime_ns, info.st_mtime_ns) != (
+                    expected.st_dev,
+                    expected.st_ino,
+                    expected.st_ctime_ns,
+                    expected.st_mtime_ns,
+                ) or current.read() != expected_content:
+                    raise ValueError("fstab changed during setup; preserving it and stopping.")
+            os.replace(stage, path)
+            return path.lstat()
+        finally:
+            if stage is not None:
+                stage.unlink(missing_ok=True)
+
+    published = publish(updated, before, original)
+    try:
+        _ = subprocess.run(["systemctl", "daemon-reload"], check=True)
+    except subprocess.CalledProcessError, OSError, KeyboardInterrupt, SystemExit:
+        try:
+            _ = publish(original, published, updated)
+        except (ValueError, OSError) as rollback_error:
+            # The caller also retains the original reload error/status.
+            print(f"Cannot restore fstab: {rollback_error}", file=sys.stderr)
+        raise
+    return True
+
+
+def enable_services() -> None:
+    # Preserve enable-only behavior: snapshot boot activation belongs to the
+    # existing deferred rebuild, not an eager start/restart here.
+    for unit in ("snapper-cleanup.timer", "limine-snapper-sync.service"):
+        result = subprocess.run(
+            ["sudo", "systemctl", "is-enabled", unit], capture_output=True, text=True, check=False
+        )
+        if result.returncode in (0, 3):
+            continue
+        if result.returncode != 1:
+            result.check_returncode()
+        if result.stdout.strip() != "disabled":
+            raise ValueError(f"{unit} is {result.stdout.strip()!r}; inspect it before retrying.")
+        _ = subprocess.run(
+            ["sudo", "systemctl", "enable", unit],
+            check=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        logger.info("Enabled {}.", unit)
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    _ = parser.add_argument("--personal", action="store_true")
+    _ = parser.add_argument("--distro", default="")
+    _ = parser.add_argument("--optimize-fstab", action="store_true", help=argparse.SUPPRESS)
+    args = parser.parse_args()
+    # A narrowly scoped privileged entry point: no selectable system paths and
+    # no privileged logging into the regular account's private XDG directory.
+    if cast("bool", args.optimize_fstab):
+        if os.geteuid() != 0:
+            print("fstab updates require root.", file=sys.stderr)
+            return 1
+
+        def terminate(_signum: int, _frame: object) -> Never:
+            raise SystemExit(143)
+
+        _ = signal.signal(signal.SIGTERM, terminate)
+        try:
+            if optimize_fstab(FSTAB):
+                print("changed")
+            return 0
+        except (OSError, ValueError, subprocess.CalledProcessError) as error:
+            print(f"Cannot update root Btrfs mount options: {error}", file=sys.stderr)
+            return error.returncode if isinstance(error, subprocess.CalledProcessError) else 1
+        except KeyboardInterrupt:
+            return 130
+    if not cast("bool", args.personal):
+        return 0
+    file_sink = None
+    try:
+        file_sink = configure_logging()
+        if os.geteuid() == 0:
+            raise ValueError(
+                "Run Snapper setup as the regular account; sudo is used only for system operations."
+            )
+        if (
+            cast("str", args.distro).lower() in ("cachyos", "garuda")
+            or not os.access(LIMINE, os.X_OK)
+            or not shutil.which("mkinitcpio")
+        ):
+            return 0
+        supported, current = inspect_layout()
+        if not supported:
+            return 0
+        _ = subprocess.run(["bash", str(BOOT_HELPER), "prepare"], check=True)
+        configure_snapper(current)
+        _ = subprocess.run(["bash", str(BOOT_HELPER), "overlay"], check=True)
+        result = subprocess.run(
+            ["sudo", sys.executable, "-B", str(Path(__file__).resolve()), "--optimize-fstab"],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        if result.stdout.strip() == "changed":
+            logger.info("Updated the root Btrfs mount from relatime to noatime.")
+        enable_services()
+        return 0
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired, ValueError, OSError) as error:
+        status = error.returncode if isinstance(error, subprocess.CalledProcessError) else 1
+        try:
+            if isinstance(error, subprocess.CalledProcessError):
+                logger.error(
+                    "Snapper setup: {} failed (exit {}); resolve the error and rerun chezmoi apply.",
+                    " ".join(cast("list[str]", error.cmd)),
+                    status,
+                )
+                # These are filesystem/Snapper command diagnostics, never vault
+                # output, environments, snapshot contents or command-line secrets.
+                diagnostic = cast("str | None", error.stderr)
+                if diagnostic:
+                    logger.debug("Subprocess diagnostic: {}", diagnostic.strip())
+            else:
+                logger.opt(exception=True).error("Snapper setup stopped: {}", str(error))
+        except OSError:
+            if file_sink is not None:
+                logger.remove(file_sink)
+        return status
+    except KeyboardInterrupt:
+        logger.warning("Snapper setup interrupted; rerun chezmoi apply when ready.")
+        return 130
+
+
+if __name__ == "__main__":
+    status = main()
+    sys.exit(status if status >= 0 else 128 - status)

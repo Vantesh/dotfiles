@@ -87,7 +87,7 @@ The Python prerequisite bootstrap and package coordinator use Loguru. Terminal m
 
 Diagnostics are written to `$XDG_STATE_HOME/chezmoi/logs/setup.log`, falling back to `~/.local/state/chezmoi/logs/setup.log`. The log directory is private (`0700`); current and rotated logs are user-owned with mode `0600`. Loguru rotates at 5 MiB and retains five rotated files. The file is opened only when a message is logged, so successful no-op checks do not create or append a setup log.
 
-Vault output, email arguments, tokens and subprocess environments are not recorded. Authentication errors report the failing operation and exit status with a retry hint; use rbw directly when deeper vault diagnostics are needed. A logging/storage error stops Python setup rather than continuing without private diagnostics. Run chezmoi as the regular account; sudo is used only for package installation. Initial prerequisite installation failures occur before the logger is available and use pacman's terminal diagnostics.
+Vault output, email arguments, tokens and subprocess environments are not recorded. Authentication errors report the failing operation and exit status with a retry hint; use rbw directly when deeper vault diagnostics are needed. A logging/storage error stops Python setup rather than continuing without private diagnostics. Run chezmoi as the regular account; sudo is used only for system operations. Initial prerequisite installation failures occur before the logger is available and use pacman's terminal diagnostics.
 
 ## Btrfs layout
 
@@ -109,6 +109,14 @@ Btrfs volume
 
 /boot                  EFI System Partition
 ```
+
+The personal Snapper hook is a thin launcher for `.chezmoitemplates/snapshots.py`. Python verifies a writable Btrfs root mounted from `@`, validates existing `root`/`/.snapshots` state, and lets native Snapper create its configuration and snapshot subvolume. Conflicting layouts or orphaned snapshot trees stop setup for manual inspection; nothing is deleted or adopted automatically. CachyOS/Garuda retain their existing preconfigured-Snapper skip.
+
+Snapper's number cleanup (limit 10), disabled timeline creation and empty pre/post cleanup (minimum age 1800 seconds) are unchanged. Only differing settings are applied. The two snapshot units remain enable-only; healthy units are untouched. Locate snapshot exclusions stay in the existing personal services hook.
+
+Root's explicit `relatime` fstab option becomes `noatime` through a guarded atomic edit that preserves ownership/mode and other mount entries, including `@swap`. Reload failures restore this invocation's edit while preserving intervening manual changes. Failures stop setup and remain retryable through Chezmoi. There are no new completion markers. Python uses the existing private Loguru logs; sudo authentication stays native.
+
+Snapshot boot configuration remains in `.chezmoitemplates/lib/snapper_boot.sh` until Phase 6C. Its Limine settings, overlay selection and deferred rebuild behavior are unchanged. Shared boot/hibernation Bash helpers remain because those phases still consume them.
 
 ## Boot configuration
 

@@ -846,7 +846,7 @@ mkinitcpio_hook_exists() { [[ "$1:$FAILURE" != sd-encrypt:hook ]]; }
 
     def test_preflight_checks_the_exact_candidate_not_only_the_ownership_probe(self) -> None:
         function = self.function(
-            SCRIPTS / "run_onchange_after_01_snapper.sh.tmpl",
+            LIB / "snapper_boot.sh",
             "add_mkinitcpio_overlay_hook",
         )
         result = self.shell(
@@ -992,7 +992,7 @@ add_mkinitcpio_overlay_hook
 
     def test_snapper_hook_is_applied_once(self) -> None:
         function = self.function(
-            SCRIPTS / "run_onchange_after_01_snapper.sh.tmpl",
+            LIB / "snapper_boot.sh",
             "add_mkinitcpio_overlay_hook",
         )
         for hooks, expected in (

@@ -18,3 +18,4 @@ reportUnusedCallResult = false
 [tool.pytest.ini_options]
 minversion = "9.0"
 testpaths = [".github/tests"]
+pythonpath = ["home/.chezmoitemplates"]
