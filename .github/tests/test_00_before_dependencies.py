@@ -170,6 +170,7 @@ class BootstrapTests(ScriptCase):
         self.env.update(CHEZMOI_SOURCE_DIR=str(ROOT / "home"), PERSONAL="1")
         self.source = (SCRIPTS / "run_before_00-install-pre-requisites.sh").read_text()
         self.bootstrap = ROOT / "home/.chezmoitemplates/bootstrap.py"
+        self.logs = self.directory / "state/chezmoi/logs"
         self.config = {"email": "fixture@example.invalid", "lock_timeout": 10800}
         self.config_file = self.directory / "config/rbw/config.json"
         self.config_file.parent.mkdir(parents=True)
@@ -204,6 +205,7 @@ esac''', log=True)
         result = self.run_process(["/usr/bin/python3", "-B", str(self.bootstrap)], name="Python bootstrap")
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(self.logged_calls(), [])
+        self.assertFalse((self.logs / "setup.log").exists())
 
     def test_prerequisites_are_installed_once_and_reapplication_is_quiet(self):
         self.env.update(PERSONAL="0", INSTALLED=str(self.directory / "installed"))
@@ -224,6 +226,10 @@ esac''')
             self.assertTrue((self.directory / "installed").exists())
             if attempt:
                 self.assertEqual(result.stderr, "")
+                self.assertEqual((self.logs / "setup.log").stat().st_mtime_ns, log_time)
+            else:
+                self.assertTrue((self.logs / "setup.log").is_file())
+                log_time = (self.logs / "setup.log").stat().st_mtime_ns
         self.assertEqual(self.logged_calls(), [
             ["sudo", "pacman", "-S", "--needed", "--noconfirm", "--", "git", "base-devel", "mise"]])
 
@@ -237,10 +243,25 @@ esac''')
         self.env.update(RBW_LOGIN_STATUS="23", RBW_LOGIN_ERROR="secret-token-canary")
         result = self.run_prerequisite()
         self.assertEqual(result.returncode, 23, result.stderr)
-        self.assertNotIn("secret-token-canary", result.stdout + result.stderr)
-        self.assertNotIn(self.config["email"], result.stdout + result.stderr)
-        self.assertIn("23", result.stderr)
+        self.assertTrue((self.logs / "setup.log").is_file())
+        diagnostics = result.stdout + result.stderr + (self.logs / "setup.log").read_text()
+        self.assertNotIn("secret-token-canary", diagnostics)
+        self.assertNotIn(self.config["email"], diagnostics)
+        self.assertNotIn("\x1b[", result.stderr)
+        self.assertRegex(result.stderr, r"^\d{2}:\d{2}:\d{2} \| ERROR +\|")
+        self.assertIn("23", diagnostics)
         self.assertEqual(self.logged_calls(), [["rbw", "config", "show"], ["rbw", "login"]])
+
+    def test_missing_required_command_is_recorded_without_exception_details(self):
+        (self.bin / "rbw").unlink()
+        result = self.run_prerequisite()
+        self.assertEqual(result.returncode, 1, result.stderr)
+        self.assertTrue((self.logs / "setup.log").is_file())
+        diagnostics = result.stderr + (self.logs / "setup.log").read_text()
+        self.assertIn("OS error 2", diagnostics)
+        self.assertIn("rbw", diagnostics)
+        self.assertNotIn("Traceback", diagnostics)
+        self.assertNotIn(self.config["email"], diagnostics)
 
     def test_fresh_personal_authentication_requires_email_and_supports_a_terminal(self):
         self.config_file.unlink()
@@ -263,6 +284,60 @@ esac''')
         result = self.run_prerequisite()
         self.assertEqual(result.returncode, 23, result.stderr)
         self.assertEqual(self.logged_calls(), [["rbw", "config", "show"]])
+
+    def test_private_logs_rotate_at_five_mib_and_keep_five_archives(self):
+        code = """import runpy, sys
+namespace = runpy.run_path(sys.argv[1])
+namespace['configure_logging']()
+for _ in range(7):
+    namespace['logger'].debug('rotation-test ' + 'x' * (5 * 1024 * 1024))
+namespace['logger'].remove()
+"""
+        result = self.run_process(["/usr/bin/python3", "-B", "-c", code, str(self.bootstrap)], name="rotate private logs")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        files = list(self.logs.glob("setup*.log"))
+        self.assertEqual(len(files), 6)  # Current log plus five rotated files.
+        self.assertEqual(self.logs.stat().st_mode & 0o777, 0o700)
+        for path in files:
+            self.assertEqual(path.stat().st_mode & 0o777, 0o600)
+            self.assertEqual(path.stat().st_uid, os.getuid())
+            self.assertIn(b"rotation-test", path.read_bytes()[:200])
+
+    def test_terminal_logging_uses_color_only_when_allowed(self):
+        code = """import runpy, sys
+namespace = runpy.run_path(sys.argv[1])
+namespace['configure_logging']()
+namespace['logger'].warning('terminal check')
+"""
+        self.env["TERM"] = "linux"
+        for no_color in (False, True):
+            with self.subTest(no_color=no_color):
+                if no_color:
+                    self.env["NO_COLOR"] = ""
+                else:
+                    self.env.pop("NO_COLOR", None)
+                master, slave = pty.openpty()
+                try:
+                    result = subprocess.run(["/usr/bin/python3", "-B", "-c", code, str(self.bootstrap)],
+                                            env=self.env, stdout=subprocess.PIPE, stderr=slave, timeout=15)
+                    self.assertEqual(result.returncode, 0)
+                    output = os.read(master, 4096).decode()
+                    self.assertIn("terminal check", output)
+                    self.assertEqual("\x1b[" in output, not no_color)
+                finally:
+                    os.close(master)
+                    os.close(slave)
+
+    def test_symlinked_log_directory_is_rejected_before_bootstrap_operations(self):
+        external = self.directory / "external"
+        external.mkdir()
+        self.logs.parent.mkdir(parents=True)
+        self.logs.symlink_to(external, target_is_directory=True)
+        self.stub("pacman", "exit 0", log=True)
+        result = self.run_process(["/usr/bin/python3", "-B", str(self.bootstrap)], name="reject unsafe logs")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(self.logged_calls(), [])
+        self.assertEqual(list(external.iterdir()), [])
 
 
 class NvidiaPackageTests(ScriptCase):

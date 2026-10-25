@@ -53,6 +53,14 @@ A small shell entry point installs Arch’s `python` and `python-loguru` package
 
 Service, firewall, login-shell and other provisioning declarations apply only to personal setups. Fish configuration is included in both profiles.
 
+## Bootstrap logs
+
+The Python prerequisite bootstrap uses Loguru. Terminal messages show time, level and a short action or error; color is enabled only on a suitable TTY and respects `NO_COLOR`. Successful checks stay quiet. The remaining provisioning hooks still use their existing Bash logging.
+
+Diagnostics are written to `$XDG_STATE_HOME/chezmoi/logs/setup.log`, falling back to `~/.local/state/chezmoi/logs/setup.log`. The log directory is private (`0700`); current and rotated logs are user-owned with mode `0600`. Loguru rotates at 5 MiB and retains five rotated files. The file is opened only when a message is logged, so an unchanged apply does not create or append a bootstrap log.
+
+Vault output, email arguments, tokens and subprocess environments are not recorded. Authentication errors report the failing operation and exit status with a retry hint; use rbw directly when deeper vault diagnostics are needed. A logging/storage error stops the bootstrap rather than continuing without private diagnostics. Run chezmoi as the regular account; sudo is used only for package installation. Python/Loguru installation failures occur before the logger is available and use pacman's terminal diagnostics.
+
 ## Btrfs layout
 
 This is the Btrfs layout I use; these dotfiles do not create it. Personal hibernation can add `@swap`, and Snapper manages `/.snapshots`.

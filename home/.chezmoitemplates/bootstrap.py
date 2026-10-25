@@ -1,11 +1,13 @@
 """Prerequisites for chezmoi rendering; desktop packages remain owned by Mise."""
 
 from contextlib import nullcontext
+import errno
 import json
 import os
 from pathlib import Path
 import re
 import shutil
+import stat
 import subprocess
 import sys
 
@@ -101,19 +103,57 @@ def configure_bitwarden():
     return result.returncode
 
 
-def main():
+def configure_logging():
     logger.remove()
     logger.add(sys.stderr, format="<green>{time:HH:mm:ss}</green> | <level>{level: <7}</level> | <level>{message}</level>",
                colorize=sys.stderr.isatty() and "NO_COLOR" not in os.environ and os.environ.get("TERM") != "dumb",
-               level="INFO", diagnose=False, backtrace=False)
+               level="INFO", diagnose=False, backtrace=False, catch=False)
+
+    log_dir = Path(os.environ.get("XDG_STATE_HOME") or Path.home() / ".local/state") / "chezmoi/logs"
+    log_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
+    directory = log_dir.lstat()
+    if not stat.S_ISDIR(directory.st_mode) or directory.st_uid != os.getuid():
+        raise PermissionError(errno.EACCES, "Setup logs require a user-owned directory, not a symlink")
+    if stat.S_IMODE(directory.st_mode) != 0o700:
+        log_dir.chmod(0o700)
+
+    # Loguru uses this native open() hook for the current file and every rotation.
+    def private_log_file(path, flags):
+        descriptor = os.open(path, flags | os.O_NOFOLLOW, 0o600)
+        try:
+            info = os.fstat(descriptor)
+            if not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid():
+                raise PermissionError(errno.EACCES, "Setup logs require a user-owned regular file")
+            if stat.S_IMODE(info.st_mode) != 0o600:
+                os.fchmod(descriptor, 0o600)
+        except OSError:
+            os.close(descriptor)
+            raise
+        return descriptor
+
+    return logger.add(log_dir / "setup.log", level="DEBUG", colorize=False,
+                      format="{time:YYYY-MM-DD HH:mm:ss.SSS ZZ} | {level: <7} | {function}:{line} | {message}",
+                      rotation=5 * 1024 * 1024, retention=5, delay=True,
+                      opener=private_log_file, diagnose=False, backtrace=False, catch=False)
+
+
+def main():
+    file_sink = None
     try:
+        file_sink = configure_logging()
         status = install_prerequisites()
         if status or os.environ.get("PERSONAL") != "1":
             return status
         return configure_bitwarden()
     except OSError as error:
-        logger.error("Bootstrap could not complete (OS error {}); check prerequisite commands and configuration access.",
-                     error.errno)
+        operation = error.filename if error.filename in ("pacman", "sudo", "rbw") else "Bootstrap"
+        try:
+            logger.error("{} stopped (OS error {}); check prerequisite commands, configuration and setup-log permissions.",
+                         operation, error.errno)
+        except OSError:
+            # The terminal sink reports first, even when the file is unwritable.
+            if file_sink is not None:
+                logger.remove(file_sink)
         return 1
     except KeyboardInterrupt:
         logger.warning("Bootstrap interrupted; rerun setup when ready.")
