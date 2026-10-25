@@ -7,6 +7,7 @@ import select
 import shlex
 import shutil
 import subprocess
+import tomllib
 from pathlib import Path
 from typing import cast
 
@@ -524,3 +525,333 @@ esac""",
     assert result.returncode == 1, result.stderr
     assert "Traceback" not in result.stderr
     assert calls(env) == []
+
+
+@pytest.fixture
+def package_env(env: dict[str, str]) -> dict[str, str]:
+    env.update(
+        NOCONFIRM="1",
+        OFFLINE="1",
+        PACKAGES="linux 6.18-1\nlinux-headers 6.18-1",
+        GPU="Intel Corporation [8086:1234]",
+        DRIVER_VERSION="615.78.08",
+        MISE_STATUS="0",
+        UPGRADE_STATUS="0",
+    )
+    stub(env, "id", "echo 1000")
+    stub(env, "yay", "exit 97")
+    stub(env, "pacman-conf", "echo chaotic-aur")
+    stub(
+        env,
+        "pacman",
+        r"""case "$*" in
+    '-Q chaotic-keyring chaotic-mirrorlist'|-Dk) exit 0 ;;
+    '-T vulkan-driver') exit 127 ;;
+    -Q) printf '%s\n' "$PACKAGES" ;;
+    '-Q nvidia-utils') echo "nvidia-utils $DRIVER_VERSION-1" ;;
+    '-Q nvidia-580xx-utils') echo "nvidia-580xx-utils $DRIVER_VERSION-1" ;;
+    '-Qql linux') echo /usr/lib/modules/6.18-fixture/pkgbase ;;
+    *) exit 97 ;;
+esac""",
+    )
+    stub(
+        env,
+        "sudo",
+        '''[ "$*" = 'pacman -Syu --noconfirm' ] || exit 97
+exit "$UPGRADE_STATUS"''',
+        log=True,
+    )
+    stub(env, "hostnamectl", "echo laptop")
+    stub(env, "lspci", 'printf "01:00.0 VGA compatible controller [0300]: %s\n" "$GPU"')
+    stub(env, "limine", "exit 97")
+    stub(env, "mkinitcpio", "exit 97")
+    stub(
+        env,
+        "modinfo",
+        """case "$*" in
+    '-k 6.18-fixture -F vermagic nvidia') echo '6.18-fixture SMP' ;;
+    '-k 6.18-fixture -F version nvidia') echo "$DRIVER_VERSION" ;;
+    *) exit 97 ;;
+esac""",
+    )
+    stub(
+        env,
+        "mise",
+        '''/usr/bin/python3 -B - <<'CHECK'
+import json, os
+from pathlib import Path
+Path(os.environ['HOME'], 'observed.json').write_text(json.dumps({
+    key: os.environ.get(key) for key in ('XDG_CONFIG_HOME', 'XDG_DATA_HOME', 'XDG_STATE_HOME',
+        'GOPATH', 'CARGO_HOME', 'GNUPGHOME', 'MISE_ENV', 'MISE_CONFIG_FILE', 'OFFLINE', 'NOCONFIRM')}))
+CHECK
+[ "$?" = 0 ] || exit 98
+exit "$MISE_STATUS"''',
+        log=True,
+    )
+    return env
+
+
+def apply_packages(
+    env: dict[str, str], *, personal: bool = False, distro: str = "arch"
+) -> subprocess.CompletedProcess[str]:
+    command = [
+        PYTHON,
+        "-B",
+        str(ROOT / "home/.chezmoitemplates/packages.py"),
+        "--root",
+        str(ROOT),
+        "--distro",
+        distro,
+    ]
+    if personal:
+        command.append("--personal")
+    return run_setup(env, command)
+
+
+def test_fresh_kvm_baseline_needs_no_vulkan_provider_or_personal_probes(
+    package_env: dict[str, str], tmp_path: Path
+) -> None:
+    for name in ("lspci", "hostnamectl", "rbw", "systemctl", "sbctl"):
+        stub(package_env, name, "exit 97", log=True)
+    package_env.update(MISE_ENV="personal", MISE_CONFIG_FILE="/unrelated/config.toml")
+    result = apply_packages(package_env)
+    assert result.returncode == 0, result.stderr
+    recorded = calls(package_env)
+    assert [call for call in recorded if call[0] == "mise"] == [
+        ["mise", "--env", "packages", "bootstrap", "packages", "apply", "--yes"]
+    ]
+    assert all(call[0] in ("sudo", "mise") for call in recorded)
+    observed = cast("dict[str, str | None]", json.loads((tmp_path / "observed.json").read_text()))
+    assert observed["GOPATH"] == str(tmp_path / "data/go")
+    assert not observed["MISE_ENV"] and not observed["MISE_CONFIG_FILE"]
+    assert observed["OFFLINE"] == observed["NOCONFIRM"] == "1"
+    for key in ("XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_STATE_HOME", "GNUPGHOME"):
+        assert Path(str(observed[key])).is_dir()
+    assert (tmp_path / "data/gnupg").stat().st_mode & 0o777 == 0o700
+    declarations = cast(
+        "dict[str, dict[str, str | list[str]]]",
+        tomllib.loads((ROOT / "mise/conf.d/packages.toml").read_text())["bootstrap"]["packages"],
+    )
+    # Protect the baseline policy, including transitive Vulkan demand from Zed.
+    for name, declaration in declarations.items():
+        if "zed" in name or "nvidia" in name:
+            selected = declaration["env"]
+            assert {"packages", "aur-helper"}.isdisjoint(
+                [selected] if isinstance(selected, str) else selected
+            ), name
+
+
+def test_chaotic_trust_upgrade_and_helper_recover_then_reapply_without_duplicates(
+    package_env: dict[str, str], tmp_path: Path
+) -> None:
+    (tmp_path / "bin/yay").unlink()
+    stub(
+        package_env,
+        "pacman",
+        """case "$*" in
+    '-Q chaotic-keyring chaotic-mirrorlist') test -f "$HOME/trust-installed" ;;
+    *) exit 97 ;;
+esac""",
+    )
+    stub(
+        package_env,
+        "pacman-conf",
+        'echo core; if test -f "$HOME/repo-enabled"; then echo chaotic-aur; fi',
+    )
+    stub(
+        package_env,
+        "sudo",
+        """test -d "$GNUPGHOME" || exit 98
+case "$*" in
+    'pacman-key --list-keys 3056513887B78AEB') exit 1 ;;
+    'pacman-key --recv-key 3056513887B78AEB --keyserver keyserver.ubuntu.com'|'pacman-key --lsign-key 3056513887B78AEB') exit 0 ;;
+    'pacman -U --needed --noconfirm '*) touch "$HOME/trust-installed" ;;
+    'tee -a /etc/pacman.conf') cat >> "$HOME/pacman.conf"; touch "$HOME/repo-enabled" ;;
+    'pacman -Syu --noconfirm')
+        test -f "$HOME/trust-installed" && test -f "$HOME/repo-enabled" || exit 98
+        exit "$UPGRADE_STATUS" ;;
+    *) exit 97 ;;
+esac""",
+        log=True,
+    )
+    stub(
+        package_env,
+        "mise",
+        r"""if [ "$*" = '--env aur-helper bootstrap packages apply --yes' ]; then
+    printf '#!/bin/sh\nexit 97\n' > "$HOME/bin/yay"
+    chmod 755 "$HOME/bin/yay"
+elif [ "$*" != '--env packages bootstrap packages apply --yes' ]; then
+    exit 97
+fi""",
+        log=True,
+    )
+    marker = tmp_path / "state/chezmoi/chaotic-aur-updated"
+    package_env["UPGRADE_STATUS"] = "23"
+    failed = apply_packages(package_env)
+    assert failed.returncode == 23, failed.stderr
+    assert not marker.exists()
+    assert not any(call[0] == "mise" for call in calls(package_env))
+    package_env["UPGRADE_STATUS"] = "0"
+    for _ in range(2):
+        result = apply_packages(package_env)
+        assert result.returncode == 0, result.stderr
+    recorded = calls(package_env)
+    assert [call[1] for call in recorded[:7]] == [
+        "pacman-key",
+        "pacman-key",
+        "pacman-key",
+        "pacman",
+        "tee",
+        "pacman",
+        "pacman",
+    ]
+    assert [call[2] for call in recorded if call[0] == "mise"] == [
+        "aur-helper",
+        "packages",
+        "packages",
+    ]
+    assert (tmp_path / "pacman.conf").read_text().count("[chaotic-aur]") == 1
+    assert marker.is_file()
+
+
+@pytest.mark.parametrize(
+    ("gpu", "version", "family", "module"),
+    [
+        (
+            "NVIDIA Corporation GP106 [10de:1234]",
+            "580.119.02",
+            "nvidia-legacy",
+            "nvidia-legacy-dkms",
+        ),
+        ("NVIDIA Corporation GA106 [10de:1234]", "615.78.08", "nvidia-current", "nvidia-open"),
+    ],
+    ids=["legacy-driver", "current-driver"],
+)
+def test_personal_package_groups_preserve_driver_order(
+    package_env: dict[str, str], gpu: str, version: str, family: str, module: str
+) -> None:
+    package_env.update(GPU=gpu, DRIVER_VERSION=version)
+    result = apply_packages(package_env, personal=True)
+    assert result.returncode == 0, result.stderr
+    recorded = [call for call in calls(package_env) if call[0] == "mise"]
+    groups = recorded[-1][2].split(",")
+    assert {
+        "packages",
+        "personal",
+        "driver-utils",
+        "laptop",
+        "limine-mkinitcpio",
+        "snapper",
+        family,
+        module,
+    } <= set(groups)
+    if family == "nvidia-legacy":
+        assert recorded[0][1:3] == ["--env", "nvidia-legacy-utils"]
+
+
+@pytest.mark.parametrize("distro", ["cachyos", "garuda"])
+def test_derivatives_keep_distribution_managed_nvidia_modules(
+    package_env: dict[str, str], distro: str
+) -> None:
+    package_env["GPU"] = "NVIDIA Corporation GA106 [10de:1234]"
+    result = apply_packages(package_env, personal=True, distro=distro)
+    assert result.returncode == 0, result.stderr
+    groups = [call for call in calls(package_env) if call[0] == "mise"][-1][2].split(",")
+    assert "nvidia-current" in groups
+    assert "nvidia-open" not in groups
+
+
+@pytest.mark.parametrize(
+    "packages",
+    ["linux 6.18-1\nlinux-headers 6.17-1", "nvidia-580xx-utils 580.119.02-1"],
+    ids=["mismatched-headers", "conflicting-userspace"],
+)
+def test_driver_conflicts_stop_before_mise(package_env: dict[str, str], packages: str) -> None:
+    package_env.update(GPU="NVIDIA Corporation GA106 [10de:1234]", PACKAGES=packages)
+    result = apply_packages(package_env, personal=True)
+    assert result.returncode != 0
+    assert not any(call[0] == "mise" for call in calls(package_env))
+
+
+def test_missing_nvidia_module_fails_after_package_installation(
+    package_env: dict[str, str],
+) -> None:
+    package_env["GPU"] = "NVIDIA Corporation GA106 [10de:1234]"
+    stub(package_env, "modinfo", "exit 23")
+    result = apply_packages(package_env, personal=True)
+    assert result.returncode != 0
+    assert "6.18-fixture" in result.stderr
+    assert any(call[0] == "mise" for call in calls(package_env))
+
+
+def test_xdg_reapplication_preserves_custom_paths_and_maven_settings(
+    package_env: dict[str, str], tmp_path: Path
+) -> None:
+    package_env.update(
+        GNUPGHOME=str(tmp_path / "private-gnupg"), CARGO_HOME=str(tmp_path / "custom-cargo")
+    )
+    settings = tmp_path / "config/maven/settings.xml"
+    settings.parent.mkdir(parents=True)
+    settings.write_text("existing-private-settings")
+    before = settings.stat().st_mtime_ns
+    for _ in range(2):
+        result = apply_packages(package_env)
+        assert result.returncode == 0, result.stderr
+        assert settings.read_text() == "existing-private-settings"
+        assert settings.stat().st_mtime_ns == before
+        assert "existing-private-settings" not in result.stderr
+    observed = cast("dict[str, str]", json.loads((tmp_path / "observed.json").read_text()))
+    assert observed["CARGO_HOME"] == package_env["CARGO_HOME"]
+    assert observed["GNUPGHOME"] == package_env["GNUPGHOME"]
+    assert Path(package_env["GNUPGHOME"]).stat().st_mode & 0o777 == 0o700
+    assert calls(package_env).count(["sudo", "pacman", "-Syu", "--noconfirm"]) == 1
+
+
+def test_chezmoi_retries_failures_and_tracks_only_package_dependencies(
+    package_env: dict[str, str], tmp_path: Path
+) -> None:
+    assert CHEZMOI is not None, "chezmoi is required for package change detection"
+    repository = tmp_path / "source"
+    templates = repository / "home/.chezmoitemplates"
+    scripts = repository / "home/.chezmoiscripts/linux"
+    templates.mkdir(parents=True)
+    scripts.mkdir(parents=True)
+    shutil.copytree(ROOT / "mise", repository / "mise")
+    for name in ("bootstrap.py", "packages.py"):
+        shutil.copy(ROOT / "home/.chezmoitemplates" / name, templates / name)
+    launcher = "run_onchange_before_02_packages.sh.tmpl"
+    shutil.copy(SCRIPTS / launcher, scripts / launcher)
+    config = tmp_path / "chezmoi.json"
+    config.write_text(json.dumps({"data": {"personal": False, "distroFamily": "arch"}}))
+    command = [
+        CHEZMOI,
+        "--config",
+        str(config),
+        "--source",
+        str(repository / "home"),
+        "--working-tree",
+        str(repository),
+        "--destination",
+        str(tmp_path / "target"),
+        "--no-tty",
+        "apply",
+    ]
+    package_env["MISE_STATUS"] = "23"
+    failed = run_setup(package_env, command)
+    assert failed.returncode != 0
+    package_env["MISE_STATUS"] = "0"
+    # A stateful apply sequence: retry, no-op, unrelated changes, then package inputs.
+    for target, expected in (
+        (None, 2),
+        (None, 2),
+        (repository / "mise/conf.d/services.toml", 2),
+        (repository / "mise/conf.d/packages.toml", 3),
+        (templates / "bootstrap.py", 3),
+        (templates / "packages.py", 4),
+    ):
+        if target:
+            with target.open("a") as stream:
+                stream.write("\n# changed\n")
+        result = run_setup(package_env, command)
+        assert result.returncode == 0, result.stderr
+        assert sum(call[0] == "mise" for call in calls(package_env)) == expected, target
