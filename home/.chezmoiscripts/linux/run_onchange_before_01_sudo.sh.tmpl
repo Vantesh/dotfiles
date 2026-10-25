@@ -132,7 +132,6 @@ _configure_faillock() {
 }
 
 setup_sudo() {
-  print_box "Sudo"
   log STEP "Configuring sudo and faillock"
 
   if ! _configure_sudo_timeout; then

@@ -9,7 +9,7 @@
   {{- $distroFamily = default .chezmoi.osRelease.id (index .chezmoi.osRelease "idLike") | lower -}}
 {{- end -}}
 {{- if not (contains "arch" $distroFamily) -}}
-  {{- writeToStdout "\n\033[1;31mERROR:\033[0m This dotfiles repo only supports Arch Linux and Arch-based distros.\n\n" -}}
+  {{- writeToStdout "ERROR: This dotfiles repo only supports Arch Linux and Arch-based distros.\n" -}}
   {{- exit 1 -}}
 {{- end -}}
 {{- $distroFamily = "arch" -}}

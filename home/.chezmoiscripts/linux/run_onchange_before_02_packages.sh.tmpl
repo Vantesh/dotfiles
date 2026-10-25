@@ -37,8 +37,6 @@ if ! install_aur_helper; then
   die "Failed to install AUR helper: $LAST_ERROR"
 fi
 
-print_box "Packages"
-
 package_envs={{ ternary "packages,personal" "packages" .personal | quote }}
 nvidia_branch=""
 

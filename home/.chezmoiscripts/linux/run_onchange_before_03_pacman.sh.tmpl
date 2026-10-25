@@ -91,7 +91,6 @@ _stage_pacman_configs() {
 }
 
 setup_pacman() {
-  print_box "Pacman"
   log STEP "Configuring Pacman"
 
   command_exists paccache || die "pacman-contrib is missing; the mise package phase must complete before pacman configuration"

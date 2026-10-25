@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # 00-install-pre-requisites.sh - Install prerequisites for setup and templates
 #
-# Installs git, figlet, and base-devel and ensures mise for all setups.
+# Installs git and base-devel and ensures mise for all setups.
 # Personal setups configure Bitwarden in this prerequisite phase, not before
 # target rendering. Secret reads unlock the vault on demand; desktop packages
 # are installed by later scripts.
@@ -61,7 +61,7 @@ get_bitwarden_email() {
 }
 
 main() {
-  local -a packages=(git figlet base-devel)
+  local -a packages=(git base-devel)
   local -a missing_packages=()
   local package email output rbw_config rbw_config_file
 
@@ -101,7 +101,6 @@ main() {
   fi
 
   if ! grep -qE '^[[:space:]]*"email":[[:space:]]*"[^"]+"' <<< "$rbw_config"; then
-    print_box "Bitwarden"
     log STEP "Bitwarden Setup"
 
     if ! email="$(get_bitwarden_email)"; then

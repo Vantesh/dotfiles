@@ -31,8 +31,6 @@ install_mactahoe_icons() (
   # Install directly through a space-free alias for upstream's unquoted paths.
   mkdir -p -- "$ICONS_DIR"
   ln -s -- "$ICONS_DIR" "$work_dir/icons"
-
-  print_box "Icon Theme"
   if ! git -c core.symlinks=true clone --depth 1 --single-branch -- "$MACTAHOE_REPO" "$source_dir"; then
     die "Failed to clone MacTahoe icon themes"
   fi

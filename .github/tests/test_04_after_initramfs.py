@@ -157,7 +157,6 @@ sys.exit(0 if value else 1)
         source = source.replace("\nupdate_config() {", "\nfixture_update_config() {")
         self.source = source.replace('\nmain "$@"', r'''
 keep_sudo_alive() { return 0; }
-print_box() { return 0; }
 update_config() {
     printf 'update\t%s\t\n' "$2" >> "$CALLS"
     [[ -f "$INITRAMFS_PENDING_FILE" ]] || return 97

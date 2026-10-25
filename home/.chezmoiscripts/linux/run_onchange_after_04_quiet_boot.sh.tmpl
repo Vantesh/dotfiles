@@ -33,8 +33,6 @@ main() {
   if ! keep_sudo_alive; then
     die "Failed to keep sudo alive"
   fi
-
-  print_box "Quiet Boot"
   log STEP "Quiet Boot Configuration"
 
   if ! ensure_limine_cmdline_defaults; then

@@ -17,8 +17,7 @@ shopt -s nullglob globstar
 
 {{ include ".chezmoitemplates/lib/common.sh" }}
 
-print_box "Setup Complete"
-printf "\n"
+log INFO "Setup complete"
 
 reboot_args=(reboot)
 reboot_prompt="Would you like to reboot now?"

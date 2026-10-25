@@ -63,8 +63,6 @@ setup_chaotic_aur() {
     return 0
   fi
 
-  print_box "Chaotic-AUR"
-
   if [[ "$install_trust" == true ]]; then
     if ! import_chaotic_key; then
       return 1

@@ -23,7 +23,6 @@ class AvatarTests(ScriptCase):
     def test_avatar_assignment_skips_unusable_offline_files_and_preserves_errors(self):
         avatar = self.directory / ".local/share/avatars/profile.png"
         avatar.parent.mkdir(parents=True)
-        self.stub("figlet", "exit 0")
         self.stub("id", "echo 1000")
         self.stub("mise", "exit 0")
         self.stub("busctl", 'exit "${ASSIGN_STATUS:-0}"', log=True)
@@ -86,7 +85,6 @@ class EnrollmentTests(ScriptCase):
     def setUp(self):
         super().setUp()
         self.source = self.render(SCRIPTS / "run_onchange_after_15_enrollment.sh.tmpl")
-        self.stub("figlet", "exit 0")
 
     def test_warp_registration_is_created_once_without_connecting(self):
         registration = self.directory / "registration"

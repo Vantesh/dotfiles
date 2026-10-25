@@ -39,7 +39,7 @@ export NOCONFIRM="${NOCONFIRM:-0}"
 # Outputs formatted log messages to stderr.
 #
 # Supports color-coded output for different log levels. STEP level adds
-# visual spacing with blank lines. Respects NO_COLOR environment variable.
+# a stage label. Respects NO_COLOR environment variable.
 #
 # Arguments:
 #   $1 - Log level: INFO, WARN, ERROR, SKIP, or STEP
@@ -64,10 +64,7 @@ log() {
   WARN) color="$COLOR_YELLOW" ;;
   ERROR) color="$COLOR_RED" ;;
   SKIP) color="$COLOR_MAGENTA" ;;
-  STEP)
-    printf '\n%b::%b %s\n\n' "$COLOR_BLUE" "$COLOR_RESET" "$message" >&2
-    return 0
-    ;;
+  STEP) color="$COLOR_BLUE" ;;
   *)
     printf '[ERROR] Invalid log level: %s\n' "$level" >&2
     return 1
@@ -96,20 +93,6 @@ die() {
 
   log ERROR "$@"
   exit "$exit_code"
-}
-
-# Displays text in figlet banner.
-#
-# Arguments:
-#   $1 - Text to display
-#   $2 - Font name (default: smslant)
-# Outputs:
-#   ASCII art banner to stdout
-print_box() {
-  local text="${1:-}"
-  local font="${2:-smslant}"
-
-  figlet -f "$font" "$text"
 }
 
 # Prompts user for yes/no confirmation.

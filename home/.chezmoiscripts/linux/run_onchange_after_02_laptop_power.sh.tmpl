@@ -82,7 +82,6 @@ configure_auto_cpufreq() {
 main() {
   # Laptop optimizations (always run if on a laptop)
   if is_laptop; then
-    print_box "Laptop"
     log STEP "Laptop Optimizations"
 
     configure_auto_cpufreq

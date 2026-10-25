@@ -251,8 +251,6 @@ main() {
     die "Cannot configure snapshot overlay hooks: $LAST_ERROR"
   fi
 
-  print_box "Snapper"
-
   log STEP "Configuring Snapper"
 
   if ! configure_limine_snapper; then

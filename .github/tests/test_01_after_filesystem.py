@@ -122,7 +122,6 @@ exec "$@"''')
                     self.assertEqual(generator.read_text(), "[zram0]\nzram-size=4096\n")
 
     def test_only_successful_hibernation_configures_zswap(self):
-        self.stub("figlet", "exit 0")
         for status in (0, 1, 2, 3, "optional-failure"):
             with self.subTest(status=status):
                 self.fixture(f"setup-{status}")
@@ -665,7 +664,6 @@ esac""",
         self.assertEqual(result.stdout.strip(), "base systemd block filesystems fsck")
 
     def test_failed_swap_setup_does_not_publish_resume_and_keeps_retry_pending(self):
-        self.stub("figlet", "exit 0")
         script = self.resume_fixture(encrypted=True)
         script = script.replace(
             "setup_hibernation\n",
@@ -775,7 +773,6 @@ class HibernationDetectionTests(ScriptCase):
         super().setUp()
         self.stub('limine', 'exit 97')
         self.stub('mkinitcpio', 'exit 97')
-        self.stub('figlet', 'exit 0')
         self.stub('findmnt', '''[ "$*" = '-n -o FSTYPE /' ] || exit 97
 [ "$DETECTION" != filesystem-failure ] || exit 23
 if [ "$DETECTION" = non-btrfs ]; then echo ext4; else echo btrfs; fi''')

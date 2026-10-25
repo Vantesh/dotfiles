@@ -71,7 +71,6 @@ class SetupPreferenceTests(ScriptCase):
             (self.bin / name).symlink_to(shutil.which(name))
         self.stub("chezmoi", f'exec {CHEZMOI} "$@"')
         self.stub("id", 'echo 1000')
-        self.stub("figlet", "exit 0")
         self.stub("yay", "exit 97")
         self.stub("pacman", '[ "$1" = -Q ] || [ "$1" = -T ] || exit 97')
         self.stub("pacman-conf", '[ "$*" = --repo-list ] || exit 97; echo chaotic-aur')
@@ -91,6 +90,7 @@ esac''', log=True)
         for attempt in range(2):
             result = self.run_process(command + ["apply"], name="apply nonpersonal")
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertNotIn("command not found", result.stderr)
             self.assertTrue((self.directory / ".config/fish/config.fish").is_file())
             self.assertFalse((self.directory / ".ssh/id_rsa").exists())
             self.assertFalse((self.directory / ".config/git/identity").exists())
@@ -156,7 +156,6 @@ is_laptop() { return 1; }
 if [[ "$(id -u)" -eq 0 ]]; then""",
         )
         self.stub("id", "echo 1000")
-        self.stub("figlet", "exit 0")
         self.stub("pacman", '[ "$1" = -T ] || exit 97')
         self.stub("mise", "exit 23", log=True)
         result = self.shell(source)
@@ -181,7 +180,6 @@ class RbwPrerequisiteTests(ScriptCase):
         config_file.write_text("{}")
         self.stub("pacman", "exit 0")
         self.stub("mise", "exit 97")
-        self.stub("figlet", "exit 0")
         self.stub("rbw", '''
 case "$*" in
   "config show")
@@ -320,7 +318,6 @@ if [[ "$(id -u)" -eq 0 ]]; then""",
             MODULE_FAILURE="", FAILURE_RELEASE="6.12-fixture",
         )
         self.stub("id", "echo 1000")
-        self.stub("figlet", "exit 0")
         self.stub(
             "lspci",
             'printf "01:00.0 VGA compatible controller [0300]: NVIDIA Corporation %s [10de:1234]\\n" "$GPU"',

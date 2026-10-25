@@ -302,7 +302,6 @@ migrate_display_managers() {
 }
 
 main() {
-  print_box "LY"
   log STEP "Ly Configuration"
   keep_sudo_alive || die "Failed to keep sudo alive"
   DM_STATE_DIR=$(mktemp -d) || die "Cannot create migration snapshot directory"

@@ -90,8 +90,6 @@ main() {
   fi
 
   get_limine_boot_directory >/dev/null || die "Mount the Limine FAT32 boot partition or configure ESP_PATH in $LIMINE_DEFAULTS"
-
-  print_box "Secure Boot" >&2
   log STEP "Secure Boot Configuration"
 
   local dependency

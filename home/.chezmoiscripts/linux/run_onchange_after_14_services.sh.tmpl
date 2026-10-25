@@ -93,7 +93,6 @@ configure_locate_database() {
 }
 
 main() {
-  print_box "Services"
   log STEP "Configuring services"
 
   converge_packaged_user_services || die "Failed to apply packaged user services"
