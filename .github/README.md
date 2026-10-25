@@ -49,13 +49,13 @@ Mise files in the repository (`chezmoi cd`):
 - `mise/conf.d/firewall.toml` → firewall rules.
 - `mise/conf.d/pacman-hooks.toml` → package-cache cleanup hooks.
 
-A small shell entry point installs Arch’s `python` and `python-loguru` packages when missing, then runs `.chezmoitemplates/bootstrap.py` with system Python. That bootstrap owns Git, base-devel, Mise availability and personal-only rbw/pinentry initialization; desktop package selection stays in Mise.
+The shell entry point checks `python`, `python-loguru`, `git`, `base-devel` and `mise`, adding `rbw` and `pinentry` only for personal setups. It installs missing packages in one native Pacman transaction before Python starts. Python then configures private logging and personal-only Bitwarden authentication; it does not install prerequisites again. Desktop package selection stays in Mise.
 
 Service, firewall, login-shell and other provisioning declarations apply only to personal setups. Fish configuration is included in both profiles.
 
 ## Package execution and early XDG setup
 
-Chezmoi’s package before-hook runs `.chezmoitemplates/packages.py`. It prepares the XDG paths needed by package builds, establishes Chaotic-AUR trust and configuration, completes the initial full system upgrade, and then delegates installation to Mise. Git/base-devel/Mise prerequisites remain in the earlier bootstrap. A missing AUR helper is installed through the `aur-helper` group in `mise/conf.d/packages.toml`; an existing yay or paru is retained.
+Chezmoi’s package before-hook runs `.chezmoitemplates/packages.py`. It prepares the XDG paths needed by package builds, establishes Chaotic-AUR trust and configuration, completes the initial full system upgrade, and then delegates installation to Mise. Runtime and package prerequisites are established by the earlier shell bootstrap. A missing AUR helper is installed through the `aur-helper` group in `mise/conf.d/packages.toml`; an existing yay or paru is retained.
 
 The existing `chezmoi/chaotic-aur-updated` marker under XDG state records only a successful initial upgrade. Failures retry on the next apply. Package execution state belongs to Chezmoi: changes to `mise/config.toml`, `mise/conf.d/packages.toml`, the coordinator, or the selected profile rerun the package hook. Unrelated service, theme or authentication edits do not. Add a dependency hash to that hook if package declarations move into another file.
 
@@ -71,7 +71,7 @@ The Python prerequisite bootstrap and package coordinator use Loguru. Terminal m
 
 Diagnostics are written to `$XDG_STATE_HOME/chezmoi/logs/setup.log`, falling back to `~/.local/state/chezmoi/logs/setup.log`. The log directory is private (`0700`); current and rotated logs are user-owned with mode `0600`. Loguru rotates at 5 MiB and retains five rotated files. The file is opened only when a message is logged, so successful no-op checks do not create or append a setup log.
 
-Vault output, email arguments, tokens and subprocess environments are not recorded. Authentication errors report the failing operation and exit status with a retry hint; use rbw directly when deeper vault diagnostics are needed. A logging/storage error stops Python setup rather than continuing without private diagnostics. Run chezmoi as the regular account; sudo is used only for package installation. Python/Loguru installation failures occur before the logger is available and use pacman's terminal diagnostics.
+Vault output, email arguments, tokens and subprocess environments are not recorded. Authentication errors report the failing operation and exit status with a retry hint; use rbw directly when deeper vault diagnostics are needed. A logging/storage error stops Python setup rather than continuing without private diagnostics. Run chezmoi as the regular account; sudo is used only for package installation. Initial prerequisite installation failures occur before the logger is available and use pacman's terminal diagnostics.
 
 ## Btrfs layout
 

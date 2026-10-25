@@ -1,13 +1,17 @@
 #!/usr/bin/env bash
-# Establish the packaged Python runtime before importing the bootstrap.
+# Establish all runtime and package prerequisites before Python provisioning starts.
 set -euo pipefail
 
+packages=(python python-loguru git base-devel mise)
+if [[ "${PERSONAL:-0}" == "1" ]]; then
+  packages+=(rbw pinentry)
+fi
 missing=()
-for package in python python-loguru; do
+for package in "${packages[@]}"; do
   pacman -Q "$package" >/dev/null 2>&1 || missing+=("$package")
 done
 if [[ ${#missing[@]} -gt 0 ]]; then
-  printf '%(%H:%M:%S)T | INFO    | Installing Python bootstrap dependencies\n' -1 >&2
+  printf '[%(%Y-%m-%d %H:%M:%S)T] [INFO] Installing bootstrap dependencies\n' -1 >&2
   sudo pacman -S --needed --noconfirm -- "${missing[@]}"
 fi
 

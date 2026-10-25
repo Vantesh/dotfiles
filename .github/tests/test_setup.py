@@ -313,7 +313,7 @@ esac""",
 def test_prerequisite_install_failure_stops_setup(
     env: dict[str, str], bootstrap: list[str]
 ) -> None:
-    env["PERSONAL"] = "0"
+    env["PERSONAL"] = "1"
     stub(env, "pacman", "exit 1")
     stub(env, "sudo", "exit 23", log=True)
     result = run_setup(env, bootstrap)
@@ -322,46 +322,37 @@ def test_prerequisite_install_failure_stops_setup(
     assert calls(env)[0][:3] == ["sudo", "pacman", "-S"]
 
 
-def test_prerequisites_install_once_and_repeat_without_log_changes(
-    env: dict[str, str], bootstrap: list[str], tmp_path: Path
+@pytest.mark.parametrize("personal", [False, True], ids=["nonpersonal", "personal"])
+def test_prerequisites_install_in_one_transaction_and_reapply_quietly(
+    env: dict[str, str], bootstrap: list[str], tmp_path: Path, personal: bool
 ) -> None:
-    env.update(PERSONAL="0", INSTALLED=str(tmp_path / "installed"))
-    (tmp_path / "bin/mise").unlink()
-    stub(
-        env,
-        "pacman",
-        """case "$*" in
-    '-Q python'|'-Q python-loguru') exit 0 ;;
-    '-Q git'|'-Q base-devel'|'-Q mise') test -f "$INSTALLED" ;;
-    *) exit 97 ;;
-esac""",
-    )
+    env.update(PERSONAL="1" if personal else "0", INSTALLED=str(tmp_path / "installed"))
+    packages = ["python", "python-loguru", "git", "base-devel", "mise"]
+    if personal:
+        packages.extend(("rbw", "pinentry"))
+    stub(env, "pacman", '[ "$1" = -Q ] && test -f "$INSTALLED"')
+    install = ["pacman", "-S", "--needed", "--noconfirm", "--", *packages]
     stub(
         env,
         "sudo",
-        '''[ "$*" = 'pacman -S --needed --noconfirm -- git base-devel mise' ] || exit 97
-touch "$INSTALLED"
-printf '#!/bin/sh\\nexit 97\\n' > "$HOME/bin/mise"
-chmod 755 "$HOME/bin/mise"''',
+        f'[ "$*" = {shlex.quote(" ".join(install))} ] || exit 97\ntouch "$INSTALLED"',
         log=True,
     )
-    result = run_setup(env, bootstrap)
-    assert result.returncode == 0, result.stderr
+    first = run_setup(env, bootstrap)
+    assert first.returncode == 0, first.stderr
     assert (tmp_path / "installed").exists()
     assert re.fullmatch(
-        r"\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\] \[INFO\] "
-        + r"Installing prerequisites: git, base-devel, mise\n",
-        result.stderr,
-    ), result.stderr
-    log = tmp_path / "state/chezmoi/logs/setup.log"
-    modified = log.stat().st_mtime_ns
+        r"\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\] \[INFO\] Installing bootstrap dependencies\n",
+        first.stderr,
+    ), first.stderr
     repeated = run_setup(env, bootstrap)
     assert repeated.returncode == 0, repeated.stderr
     assert repeated.stderr == ""
-    assert log.stat().st_mtime_ns == modified
-    assert calls(env) == [
-        ["sudo", "pacman", "-S", "--needed", "--noconfirm", "--", "git", "base-devel", "mise"]
-    ]
+    assert [call for call in calls(env) if call[0] == "sudo"] == [["sudo", *install]]
+    assert [call for call in calls(env) if call[0] == "rbw"] == (
+        [["rbw", "config", "show"], ["rbw", "login"]] * 2 if personal else []
+    )
+    assert not (tmp_path / "state/chezmoi/logs/setup.log").exists()
 
 
 def test_personal_authentication_preserves_existing_configuration(
@@ -437,11 +428,12 @@ def test_unreadable_vault_configuration_is_not_reset(
     assert calls(env) == [["rbw", "config", "show"]]
 
 
-def test_logs_are_lazy_private_and_bounded(
-    env: dict[str, str], bootstrap: list[str], tmp_path: Path
+def test_python_bootstrap_is_quiet_and_logs_are_private_and_bounded(
+    env: dict[str, str], tmp_path: Path
 ) -> None:
     env["PERSONAL"] = "0"
-    quiet = run_setup(env, bootstrap)
+    stub(env, "pacman", "exit 97", log=True)
+    quiet = run_setup(env, [PYTHON, "-B", str(BOOTSTRAP)])
     assert quiet.returncode == 0, quiet.stderr
     assert quiet.stderr == "" and calls(env) == []
     assert not (tmp_path / "state/chezmoi/logs/setup.log").exists()
@@ -531,19 +523,12 @@ def test_fifo_log_file_does_not_block_or_allow_package_installation(
     logs = tmp_path / "state/chezmoi/logs"
     logs.mkdir(parents=True)
     os.mkfifo(logs / "setup.log", 0o600)
-    env["PERSONAL"] = "0"
-    stub(
-        env,
-        "pacman",
-        """case "$*" in
-    '-Q python'|'-Q python-loguru') exit 0 ;;
-    *) exit 1 ;;
-esac""",
-    )
+    env.update(PERSONAL="1", RBW_LOGIN_STATUS="23")
     result = run_setup(env, bootstrap)
     assert result.returncode == 1, result.stderr
     assert "Traceback" not in result.stderr
-    assert calls(env) == []
+    assert calls(env) == [["rbw", "config", "show"], ["rbw", "login"]]
+    Path(env["CALLS"]).unlink()
     # An XDG failure must also remain concise when its file diagnostic cannot be written.
     gnupg = tmp_path / "data/gnupg"
     gnupg.parent.mkdir(parents=True)

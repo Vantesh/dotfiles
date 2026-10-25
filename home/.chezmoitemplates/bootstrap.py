@@ -1,10 +1,9 @@
-"""Prerequisites for chezmoi rendering; desktop packages remain owned by Mise."""
+"""Private logging and personal authentication after the shell establishes prerequisites."""
 
 import errno
 import json
 import os
 import re
-import shutil
 import stat
 import subprocess
 import sys
@@ -13,34 +12,6 @@ from pathlib import Path
 from typing import cast
 
 from loguru import logger
-
-
-def install_prerequisites() -> int:
-    packages = ["git", "base-devel"]
-    if not shutil.which("mise"):
-        packages.append("mise")
-    if os.environ.get("PERSONAL") == "1":
-        packages.extend(("rbw", "pinentry"))
-    missing = [
-        package
-        for package in packages
-        if subprocess.run(
-            ["pacman", "-Q", package],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        ).returncode
-    ]
-    if not missing:
-        return 0
-
-    logger.info("Installing prerequisites: {}", ", ".join(missing))
-    result = subprocess.run(["sudo", "pacman", "-S", "--needed", "--noconfirm", "--", *missing])
-    if result.returncode:
-        logger.error(
-            "Prerequisite installation failed (exit {}); resolve pacman's error and rerun setup.",
-            result.returncode,
-        )
-    return result.returncode
 
 
 def configure_bitwarden() -> int:
@@ -202,16 +173,15 @@ def main() -> int:
     file_sink = None
     try:
         file_sink = configure_logging()
-        status = install_prerequisites()
-        if status or os.environ.get("PERSONAL") != "1":
-            return status
+        if os.environ.get("PERSONAL") != "1":
+            return 0
         return configure_bitwarden()
     except OSError as error:
         filename = cast("object", error.filename)
-        operation = filename if filename in ("pacman", "sudo", "rbw") else "Bootstrap"
+        operation = "rbw" if filename == "rbw" else "Bootstrap"
         try:
             logger.error(
-                "{} stopped (OS error {}); check prerequisite commands, configuration and setup-log permissions.",
+                "{} stopped (OS error {}); check Bitwarden configuration and setup-log permissions.",
                 operation,
                 error.errno,
             )
