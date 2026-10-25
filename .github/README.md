@@ -30,7 +30,7 @@ chezmoi init --apply vantesh
 
 Setup installs its prerequisites and asks one question: **Is this a personal setup?** The answer defaults to No and is saved for subsequent applies.
 
-- **Nonpersonal:** installs baseline packages and applies nonsecret dotfiles. It does not access Bitwarden, provision drivers, configure services, firewall, login shell or login manager, customize desktop preferences, modify boot/filesystem/firmware settings, enroll devices, or reboot.
+- **Nonpersonal:** installs common packages and nonsecret dotfiles, applies common system/user services and sets Fish as the login shell. It does not access Bitwarden, provision personal services, drivers, firewall or the login manager, customize desktop preferences, modify boot/filesystem/firmware settings, enroll devices, or reboot. General desktop commonization belongs to a later phase.
 - **Personal:** adds private configuration and the existing driver, Btrfs/Snapper, swapfile/hibernation, Zswap, Limine/Secure Boot, desktop and service provisioning. Hardware and system-integrity checks still apply. Authentication and enrollment can require interaction.
 
 Both profiles support repeated application. Previous dotfiles versions and profile transitions are unsupported; use manual cleanup or a fresh installation rather than expecting migration. Nonpersonal installs retain the existing package prerequisites, including Chaotic-AUR trust/repository setup, the initial full system upgrade, and an AUR helper. A compatible Vulkan provider must already be installed so baseline dependencies cannot select an unintended driver stack.
@@ -51,7 +51,7 @@ Mise files in the repository (`chezmoi cd`):
 
 The shell entry point checks `python`, `python-loguru`, `git`, `base-devel` and `mise`, adding `rbw` and `pinentry` only for personal setups. It installs missing packages in one native Pacman transaction before Python starts. Python then configures private logging and personal-only Bitwarden authentication; it does not install prerequisites again. Desktop package selection stays in Mise.
 
-Service, firewall, login-shell and other provisioning declarations apply only to personal setups. Fish configuration is included in both profiles.
+Common services and Fish login-shell setup apply to both profiles. `mise/config.personal.toml` adds the existing WARP and UFW service declarations only in the personal environment; the firewall phase remains personal-only. Fish's interactive configuration stays under Chezmoi.
 
 ## Package execution and early XDG setup
 
@@ -64,6 +64,14 @@ Nonpersonal runs select only baseline packages and require no installed Vulkan p
 Early setup respects XDG overrides and prepares private GnuPG storage, Bash/Python history parents and create-only Maven settings. Only Rust/Go/GnuPG build variables are exported for package commands; application session settings stay in `environment.d/00-xdg.conf.tmpl`. Existing Maven settings are preserved, and unused tool cache directories are left for their tools to create.
 
 `OFFLINE` continues to control supported external downloads; it does not turn package setup into an offline installer. Pacman/AUR still need the packages and repository access they normally require. Package commands remain unattended (`--yes`/`--noconfirm`); sudo authentication is still required. Mise applies missing packages without `--update`, avoiding a separate database refresh or partial system upgrade.
+
+## Common services and Fish
+
+The service after-hook runs native Mise service and login-shell provisioning for both profiles. Common system units are NetworkManager, Bluetooth, `fstrim.timer`, `reflector.timer`, `pacman-filesdb-refresh.timer`, `paccache.timer` and `pkgfile-update.timer`. The existing disabled/masked `systemd-networkd-wait-online.service` policy is retained. Personal-only WARP, SSH agent and NVIDIA sleep services keep their existing enrollment or hardware boundaries. UFW rules/activation and Ly lifecycle remain personal-only and unchanged.
+
+A short state-aware loop retains the existing packaged user units: GNOME Keyring's socket/service, MPRIS proxy and udiskie. System services run first; healthy user units are not re-enabled or restarted, and unavailable optional units are skipped. These are existing unit identities, rather than newly generated Mise user services. Personal snapshot exclusions for locate and avatar assignment remain gated. Nonpersonal Reflector uses its packaged defaults; the existing personal Pacman/Reflector customization remains in its earlier phase.
+
+Fish remains fixed at `/usr/bin/fish`, installed by the common package declarations. Setup rejects root and a missing/non-executable Fish binary before applying workstation tasks. Mise reads the current account's login shell, validates its shell-list entry and changes it only when needed; chsh authentication remains native. The new login shell takes effect at the next login. No other account is selected through shell environment variables.
 
 ## Bootstrap logs
 

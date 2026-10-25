@@ -1,0 +1,9 @@
+# Personal network enrollment and the existing personal-only firewall policy.
+[bootstrap.services."warp-svc.service"]
+state = "running"
+enabled = true
+
+# Native firewall activation does not enable/start the systemd unit.
+[bootstrap.services."ufw.service"]
+state = "running"
+enabled = true

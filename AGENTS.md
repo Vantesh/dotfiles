@@ -3,7 +3,7 @@
 ## Supported setup
 
 - Target fresh installations on Arch-based distributions. Preserve existing Arch-family detection and CachyOS/Garuda behavior; add no legacy migrations or speculative hardware/OS compatibility.
-- Nonpersonal setups receive baseline packages and non-secret dotfiles only. Secrets, driver selection, and opinionated system provisioning belong to personal setups.
+- Both profiles receive common packages, non-secret dotfiles, common system/user services and Fish as the login shell. Secrets, personal-only services, hardware, filesystem/boot provisioning and firewall configuration remain personal-only. Desktop commonization is deferred to its own phase.
 - Keep responsibilities clear: Chezmoi owns configuration, profiles and execution triggers; Mise owns package/service declarations; Fish is the interactive shell; Python handles meaningful orchestration.
 - Reapplying the new architecture must be safe and idempotent. Preserve necessary Btrfs, swapfile, hibernation, Zswap, Limine and Secure Boot protections. Do not start another phase without explicit authorization.
 

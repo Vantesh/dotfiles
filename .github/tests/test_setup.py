@@ -23,7 +23,7 @@ BOOTSTRAP = ROOT / "home/.chezmoitemplates/bootstrap.py"
 def env(tmp_path: Path) -> dict[str, str]:
     commands = tmp_path / "bin"
     commands.mkdir()
-    for name in ("bash", "cat", "chmod", "git", "ln", "python3", "sleep", "test", "touch"):
+    for name in ("bash", "cat", "chmod", "env", "git", "ln", "python3", "sleep", "test", "touch"):
         executable = shutil.which(name)
         assert executable is not None, f"Required test utility not found: {name}"
         (commands / name).symlink_to(executable)
@@ -165,20 +165,29 @@ esac""",
     stub(
         env,
         "mise",
-        '[ "$*" = "--env packages bootstrap packages apply --yes" ] || exit 97',
+        """case "$*" in
+'--env packages bootstrap packages apply --yes'|'--quiet --env  bootstrap --only services,user --yes') exit 0 ;;
+*) exit 97 ;;
+esac""",
         log=True,
     )
     for command in (
         "rbw",
         "lspci",
         "hostnamectl",
-        "systemctl",
         "gsettings",
         "sbctl",
         "findmnt",
         "busctl",
+        "chsh",
     ):
         stub(env, command, "exit 97", log=True)
+    stub(
+        env,
+        "systemctl",
+        '[ "$1 $2" = "--user show" ] || exit 97; echo LoadState=not-found',
+        log=True,
+    )
     command = [
         CHEZMOI,
         "--config",
@@ -218,9 +227,11 @@ esac""",
         before = current
     observed = calls(env)
     assert [call for call in observed if call[0] == "mise"] == [
-        ["mise", "--env", "packages", "bootstrap", "packages", "apply", "--yes"]
+        ["mise", "--env", "packages", "bootstrap", "packages", "apply", "--yes"],
+        ["mise", "--quiet", "--env", "", "bootstrap", "--only", "services,user", "--yes"],
     ]
-    assert all(call[0] in ("sudo", "mise") for call in observed), observed
+    assert all(call[0] in ("sudo", "mise", "systemctl") for call in observed), observed
+    assert all(call[1:3] == ["--user", "show"] for call in observed if call[0] == "systemctl")
 
 
 def secret_modifier(env: dict[str, str], personal: bool) -> list[str]:

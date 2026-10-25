@@ -2,20 +2,11 @@
 state = "running"
 enabled = true
 
-[bootstrap.services."warp-svc.service"]
-state = "running"
-enabled = true
-
 [bootstrap.services."bluetooth.service"]
 state = "running"
 enabled = true
 
 [bootstrap.services."fstrim.timer"]
-state = "running"
-enabled = true
-
-# Native firewall activation does not enable/start the systemd unit.
-[bootstrap.services."ufw.service"]
 state = "running"
 enabled = true
 

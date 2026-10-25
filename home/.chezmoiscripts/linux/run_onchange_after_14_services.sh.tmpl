@@ -1,19 +1,26 @@
 #!/usr/bin/env bash
-{{ if .personal -}}
 
 # data: distroFamily={{ .distroFamily | quote }}
-# Packaged user units, locate maintenance, and native mise services/firewall/login shell.
+# Common packaged user units, native Mise services and Fish; personal extras stay gated.
 # mise/config.toml: {{ include "../mise/config.toml" | sha256sum }}
 # mise/conf.d/services.toml: {{ include "../mise/conf.d/services.toml" | sha256sum }}
+{{ if .personal -}}
+# mise/config.personal.toml: {{ include "../mise/config.personal.toml" | sha256sum }}
 # mise/conf.d/firewall.toml: {{ include "../mise/conf.d/firewall.toml" | sha256sum }}
+{{ end -}}
 # mise/conf.d/login-shell.toml: {{ include "../mise/conf.d/login-shell.toml" | sha256sum }}
-# Exit codes: 0 (success), 1 (failure)
+# Exit codes: 0 (success), otherwise the failing command status
 
 set -euo pipefail
 
 shopt -s nullglob globstar
 
 {{ include ".chezmoitemplates/lib/common.sh" }}
+
+target_uid=$(id -u) || die "$?" "Cannot identify the target account"
+[[ "$target_uid" -ne 0 ]] || die "Run workstation setup as the regular account"
+[[ -f /usr/bin/fish && -x /usr/bin/fish ]] || die "Fish is not executable at /usr/bin/fish; complete package installation first"
+command_exists chsh || die "chsh is unavailable; install util-linux before configuring Fish"
 
 # shellcheck disable=SC2034
 readonly -a USER_SERVICES=(
@@ -27,42 +34,51 @@ readonly -a USER_SERVICES=(
 )
 
 
-if ! keep_sudo_alive; then
-  die "Failed to keep sudo alive"
-fi
-
 # Native mise user services create new dev.mise.* units; they cannot manage
 # these existing packaged services/socket without changing their identity.
 converge_packaged_user_services() {
-  local service load_state
-
+  local service properties key value load_state unit_state active_state changed
   for service in "${USER_SERVICES[@]}"; do
-    if ! load_state=$(systemctl --user show --property=LoadState --value -- "$service"); then
-      log ERROR "Failed to inspect $service (user)"
+    properties=$(systemctl --user show --property=LoadState --property=UnitFileState \
+      --property=ActiveState -- "$service") || return "$?"
+    load_state="" unit_state="" active_state=""
+    while IFS='=' read -r key value; do
+      case "$key" in
+        LoadState) load_state="$value" ;;
+        UnitFileState) unit_state="$value" ;;
+        ActiveState) active_state="$value" ;;
+      esac
+    done <<< "$properties"
+    case "$load_state" in
+      not-found) continue ;;
+      loaded|masked) ;;
+      *) log ERROR "Cannot inspect $service (user): LoadState=$load_state"; return 1 ;;
+    esac
+    if [[ -z "$unit_state" || -z "$active_state" ]]; then
+      log ERROR "Incomplete systemd state for $service (user)"
       return 1
     fi
-    case "$load_state" in
-      not-found)
-        log SKIP "$service (user) not available"
-        continue
-        ;;
-      loaded|masked) ;;
-      *)
-        log ERROR "Cannot apply $service (user): unexpected LoadState=$load_state"
-        return 1
-        ;;
-    esac
-
-    if systemctl --user --quiet unmask -- "$service" &&
-      systemctl --user --quiet enable --now -- "$service"; then
-      log INFO "${COLOR_GREEN}${service}${COLOR_RESET} enabled and running (user)"
-    else
-      log ERROR "Failed to converge $service (user)"
-      return 1
+    changed=false
+    if [[ "$load_state" == masked || "$unit_state" == masked* ]]; then
+      systemctl --user --quiet unmask -- "$service" || return "$?"
+      unit_state=$(systemctl --user show --property=UnitFileState --value -- "$service") || return "$?"
+      changed=true
+    fi
+    if [[ "$unit_state" != enabled && "$unit_state" != static ]]; then
+      systemctl --user --quiet enable -- "$service" || return "$?"
+      changed=true
+    fi
+    if [[ "$active_state" != active ]]; then
+      systemctl --user --quiet start -- "$service" || return "$?"
+      changed=true
+    fi
+    if "$changed"; then
+      log INFO "Configured $service (user)"
     fi
   done
 }
 
+{{ if .personal -}}
 
 configure_locate_database() {
   if ! command_exists updatedb; then
@@ -92,24 +108,27 @@ configure_locate_database() {
   return 0
 }
 
+{{ end -}}
 main() {
-  log STEP "Configuring services"
-
-  converge_packaged_user_services || die "Failed to apply packaged user services"
+{{ if .personal -}}
   configure_locate_database
+{{ end -}}
 
   # Packages and updatedb exclusions precede native service convergence.
   # Leave NVIDIA environment selection to the gated hibernation phase.
-  if ! (
+  (
     cd {{ .chezmoi.workingTree | quote }} || exit 1
     env -u MISE_CONFIG_FILE -u MISE_GLOBAL_CONFIG_FILE -u MISE_SYSTEM_CONFIG_FILE \
+    -u MISE_ENV -u MISE_OVERRIDE_CONFIG_FILENAMES \
     MISE_CONFIG_DIR=/dev/null MISE_SYSTEM_CONFIG_DIR=/dev/null \
     MISE_AUTO_ENV=false MISE_CEILING_PATHS={{ dir .chezmoi.workingTree | quote }} \
     MISE_TRUSTED_CONFIG_PATHS={{ joinPath .chezmoi.workingTree "mise" | quote }} \
-      mise --env '' bootstrap --only services,firewall,user --yes
-  ); then
-    die "Failed to apply system services/firewall/login shell with mise"
-  fi
+      mise {{ if not .personal }}--quiet {{ end }}--env {{ if .personal }}personal{{ else }}''{{ end }} bootstrap \
+      --only services{{ if .personal }},firewall{{ end }},user --yes
+  ) || die "$?" "Failed to apply workstation services and Fish with mise"
+
+  # System services, including Bluetooth, precede their packaged user clients.
+  converge_packaged_user_services || die "$?" "Failed to apply packaged user services"
 
 {{- if .personal }}
   # OFFLINE: {{ if env "OFFLINE" }}1{{ else }}0{{ end }}
@@ -129,5 +148,3 @@ main() {
 }
 
 main "$@"
-
-{{ end -}}
