@@ -18,47 +18,77 @@ class SetupPreferenceTests(ScriptCase):
         self.source = self.directory / "source"
         self.source.mkdir()
         (self.source / ".chezmoi.yaml.tmpl").write_text(
-            (ROOT / "home/.chezmoi.yaml.tmpl").read_text())
+            (ROOT / "home/.chezmoi.yaml.tmpl").read_text()
+        )
         self.config = self.directory / "chezmoi.yaml"
         self.stub("git", 'exec /usr/bin/git "$@"')
-        self.command = [CHEZMOI, "--config", str(self.config), "--source", str(self.source),
-                        "--destination", str(self.directory / "destination"), "--no-tty"]
+        self.command = [
+            CHEZMOI,
+            "--config",
+            str(self.config),
+            "--source",
+            str(self.source),
+            "--destination",
+            str(self.directory / "destination"),
+            "--no-tty",
+        ]
 
     def test_fresh_profiles_persist_only_the_personal_choice(self):
         for personal in (False, True):
             with self.subTest(personal=personal):
                 self.config.unlink(missing_ok=True)
-                command = self.command + ["--override-data",
-                    '{"chezmoi":{"osRelease":{"id":"arch"}}}']
-                result = self.run_process(command + ["init", "--promptBool",
-                    f"Is this a personal setup={str(personal).lower()}"], name="initialize profile")
+                command = self.command + [
+                    "--override-data",
+                    '{"chezmoi":{"osRelease":{"id":"arch"}}}',
+                ]
+                result = self.run_process(
+                    command
+                    + ["init", "--promptBool", f"Is this a personal setup={str(personal).lower()}"],
+                    name="initialize profile",
+                )
                 self.assertEqual(result.returncode, 0, result.stderr)
-                result = self.run_process(command + ["dump-config", "--format=json"], name="read profile")
+                result = self.run_process(
+                    command + ["dump-config", "--format=json"], name="read profile"
+                )
                 config = json.loads(result.stdout)
                 self.assertEqual(config["data"], {"personal": personal, "distroFamily": "arch"})
-                self.assertEqual(config["scriptEnv"], {
-                    "PERSONAL": "1" if personal else "0", "DISTRO": "arch", "DISTRO_FAMILY": "arch"})
+                self.assertEqual(
+                    config["scriptEnv"],
+                    {
+                        "PERSONAL": "1" if personal else "0",
+                        "DISTRO": "arch",
+                        "DISTRO_FAMILY": "arch",
+                    },
+                )
                 # Reinitializing this architecture preserves the selected profile.
                 self.env["NOCONFIRM"] = "1"
                 result = self.run_process(command + ["init"], name="repeat initialization")
                 self.assertEqual(result.returncode, 0, result.stderr)
-                repeated = self.run_process(command + ["dump-config", "--format=json"], name="read repeated profile")
+                repeated = self.run_process(
+                    command + ["dump-config", "--format=json"], name="read repeated profile"
+                )
                 self.assertEqual(json.loads(repeated.stdout)["data"], config["data"])
                 self.env.pop("NOCONFIRM")
 
     def test_arch_family_is_accepted_and_non_arch_is_rejected(self):
-        for release, accepted in (({"id": "arch", "idLike": ""}, True),
-                                  ({"id": "cachyos", "idLike": "arch"}, True),
-                                  ({"id": "debian", "idLike": ""}, False)):
+        for release, accepted in (
+            ({"id": "arch", "idLike": ""}, True),
+            ({"id": "cachyos", "idLike": "arch"}, True),
+            ({"id": "debian", "idLike": ""}, False),
+        ):
             with self.subTest(release=release):
                 self.config.unlink(missing_ok=True)
                 template = (ROOT / "home/.chezmoi.yaml.tmpl").read_text()
                 # init supplies native OS metadata; substitute just that input.
                 (self.source / ".chezmoi.yaml.tmpl").write_text(
                     '{{- $_ := set .chezmoi "osRelease" (fromJson '
-                    + json.dumps(json.dumps(release)) + ') -}}\n' + template)
-                result = self.run_process(self.command + ["init", "--promptDefaults"],
-                                          name="initialize distribution")
+                    + json.dumps(json.dumps(release))
+                    + ") -}}\n"
+                    + template
+                )
+                result = self.run_process(
+                    self.command + ["init", "--promptDefaults"], name="initialize distribution"
+                )
                 self.assertEqual(result.returncode == 0, accepted, result.stdout + result.stderr)
                 if accepted:
                     self.assertIn("personal: false", self.config.read_text())
@@ -70,20 +100,48 @@ class SetupPreferenceTests(ScriptCase):
         for name in ("python3", "sleep", "ln"):
             (self.bin / name).symlink_to(shutil.which(name))
         self.stub("chezmoi", f'exec {CHEZMOI} "$@"')
-        self.stub("id", 'echo 1000')
+        self.stub("id", "echo 1000")
         self.stub("yay", "exit 97")
         self.stub("pacman", '[ "$1" = -Q ] || exit 127')
         self.stub("pacman-conf", '[ "$*" = --repo-list ] || exit 97; echo chaotic-aur')
-        self.stub("sudo", r'''case "$*" in
+        self.stub(
+            "sudo",
+            r"""case "$*" in
     -v|'-n true'|'pacman -Syu --noconfirm') exit 0 ;;
     *) echo "Unexpected provisioning: $*" >&2; exit 97 ;;
-esac''', log=True)
-        self.stub("mise", '[ "$*" = "--env packages bootstrap packages apply --yes" ] || exit 97', log=True)
-        for name in ("rbw", "lspci", "hostnamectl", "systemctl", "gsettings", "sbctl", "findmnt", "busctl"):
+esac""",
+            log=True,
+        )
+        self.stub(
+            "mise",
+            '[ "$*" = "--env packages bootstrap packages apply --yes" ] || exit 97',
+            log=True,
+        )
+        for name in (
+            "rbw",
+            "lspci",
+            "hostnamectl",
+            "systemctl",
+            "gsettings",
+            "sbctl",
+            "findmnt",
+            "busctl",
+        ):
             self.stub(name, 'echo "Unexpected personal operation" >&2; exit 97', log=True)
-        command = [CHEZMOI, "--config", str(self.config), "--source", str(ROOT),
-                   "--working-tree", str(ROOT), "--destination", str(self.directory), "--no-tty",
-                   "--override-data", '{"chezmoi":{"osRelease":{"id":"arch"}}}']
+        command = [
+            CHEZMOI,
+            "--config",
+            str(self.config),
+            "--source",
+            str(ROOT),
+            "--working-tree",
+            str(ROOT),
+            "--destination",
+            str(self.directory),
+            "--no-tty",
+            "--override-data",
+            '{"chezmoi":{"osRelease":{"id":"arch"}}}',
+        ]
         result = self.run_process(command + ["init", "--data=false"], name="initialize nonpersonal")
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         before = None
@@ -94,39 +152,63 @@ esac''', log=True)
             self.assertTrue((self.directory / ".config/fish/config.fish").is_file())
             self.assertFalse((self.directory / ".ssh/id_rsa").exists())
             self.assertFalse((self.directory / ".config/git/identity").exists())
-            self.assertNotIn("CHEZMOI_GITHUB_ACCESS_TOKEN", (self.directory / ".config/fish/conf.d/secrets.fish").read_text()
-                             if (self.directory / ".config/fish/conf.d/secrets.fish").exists() else "")
-            result = self.run_process(command + ["verify", "--exclude=scripts"], name="verify nonpersonal files")
+            self.assertNotIn(
+                "CHEZMOI_GITHUB_ACCESS_TOKEN",
+                (self.directory / ".config/fish/conf.d/secrets.fish").read_text()
+                if (self.directory / ".config/fish/conf.d/secrets.fish").exists()
+                else "",
+            )
+            result = self.run_process(
+                command + ["verify", "--exclude=scripts"], name="verify nonpersonal files"
+            )
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-            current = {str(path.relative_to(self.directory)): (path.read_bytes(), path.stat().st_mtime_ns)
-                       for path in (self.directory / ".config").rglob("*")
-                       if path.is_file() and not path.is_symlink()}
+            current = {
+                str(path.relative_to(self.directory)): (path.read_bytes(), path.stat().st_mtime_ns)
+                for path in (self.directory / ".config").rglob("*")
+                if path.is_file() and not path.is_symlink()
+            }
             if attempt:
                 self.assertEqual(current, before)
             before = current
         calls = self.logged_calls()
-        self.assertEqual([call for call in calls if call[0] == "mise"],
-                         [["mise", "--env", "packages", "bootstrap", "packages", "apply", "--yes"]])
+        self.assertEqual(
+            [call for call in calls if call[0] == "mise"],
+            [["mise", "--env", "packages", "bootstrap", "packages", "apply", "--yes"]],
+        )
         self.assertFalse(any(call[0] not in ("sudo", "mise") for call in calls), calls)
 
     def test_personal_secret_settings_are_applied_once_and_excluded_from_nonpersonal(self):
-        self.stub("rbw", '[ "$*" = "get --field client_id spotify" ] || exit 97; echo fixture-client-id', log=True)
+        self.stub(
+            "rbw",
+            '[ "$*" = "get --field client_id spotify" ] || exit 97; echo fixture-client-id',
+            log=True,
+        )
         for personal in (False, True):
             with self.subTest(personal=personal):
                 self.calls.unlink(missing_ok=True)
                 script = self.directory / "spotifast.py"
-                script.write_text(self.render(ROOT / "home/dot_config/spotifast/modify_settings.json.tmpl",
-                                              personal=personal))
+                script.write_text(
+                    self.render(
+                        ROOT / "home/dot_config/spotifast/modify_settings.json.tmpl",
+                        personal=personal,
+                    )
+                )
                 command = [shutil.which("python3"), str(script)]
                 result = self.run_process(command, input="{}", name="apply secret settings")
                 self.assertEqual(result.returncode, 0, result.stderr)
-                self.assertEqual(json.loads(result.stdout).get("web_client_id"),
-                                 "fixture-client-id" if personal else None)
-                repeated = self.run_process(command, input=result.stdout, name="reapply secret settings")
+                self.assertEqual(
+                    json.loads(result.stdout).get("web_client_id"),
+                    "fixture-client-id" if personal else None,
+                )
+                repeated = self.run_process(
+                    command, input=result.stdout, name="reapply secret settings"
+                )
                 self.assertEqual(repeated.returncode, 0, repeated.stderr)
                 self.assertEqual(repeated.stdout, result.stdout)
-                self.assertEqual(self.logged_calls(),
-                                 [["rbw", "get", "--field", "client_id", "spotify"]] if personal else [])
+                self.assertEqual(
+                    self.logged_calls(),
+                    [["rbw", "get", "--field", "client_id", "spotify"]] if personal else [],
+                )
 
 
 class DependencyTests(ScriptCase):
@@ -135,13 +217,10 @@ class DependencyTests(ScriptCase):
         self.stub("pacman", "exit 1")
         self.stub("sudo", "exit 23", log=True)
         self.stub("rbw", "exit 97", log=True)
-        result = self.shell(
-            (SCRIPTS / "run_before_00-install-pre-requisites.sh").read_text()
-        )
+        result = self.shell((SCRIPTS / "run_before_00-install-pre-requisites.sh").read_text())
         self.assertNotEqual(result.returncode, 0)
         self.assertEqual([call[0] for call in self.logged_calls()], ["sudo"])
         self.assertEqual(self.logged_calls()[0][1:3], ["pacman", "-S"])
-
 
 
 class BootstrapTests(ScriptCase):
@@ -157,12 +236,16 @@ class BootstrapTests(ScriptCase):
         self.config_file.write_text("{}")
         self.stub("pacman", "exit 0")
         self.stub("mise", "exit 97")
-        self.stub("rbw", r'''case "$*" in
+        self.stub(
+            "rbw",
+            r"""case "$*" in
     'config show') printf '%s\n' "$RBW_CONFIG"; exit "${RBW_CONFIG_STATUS:-0}" ;;
     'config set email fixture@example.invalid'|'config set lock_timeout 10800') exit 0 ;;
     login) printf '%s\n' "${RBW_LOGIN_ERROR:-}" >&2; exit "${RBW_LOGIN_STATUS:-0}" ;;
     *) exit 97 ;;
-esac''', log=True)
+esac""",
+            log=True,
+        )
 
     def run_prerequisite(self, *, email=None):
         self.env["RBW_CONFIG"] = json.dumps(self.config)
@@ -173,16 +256,24 @@ esac''', log=True)
         master, slave = pty.openpty()
         try:
             os.write(master, (email + "\n").encode())
-            return subprocess.run(["/bin/bash", str(script)], stdin=slave,
-                                  cwd=self.directory, env=self.env,
-                                  capture_output=True, text=True, timeout=15)
+            return subprocess.run(
+                ["/bin/bash", str(script)],
+                stdin=slave,
+                cwd=self.directory,
+                env=self.env,
+                capture_output=True,
+                text=True,
+                timeout=15,
+            )
         finally:
             os.close(master)
             os.close(slave)
 
     def test_python_bootstrap_runs_nonpersonal_without_secret_access(self):
         self.env["PERSONAL"] = "0"
-        result = self.run_process(["/usr/bin/python3", "-B", str(self.bootstrap)], name="Python bootstrap")
+        result = self.run_process(
+            ["/usr/bin/python3", "-B", str(self.bootstrap)], name="Python bootstrap"
+        )
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(self.logged_calls(), [])
         self.assertFalse((self.logs / "setup.log").exists())
@@ -190,16 +281,24 @@ esac''', log=True)
     def test_prerequisites_are_installed_once_and_reapplication_is_quiet(self):
         self.env.update(PERSONAL="0", INSTALLED=str(self.directory / "installed"))
         (self.bin / "mise").unlink()
-        self.stub("pacman", r'''case "$*" in
+        self.stub(
+            "pacman",
+            r"""case "$*" in
     '-Q python'|'-Q python-loguru') exit 0 ;;
     '-Q git'|'-Q base-devel'|'-Q mise') test -f "$INSTALLED" ;;
     *) exit 97 ;;
-esac''')
-        self.stub("sudo", r'''[ "$*" = 'pacman -S --needed --noconfirm -- git base-devel mise' ] || exit 97
+esac""",
+        )
+        self.stub(
+            "sudo",
+            r"""[ "$*" = 'pacman -S --needed --noconfirm -- git base-devel mise' ] || exit 97
  touch "$INSTALLED"
  printf '#!/bin/sh\nexit 97\n' > "$HOME/bin/mise"
  chmod 755 "$HOME/bin/mise"
-''', log=True)
+""",
+            log=True,
+        )
+        log_time = None
         for attempt in range(2):
             result = self.run_prerequisite()
             self.assertEqual(result.returncode, 0, result.stderr)
@@ -210,8 +309,22 @@ esac''')
             else:
                 self.assertTrue((self.logs / "setup.log").is_file())
                 log_time = (self.logs / "setup.log").stat().st_mtime_ns
-        self.assertEqual(self.logged_calls(), [
-            ["sudo", "pacman", "-S", "--needed", "--noconfirm", "--", "git", "base-devel", "mise"]])
+        self.assertEqual(
+            self.logged_calls(),
+            [
+                [
+                    "sudo",
+                    "pacman",
+                    "-S",
+                    "--needed",
+                    "--noconfirm",
+                    "--",
+                    "git",
+                    "base-devel",
+                    "mise",
+                ]
+            ],
+        )
 
     def test_personal_authentication_preserves_configuration_on_repeat(self):
         for _ in range(2):
@@ -254,10 +367,15 @@ esac''')
         self.env.pop("NOCONFIRM")
         result = self.run_prerequisite(email="fixture@example.invalid")
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual(self.logged_calls(), [
-            ["rbw", "config", "show"],
-            ["rbw", "config", "set", "email", "fixture@example.invalid"],
-            ["rbw", "config", "set", "lock_timeout", "10800"], ["rbw", "login"]])
+        self.assertEqual(
+            self.logged_calls(),
+            [
+                ["rbw", "config", "show"],
+                ["rbw", "config", "set", "email", "fixture@example.invalid"],
+                ["rbw", "config", "set", "lock_timeout", "10800"],
+                ["rbw", "login"],
+            ],
+        )
 
     def test_unreadable_existing_vault_configuration_is_not_reset(self):
         self.env.update(RBW_CONFIG_STATUS="23")
@@ -273,7 +391,9 @@ for _ in range(7):
     namespace['logger'].debug('rotation-test ' + 'x' * (5 * 1024 * 1024))
 namespace['logger'].remove()
 """
-        result = self.run_process(["/usr/bin/python3", "-B", "-c", code, str(self.bootstrap)], name="rotate private logs")
+        result = self.run_process(
+            ["/usr/bin/python3", "-B", "-c", code, str(self.bootstrap)], name="rotate private logs"
+        )
         self.assertEqual(result.returncode, 0, result.stderr)
         files = list(self.logs.glob("setup*.log"))
         self.assertEqual(len(files), 6)  # Current log plus five rotated files.
@@ -298,8 +418,13 @@ namespace['logger'].warning('terminal check')
                     self.env.pop("NO_COLOR", None)
                 master, slave = pty.openpty()
                 try:
-                    result = subprocess.run(["/usr/bin/python3", "-B", "-c", code, str(self.bootstrap)],
-                                            env=self.env, stdout=subprocess.PIPE, stderr=slave, timeout=15)
+                    result = subprocess.run(
+                        ["/usr/bin/python3", "-B", "-c", code, str(self.bootstrap)],
+                        env=self.env,
+                        stdout=subprocess.PIPE,
+                        stderr=slave,
+                        timeout=15,
+                    )
                     self.assertEqual(result.returncode, 0)
                     output = os.read(master, 4096).decode()
                     self.assertIn("terminal check", output)
@@ -314,7 +439,9 @@ namespace['logger'].warning('terminal check')
         self.logs.parent.mkdir(parents=True)
         self.logs.symlink_to(external, target_is_directory=True)
         self.stub("pacman", "exit 0", log=True)
-        result = self.run_process(["/usr/bin/python3", "-B", str(self.bootstrap)], name="reject unsafe logs")
+        result = self.run_process(
+            ["/usr/bin/python3", "-B", str(self.bootstrap)], name="reject unsafe logs"
+        )
         self.assertNotEqual(result.returncode, 0)
         self.assertEqual(self.logged_calls(), [])
         self.assertEqual(list(external.iterdir()), [])
@@ -324,13 +451,21 @@ class PackageTests(ScriptCase):
     def setUp(self):
         super().setUp()
         self.packages = ROOT / "home/.chezmoitemplates/packages.py"
-        self.env.update(NOCONFIRM="1", OFFLINE="1", PACKAGES="linux 6.18-1\nlinux-headers 6.18-1",
-                        GPU="Intel Corporation [8086:1234]", DRIVER_VERSION="615.78.08",
-                        MISE_STATUS="0", UPGRADE_STATUS="0")
+        self.env.update(
+            NOCONFIRM="1",
+            OFFLINE="1",
+            PACKAGES="linux 6.18-1\nlinux-headers 6.18-1",
+            GPU="Intel Corporation [8086:1234]",
+            DRIVER_VERSION="615.78.08",
+            MISE_STATUS="0",
+            UPGRADE_STATUS="0",
+        )
         self.stub("id", "echo 1000")
         self.stub("yay", "exit 97")
         self.stub("pacman-conf", "echo chaotic-aur")
-        self.stub("pacman", r'''case "$*" in
+        self.stub(
+            "pacman",
+            r"""case "$*" in
     '-Q chaotic-keyring chaotic-mirrorlist'|-Dk) exit 0 ;;
     '-T vulkan-driver') exit 127 ;;
     -Q) printf '%s\n' "$PACKAGES" ;;
@@ -338,19 +473,29 @@ class PackageTests(ScriptCase):
     '-Q nvidia-580xx-utils') echo "nvidia-580xx-utils $DRIVER_VERSION-1" ;;
     '-Qql linux') echo /usr/lib/modules/6.18-fixture/pkgbase ;;
     *) exit 97 ;;
-esac''')
-        self.stub("sudo", r'''[ "$*" = 'pacman -Syu --noconfirm' ] || exit 97
-exit "$UPGRADE_STATUS"''', log=True)
+esac""",
+        )
+        self.stub(
+            "sudo",
+            r'''[ "$*" = 'pacman -Syu --noconfirm' ] || exit 97
+exit "$UPGRADE_STATUS"''',
+            log=True,
+        )
         self.stub("hostnamectl", "echo laptop")
         self.stub("lspci", 'printf "01:00.0 VGA compatible controller [0300]: %s\n" "$GPU"')
         self.stub("limine", "exit 97")
         self.stub("mkinitcpio", "exit 97")
-        self.stub("modinfo", r'''case "$*" in
+        self.stub(
+            "modinfo",
+            r"""case "$*" in
     '-k 6.18-fixture -F vermagic nvidia') echo '6.18-fixture SMP' ;;
     '-k 6.18-fixture -F version nvidia') echo "$DRIVER_VERSION" ;;
     *) exit 97 ;;
-esac''')
-        self.stub("mise", r'''/usr/bin/python3 -B - <<'CHECK'
+esac""",
+        )
+        self.stub(
+            "mise",
+            r'''/usr/bin/python3 -B - <<'CHECK'
 import json, os
 from pathlib import Path
 assert Path(os.environ['GNUPGHOME']).is_dir()
@@ -363,10 +508,20 @@ Path(os.environ['HOME'], 'observed.json').write_text(json.dumps({
                                        'GOPATH', 'CARGO_HOME', 'GNUPGHOME')}))
 CHECK
 [ "$?" = 0 ] || exit 98
-exit "$MISE_STATUS"''', log=True)
+exit "$MISE_STATUS"''',
+            log=True,
+        )
 
     def apply_packages(self, *, personal=False, distro="arch"):
-        command = ["/usr/bin/python3", "-B", str(self.packages), "--root", str(ROOT), "--distro", distro]
+        command = [
+            "/usr/bin/python3",
+            "-B",
+            str(self.packages),
+            "--root",
+            str(ROOT),
+            "--distro",
+            distro,
+        ]
         if personal:
             command.append("--personal")
         return self.run_process(command, name="package orchestration")
@@ -377,23 +532,34 @@ exit "$MISE_STATUS"''', log=True)
         self.env.update(MISE_ENV="personal", MISE_CONFIG_FILE="/unrelated/config.toml")
         result = self.apply_packages()
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual([call for call in self.logged_calls() if call[0] == "mise"],
-                         [["mise", "--env", "packages", "bootstrap", "packages", "apply", "--yes"]])
+        self.assertEqual(
+            [call for call in self.logged_calls() if call[0] == "mise"],
+            [["mise", "--env", "packages", "bootstrap", "packages", "apply", "--yes"]],
+        )
         self.assertTrue(all(call[0] in ("sudo", "mise") for call in self.logged_calls()))
         observed = json.loads((self.directory / "observed.json").read_text())
         self.assertEqual(observed["GOPATH"], str(self.directory / "data/go"))
-        declarations = tomllib.loads((ROOT / "mise/conf.d/packages.toml").read_text())["bootstrap"]["packages"]
+        declarations = tomllib.loads((ROOT / "mise/conf.d/packages.toml").read_text())["bootstrap"][
+            "packages"
+        ]
         # Zed requires a Vulkan driver; it must not let baseline resolution pull NVIDIA.
         self.assertEqual(declarations["pacman:zed"]["env"], "personal")
 
     def test_chaotic_trust_upgrade_and_mise_helper_are_ordered_and_repeatable(self):
         (self.bin / "yay").unlink()
-        self.stub("pacman", r'''case "$*" in
+        self.stub(
+            "pacman",
+            r"""case "$*" in
     '-Q chaotic-keyring chaotic-mirrorlist') test -f "$HOME/trust-installed" ;;
     *) exit 97 ;;
-esac''')
-        self.stub("pacman-conf", 'echo core; if test -f "$HOME/repo-enabled"; then echo chaotic-aur; fi')
-        self.stub("sudo", r'''test -d "$GNUPGHOME" || exit 98
+esac""",
+        )
+        self.stub(
+            "pacman-conf", 'echo core; if test -f "$HOME/repo-enabled"; then echo chaotic-aur; fi'
+        )
+        self.stub(
+            "sudo",
+            r"""test -d "$GNUPGHOME" || exit 98
 case "$*" in
     'pacman-key --list-keys 3056513887B78AEB') exit 1 ;;
     'pacman-key --recv-key 3056513887B78AEB --keyserver keyserver.ubuntu.com'|'pacman-key --lsign-key 3056513887B78AEB') exit 0 ;;
@@ -401,25 +567,41 @@ case "$*" in
     'tee -a /etc/pacman.conf') cat >> "$HOME/pacman.conf"; touch "$HOME/repo-enabled" ;;
     'pacman -Syu --noconfirm') test -f "$HOME/trust-installed" && test -f "$HOME/repo-enabled" ;;
     *) exit 97 ;;
-esac''', log=True)
-        self.stub("mise", r'''if [ "$*" = '--env aur-helper bootstrap packages apply --yes' ]; then
+esac""",
+            log=True,
+        )
+        self.stub(
+            "mise",
+            r"""if [ "$*" = '--env aur-helper bootstrap packages apply --yes' ]; then
     printf '#!/bin/sh\nexit 97\n' > "$HOME/bin/yay"
     chmod 755 "$HOME/bin/yay"
 elif [ "$*" != '--env packages bootstrap packages apply --yes' ]; then
     exit 97
-fi''', log=True)
+fi""",
+            log=True,
+        )
         for _ in range(2):
             result = self.apply_packages()
             self.assertEqual(result.returncode, 0, result.stderr)
         calls = self.logged_calls()
-        self.assertEqual([call[1] for call in calls[:6]], ["pacman-key", "pacman-key", "pacman-key", "pacman", "tee", "pacman"])
-        self.assertEqual([call[2] for call in calls if call[0] == "mise"], ["aur-helper", "packages", "packages"])
+        self.assertEqual(
+            [call[1] for call in calls[:6]],
+            ["pacman-key", "pacman-key", "pacman-key", "pacman", "tee", "pacman"],
+        )
+        self.assertEqual(
+            [call[2] for call in calls if call[0] == "mise"], ["aur-helper", "packages", "packages"]
+        )
         self.assertEqual((self.directory / "pacman.conf").read_text().count("[chaotic-aur]"), 1)
         self.assertTrue((self.directory / "state/chezmoi/chaotic-aur-updated").is_file())
 
     def test_personal_package_groups_and_legacy_provider_order(self):
         for gpu, version, family, module in (
-            ("NVIDIA Corporation GP106 [10de:1234]", "580.119.02", "nvidia-legacy", "nvidia-legacy-dkms"),
+            (
+                "NVIDIA Corporation GP106 [10de:1234]",
+                "580.119.02",
+                "nvidia-legacy",
+                "nvidia-legacy-dkms",
+            ),
             ("NVIDIA Corporation GA106 [10de:1234]", "615.78.08", "nvidia-current", "nvidia-open"),
         ):
             with self.subTest(family=family):
@@ -429,7 +611,16 @@ fi''', log=True)
                 self.assertEqual(result.returncode, 0, result.stderr)
                 calls = [call for call in self.logged_calls() if call[0] == "mise"]
                 groups = calls[-1][2].split(",")
-                for group in ("packages", "personal", "driver-utils", "laptop", "limine-mkinitcpio", "snapper", family, module):
+                for group in (
+                    "packages",
+                    "personal",
+                    "driver-utils",
+                    "laptop",
+                    "limine-mkinitcpio",
+                    "snapper",
+                    family,
+                    module,
+                ):
                     self.assertIn(group, groups)
                 if family == "nvidia-legacy":
                     self.assertEqual(calls[0][1:3], ["--env", "nvidia-legacy-utils"])
@@ -441,7 +632,9 @@ fi''', log=True)
                 self.calls.unlink(missing_ok=True)
                 result = self.apply_packages(personal=True, distro=distro)
                 self.assertEqual(result.returncode, 0, result.stderr)
-                groups = [call for call in self.logged_calls() if call[0] == "mise"][-1][2].split(",")
+                groups = [call for call in self.logged_calls() if call[0] == "mise"][-1][2].split(
+                    ","
+                )
                 self.assertIn("nvidia-current", groups)
                 self.assertNotIn("nvidia-open", groups)
 
@@ -464,8 +657,10 @@ fi''', log=True)
         self.assertTrue(any(call[0] == "mise" for call in self.logged_calls()))
 
     def test_xdg_reapplication_preserves_custom_paths_and_existing_maven_settings(self):
-        self.env.update(GNUPGHOME=str(self.directory / "private-gnupg"),
-                        CARGO_HOME=str(self.directory / "custom-cargo"))
+        self.env.update(
+            GNUPGHOME=str(self.directory / "private-gnupg"),
+            CARGO_HOME=str(self.directory / "custom-cargo"),
+        )
         settings = self.directory / "config/maven/settings.xml"
         settings.parent.mkdir(parents=True)
         settings.write_text("existing-private-settings")
@@ -478,7 +673,10 @@ fi''', log=True)
         observed = json.loads((self.directory / "observed.json").read_text())
         self.assertEqual(observed["CARGO_HOME"], self.env["CARGO_HOME"])
         self.assertEqual(observed["GNUPGHOME"], self.env["GNUPGHOME"])
-        self.assertEqual(sum(call == ["sudo", "pacman", "-Syu", "--noconfirm"] for call in self.logged_calls()), 1)
+        self.assertEqual(
+            sum(call == ["sudo", "pacman", "-Syu", "--noconfirm"] for call in self.logged_calls()),
+            1,
+        )
         self.assertNotIn("existing-private-settings", result.stderr)
 
     def test_failed_initial_upgrade_does_not_record_success_or_run_mise(self):
@@ -501,17 +699,31 @@ fi''', log=True)
         shutil.copy(SCRIPTS / launcher, scripts / launcher)
         config = self.directory / "chezmoi.json"
         config.write_text(json.dumps({"data": {"personal": False, "distroFamily": "arch"}}))
-        command = [CHEZMOI, "--config", str(config), "--source", str(repository / "home"),
-                   "--working-tree", str(repository), "--destination", str(self.directory / "target"),
-                   "--no-tty", "apply"]
+        command = [
+            CHEZMOI,
+            "--config",
+            str(config),
+            "--source",
+            str(repository / "home"),
+            "--working-tree",
+            str(repository),
+            "--destination",
+            str(self.directory / "target"),
+            "--no-tty",
+            "apply",
+        ]
         self.env["MISE_STATUS"] = "23"
         failed = self.run_process(command, name="failed package apply")
         self.assertNotEqual(failed.returncode, 0)
         self.env["MISE_STATUS"] = "0"
-        for target, expected in ((None, 2), (None, 2),
-                (repository / "mise/conf.d/services.toml", 2),
-                (repository / "mise/conf.d/packages.toml", 3),
-                (templates / "bootstrap.py", 3), (templates / "packages.py", 4)):
+        for target, expected in (
+            (None, 2),
+            (None, 2),
+            (repository / "mise/conf.d/services.toml", 2),
+            (repository / "mise/conf.d/packages.toml", 3),
+            (templates / "bootstrap.py", 3),
+            (templates / "packages.py", 4),
+        ):
             with self.subTest(target=target, expected=expected):
                 if target:
                     with target.open("a") as stream:

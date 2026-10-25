@@ -42,9 +42,24 @@ class ScriptCase(unittest.TestCase):
         }
         # System operations are unavailable unless a test explicitly stubs them.
         for command in (
-            "awk", "bash", "cat", "chmod", "cmp", "cp", "dirname", "env",
-            "grep", "install", "mkdir", "mktemp", "mv", "readlink", "rm",
-            "stat", "test", "touch",
+            "awk",
+            "bash",
+            "cat",
+            "chmod",
+            "cmp",
+            "cp",
+            "dirname",
+            "env",
+            "grep",
+            "install",
+            "mkdir",
+            "mktemp",
+            "mv",
+            "readlink",
+            "rm",
+            "stat",
+            "test",
+            "touch",
         ):
             target = shutil.which(command)
             if target is None:
@@ -55,9 +70,10 @@ class ScriptCase(unittest.TestCase):
     def stub(self, name, body, *, log=False):
         # Retained fixtures use single-line arguments without tabs.
         logging = (
-            f'printf "%s\\t" {shlex.quote(name)} "$@" >> "$CALLS"\n'
-            'printf "\\n" >> "$CALLS"\n'
-        ) if log else ""
+            (f'printf "%s\\t" {shlex.quote(name)} "$@" >> "$CALLS"\nprintf "\\n" >> "$CALLS"\n')
+            if log
+            else ""
+        )
         path = self.bin / name
         path.unlink(missing_ok=True)
         path.write_text("#!/bin/sh\n" + logging + body + "\n")
@@ -71,8 +87,14 @@ class ScriptCase(unittest.TestCase):
     def run_process(self, command, *, name, input=None):
         try:
             return subprocess.run(
-                command, cwd=self.directory, env=self.env, input=input,
-                capture_output=True, text=True, check=False, timeout=15,
+                command,
+                cwd=self.directory,
+                env=self.env,
+                input=input,
+                capture_output=True,
+                text=True,
+                check=False,
+                timeout=15,
             )
         except subprocess.TimeoutExpired:
             self.fail(f"{name} timed out after 15s")
@@ -88,7 +110,8 @@ class ScriptCase(unittest.TestCase):
     def function(self, path, name):
         match = re.search(
             rf"^{re.escape(name)}\(\) \{{\n.*?^\}}",
-            path.read_text(), re.MULTILINE | re.DOTALL,
+            path.read_text(),
+            re.MULTILINE | re.DOTALL,
         )
         if match is None:
             self.fail(f"{path}: function {name!r} not found")
@@ -100,16 +123,33 @@ class ScriptCase(unittest.TestCase):
         config = self.directory / "chezmoi.json"
         config.write_text("{}")
         data = {
-            "personal": personal, "distroFamily": "arch",
+            "personal": personal,
+            "distroFamily": "arch",
             "font": {"ui": {"name": "Fixture Sans", "size": 11}},
-            "chezmoi": {"os": "linux", "osRelease": {"id": "arch"},
-                        "workingTree": str(ROOT), "homeDir": str(self.directory)},
+            "chezmoi": {
+                "os": "linux",
+                "osRelease": {"id": "arch"},
+                "workingTree": str(ROOT),
+                "homeDir": str(self.directory),
+            },
         }
         result = self.run_process(
-            [CHEZMOI, "--config", str(config), "--source", str(ROOT / "home"),
-             "--destination", str(self.directory), "--working-tree", str(ROOT),
-             "--override-data", json.dumps(data), "execute-template"],
-            name=str(path), input=path.read_text(),
+            [
+                CHEZMOI,
+                "--config",
+                str(config),
+                "--source",
+                str(ROOT / "home"),
+                "--destination",
+                str(self.directory),
+                "--working-tree",
+                str(ROOT),
+                "--override-data",
+                json.dumps(data),
+                "execute-template",
+            ],
+            name=str(path),
+            input=path.read_text(),
         )
         self.assertEqual(result.returncode, 0, f"{path}: {result.stderr}")
         return result.stdout

@@ -10,21 +10,29 @@ class ConfigRollbackTests(ScriptCase):
         self.original.write_text("original\n")
         self.original.chmod(0o640)
         self.env.update(ORIGINAL=str(self.original), NEW=str(self.directory / "new"))
-        self.stub("sudo", r'''case "$1" in
+        self.stub(
+            "sudo",
+            r'''case "$1" in
     test|stat|cmp|cp|cat|mktemp|mv|chmod|rm) ;;
     *) exit 97 ;;
 esac
 for arg do
     case "$arg" in /*) case "$arg" in "$HOME"/*) ;; *) exit 97 ;; esac ;; esac
 done
-exec "$@"''')
+exec "$@"''',
+        )
 
     def transaction(self, verify):
-        return self.shell(self.libraries("common.sh") + r'''
+        return self.shell(
+            self.libraries("common.sh")
+            + r"""
 edit() { printf 'updated\n' > "$1"; printf 'new\n' > "$2"; }
-verify() { ''' + verify + r'''; }
+verify() { """
+            + verify
+            + r"""; }
 edit_system_configs edit verify "$ORIGINAL" "$NEW"
-''')
+"""
+        )
 
     def test_failed_or_interrupted_postcheck_rolls_back_only_its_own_files(self):
         for verify, status in (("return 1", 1), ('kill -TERM "$BASHPID"', 143)):
@@ -44,8 +52,9 @@ edit_system_configs edit verify "$ORIGINAL" "$NEW"
 
 class ZswapTests(ScriptCase):
     fragment = 'KERNEL_CMDLINE[default]+=" zswap.enabled=1 zswap.compressor=lz4"\n'
-    kernel_args = ("rd.luks.name=bbbb=root root=/dev/mapper/root rootflags=subvol=@ "
-                   "rootfstype=btrfs rw quiet")
+    kernel_args = (
+        "rd.luks.name=bbbb=root root=/dev/mapper/root rootflags=subvol=@ rootfstype=btrfs rw quiet"
+    )
 
     def fixture(self, name, ram=32):
         self.root = self.directory / name
@@ -53,30 +62,43 @@ class ZswapTests(ScriptCase):
         self.etc.mkdir(parents=True)
         proc = self.root / "proc"
         proc.mkdir()
-        (proc / "meminfo").write_text(f"MemTotal: {ram * 1024 ** 2} kB\n")
+        (proc / "meminfo").write_text(f"MemTotal: {ram * 1024**2} kB\n")
         self.config = self.etc / "limine-entry-tool.d/zswap.conf"
         self.config.parent.mkdir()
         (self.etc / "kernel").mkdir()
         (self.etc / "kernel/cmdline").write_text(self.kernel_args + "\n")
         self.resume = self.config.parent / "50-hibernation.conf"
-        self.resume.write_text('KERNEL_CMDLINE[default]+= "hibernate.compressor=lz4 resume=UUID=aaaa resume_offset=123"\n')
+        self.resume.write_text(
+            'KERNEL_CMDLINE[default]+= "hibernate.compressor=lz4 resume=UUID=aaaa resume_offset=123"\n'
+        )
         self.marker = self.directory / "state/chezmoi/initramfs.pending"
         self.marker.unlink(missing_ok=True)
         self.env.update(ACTIVE="", UNITS="", UNIT_DEVICE="", FSTAB_SWAP="")
-        self.stub("swapon", '[ "$*" = "--show=NAME --noheadings --raw" ] || exit 97; printf "%s\\n" "$ACTIVE"')
-        self.stub("findmnt", """
+        self.stub(
+            "swapon",
+            '[ "$*" = "--show=NAME --noheadings --raw" ] || exit 97; printf "%s\\n" "$ACTIVE"',
+        )
+        self.stub(
+            "findmnt",
+            """
 [ "$*" = "--fstab --tab-file $FSTAB -rn -t swap -o SOURCE" ] || exit 97
 printf '%s\\n' "$FSTAB_SWAP"
-""")
+""",
+        )
         self.env["FSTAB"] = str(self.etc / "fstab")
-        self.stub("systemctl", """
+        self.stub(
+            "systemctl",
+            """
 case "$*" in
     'list-unit-files --type=swap,service --no-legend --no-pager') printf '%s\\n' "$UNITS" ;;
     'show --property=What --value '*) printf '%s\\n' "$UNIT_DEVICE" ;;
     *) exit 97 ;;
 esac
-""")
-        self.stub("sudo", r'''case "$1" in
+""",
+        )
+        self.stub(
+            "sudo",
+            r'''case "$1" in
     udevadm) exit 0 ;;
     python3) exec "$@" ;;
     test|stat|cmp|cp|cat|mkdir|mktemp|mv|chmod|rm) ;;
@@ -85,17 +107,23 @@ esac
 for arg do
     case "$arg" in /*) case "$arg" in "$HOME"/*) ;; *) exit 97 ;; esac ;; esac
 done
-exec "$@"''')
+exec "$@"''',
+        )
         self.stub("python3", 'exec /usr/bin/python3 "$@"')
-        functions = "".join(self.function(LIB / "hibernation.sh", name)
-                            for name in ("configure_zswap", "_stage_zswap_config", "_verify_zswap_config"))
+        functions = "".join(
+            self.function(LIB / "hibernation.sh", name)
+            for name in ("configure_zswap", "_stage_zswap_config", "_verify_zswap_config")
+        )
         functions += self.function(LIB / "snapboot.sh", "get_limine_cmdline")
         return self.libraries("common.sh", "snapboot.sh") + self.paths(functions)
 
     def paths(self, source):
-        return source.replace("/{etc,run,usr/lib}", str(self.root) + "/{etc,run,usr/lib}").replace(
-            "/etc/", str(self.etc) + "/").replace("/usr/share/", str(self.root / "share") + "/").replace(
-            "/proc/", str(self.root / "proc") + "/")
+        return (
+            source.replace("/{etc,run,usr/lib}", str(self.root) + "/{etc,run,usr/lib}")
+            .replace("/etc/", str(self.etc) + "/")
+            .replace("/usr/share/", str(self.root / "share") + "/")
+            .replace("/proc/", str(self.root / "proc") + "/")
+        )
 
     def test_zram_detection_skips_configuration(self):
         for scenario in ("active", "generator-inactive", "swap-unit", "service", "fstab"):
@@ -125,13 +153,17 @@ exec "$@"''')
         for status in (0, 1, 2, 3, "optional-failure"):
             with self.subTest(status=status):
                 self.fixture(f"setup-{status}")
-                source = self.paths(self.render(SCRIPTS / "run_onchange_after_03_hibernation.sh.tmpl"))
+                source = self.paths(
+                    self.render(SCRIPTS / "run_onchange_after_03_hibernation.sh.tmpl")
+                )
                 self.stub("limine", "exit 0")
                 source = source.replace("/usr/bin/limine", str(self.bin / "limine"))
                 self.env["SETUP_RESULT"] = "0" if status == "optional-failure" else str(status)
                 if status == "optional-failure":
                     self.stub("swapon", "exit 23")
-                source = source.replace('\nmain "$@"', r'''
+                source = source.replace(
+                    '\nmain "$@"',
+                    r'''
 check_btrfs() { return 0; }
 is_laptop() { return 0; }
 command_exists() { return 0; }
@@ -140,7 +172,8 @@ setup_hibernation() { return "$SETUP_RESULT"; }
 write_system_config() { cat >/dev/null; }
 get_ram_size() { echo 16; }
 get_gpu_info() { echo ""; }
-main "$@"''')
+main "$@"''',
+                )
                 result = self.shell(source)
                 self.assertEqual(result.returncode, 1 if status == 1 else 0, result.stderr)
                 self.assertEqual(self.config.exists(), status == 0)
@@ -178,18 +211,25 @@ main "$@"''')
                         path = self.etc / "kernel/cmdline"
                         content = params + "\n"
                     else:
-                        path = self.config.parent / ("01-default.conf" if owner == "default" else "custom.conf")
+                        path = self.config.parent / (
+                            "01-default.conf" if owner == "default" else "custom.conf"
+                        )
                         if owner == "default":
                             content = f'KERNEL_CMDLINE[default]= "{params}"\n'
                         else:
                             (self.config.parent / "01-default.conf").write_text(
-                                f'KERNEL_CMDLINE[default]= "{self.kernel_args}"\n')
+                                f'KERNEL_CMDLINE[default]= "{self.kernel_args}"\n'
+                            )
                             content = f'KERNEL_CMDLINE[default]+=" zswap.enabled={preference}"\n'
                     path.write_text(content)
                     result = self.shell(source + "configure_zswap\n")
                     self.assertEqual(result.returncode, 0, result.stderr)
-                    self.assertIn("zswap explicitly disabled" if "0" in preference else
-                                  "zswap already configured", result.stderr)
+                    self.assertIn(
+                        "zswap explicitly disabled"
+                        if "0" in preference
+                        else "zswap already configured",
+                        result.stderr,
+                    )
                     self.assertEqual(path.read_text(), content)
                     self.assertFalse(self.config.exists())
                     self.assertFalse(self.marker.exists())
@@ -223,9 +263,13 @@ class HibernationTests(ScriptCase):
         fstab = self.directory / "fstab"
         fstab.write_text("# existing fstab\n")
         swap = self.directory / "swap"
-        source = (LIB / "hibernation.sh").read_text().replace(
-            "/etc/fstab", str(fstab)
-        ).replace('"/swap"', f'"{swap}"').replace('"/swap/swapfile"', f'"{swap}/swapfile"')
+        source = (
+            (LIB / "hibernation.sh")
+            .read_text()
+            .replace("/etc/fstab", str(fstab))
+            .replace('"/swap"', f'"{swap}"')
+            .replace('"/swap/swapfile"', f'"{swap}/swapfile"')
+        )
         self.stub("lsblk", "echo root-uuid")
         # Listing is safe; any attempted mutation must fail the test.
         self.stub("sudo", '[ "$*" = "btrfs subvolume list /" ] || exit 97', log=True)
@@ -233,21 +277,30 @@ class HibernationTests(ScriptCase):
             with self.subTest(failure=failure):
                 self.calls.unlink(missing_ok=True)
                 self.env.update(FAILURE=failure, SWAP=str(swap))
-                self.stub("findmnt", r'''case "$*" in
+                self.stub(
+                    "findmnt",
+                    r"""case "$*" in
     '-rn -o FSTYPE,UUID --mountpoint /')
         if [ "$FAILURE" = identity ]; then echo 'btrfs wrong-uuid'; else echo 'btrfs root-uuid'; fi ;;
     '--fstab --tab-file '*) printf 'UUID=other %s btrfs subvol=@swap\n' "$SWAP" ;;
     *) exit 97 ;;
-esac''')
-                result = self.shell(self.libraries("common.sh") + source + '''
+esac""",
+                )
+                result = self.shell(
+                    self.libraries("common.sh")
+                    + source
+                    + """
 get_btrfs_root_device() { echo /dev/fixture; }
 create_btrfs_swap
-''')
+"""
+                )
                 self.assertNotEqual(result.returncode, 0)
                 self.assertEqual(fstab.read_text(), "# existing fstab\n")
                 self.assertFalse(swap.exists())
-                self.assertEqual(self.logged_calls(), [] if failure == "identity" else
-                                 [["sudo", "btrfs", "subvolume", "list", "/"]])
+                self.assertEqual(
+                    self.logged_calls(),
+                    [] if failure == "identity" else [["sudo", "btrfs", "subvolume", "list", "/"]],
+                )
 
     def resume_fixture(
         self,
@@ -297,9 +350,7 @@ create_btrfs_swap
                 (slaves / "second-device").symlink_to(parent)
         (block / "dm").mkdir(exist_ok=True)
         (block / "dm/name").write_text(mapping + "\n")
-        source = dev / (
-            "mapper/" + mapping if mapper_source else "disk/by-id/system-volume"
-        )
+        source = dev / ("mapper/" + mapping if mapper_source else "disk/by-id/system-volume")
         self.env.update(
             SWAP=str(swap),
             ENCRYPTED="1" if encrypted else "0",
@@ -367,8 +418,12 @@ esac""",
     *) echo "Unexpected sudo: $*" >&2; exit 97 ;;
 esac""",
         )
-        source = (LIB / "hibernation.sh").read_text().replace(
-            '"/swap"', f'"{swap}"').replace('"/swap/swapfile"', f'"{swap}/swapfile"')
+        source = (
+            (LIB / "hibernation.sh")
+            .read_text()
+            .replace('"/swap"', f'"{swap}"')
+            .replace('"/swap/swapfile"', f'"{swap}/swapfile"')
+        )
         return (
             self.libraries("common.sh")
             + (LIB / "snapboot.sh")
@@ -416,16 +471,20 @@ get_btrfs_root_device
             (True, True),
         ):
             with self.subTest(encrypted=encrypted, whole_device=whole_device):
-                script = self.resume_fixture(
-                    encrypted=encrypted, whole_device=whole_device
-                )
+                script = self.resume_fixture(encrypted=encrypted, whole_device=whole_device)
                 self.calls.unlink(missing_ok=True)
                 result = self.shell(script)
                 self.assertEqual(result.returncode, 0, result.stderr)
-                self.assertIn(["update-limine", "50-hibernation.conf",
-                               "hibernate.compressor=lz4",
-                               "resume=UUID=aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
-                               "resume_offset=123"], self.logged_calls())
+                self.assertIn(
+                    [
+                        "update-limine",
+                        "50-hibernation.conf",
+                        "hibernate.compressor=lz4",
+                        "resume=UUID=aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                        "resume_offset=123",
+                    ],
+                    self.logged_calls(),
+                )
 
     def test_ambiguous_identity_or_offset_never_publishes_resume(self):
         for failure in (
@@ -454,10 +513,7 @@ get_btrfs_root_device
                 if failure in reasons:
                     self.assertIn(reasons[failure], result.stderr)
                 self.assertFalse(
-                    any(
-                        call[0] in ("defaults", "update-limine")
-                        for call in self.logged_calls()
-                    )
+                    any(call[0] in ("defaults", "update-limine") for call in self.logged_calls())
                 )
 
     def test_other_persistent_swap_is_left_untouched(self):
@@ -480,24 +536,33 @@ get_btrfs_root_device
         self.stub("python3", 'exec /usr/bin/python3 "$@"')
         sudo = self.bin / "sudo"
         body = sudo.read_text().replace(
-            '    *) echo "Unexpected sudo: $*" >&2; exit 97 ;;', r'''
+            '    *) echo "Unexpected sudo: $*" >&2; exit 97 ;;',
+            r"""
     'python3 '*) exec "$@" ;;
     'test '*|'stat '*|'cp '*|'cat '*|'cmp '*|'mkdir '*|'mktemp '*|'tee '*|'chmod '*|'mv '*|'rm '*)
         for arg do
             case "$arg" in /*) case "$arg" in "$HOME"/*) ;; *) exit 97 ;; esac ;; esac
         done
         exec "$@" ;;
-    *) exit 97 ;;''')
+    *) exit 97 ;;""",
+        )
         sudo.write_text(body)
         script = script.replace(
             "readonly INITRAMFS_PENDING_FILE=", "INITRAMFS_PENDING_FILE="
         ).replace("readonly MKINITCPIO_DROPIN_DIR=", "MKINITCPIO_DROPIN_DIR=")
         script += f'INITRAMFS_PENDING_FILE="{marker}"\nMKINITCPIO_DROPIN_DIR="{dropins}"\n'
-        for name in ("request_initramfs_rebuild", "update_limine_cmdline", "_stage_limine_fragment", "get_limine_cmdline"):
-            script += self.function(LIB / "snapboot.sh", name).replace(
-                "/etc/limine-entry-tool.d", str(boot)).replace(
-                "/etc/", f"{self.directory}/etc/").replace(
-                "/usr/share/", f"{self.directory}/share/")
+        for name in (
+            "request_initramfs_rebuild",
+            "update_limine_cmdline",
+            "_stage_limine_fragment",
+            "get_limine_cmdline",
+        ):
+            script += (
+                self.function(LIB / "snapboot.sh", name)
+                .replace("/etc/limine-entry-tool.d", str(boot))
+                .replace("/etc/", f"{self.directory}/etc/")
+                .replace("/usr/share/", f"{self.directory}/share/")
+            )
         script += f'''setup_hibernation || exit 1
 [[ -f "{marker}" ]] || exit 1
 rm -- "{marker}"
@@ -507,8 +572,10 @@ setup_hibernation || exit 1
 '''
         result = self.shell(script)
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("resume=UUID=aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
-                      (boot / "50-hibernation.conf").read_text())
+        self.assertIn(
+            "resume=UUID=aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+            (boot / "50-hibernation.conf").read_text(),
+        )
 
     def test_valid_managed_file_is_reused_but_unregistered_file_is_not_adopted(self):
         swap = self.directory / "swap"
@@ -517,24 +584,35 @@ setup_hibernation || exit 1
         swapfile.write_text("existing swap contents")
         fstab = self.directory / "fstab"
         self.env.update(SWAP=str(swap), FSTAB=str(fstab))
-        source = (LIB / "hibernation.sh").read_text().replace(
-            "/etc/fstab", str(fstab)).replace('"/swap"', f'"{swap}"').replace(
-            '"/swap/swapfile"', f'"{swapfile}"')
+        source = (
+            (LIB / "hibernation.sh")
+            .read_text()
+            .replace("/etc/fstab", str(fstab))
+            .replace('"/swap"', f'"{swap}"')
+            .replace('"/swap/swapfile"', f'"{swapfile}"')
+        )
         self.stub("lsblk", "echo root-uuid")
         self.stub("mountpoint", "exit 0")
         self.stub("swapon", 'echo "$SWAP/swapfile"', log=True)
-        self.stub("findmnt", r'''case "$*" in
+        self.stub(
+            "findmnt",
+            r"""case "$*" in
     '-rn -o FSTYPE,UUID --mountpoint /') echo 'btrfs root-uuid' ;;
     '-rn -o TARGET,FSTYPE,UUID,FSROOT --mountpoint '*) printf '%s btrfs root-uuid /@swap\n' "$SWAP" ;;
     '-rn -o TARGET --target '*) echo "$SWAP" ;;
     '--fstab --tab-file '*) cat "$FSTAB" ;;
     *) exit 97 ;;
-esac''')
-        self.stub("sudo", r'''case "$*" in
+esac""",
+        )
+        self.stub(
+            "sudo",
+            r"""case "$*" in
     'btrfs subvolume list /') echo 'ID 256 gen 1 top level 5 path @swap' ;;
     'btrfs inspect-internal map-swapfile -r '*) echo 123 ;;
     *) echo "Unexpected mutation: $*" >&2; exit 97 ;;
-esac''', log=True)
+esac""",
+            log=True,
+        )
         owner = self.directory / "state/chezmoi/hibernation.swapfile"
         owner.parent.mkdir(parents=True)
         for ownership in ("matching", "missing", "stale"):
@@ -547,11 +625,17 @@ esac''', log=True)
                 if ownership != "missing":
                     inode = swapfile.stat().st_ino if ownership == "matching" else 0
                     owner.write_text(f"root-uuid {swapfile} {inode}\n")
-                result = self.shell(self.libraries("common.sh") + source + '''
+                result = self.shell(
+                    self.libraries("common.sh")
+                    + source
+                    + """
 get_btrfs_root_device() { echo /dev/fixture; }
 create_btrfs_swap
-''')
-                self.assertEqual(result.returncode, 0 if ownership == "matching" else 3, result.stderr)
+"""
+                )
+                self.assertEqual(
+                    result.returncode, 0 if ownership == "matching" else 3, result.stderr
+                )
                 self.assertEqual(swapfile.read_text(), "existing swap contents")
                 self.assertEqual(fstab.read_text(), entries)
                 self.assertFalse(any("mkswapfile" in call for call in self.logged_calls()))
@@ -585,8 +669,10 @@ esac""",
                     STATUS=str(status),
                     SWAP_PATH=path,
                 )
-                result = self.shell(self.libraries("common.sh", "hibernation.sh") +
-                                    "check_hibernation_swap_policy\n")
+                result = self.shell(
+                    self.libraries("common.sh", "hibernation.sh")
+                    + "check_hibernation_swap_policy\n"
+                )
                 self.assertEqual(result.returncode, expected, result.stderr)
 
     def test_zram_is_preserved_and_inactive_or_multiple_persistent_swaps_skip(self):
@@ -602,8 +688,10 @@ esac""",
         ):
             with self.subTest(active=active, table=table):
                 self.env.update(ACTIVE=active, TABLE=table)
-                result = self.shell(self.libraries("common.sh", "hibernation.sh") +
-                                    "check_hibernation_swap_policy\n")
+                result = self.shell(
+                    self.libraries("common.sh", "hibernation.sh")
+                    + "check_hibernation_swap_policy\n"
+                )
                 self.assertEqual(result.returncode, status, result.stderr)
 
     def test_cmdline_preflight_checks_prospective_defaults_and_rejects_overrides(self):
@@ -626,7 +714,9 @@ esac""",
         result = self.shell(script)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("resume=UUID=external noresume", result.stdout)
-        (dropins / "01-default.conf").write_text("KERNEL_CMDLINE[default]=root=UUID=filesystem rd.luks.uuid=container\n")
+        (dropins / "01-default.conf").write_text(
+            "KERNEL_CMDLINE[default]=root=UUID=filesystem rd.luks.uuid=container\n"
+        )
         result = self.shell(script)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout.strip(), "quiet root=UUID=filesystem rd.luks.uuid=container")
@@ -641,7 +731,9 @@ esac""",
         custom.write_text('KERNEL_CMDLINE[linux]="root=UUID=filesystem rd.luks.uuid=other"\n')
         self.assertNotEqual(self.shell(script).returncode, 0)
         custom.unlink()
-        (dropins / "50-hibernation.conf").write_text('KERNEL_CMDLINE[default]+= "root=UUID=user-owned"\n')
+        (dropins / "50-hibernation.conf").write_text(
+            'KERNEL_CMDLINE[default]+= "root=UUID=user-owned"\n'
+        )
         self.assertNotEqual(self.shell(script).returncode, 0)
 
     def test_hook_verification_matches_mkinitcpio_version_order(self):
@@ -650,10 +742,10 @@ esac""",
         (etc / "mkinitcpio.conf").write_text("HOOKS=(base systemd block filesystems)\n")
         dropins = etc / "mkinitcpio.conf.d"
         dropins.mkdir()
-        (dropins / "2-unlock.conf").write_text("HOOKS=(base systemd block sd-encrypt filesystems)\n")
-        (dropins / "10-local.conf").write_text(
-            "HOOKS=(base systemd block filesystems fsck)\n"
+        (dropins / "2-unlock.conf").write_text(
+            "HOOKS=(base systemd block sd-encrypt filesystems)\n"
         )
+        (dropins / "10-local.conf").write_text("HOOKS=(base systemd block filesystems fsck)\n")
         self.stub("sudo", 'exec "$@"')
         self.stub("sort", 'exec /usr/bin/sort "$@"')
         source = self.function(LIB / "snapboot.sh", "get_mkinitcpio_hooks").replace(
@@ -671,8 +763,9 @@ esac""",
         )
         result = self.shell(script)
         self.assertEqual(result.returncode, 2, result.stderr)
-        self.assertFalse(any(call[0] in ("defaults", "update-limine")
-                             for call in self.logged_calls()))
+        self.assertFalse(
+            any(call[0] in ("defaults", "update-limine") for call in self.logged_calls())
+        )
 
         etc = self.directory / "etc"
         (etc / "kernel").mkdir(parents=True)
@@ -688,9 +781,14 @@ esac""",
         self.stub("mkinitcpio", "exit 97")
         self.stub("python3", 'exec /usr/bin/python3 "$@"')
         self.stub("tee", 'exec /usr/bin/tee "$@"')
-        self.stub("findmnt", '''[ "$1" = --fstab ] || exit 97
-awk '!/^[[:space:]]*(#|$)/ {print $1, $2, $3, $4}' "$FSTAB"''')
-        self.stub("sudo", r'''case "$1" in
+        self.stub(
+            "findmnt",
+            '''[ "$1" = --fstab ] || exit 97
+awk '!/^[[:space:]]*(#|$)/ {print $1, $2, $3, $4}' "$FSTAB"''',
+        )
+        self.stub(
+            "sudo",
+            r'''case "$1" in
     bash|python3) exec "$@" ;;
     btrfs) [ "$2 $3 $4" = 'inspect-internal map-swapfile -r' ] && echo 123; exit ;;
     test|stat|cp|cat|cmp|mkdir|mktemp|tee|chmod|mv|rm) ;;
@@ -706,14 +804,19 @@ if [ "$1" = mv ]; then
         exit 23
     fi
 fi
-exec "$@"''')
+exec "$@"''',
+        )
         source = self.render(SCRIPTS / "run_onchange_after_03_hibernation.sh.tmpl")
         source = source.replace("/etc/", f"{etc}/").replace(
-            "/usr/share/", f"{self.directory}/share/")
+            "/usr/share/", f"{self.directory}/share/"
+        )
         source = source.replace('"/swap"', f'"{swapfile.parent}"').replace(
-            '"/swap/swapfile"', f'"{swapfile}"')
+            '"/swap/swapfile"', f'"{swapfile}"'
+        )
         source = source.replace("/usr/bin/limine", str(self.bin / "limine"))
-        source = source.replace('\nmain "$@"', '''
+        source = source.replace(
+            '\nmain "$@"',
+            '''
 check_btrfs() { return 0; }
 is_laptop() { return 0; }
 keep_sudo_alive() { return 0; }
@@ -727,7 +830,8 @@ inspect_btrfs_device() {
 create_btrfs_swap() {
     _add_hibernation_fstab_entry "$SWAP_FILE_PATH none swap defaults 0 0" fixture
 }
-main "$@"''')
+main "$@"''',
+        )
         pending = self.directory / "state/chezmoi/hibernation.pending"
         rebuild = self.directory / "state/chezmoi/initramfs.pending"
         for failure in ("publish", "concurrent-edit"):
@@ -738,16 +842,22 @@ main "$@"''')
                 self.env["FAILURE"] = failure
                 result = self.shell(source)
                 self.assertEqual(result.returncode, 1, result.stderr)
-                expected = original if failure == "publish" else (
-                    original + f"\n{swapfile} none swap defaults 0 0\n# independent edit\n")
+                expected = (
+                    original
+                    if failure == "publish"
+                    else (original + f"\n{swapfile} none swap defaults 0 0\n# independent edit\n")
+                )
                 self.assertEqual(fstab.read_text(), expected)
                 self.assertEqual(pending.read_text(), ".")
                 self.assertTrue(rebuild.exists())
                 self.assertFalse((etc / "limine-entry-tool.d/50-hibernation.conf").exists())
-                self.assertNotIn("resume=", (etc / "limine-entry-tool.d/01-default.conf").read_text())
-                self.assertEqual(kernel.read_text(), "root=UUID=aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa\n")
+                self.assertNotIn(
+                    "resume=", (etc / "limine-entry-tool.d/01-default.conf").read_text()
+                )
+                self.assertEqual(
+                    kernel.read_text(), "root=UUID=aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa\n"
+                )
                 self.assertNotIn("setup completed", result.stderr)
-
 
     def test_consecutive_deferrals_keep_changing_the_onchange_retry_state(self):
         path = SCRIPTS / "run_onchange_after_03_hibernation.sh.tmpl"
@@ -757,11 +867,14 @@ main "$@"''')
             source = self.render(path)
             rendered.append(source)
             source = source.replace("/usr/bin/limine", str(self.bin / "limine"))
-            source = source.replace('\nmain "$@"', '''
+            source = source.replace(
+                '\nmain "$@"',
+                '''
 check_btrfs() { return 0; }
 is_laptop() { return 0; }
 command_exists() { return 1; }
-main "$@"''')
+main "$@"''',
+            )
             result = self.shell(source)
             self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(len(set(rendered)), 3)
@@ -771,82 +884,101 @@ main "$@"''')
 class HibernationDetectionTests(ScriptCase):
     def setUp(self):
         super().setUp()
-        self.stub('limine', 'exit 97')
-        self.stub('mkinitcpio', 'exit 97')
-        self.stub('findmnt', '''[ "$*" = '-n -o FSTYPE /' ] || exit 97
+        self.stub("limine", "exit 97")
+        self.stub("mkinitcpio", "exit 97")
+        self.stub(
+            "findmnt",
+            """[ "$*" = '-n -o FSTYPE /' ] || exit 97
 [ "$DETECTION" != filesystem-failure ] || exit 23
-if [ "$DETECTION" = non-btrfs ]; then echo ext4; else echo btrfs; fi''')
-        self.stub('hostnamectl', '''[ "$*" = chassis ] || exit 97
+if [ "$DETECTION" = non-btrfs ]; then echo ext4; else echo btrfs; fi""",
+        )
+        self.stub(
+            "hostnamectl",
+            """[ "$*" = chassis ] || exit 97
 [ "$DETECTION" != chassis-failure ] || exit 23
-if [ "$DETECTION" = desktop ]; then echo desktop; else echo laptop; fi''')
-        self.env['DETECTION'] = 'supported'
-        self.pending = self.directory / 'state/chezmoi/hibernation.pending'
+if [ "$DETECTION" = desktop ]; then echo desktop; else echo laptop; fi""",
+        )
+        self.env["DETECTION"] = "supported"
+        self.pending = self.directory / "state/chezmoi/hibernation.pending"
         self.pending.parent.mkdir(parents=True)
 
     def fixture(self):
-        source = self.render(SCRIPTS / 'run_onchange_after_03_hibernation.sh.tmpl')
-        source = source.replace('/usr/bin/limine', str(self.bin / 'limine'))
-        return source.replace('\nmain "$@"', '''
+        source = self.render(SCRIPTS / "run_onchange_after_03_hibernation.sh.tmpl")
+        source = source.replace("/usr/bin/limine", str(self.bin / "limine"))
+        return source.replace(
+            '\nmain "$@"',
+            '''
 keep_sudo_alive() { return 0; }
 # Sentinel: detection reached setup; avoid all storage/configuration operations.
 setup_hibernation() { printf 'setup-hibernation\\t\\n' >> "$CALLS"; return 3; }
-main "$@"''')
+main "$@"''',
+        )
 
     def test_filesystem_detection_preserves_existing_status_contract(self):
-        for scenario, expected in [('supported', 0), ('non-btrfs', 1),
-                                   ('filesystem-failure', 2), ('missing-findmnt', 127)]:
+        for scenario, expected in [
+            ("supported", 0),
+            ("non-btrfs", 1),
+            ("filesystem-failure", 2),
+            ("missing-findmnt", 127),
+        ]:
             with self.subTest(scenario=scenario):
-                self.env['DETECTION'] = scenario
-                detector = self.bin / 'findmnt'
-                if scenario == 'missing-findmnt':
-                    detector.rename(detector.with_suffix('.disabled'))
+                self.env["DETECTION"] = scenario
+                detector = self.bin / "findmnt"
+                if scenario == "missing-findmnt":
+                    detector.rename(detector.with_suffix(".disabled"))
                 try:
-                    result = self.shell('set -euo pipefail\n' + self.libraries('common.sh', 'snapboot.sh') + '''
+                    result = self.shell(
+                        "set -euo pipefail\n"
+                        + self.libraries("common.sh", "snapboot.sh")
+                        + """
 status=0
 check_btrfs || status="$?"
 printf '%s\\n%s\\n' "$status" "$LAST_ERROR"
-''')
+"""
+                    )
                 finally:
-                    if scenario == 'missing-findmnt':
-                        detector.with_suffix('.disabled').rename(detector)
+                    if scenario == "missing-findmnt":
+                        detector.with_suffix(".disabled").rename(detector)
                 self.assertEqual(result.returncode, 0, result.stderr)
                 status, error = result.stdout.splitlines()[:2]
                 self.assertEqual(int(status), expected, result.stdout)
                 if expected:
                     self.assertTrue(error)
                 else:
-                    self.assertEqual(error, '')
+                    self.assertEqual(error, "")
 
     def test_hardware_gates_keep_failures_pending_and_clear_confirmed_skips(self):
         for scenario, code, attempted, error in [
-            ('supported', 0, True, ''), ('non-btrfs', 0, False, ''),
-            ('desktop', 0, False, ''), ('missing-findmnt', 1, False, 'findmnt command not found'),
-            ('filesystem-failure', 1, False, 'Failed to detect root filesystem type'),
-            ('chassis-failure', 1, False, 'Failed to detect chassis type'),
+            ("supported", 0, True, ""),
+            ("non-btrfs", 0, False, ""),
+            ("desktop", 0, False, ""),
+            ("missing-findmnt", 1, False, "findmnt command not found"),
+            ("filesystem-failure", 1, False, "Failed to detect root filesystem type"),
+            ("chassis-failure", 1, False, "Failed to detect chassis type"),
         ]:
             with self.subTest(scenario=scenario):
-                self.env['DETECTION'] = scenario
-                self.pending.write_text('old')
+                self.env["DETECTION"] = scenario
+                self.pending.write_text("old")
                 self.calls.unlink(missing_ok=True)
-                detector = self.bin / 'findmnt'
-                if scenario == 'missing-findmnt':
-                    detector.rename(detector.with_suffix('.disabled'))
+                detector = self.bin / "findmnt"
+                if scenario == "missing-findmnt":
+                    detector.rename(detector.with_suffix(".disabled"))
                 try:
                     result = self.shell(self.fixture())
                 finally:
-                    if scenario == 'missing-findmnt':
-                        detector.with_suffix('.disabled').rename(detector)
+                    if scenario == "missing-findmnt":
+                        detector.with_suffix(".disabled").rename(detector)
                 self.assertEqual(result.returncode, code, result.stderr)
-                self.assertEqual(self.logged_calls(), [['setup-hibernation']] if attempted else [])
+                self.assertEqual(self.logged_calls(), [["setup-hibernation"]] if attempted else [])
                 if code:
-                    self.assertEqual(self.pending.read_text(), 'old.')
+                    self.assertEqual(self.pending.read_text(), "old.")
                     self.assertIn(error, result.stderr)
                 else:
                     self.assertFalse(self.pending.exists())
 
     def test_recovered_detection_reaches_setup_after_repeated_deferral(self):
-        self.pending.write_text('.')
-        self.env['DETECTION'] = 'filesystem-failure'
+        self.pending.write_text(".")
+        self.env["DETECTION"] = "filesystem-failure"
         rendered = []
         for expected_size in (2, 3):
             source = self.fixture()
@@ -856,8 +988,8 @@ printf '%s\\n%s\\n' "$status" "$LAST_ERROR"
             self.assertEqual(self.pending.stat().st_size, expected_size)
             self.assertEqual(self.logged_calls(), [])
         self.assertNotEqual(*rendered)
-        self.env['DETECTION'] = 'supported'
+        self.env["DETECTION"] = "supported"
         result = self.shell(self.fixture())
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual(self.logged_calls(), [['setup-hibernation']])
+        self.assertEqual(self.logged_calls(), [["setup-hibernation"]])
         self.assertFalse(self.pending.exists())

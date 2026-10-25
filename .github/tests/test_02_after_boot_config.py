@@ -25,7 +25,9 @@ class SystemdInitramfsTests(ScriptCase):
         self.stub("sort", 'exec /usr/bin/sort "$@"')
         self.stub("tee", 'exec /usr/bin/tee "$@"')
         self.stub("python3", 'exec /usr/bin/python3 "$@"')
-        self.stub("blkid", r'''case "$*" in
+        self.stub(
+            "blkid",
+            r"""case "$*" in
     '-c /dev/null -t UUID=bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb -o device'|\
     '-c /dev/null -t PARTUUID=fd8ce3d8-1e48-4b0e-91a8-24cdb2f14ce1 -o device')
         [ "$FAILURE" != source-missing ] || exit 2
@@ -39,14 +41,20 @@ class SystemdInitramfsTests(ScriptCase):
         if [ "$FAILURE" = source-uuid ]; then echo dddddddd-dddd-dddd-dddd-dddddddddddd;
         else echo bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb; fi ;;
     *) exit 97 ;;
-esac''', log=True)
-        self.stub("lsblk", r'''case "$*" in
+esac""",
+            log=True,
+        )
+        self.stub(
+            "lsblk",
+            r"""case "$*" in
     '-dnro MAJ:MIN /dev/fixture-container')
         [ "$FAILURE" != not-block ] || exit 23
         echo 8:2 ;;
     '-dnro MAJ:MIN /dev/other-container') echo 8:3 ;;
     *) exit 97 ;;
-esac''', log=True)
+esac""",
+            log=True,
+        )
         (self.etc / "kernel").mkdir()
         (self.etc / "limine-entry-tool.d").mkdir()
         self.kernel = self.etc / "kernel/cmdline"
@@ -91,15 +99,18 @@ esac""",
         run = 'configure_systemd_initramfs || { printf "%s\\n" "$LAST_ERROR" >&2; exit 1; }\n'
         if entrypoint:
             self.stub("limine", "exit 97")
-            run = self.function(
-                SCRIPTS / "run_onchange_after_00_initramfs_config.sh.tmpl", "main"
-            ).replace("/usr/bin/limine", str(self.bin / "limine")) + r'''
+            run = (
+                self.function(
+                    SCRIPTS / "run_onchange_after_00_initramfs_config.sh.tmpl", "main"
+                ).replace("/usr/bin/limine", str(self.bin / "limine"))
+                + r"""
 command_exists() { return 0; }
 check_btrfs() { return 0; }
 is_laptop() { [[ "$LAPTOP" = 1 ]]; }
 keep_sudo_alive() { return 0; }
 main || exit 1
-'''
+"""
+            )
         return self.shell(
             self.libraries("common.sh")
             + source
@@ -141,19 +152,26 @@ mkinitcpio_hook_exists() { [[ "$1:$FAILURE" != sd-encrypt:hook ]]; }
 
     def write_fragment(self, name, params):
         self.env.update(FRAGMENT=name, PARAMETERS=params)
-        source = (LIB / "snapboot.sh").read_text().replace("/etc/", f"{self.etc}/").replace(
-            "/usr/share/", f"{self.directory}/share/"
+        source = (
+            (LIB / "snapboot.sh")
+            .read_text()
+            .replace("/etc/", f"{self.etc}/")
+            .replace("/usr/share/", f"{self.directory}/share/")
         )
         return self.shell(
-            self.libraries("common.sh") + source
+            self.libraries("common.sh")
+            + source
             + '\nupdate_limine_cmdline "$FRAGMENT" "$PARAMETERS" || { printf "%s\\n" "$LAST_ERROR" >&2; exit 1; }\n'
         )
 
     def test_feature_fragments_preserve_directives_and_request_only_changed_writes(self):
         for name, old, new in (
             ("20-quiet-boot.conf", "quiet loglevel=3 splash", "quiet loglevel=3"),
-            ("50-hibernation.conf", "hibernate.compressor=lz4 resume=UUID=aaaa-bbbb resume_offset=123",
-             "hibernate.compressor=lz4 resume=UUID=aaaa-bbbb resume_offset=456"),
+            (
+                "50-hibernation.conf",
+                "hibernate.compressor=lz4 resume=UUID=aaaa-bbbb resume_offset=123",
+                "hibernate.compressor=lz4 resume=UUID=aaaa-bbbb resume_offset=456",
+            ),
         ):
             with self.subTest(name=name):
                 path = self.defaults.with_name(name)
@@ -257,18 +275,14 @@ mkinitcpio_hook_exists() { [[ "$1:$FAILURE" != sd-encrypt:hook ]]; }
                     quiet.write_text('# KERNEL_CMDLINE[default]+= "quiet"\n')
                 elif case == "overridden":
                     quiet.write_text('KERNEL_CMDLINE[default]+= "quiet"\n')
-                    late.write_text(
-                        'KERNEL_CMDLINE[default]= "root=UUID=other quiet"\n'
-                    )
+                    late.write_text('KERNEL_CMDLINE[default]= "root=UUID=other quiet"\n')
                 elif case == "conflict":
                     quiet.write_text('KERNEL_CMDLINE[default]+= "quiet loglevel=3"\n')
                     self.defaults.write_text(
                         'KERNEL_CMDLINE[default]= "root=UUID=filesystem loglevel=7 quiet"\n'
                     )
                 elif case == "quoted-conflict":
-                    hibernation.write_text(
-                        'KERNEL_CMDLINE[default]+= "resume=UUID=managed"\n'
-                    )
+                    hibernation.write_text('KERNEL_CMDLINE[default]+= "resume=UUID=managed"\n')
                     self.defaults.write_text(
                         'KERNEL_CMDLINE[default]= "root=UUID=filesystem "resume=UUID=external" resume=UUID=managed"\n'
                     )
@@ -284,9 +298,7 @@ mkinitcpio_hook_exists() { [[ "$1:$FAILURE" != sd-encrypt:hook ]]; }
                         'KERNEL_CMDLINE[linux-custom]= "root=UUID=custom quiet"\n'
                     )
                 elif case == "alias-conflict":
-                    hibernation.write_text(
-                        'KERNEL_CMDLINE[default]+= "resume_offset=123"\n'
-                    )
+                    hibernation.write_text('KERNEL_CMDLINE[default]+= "resume_offset=123"\n')
                     self.defaults.write_text(
                         'KERNEL_CMDLINE[default]= "root=UUID=filesystem resume-offset=456 resume_offset=123"\n'
                     )
@@ -305,9 +317,13 @@ mkinitcpio_hook_exists() { [[ "$1:$FAILURE" != sd-encrypt:hook ]]; }
 
     def test_initialization_preserves_settings_and_existing_prepend_arguments(self):
         base = "rd.luks.name=container=data rd.luks.options=container=tpm2-device=auto root=/dev/mapper/data quiet custom=quiet"
-        original = '# local settings\nOTHER_SETTING=yes\nKERNEL_CMDLINE[default]+= "local=first quiet"\n\n'
+        original = (
+            '# local settings\nOTHER_SETTING=yes\nKERNEL_CMDLINE[default]+= "local=first quiet"\n\n'
+        )
         initialized = 'KERNEL_CMDLINE[default]= "rd.luks.name=container=data rd.luks.options=container=tpm2-device=auto root=/dev/mapper/data  custom=quiet"\n'
-        self.defaults.with_name("20-quiet-boot.conf").write_text('KERNEL_CMDLINE[default]+= "quiet"\n')
+        self.defaults.with_name("20-quiet-boot.conf").write_text(
+            'KERNEL_CMDLINE[default]+= "quiet"\n'
+        )
         for case in ("missing-defaults", "existing-settings-and-prepend"):
             with self.subTest(case=case):
                 self.kernel.write_text(base + "\n")
@@ -321,8 +337,10 @@ mkinitcpio_hook_exists() { [[ "$1:$FAILURE" != sd-encrypt:hook ]]; }
                 result = self.ensure_defaults()
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertEqual(self.defaults.read_text(), expected)
-                self.assertEqual(self.defaults.stat().st_mode & 0o777,
-                                 0o644 if case == "missing-defaults" else 0o640)
+                self.assertEqual(
+                    self.defaults.stat().st_mode & 0o777,
+                    0o644 if case == "missing-defaults" else 0o640,
+                )
                 self.assertEqual(self.kernel.read_text(), base + "\n")
                 self.assertTrue(self.marker.exists())
                 self.marker.unlink()
@@ -397,7 +415,10 @@ mkinitcpio_hook_exists() { [[ "$1:$FAILURE" != sd-encrypt:hook ]]; }
     def test_fresh_luks_conversion_updates_active_sources_without_losing_tokens(self):
         named = "rd.luks.name=bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb=data-volume.v2"
         for identifier, sources in product(
-            ("UUID=bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb", "PARTUUID=fd8ce3d8-1e48-4b0e-91a8-24cdb2f14ce1"),
+            (
+                "UUID=bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+                "PARTUUID=fd8ce3d8-1e48-4b0e-91a8-24cdb2f14ce1",
+            ),
             ("both", "kernel", "default", "no-kernel", "no-default", "filesystem-root"),
         ):
             with self.subTest(identifier=identifier, sources=sources):
@@ -406,7 +427,9 @@ mkinitcpio_hook_exists() { [[ "$1:$FAILURE" != sd-encrypt:hook ]]; }
                 self.marker.unlink(missing_ok=True)
                 self.persistent_sources(legacy, mapping="data-volume.v2")
                 self.env.update(LAPTOP="0")
-                custom = 'custom=cryptdevice=unchanged  systemd.setenv="WORDS=hello world"\tloglevel=3'
+                custom = (
+                    'custom=cryptdevice=unchanged  systemd.setenv="WORDS=hello world"\tloglevel=3'
+                )
                 for path in (self.kernel, self.defaults):
                     path.write_text(path.read_text().replace(legacy, legacy + "  " + custom))
                 self.defaults.write_text("# " + legacy + "\n" + self.defaults.read_text())
@@ -420,15 +443,22 @@ mkinitcpio_hook_exists() { [[ "$1:$FAILURE" != sd-encrypt:hook ]]; }
                     self.defaults.unlink()
                 elif sources == "filesystem-root":
                     for path in (self.kernel, self.defaults):
-                        path.write_text(path.read_text().replace(
-                            "root=/dev/mapper/data-volume.v2", "root=UUID=aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
-                        ))
-                before = {path: path.read_text() for path in (self.kernel, self.defaults) if path.exists()}
+                        path.write_text(
+                            path.read_text().replace(
+                                "root=/dev/mapper/data-volume.v2",
+                                "root=UUID=aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                            )
+                        )
+                before = {
+                    path: path.read_text() for path in (self.kernel, self.defaults) if path.exists()
+                }
                 result = self.configure(persistent=True, entrypoint=True)
                 self.assertEqual(result.returncode, 0, result.stderr)
                 for path, text in before.items():
-                    expected = text.replace(legacy, named) if path == self.kernel else text.replace(
-                        legacy + "  " + custom, named + "  " + custom
+                    expected = (
+                        text.replace(legacy, named)
+                        if path == self.kernel
+                        else text.replace(legacy + "  " + custom, named + "  " + custom)
                     )
                     self.assertEqual(path.read_text(), expected)
                 self.assertEqual(self.kernel.exists(), sources != "no-kernel")
@@ -447,7 +477,10 @@ mkinitcpio_hook_exists() { [[ "$1:$FAILURE" != sd-encrypt:hook ]]; }
     def test_archinstall_partuuid_uses_container_uuid_and_preserves_root_arguments(self):
         legacy = "cryptdevice=PARTUUID=fd8ce3d8-1e48-4b0e-91a8-24cdb2f14ce1:root"
         named = "rd.luks.name=bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb=root"
-        arguments = legacy + " root=/dev/mapper/root zswap.enabled=0 rootflags=subvol=@ rw rootfstype=btrfs\n"
+        arguments = (
+            legacy
+            + " root=/dev/mapper/root zswap.enabled=0 rootflags=subvol=@ rw rootfstype=btrfs\n"
+        )
         self.env["ENCRYPTED"] = "1"
         self.kernel.write_text(arguments)
         result = self.configure(persistent=True)
@@ -466,8 +499,19 @@ mkinitcpio_hook_exists() { [[ "$1:$FAILURE" != sd-encrypt:hook ]]; }
 
     def test_unverified_installer_devices_never_publish_arguments_or_hooks(self):
         for identifier, failure in product(
-            ("UUID=bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb", "PARTUUID=fd8ce3d8-1e48-4b0e-91a8-24cdb2f14ce1"),
-            ("source-missing", "source-ambiguous", "source-device", "not-block", "not-luks", "source-uuid", "ambiguous"),
+            (
+                "UUID=bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+                "PARTUUID=fd8ce3d8-1e48-4b0e-91a8-24cdb2f14ce1",
+            ),
+            (
+                "source-missing",
+                "source-ambiguous",
+                "source-device",
+                "not-block",
+                "not-luks",
+                "source-uuid",
+                "ambiguous",
+            ),
         ):
             with self.subTest(identifier=identifier, failure=failure):
                 self.env["FAILURE"] = failure
@@ -495,24 +539,36 @@ mkinitcpio_hook_exists() { [[ "$1:$FAILURE" != sd-encrypt:hook ]]; }
     def test_unsupported_installer_unlocks_never_publish_arguments_or_hooks(self):
         legacy = "cryptdevice=UUID=bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:root"
         for unlock in (
-            legacy + ":allow-discards", legacy + " " + legacy,
+            legacy + ":allow-discards",
+            legacy + " " + legacy,
             legacy.replace("UUID=", "PARTUUID="),  # Unresolvable PARTUUID, not the LUKS UUID.
             "cryptdevice=PARTUUID=fd8ce3d8-1e48-4b0e-91a8-24cdb2f14ce1:other",
             legacy + " cryptdevice=PARTUUID=fd8ce3d8-1e48-4b0e-91a8-24cdb2f14ce1:root",
             legacy.replace("UUID=bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb", "/dev/sda2"),
-            legacy.replace("bbbbbbbb", "aaaaaaaa"), legacy.replace(":root", ":other"),
-            legacy + " cryptkey=rootfs:/keyfile", legacy + " crypto=sha256:aes:256:0:",
+            legacy.replace("bbbbbbbb", "aaaaaaaa"),
+            legacy.replace(":root", ":other"),
+            legacy + " cryptkey=rootfs:/keyfile",
+            legacy + " crypto=sha256:aes:256:0:",
             legacy + " rd.luks.name=dddddddd-dddd-dddd-dddd-dddddddddddd=root",
             legacy + " rd.luks.name=bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb=other",
-            legacy + " rd.luks=0", '"' + legacy + '"',
-            'systemd.setenv="WORDS=before ' + legacy + ' after"', legacy + " -- init=custom",
+            legacy + " rd.luks=0",
+            '"' + legacy + '"',
+            'systemd.setenv="WORDS=before ' + legacy + ' after"',
+            legacy + " -- init=custom",
         ):
             with self.subTest(unlock=unlock):
                 self.persistent_sources(unlock)
-                before = (self.kernel.read_bytes(), self.defaults.read_bytes(), self.main.read_bytes())
+                before = (
+                    self.kernel.read_bytes(),
+                    self.defaults.read_bytes(),
+                    self.main.read_bytes(),
+                )
                 result = self.configure(persistent=True)
                 self.assertNotEqual(result.returncode, 0, result.stderr)
-                self.assertEqual((self.kernel.read_bytes(), self.defaults.read_bytes(), self.main.read_bytes()), before)
+                self.assertEqual(
+                    (self.kernel.read_bytes(), self.defaults.read_bytes(), self.main.read_bytes()),
+                    before,
+                )
                 self.assertFalse(self.managed.exists())
                 self.assertFalse(self.marker.exists())
 
@@ -531,14 +587,20 @@ mkinitcpio_hook_exists() { [[ "$1:$FAILURE" != sd-encrypt:hook ]]; }
                 if failure == "implicit":
                     implicit.touch()
                 elif failure == "embedded":
-                    self.main.write_text(self.original.replace("FILES=(/keyfile)", f"FILES=({implicit})"))
+                    self.main.write_text(
+                        self.original.replace("FILES=(/keyfile)", f"FILES=({implicit})")
+                    )
                 elif failure == "key-hook":
                     self.main.write_text(self.original.replace("fsck)", "fsck local-keyfiles)"))
                     hook.parent.mkdir(parents=True, exist_ok=True)
                     hook.write_text("build() { add_file /private/key /crypto_keyfile.bin; }\n")
                 elif failure == "crypttab":
-                    table.write_text("other UUID=dddddddd-dddd-dddd-dddd-dddddddddddd none x-initrd.attach,tpm2-device=auto\n")
-                paths = [self.kernel, self.defaults, self.main] + ([table] if table.exists() else [])
+                    table.write_text(
+                        "other UUID=dddddddd-dddd-dddd-dddd-dddddddddddd none x-initrd.attach,tpm2-device=auto\n"
+                    )
+                paths = [self.kernel, self.defaults, self.main] + (
+                    [table] if table.exists() else []
+                )
                 before = [path.read_bytes() for path in paths]
                 result = self.configure(persistent=True)
                 self.assertNotEqual(result.returncode, 0, result.stderr)
@@ -558,10 +620,21 @@ mkinitcpio_hook_exists() { [[ "$1:$FAILURE" != sd-encrypt:hook ]]; }
                 self.managed.write_text(previous)
                 self.marker.unlink(missing_ok=True)
                 self.env["FAILURE"] = failure
-                before = (self.kernel.read_bytes(), self.defaults.read_bytes(), self.managed.read_bytes())
+                before = (
+                    self.kernel.read_bytes(),
+                    self.defaults.read_bytes(),
+                    self.managed.read_bytes(),
+                )
                 result = self.configure(persistent=True)
                 self.assertNotEqual(result.returncode, 0, result.stderr)
-                self.assertEqual((self.kernel.read_bytes(), self.defaults.read_bytes(), self.managed.read_bytes()), before)
+                self.assertEqual(
+                    (
+                        self.kernel.read_bytes(),
+                        self.defaults.read_bytes(),
+                        self.managed.read_bytes(),
+                    ),
+                    before,
+                )
                 self.assertIn("Rolled back", result.stderr)
                 self.assertTrue(self.marker.exists())
 
@@ -581,7 +654,9 @@ mkinitcpio_hook_exists() { [[ "$1:$FAILURE" != sd-encrypt:hook ]]; }
                 self.persistent_sources(name + " " + options)
                 # Neither an inactive source nor comments are migration targets.
                 self.kernel.write_text("cryptdevice=UUID=old:old root=/dev/mapper/old\n")
-                self.defaults.write_text("# cryptkey=historical-reference\n" + self.defaults.read_text())
+                self.defaults.write_text(
+                    "# cryptkey=historical-reference\n" + self.defaults.read_text()
+                )
                 before = (self.kernel.read_bytes(), self.defaults.read_bytes())
                 result = self.configure(persistent=True)
                 self.assertEqual(result.returncode, 0, result.stderr)
@@ -637,9 +712,12 @@ mkinitcpio_hook_exists() { [[ "$1:$FAILURE" != sd-encrypt:hook ]]; }
                 self.persistent_sources(unlock)
                 if encrypted == "0":
                     for path in (self.kernel, self.defaults):
-                        path.write_text(path.read_text().replace(
-                            "root=/dev/mapper/root", "root=UUID=aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
-                        ))
+                        path.write_text(
+                            path.read_text().replace(
+                                "root=/dev/mapper/root",
+                                "root=UUID=aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                            )
+                        )
                 self.env["ENCRYPTED"] = encrypted
                 before = (self.kernel.read_bytes(), self.defaults.read_bytes())
                 result = self.configure(persistent=True, entrypoint=True)
@@ -660,7 +738,7 @@ mkinitcpio_hook_exists() { [[ "$1:$FAILURE" != sd-encrypt:hook ]]; }
         header = "# Managed systemd base; snapshot hooks belong to Snapper.\n"
         for content in (
             'FILES+=(/private/root.key)\nCOMPRESSION="lz4"\nHOOKS=(base systemd block filesystems fsck)\n',
-            header + 'HOOKS=(base systemd block filesystems fsck)\nFILES+=(/private/root.key)\n',
+            header + "HOOKS=(base systemd block filesystems fsck)\nFILES+=(/private/root.key)\n",
         ):
             with self.subTest(content=content):
                 self.managed.write_text(content)
@@ -707,11 +785,7 @@ mkinitcpio_hook_exists() { [[ "$1:$FAILURE" != sd-encrypt:hook ]]; }
                 self.env["ENCRYPTED"] = encrypted
                 self.managed.unlink(missing_ok=True)
                 self.marker.unlink(missing_ok=True)
-                config = (
-                    self.original
-                    if plymouth
-                    else self.original.replace(" plymouth", "")
-                )
+                config = self.original if plymouth else self.original.replace(" plymouth", "")
                 config = (
                     config.replace("fsck)", f"fsck {extra})")
                     if extra in ("strip", "sd-btrfs-overlayfs")
@@ -782,9 +856,7 @@ add_mkinitcpio_overlay_hook
         (self.dropins / "snapper.conf").write_text(result.stdout)
         self.main.write_text(self.original.replace("fsck)", "fsck strip)"))
         conditional = self.dropins / "zz-strip.conf"
-        conditional.write_text(
-            'if [[ "${HOOKS[-1]}" != strip ]]; then HOOKS+=(strip); fi\n'
-        )
+        conditional.write_text('if [[ "${HOOKS[-1]}" != strip ]]; then HOOKS+=(strip); fi\n')
         result = self.configure()
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(
@@ -794,9 +866,7 @@ add_mkinitcpio_overlay_hook
         previous = self.managed.read_text()
         (self.dropins / "snapper.conf").unlink()
         self.main.write_text(self.original)
-        conditional.write_text(
-            'if [[ "${HOOKS[-1]}" == fsck ]]; then HOOKS+=(sd-encrypt); fi\n'
-        )
+        conditional.write_text('if [[ "${HOOKS[-1]}" == fsck ]]; then HOOKS+=(sd-encrypt); fi\n')
         self.marker.unlink()
         result = self.configure()
         self.assertNotEqual(result.returncode, 0, result.stderr)
@@ -831,9 +901,7 @@ add_mkinitcpio_overlay_hook
                         "HOOKS=(base systemd autodetect microcode modconf kms keyboard sd-vconsole block plymouth sd-encrypt filesystems fsck)\n"
                     )
                 elif failure == "snapshot":
-                    self.main.write_text(
-                        self.original.replace("fsck)", "fsck btrfs-overlayfs)")
-                    )
+                    self.main.write_text(self.original.replace("fsck)", "fsck btrfs-overlayfs)"))
                 result = self.configure()
                 self.assertNotEqual(result.returncode, 0, result.stderr)
                 self.assertEqual(self.managed.read_text(), previous)
@@ -855,8 +923,7 @@ add_mkinitcpio_overlay_hook
             (entry.replace("tries=3", "tmp=ext4"), "", False),
             (
                 "",
-                named
-                + " rd.luks.options=bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb=tmp=ext4",
+                named + " rd.luks.options=bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb=tmp=ext4",
                 False,
             ),
             (
@@ -880,8 +947,12 @@ add_mkinitcpio_overlay_hook
         self.env["UNLOCK"] = ""
         conflicting = entry.replace("root UUID=", "other UUID=")
         for case, host, included, valid in (
-            ("included-root-overrides-host-conflict", conflicting,
-             entry.replace("x-initrd.attach,", ""), True),
+            (
+                "included-root-overrides-host-conflict",
+                conflicting,
+                entry.replace("x-initrd.attach,", ""),
+                True,
+            ),
             ("included-conflict-overrides-host-root", entry, conflicting, False),
         ):
             with self.subTest(source=case):
@@ -937,9 +1008,7 @@ add_mkinitcpio_overlay_hook
             ("base systemd block filesystems", None),
         ):
             with self.subTest(hooks=hooks, expected=expected):
-                self.env.update(
-                    HOOK_ENV=hooks, FAILURE="snapshot-hook" if expected is None else ""
-                )
+                self.env.update(HOOK_ENV=hooks, FAILURE="snapshot-hook" if expected is None else "")
                 (self.directory / "snapper.conf").unlink(missing_ok=True)
                 result = self.shell(
                     self.libraries("common.sh")
@@ -978,7 +1047,9 @@ class BootConfigTests(ScriptCase):
         self.env["FAIL_STAGING"] = "1"
         self.stub("tee", 'exec /usr/bin/tee "$@"')
         self.stub("limine-entry-tool", "exit 97")
-        self.stub("sudo", r'''case "$1" in
+        self.stub(
+            "sudo",
+            r'''case "$1" in
     test|cmp|grep|awk|install|chmod|mv|rm) ;;
     tee) if [ "$FAIL_STAGING" = 1 ]; then printf 'stage-write\t\n' >> "$CALLS"; exit 23; fi ;;
     *) exit 97 ;;
@@ -986,14 +1057,21 @@ esac
 for arg do
     case "$arg" in /*) case "$arg" in "$HOME"/*|/dev/null) ;; *) exit 97 ;; esac ;; esac
 done
-exec "$@"''')
+exec "$@"''',
+        )
 
     def configure(self):
-        return self.shell(self.libraries("common.sh", "snapboot.sh") + r'''
+        return self.shell(
+            self.libraries("common.sh", "snapboot.sh")
+            + r"""
 get_limine_boot_directory() { echo "$BOOT"; }
 LIMINE_OPTIONS=(timeout=0.5)
-''' + self.function(SCRIPTS / "run_onchange_after_08_theming.sh.tmpl",
-                    "configure_limine_options") + "\nconfigure_limine_options\n")
+"""
+            + self.function(
+                SCRIPTS / "run_onchange_after_08_theming.sh.tmpl", "configure_limine_options"
+            )
+            + "\nconfigure_limine_options\n"
+        )
 
     def test_failed_staging_preserves_boot_config_and_rebuild_request(self):
         result = self.configure()

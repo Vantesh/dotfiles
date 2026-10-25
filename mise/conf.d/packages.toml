@@ -84,6 +84,7 @@
 "pacman:git-delta" = { env = "packages" }
 "pacman:tree-sitter-cli" = { env = "packages" }
 "pacman:shellcheck" = { env = "packages" }
+"pacman:ruff" = { env = "packages" }
 "pacman:television" = { env = "packages" }
 "pacman:lazygit" = { env = "packages" }
 "pacman:worktrunk" = { env = "packages" }

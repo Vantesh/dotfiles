@@ -1,0 +1,12 @@
+target-version = "py313"
+line-length = 100
+
+[lint]
+select = ["E4", "E7", "E9", "F", "I", "UP", "B", "SIM", "S", "BLE"]
+# Native tools deliberately resolve through PATH and receive argument lists.
+# Review command inputs directly; shell=True remains checked by S602.
+ignore = ["S603", "S607"]
+
+[lint.per-file-ignores]
+# SVG input is the locally installed icon theme, not downloaded XML.
+"home/dot_config/noctalia/scripts/update_mactahoe.py" = ["S314"]

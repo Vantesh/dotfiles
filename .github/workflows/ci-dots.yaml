@@ -6,6 +6,7 @@ on:
     paths:
       - "home/**"
       - "mise/**"
+      - "ruff.toml"
       - ".github/tests/**"
       - ".github/workflows/ci-dots.yaml"
 
@@ -34,7 +35,7 @@ jobs:
           persist-credentials: false
 
       - name: Install dependencies
-        run: pacman -Syu --noconfirm git git-delta bash shellcheck chezmoi diffutils python python-loguru
+        run: pacman -Syu --noconfirm git git-delta bash shellcheck chezmoi diffutils python python-loguru ruff
 
       - name: Configure isolated home
         run: |

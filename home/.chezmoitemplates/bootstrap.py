@@ -1,15 +1,15 @@
 """Prerequisites for chezmoi rendering; desktop packages remain owned by Mise."""
 
-from contextlib import nullcontext
 import errno
 import json
 import os
-from pathlib import Path
 import re
 import shutil
 import stat
 import subprocess
 import sys
+from contextlib import nullcontext
+from pathlib import Path
 
 from loguru import logger
 
@@ -20,31 +20,46 @@ def install_prerequisites():
         packages.append("mise")
     if os.environ.get("PERSONAL") == "1":
         packages.extend(("rbw", "pinentry"))
-    missing = [package for package in packages if subprocess.run(
-        ["pacman", "-Q", package], stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-    ).returncode]
+    missing = [
+        package
+        for package in packages
+        if subprocess.run(
+            ["pacman", "-Q", package],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        ).returncode
+    ]
     if not missing:
         return 0
 
     logger.info("Installing prerequisites: {}", ", ".join(missing))
     result = subprocess.run(["sudo", "pacman", "-S", "--needed", "--noconfirm", "--", *missing])
     if result.returncode:
-        logger.error("Prerequisite installation failed (exit {}); resolve pacman's error and rerun setup.",
-                     result.returncode)
+        logger.error(
+            "Prerequisite installation failed (exit {}); resolve pacman's error and rerun setup.",
+            result.returncode,
+        )
     return result.returncode
 
 
 def configure_bitwarden():
     # Vault diagnostics and config can contain personal data; never log them.
-    result = subprocess.run(["rbw", "config", "show"], capture_output=True, text=True, errors="replace")
+    result = subprocess.run(
+        ["rbw", "config", "show"], capture_output=True, text=True, errors="replace"
+    )
     if result.returncode:
         profile = os.environ.get("RBW_PROFILE", "")
         directory = "rbw" + ("-" + profile if profile else "")
-        config_file = Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config") / directory / "config.json"
+        config_file = (
+            Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config")
+            / directory
+            / "config.json"
+        )
         if config_file.exists() or config_file.is_symlink():
-            logger.error("Cannot read Bitwarden configuration (exit {}); inspect 'rbw config show'.",
-                         result.returncode)
+            logger.error(
+                "Cannot read Bitwarden configuration (exit {}); inspect 'rbw config show'.",
+                result.returncode,
+            )
             return result.returncode
         config = {}
     else:
@@ -59,28 +74,37 @@ def configure_bitwarden():
 
     email = config.get("email")
     if not isinstance(email, str) or not email:
-        instruction = "Configure Bitwarden with 'rbw config set email YOUR_EMAIL', then rerun setup."
-        if os.environ.get("NOCONFIRM") == "1" or any(os.environ.get(name) for name in (
-            "CI", "GITHUB_ACTIONS", "GITLAB_CI", "CODESPACES",
-        )):
+        instruction = (
+            "Configure Bitwarden with 'rbw config set email YOUR_EMAIL', then rerun setup."
+        )
+        if os.environ.get("NOCONFIRM") == "1" or any(
+            os.environ.get(name)
+            for name in (
+                "CI",
+                "GITHUB_ACTIONS",
+                "GITLAB_CI",
+                "CODESPACES",
+            )
+        ):
             logger.error(instruction)
             return 1
         try:
-            terminal = nullcontext(sys.stdin) if sys.stdin.isatty() else open("/dev/tty")
+            with (
+                nullcontext(sys.stdin) if sys.stdin.isatty() else Path("/dev/tty").open()
+            ) as stream:
+                while True:
+                    print("Bitwarden email: ", end="", file=sys.stderr, flush=True)
+                    response = stream.readline()
+                    if not response:
+                        logger.error("No email provided. {}", instruction)
+                        return 1
+                    email = response.strip()
+                    if re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", email):
+                        break
+                    logger.warning("Enter a valid email address.")
         except OSError:
             logger.error("No interactive terminal. {}", instruction)
             return 1
-        with terminal as stream:
-            while True:
-                print("Bitwarden email: ", end="", file=sys.stderr, flush=True)
-                response = stream.readline()
-                if not response:
-                    logger.error("No email provided. {}", instruction)
-                    return 1
-                email = response.strip()
-                if re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", email):
-                    break
-                logger.warning("Enter a valid email address.")
         result = subprocess.run(["rbw", "config", "set", "email", email], capture_output=True)
         if result.returncode:
             logger.error("Cannot set Bitwarden email (exit {}).", result.returncode)
@@ -88,7 +112,9 @@ def configure_bitwarden():
         logger.info("Configured Bitwarden email.")
 
     if config.get("lock_timeout") != 10800:
-        result = subprocess.run(["rbw", "config", "set", "lock_timeout", "10800"], capture_output=True)
+        result = subprocess.run(
+            ["rbw", "config", "set", "lock_timeout", "10800"], capture_output=True
+        )
         if result.returncode:
             logger.warning("Cannot set Bitwarden lock timeout (exit {}).", result.returncode)
         else:
@@ -98,22 +124,36 @@ def configure_bitwarden():
     # but discard command output rather than risking credentials in diagnostics.
     result = subprocess.run(["rbw", "login"], capture_output=True)
     if result.returncode:
-        logger.error("Bitwarden login failed (exit {}); check pinentry and vault access, then retry.",
-                     result.returncode)
+        logger.error(
+            "Bitwarden login failed (exit {}); check pinentry and vault access, then retry.",
+            result.returncode,
+        )
     return result.returncode
 
 
 def configure_logging():
     logger.remove()
-    logger.add(sys.stderr, format="<green>{time:HH:mm:ss}</green> | <level>{level: <7}</level> | <level>{message}</level>",
-               colorize=sys.stderr.isatty() and "NO_COLOR" not in os.environ and os.environ.get("TERM") != "dumb",
-               level="INFO", diagnose=False, backtrace=False, catch=False)
+    logger.add(
+        sys.stderr,
+        format="<green>{time:HH:mm:ss}</green> | <level>{level: <7}</level> | <level>{message}</level>",
+        colorize=sys.stderr.isatty()
+        and "NO_COLOR" not in os.environ
+        and os.environ.get("TERM") != "dumb",
+        level="INFO",
+        diagnose=False,
+        backtrace=False,
+        catch=False,
+    )
 
-    log_dir = Path(os.environ.get("XDG_STATE_HOME") or Path.home() / ".local/state") / "chezmoi/logs"
+    log_dir = (
+        Path(os.environ.get("XDG_STATE_HOME") or Path.home() / ".local/state") / "chezmoi/logs"
+    )
     log_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
     directory = log_dir.lstat()
     if not stat.S_ISDIR(directory.st_mode) or directory.st_uid != os.getuid():
-        raise PermissionError(errno.EACCES, "Setup logs require a user-owned directory, not a symlink")
+        raise PermissionError(
+            errno.EACCES, "Setup logs require a user-owned directory, not a symlink"
+        )
     if stat.S_IMODE(directory.st_mode) != 0o700:
         log_dir.chmod(0o700)
 
@@ -131,10 +171,19 @@ def configure_logging():
             raise
         return descriptor
 
-    return logger.add(log_dir / "setup.log", level="DEBUG", colorize=False,
-                      format="{time:YYYY-MM-DD HH:mm:ss.SSS ZZ} | {level: <7} | {function}:{line} | {message}",
-                      rotation=5 * 1024 * 1024, retention=5, delay=True,
-                      opener=private_log_file, diagnose=False, backtrace=False, catch=False)
+    return logger.add(
+        log_dir / "setup.log",
+        level="DEBUG",
+        colorize=False,
+        format="{time:YYYY-MM-DD HH:mm:ss.SSS ZZ} | {level: <7} | {function}:{line} | {message}",
+        rotation=5 * 1024 * 1024,
+        retention=5,
+        delay=True,
+        opener=private_log_file,
+        diagnose=False,
+        backtrace=False,
+        catch=False,
+    )
 
 
 def main():
@@ -148,8 +197,11 @@ def main():
     except OSError as error:
         operation = error.filename if error.filename in ("pacman", "sudo", "rbw") else "Bootstrap"
         try:
-            logger.error("{} stopped (OS error {}); check prerequisite commands, configuration and setup-log permissions.",
-                         operation, error.errno)
+            logger.error(
+                "{} stopped (OS error {}); check prerequisite commands, configuration and setup-log permissions.",
+                operation,
+                error.errno,
+            )
         except OSError:
             # The terminal sink reports first, even when the file is unwritable.
             if file_sink is not None:

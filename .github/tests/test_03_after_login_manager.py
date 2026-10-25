@@ -36,7 +36,9 @@ class LoginManagerTests(ScriptCase):
         return self.shell(
             "set -euo pipefail\n"
             + self.libraries("common.sh")
-            + "\n" + function + """
+            + "\n"
+            + function
+            + """
             declare -A DM_STATES=(
                 [ly@tty2.service]=disabled
                 [sddm.service]=enabled

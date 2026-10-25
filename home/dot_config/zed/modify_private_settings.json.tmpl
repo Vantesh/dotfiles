@@ -5,10 +5,10 @@ import json
 import re
 import sys
 
-
 STRING_OR_COMMENT = re.compile(r'"(?:\\.|[^"\\])*"|//[^\r\n]*|/\*[\s\S]*?\*/')
 STRING_OR_TRAILING_COMMA = re.compile(r'"(?:\\.|[^"\\])*"|,(\s*[}\]])')
-BASELINE = {{ include ".chezmoitemplates/zed-settings.jsonc" | toJson }}
+# Keep the generated JSON string intact.
+BASELINE = {{ include ".chezmoitemplates/zed-settings.jsonc" | toJson }}  # fmt: skip
 FONT_SETTINGS = {
     "markdown_preview": {
         "code_font_family": {{ .font.monospace.name | toJson }},
@@ -26,9 +26,7 @@ FONT_SETTINGS = {
 
 def parse_jsonc(text):
     """Parse JSON with comments and trailing commas, preserving string contents."""
-    text = STRING_OR_COMMENT.sub(
-        lambda match: match[0] if match[0].startswith('"') else " ", text
-    )
+    text = STRING_OR_COMMENT.sub(lambda match: match[0] if match[0].startswith('"') else " ", text)
     text = STRING_OR_TRAILING_COMMA.sub(
         lambda match: match[1] if match[1] is not None else match[0], text
     )

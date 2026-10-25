@@ -8,8 +8,12 @@ from helpers import ROOT, SCRIPTS, ScriptCase
 class AvatarTests(ScriptCase):
     def test_avatar_external_requires_personal_online_setup(self):
         external = ROOT / "home/.chezmoiexternals/20-avatar.yaml.tmpl"
-        for personal, offline, enabled in ((True, "", True), (True, "1", False),
-                                           (False, "", False), (False, "1", False)):
+        for personal, offline, enabled in (
+            (True, "", True),
+            (True, "1", False),
+            (False, "", False),
+            (False, "1", False),
+        ):
             with self.subTest(personal=personal, offline=offline):
                 self.env["OFFLINE"] = offline
                 source = self.render(external, personal=personal)
@@ -27,11 +31,16 @@ class AvatarTests(ScriptCase):
         self.stub("mise", "exit 0")
         self.stub("busctl", 'exit "${ASSIGN_STATUS:-0}"', log=True)
         for offline, kind, status, success in (
-            ("1", "missing", "0", True), ("1", "empty", "0", True),
-            ("1", "directory", "0", True), ("1", "unreadable", "0", True),
-            ("1", "usable", "0", True), ("", "usable", "0", True),
-            ("", "missing", "0", False), ("", "empty", "0", False),
-            ("1", "usable", "23", False), ("", "usable", "23", False),
+            ("1", "missing", "0", True),
+            ("1", "empty", "0", True),
+            ("1", "directory", "0", True),
+            ("1", "unreadable", "0", True),
+            ("1", "usable", "0", True),
+            ("", "usable", "0", True),
+            ("", "missing", "0", False),
+            ("", "empty", "0", False),
+            ("1", "usable", "23", False),
+            ("", "usable", "23", False),
         ):
             with self.subTest(offline=offline, kind=kind, status=status):
                 if kind == "unreadable" and os.geteuid() == 0:
@@ -50,18 +59,36 @@ class AvatarTests(ScriptCase):
                         avatar.chmod(0)
                 self.env.update(OFFLINE=offline, ASSIGN_STATUS=status)
                 rendered = self.directory / "services.sh"
-                rendered.write_text(self.render(SCRIPTS / "run_onchange_after_14_services.sh.tmpl",
-                                                personal=True))
-                source = ("set -euo pipefail\n" + self.libraries("common.sh")
-                          + "converge_packaged_user_services() { :; }\n"
-                          + "configure_locate_database() { :; }\n"
-                          + self.function(rendered, "main") + "main\n")
+                rendered.write_text(
+                    self.render(SCRIPTS / "run_onchange_after_14_services.sh.tmpl", personal=True)
+                )
+                source = (
+                    "set -euo pipefail\n"
+                    + self.libraries("common.sh")
+                    + "converge_packaged_user_services() { :; }\n"
+                    + "configure_locate_database() { :; }\n"
+                    + self.function(rendered, "main")
+                    + "main\n"
+                )
                 result = self.shell(source)
                 self.assertEqual(result.returncode == 0, success, result.stderr)
                 calls = self.logged_calls()
-                expected = [["busctl", "call", "org.freedesktop.Accounts",
-                             "/org/freedesktop/Accounts/User1000", "org.freedesktop.Accounts.User",
-                             "SetIconFile", "s", str(avatar)]] if kind == "usable" else []
+                expected = (
+                    [
+                        [
+                            "busctl",
+                            "call",
+                            "org.freedesktop.Accounts",
+                            "/org/freedesktop/Accounts/User1000",
+                            "org.freedesktop.Accounts.User",
+                            "SetIconFile",
+                            "s",
+                            str(avatar),
+                        ]
+                    ]
+                    if kind == "usable"
+                    else []
+                )
                 self.assertEqual(calls, expected)
                 if not success:
                     self.assertIn("ERROR:", result.stderr)
@@ -89,7 +116,9 @@ class EnrollmentTests(ScriptCase):
     def test_warp_registration_is_created_once_without_connecting(self):
         registration = self.directory / "registration"
         self.env["REGISTRATION"] = str(registration)
-        self.stub("warp-cli", """
+        self.stub(
+            "warp-cli",
+            """
 case "$*" in
     '--accept-tos registration show')
         if [ -e "$REGISTRATION" ]; then echo 'Account type: Free'; else
@@ -99,21 +128,28 @@ case "$*" in
     '--accept-tos registration new') echo 'fixture-account' > "$REGISTRATION" ;;
     *) exit 97 ;;
 esac
-""", log=True)
+""",
+            log=True,
+        )
         for attempt in ("initial", "repeated"):
             with self.subTest(attempt=attempt):
                 result = self.shell(self.source)
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertTrue(registration.is_file(), result.stderr)
                 self.assertEqual(registration.read_text(), "fixture-account\n")
-        self.assertEqual(self.logged_calls(), [
-            ["warp-cli", "--accept-tos", "registration", "show"],
-            ["warp-cli", "--accept-tos", "registration", "new"],
-            ["warp-cli", "--accept-tos", "registration", "show"],
-        ])
+        self.assertEqual(
+            self.logged_calls(),
+            [
+                ["warp-cli", "--accept-tos", "registration", "show"],
+                ["warp-cli", "--accept-tos", "registration", "new"],
+                ["warp-cli", "--accept-tos", "registration", "show"],
+            ],
+        )
 
     def test_warp_preserves_existing_registration_and_reports_unavailable_setup(self):
-        self.stub("warp-cli", """
+        self.stub(
+            "warp-cli",
+            """
 case "$*" in
     '--accept-tos registration show')
         case "$WARP_CASE" in
@@ -125,16 +161,22 @@ case "$*" in
     '--accept-tos registration new') exit 23 ;;
     *) exit 97 ;;
 esac
-""", log=True)
+""",
+            log=True,
+        )
         for scenario in ("existing", "unavailable", "failed", "ci"):
             with self.subTest(scenario=scenario):
                 self.calls.unlink(missing_ok=True)
                 self.env.update(WARP_CASE=scenario, CI="1" if scenario == "ci" else "")
                 result = self.shell(self.source)
                 self.assertEqual(result.returncode, 0, result.stderr)
-                expected = [] if scenario == "ci" else [
-                    ["warp-cli", "--accept-tos", "registration", "show"],
-                ]
+                expected = (
+                    []
+                    if scenario == "ci"
+                    else [
+                        ["warp-cli", "--accept-tos", "registration", "show"],
+                    ]
+                )
                 if scenario == "failed":
                     expected.append(["warp-cli", "--accept-tos", "registration", "new"])
                 self.assertEqual(self.logged_calls(), expected)
@@ -148,7 +190,9 @@ esac
         self.env["SUDO_USER"] = "fixture-user"
         source = self.source.replace("/dev/tty", str(terminal))
         enrollment = ["fprintd-enroll", "-f", "right-index-finger", "fixture-user"]
-        self.stub("id", """
+        self.stub(
+            "id",
+            """
 case "$*" in
     -u) case "$FPRINT_CASE" in root-*) echo 0 ;; *) echo 1000 ;; esac ;;
     -un) echo fixture-user ;;
@@ -156,15 +200,21 @@ case "$*" in
     '-u -- root') echo 0 ;;
     *) exit 97 ;;
 esac
-""")
-        self.stub("ps", """
+""",
+        )
+        self.stub(
+            "ps",
+            """
 case "$FPRINT_CASE" in
     tty|tty-failed|root-tty) echo ' tty2' ;;
     terminal-unavailable) exit 1 ;;
     *) echo pts/3 ;;
 esac
-""")
-        self.stub("sudo", """
+""",
+        )
+        self.stub(
+            "sudo",
+            """
 if [ "$1" = -u ]; then
     [ "$2" = fixture-user ] || exit 97
     shift 2
@@ -172,23 +222,48 @@ if [ "$1" = -u ]; then
 fi
 [ "$*" = 'fprintd-enroll -f right-index-finger fixture-user' ] || exit 97
 PRIVILEGED=1 exec "$@"
-""", log=True)
+""",
+            log=True,
+        )
         package_check = ["pacman", "-Q", "--", "libfprint-goodix53x5-533c-git"]
-        self.stub("pacman", """
+        self.stub(
+            "pacman",
+            """
 [ "$*" = '-Q -- libfprint-goodix53x5-533c-git' ] || exit 97
 case "$FPRINT_CASE" in
     packages-unused|packages-incomplete) exit 1 ;;
     package-query-failed) exit 23 ;;
     *) exit 0 ;;
 esac
-""", log=True)
-        manager = ["gdbus", "call", "--system", "--dest", "net.reactivated.Fprint",
-                   "--object-path", "/net/reactivated/Fprint/Manager",
-                   "--method", "net.reactivated.Fprint.Manager.GetDefaultDevice"]
-        listing = ["gdbus", "call", "--system", "--dest", "net.reactivated.Fprint",
-                   "--object-path", "/net/reactivated/Fprint/Device/0",
-                   "--method", "net.reactivated.Fprint.Device.ListEnrolledFingers", "fixture-user"]
-        self.stub("gdbus", """
+""",
+            log=True,
+        )
+        manager = [
+            "gdbus",
+            "call",
+            "--system",
+            "--dest",
+            "net.reactivated.Fprint",
+            "--object-path",
+            "/net/reactivated/Fprint/Manager",
+            "--method",
+            "net.reactivated.Fprint.Manager.GetDefaultDevice",
+        ]
+        listing = [
+            "gdbus",
+            "call",
+            "--system",
+            "--dest",
+            "net.reactivated.Fprint",
+            "--object-path",
+            "/net/reactivated/Fprint/Device/0",
+            "--method",
+            "net.reactivated.Fprint.Device.ListEnrolledFingers",
+            "fixture-user",
+        ]
+        self.stub(
+            "gdbus",
+            """
 case "$*" in
     'call --system --dest net.reactivated.Fprint --object-path /net/reactivated/Fprint/Manager --method net.reactivated.Fprint.Manager.GetDefaultDevice')
         if [ "$FPRINT_CASE" = absent ]; then
@@ -210,8 +285,12 @@ case "$*" in
         exit 1 ;;
     *) exit 97 ;;
 esac
-""", log=True)
-        self.stub("fprintd-enroll", """
+""",
+            log=True,
+        )
+        self.stub(
+            "fprintd-enroll",
+            """
 [ "$*" = '-f right-index-finger fixture-user' ] || exit 97
 case "$FPRINT_CASE" in
     tty|root-tty|authorization)
@@ -224,12 +303,35 @@ case "$FPRINT_CASE" in
     communication) echo 'EnrollStart failed: net.reactivated.Fprint.Error.Internal: communication failed'; exit 1 ;;
 esac
 echo 'right-index-finger' > "$ENROLLED"
-""", log=True)
-        for scenario in ("tooling-unavailable", "packages-unused", "packages-incomplete", "package-query-failed",
-                         "absent", "existing", "denied", "declined", "headless",
-                         "unattended", "ci", "failed", "unsupported", "communication",
-                         "authorization", "tty", "tty-failed", "root-tty", "root-desktop",
-                         "terminal-unavailable", "root-unknown", "root-user", "empty", "fresh"):
+""",
+            log=True,
+        )
+        for scenario in (
+            "tooling-unavailable",
+            "packages-unused",
+            "packages-incomplete",
+            "package-query-failed",
+            "absent",
+            "existing",
+            "denied",
+            "declined",
+            "headless",
+            "unattended",
+            "ci",
+            "failed",
+            "unsupported",
+            "communication",
+            "authorization",
+            "tty",
+            "tty-failed",
+            "root-tty",
+            "root-desktop",
+            "terminal-unavailable",
+            "root-unknown",
+            "root-user",
+            "empty",
+            "fresh",
+        ):
             with self.subTest(scenario=scenario):
                 self.calls.unlink(missing_ok=True)
                 enrolled.unlink(missing_ok=True)
@@ -239,40 +341,72 @@ echo 'right-index-finger' > "$ENROLLED"
                     enroller.rename(enroller.with_suffix(".disabled"))
                 if scenario != "headless":
                     terminal.write_text("n\n" if scenario == "declined" else "y\n")
-                self.env.update(FPRINT_CASE=scenario, CI="1" if scenario == "ci" else "",
-                                NOCONFIRM="1" if scenario == "unattended" else "0",
-                                SUDO_USER="" if scenario == "root-unknown" else
-                                "root" if scenario == "root-user" else "fixture-user")
+                self.env.update(
+                    FPRINT_CASE=scenario,
+                    CI="1" if scenario == "ci" else "",
+                    NOCONFIRM="1" if scenario == "unattended" else "0",
+                    SUDO_USER=""
+                    if scenario == "root-unknown"
+                    else "root"
+                    if scenario == "root-user"
+                    else "fixture-user",
+                )
                 result = self.shell(source)
                 if scenario == "tooling-unavailable":
                     enroller.with_suffix(".disabled").rename(enroller)
                 self.assertEqual(result.returncode, 0, result.stderr)
                 calls = self.logged_calls()
-                self.assertEqual(enrolled.exists(), scenario in
-                                 ("empty", "fresh", "tty", "root-tty", "root-desktop"))
+                self.assertEqual(
+                    enrolled.exists(),
+                    scenario in ("empty", "fresh", "tty", "root-tty", "root-desktop"),
+                )
                 if scenario in ("ci", "tooling-unavailable"):
                     self.assertEqual(calls, [])
-                elif scenario in ("packages-unused", "packages-incomplete", "package-query-failed",
-                                  "root-unknown", "root-user"):
+                elif scenario in (
+                    "packages-unused",
+                    "packages-incomplete",
+                    "package-query-failed",
+                    "root-unknown",
+                    "root-user",
+                ):
                     self.assertEqual(calls, [package_check])
                 else:
                     self.assertIn(package_check, calls)
                     self.assertIn(manager, calls)
                     if scenario != "absent":
                         self.assertIn(listing, calls)
-                    self.assertEqual(enrollment in calls, scenario in
-                                     ("failed", "unsupported", "communication", "empty", "fresh",
-                                      "authorization", "tty", "tty-failed", "root-tty", "root-desktop"))
+                    self.assertEqual(
+                        enrollment in calls,
+                        scenario
+                        in (
+                            "failed",
+                            "unsupported",
+                            "communication",
+                            "empty",
+                            "fresh",
+                            "authorization",
+                            "tty",
+                            "tty-failed",
+                            "root-tty",
+                            "root-desktop",
+                        ),
+                    )
                     self.assertLessEqual(calls.count(enrollment), 1)
                 privileged = ["sudo", *enrollment]
-                self.assertEqual(privileged in calls, scenario in
-                                 ("tty", "tty-failed", "root-tty"))
+                self.assertEqual(privileged in calls, scenario in ("tty", "tty-failed", "root-tty"))
                 if scenario in ("tty", "root-tty"):
                     self.assertLess(calls.index(privileged), calls.index(enrollment))
                 if scenario == "root-desktop":
                     self.assertIn(["sudo", "-u", "fixture-user", *enrollment], calls)
-                if scenario in ("denied", "failed", "unsupported", "communication", "authorization",
-                                "tty-failed", "terminal-unavailable"):
+                if scenario in (
+                    "denied",
+                    "failed",
+                    "unsupported",
+                    "communication",
+                    "authorization",
+                    "tty-failed",
+                    "terminal-unavailable",
+                ):
                     self.assertIn("WARN:", result.stderr)
                 if scenario in ("empty", "fresh"):
                     self.calls.unlink()
