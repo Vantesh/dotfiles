@@ -120,27 +120,25 @@ def uki_sections(path: Path) -> dict[bytes, bytes]:
     """
     data = path.read_bytes()
     require(len(data) >= 64 and data[:2] == b"MZ", f"invalid PE DOS header: {path}")
-    pe = cast("tuple[int]", struct.unpack_from("<I", data, 60))[0]
+    pe = struct.unpack_from("<I", data, 60)[0]
     require(
         64 <= pe <= len(data) - 24 and data[pe : pe + 4] == b"PE\0\0",
         f"invalid PE/COFF header: {path}",
     )
-    count = cast("tuple[int]", struct.unpack_from("<H", data, pe + 6))[0]
-    optional_size = cast("tuple[int]", struct.unpack_from("<H", data, pe + 20))[0]
+    count = struct.unpack_from("<H", data, pe + 6)[0]
+    optional_size = struct.unpack_from("<H", data, pe + 20)[0]
     optional = pe + 24
     table = optional + optional_size
     require(
         count and optional_size >= 2 and table + count * 40 <= len(data),
         f"truncated PE section table: {path}",
     )
-    magic = cast("tuple[int]", struct.unpack_from("<H", data, optional))[0]
+    magic = struct.unpack_from("<H", data, optional)[0]
     require(
         magic in (0x10B, 0x20B) and optional_size >= (96 if magic == 0x10B else 112),
         f"unsupported PE optional header: {path}",
     )
-    image_size, headers_size = cast(
-        "tuple[int, int]", struct.unpack_from("<II", data, optional + 56)
-    )
+    image_size, headers_size = struct.unpack_from("<II", data, optional + 56)
     require(
         table + count * 40 <= headers_size <= len(data) and image_size >= headers_size,
         f"invalid PE header bounds: {path}",
@@ -151,9 +149,7 @@ def uki_sections(path: Path) -> dict[bytes, bytes]:
     for index in range(count):
         offset = table + index * 40
         name = data[offset : offset + 8].rstrip(b"\0")
-        size, address, raw_size, raw_offset = cast(
-            "tuple[int, int, int, int]", struct.unpack_from("<IIII", data, offset + 8)
-        )
+        size, address, raw_size, raw_offset = struct.unpack_from("<IIII", data, offset + 8)
         if raw_size:
             require(
                 headers_size <= raw_offset and raw_offset + raw_size <= len(data),

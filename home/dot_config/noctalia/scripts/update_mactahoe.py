@@ -441,7 +441,7 @@ def main():
 
         try:
             previous_state = json.loads((target / STATE_FILE).read_text(encoding="utf-8"))
-        except (OSError, ValueError):
+        except OSError, ValueError:
             previous_state = None
 
         regenerated = (

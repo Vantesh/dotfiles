@@ -1,24 +1,50 @@
 """Render setup templates and check shell and managed Python syntax."""
 
+import json
 import shutil
 import subprocess
+import sys
 import tomllib
 from pathlib import Path
+from typing import cast
 
-from helpers import CHEZMOI, LIB, ROOT, SCRIPTS, ScriptCase
+from helpers import LIB, ROOT, SCRIPTS, ScriptCase
 
 
 def main():
+    required = ("ruff", "basedpyright", "pytest", "chezmoi", "bash")
+    missing = [tool for tool in required if shutil.which(tool) is None]
+    # ShellCheck also runs inside a fixture whose PATH contains only test utilities.
     shellcheck = shutil.which("shellcheck")
-    ruff = shutil.which("ruff")
-    basedpyright = shutil.which("basedpyright")
-    if not CHEZMOI or not shellcheck or not ruff or not basedpyright:
+    if missing or shellcheck is None:
+        if shellcheck is None:
+            missing.append("shellcheck")
         raise SystemExit(
-            "Validation requires chezmoi, Bash, ShellCheck, Ruff, and BasedPyright on PATH"
+            f"Missing validation tools: {', '.join(missing)}. "
+            + "These must be installed separately before running validation."
         )
-    subprocess.run([ruff, "check", "--no-cache", "."], cwd=ROOT, check=True)
-    subprocess.run([ruff, "format", "--no-cache", "--check", "."], cwd=ROOT, check=True)
-    subprocess.run([basedpyright], cwd=ROOT, check=True)
+    subprocess.run(["ruff", "check", "."], cwd=ROOT, check=True)
+    subprocess.run(["ruff", "format", "--check", "."], cwd=ROOT, check=True)
+    checked = subprocess.run(
+        ["basedpyright", "--outputjson"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if checked.returncode:
+        print(checked.stdout + checked.stderr, file=sys.stderr, end="")
+        raise SystemExit(checked.returncode)
+    report = cast("dict[str, object]", json.loads(checked.stdout))
+    summary = cast("dict[str, object]", report["summary"])
+    if summary["filesAnalyzed"] == 0:
+        raise SystemExit(
+            f"BasedPyright {report['version']} analyzed no Python files. "
+            + "The installed checker must support the explicitly included hidden source directories; "
+            + "see microsoft/pyright#11861. Manage the tool separately."
+        )
+
+    print(f"BasedPyright: {summary['filesAnalyzed']} Python files analyzed")
 
     fixture = ScriptCase()
     fixture.setUp()
@@ -63,7 +89,7 @@ def main():
                 for arguments in (("check",), ("format", "--check")):
                     subprocess.run(
                         [
-                            ruff,
+                            "ruff",
                             *arguments,
                             "--no-cache",
                             "--stdin-filename",
@@ -80,7 +106,7 @@ def main():
                 rendered_modifiers.append(str(rendered))
                 modifier_count += 1
         subprocess.run(
-            [basedpyright, "--project", str(ROOT / "pyproject.toml"), *rendered_modifiers],
+            ["basedpyright", "--project", str(ROOT / "pyproject.toml"), *rendered_modifiers],
             cwd=ROOT,
             check=True,
         )
@@ -97,6 +123,8 @@ def main():
         )
     finally:
         fixture.doCleanups()
+
+    subprocess.run(["pytest", "-q"], cwd=ROOT, check=True)
 
 
 if __name__ == "__main__":

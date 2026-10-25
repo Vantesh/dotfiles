@@ -10,10 +10,12 @@ import runpy
 import shutil
 import subprocess
 import tomllib
+from pathlib import Path
 from types import SimpleNamespace
 from typing import override
 from unittest.mock import MagicMock, patch
 
+import pytest
 from helpers import CHEZMOI, ROOT, SCRIPTS, ScriptCase
 
 
@@ -838,3 +840,43 @@ fi""",
             handler.line_edit.current_input = "valid"
             handler.mark()
             self.assertEqual(handler.error, "")
+
+
+@pytest.mark.parametrize(
+    ("checker_output", "expected"),
+    [
+        (None, "basedpyright"),
+        (
+            '{"version":"affected-release","summary":{"filesAnalyzed":0}}',
+            "analyzed no Python files",
+        ),
+    ],
+)
+def test_validator_rejects_missing_tools_and_empty_discovery(
+    tmp_path: Path, checker_output: str | None, expected: str
+) -> None:
+    marker = tmp_path / "pytest-called"
+    for tool in ("ruff", "basedpyright", "pytest", "chezmoi", "bash", "shellcheck"):
+        if tool == "basedpyright" and checker_output is None:
+            continue
+        body = "exit 0"
+        if tool == "basedpyright":
+            body = f"printf '%s\\n' '{checker_output}'"
+        elif tool == "pytest":
+            body = 'printf called > "$TOOL_CALLS"'
+        executable = tmp_path / tool
+        executable.write_text("#!/bin/sh\n" + body + "\n")
+        executable.chmod(0o755)
+    result = subprocess.run(
+        ["/usr/bin/python3", "-B", str(ROOT / ".github/tests/validate.py")],
+        env={"PATH": str(tmp_path), "TOOL_CALLS": str(marker)},
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=15,
+    )
+    assert result.returncode != 0
+    assert expected.lower() in result.stderr.lower()
+    if checker_output is None:
+        assert "installed separately" in result.stderr
+    assert not marker.exists()

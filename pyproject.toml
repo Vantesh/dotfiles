@@ -2,7 +2,7 @@
 include = ["home/.chezmoitemplates", ".github/tests"]
 exclude = ["**/__pycache__", "**/.venv", "**/.pytest_cache", "**/.ruff_cache"]
 extraPaths = ["home/.chezmoitemplates", ".github/tests"]
-pythonVersion = "3.13"
+pythonVersion = "3.14"
 pythonPlatform = "Linux"
 typeCheckingMode = "recommended"
 failOnWarnings = true

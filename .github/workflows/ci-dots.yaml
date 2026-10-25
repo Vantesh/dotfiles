@@ -17,7 +17,6 @@ permissions:
 env:
   NOCONFIRM: "1"
   OFFLINE: "1"
-  MISE_TRUSTED_CONFIG_PATHS: ${{ github.workspace }}/mise
 
 jobs:
   test-dotfiles:
@@ -36,9 +35,6 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Install dependencies
-        run: pacman -Syu --noconfirm git git-delta bash shellcheck chezmoi diffutils python python-loguru ruff python-pytest mise npm
-
       - name: Configure isolated home
         run: |
           set -euo pipefail
@@ -56,9 +52,11 @@ jobs:
       - name: Test and lint setup scripts
         run: |
           set -euo pipefail
-          mise --env python-dev install
-          mise --env python-dev exec -- python3 -B .github/tests/validate.py
-          pytest -q
+          if ! command -v python3 >/dev/null; then
+            echo "Missing validation prerequisite: python3. Provide the tools separately." >&2
+            exit 1
+          fi
+          python3 -B .github/tests/validate.py
 
       - name: Apply and verify dotfiles
         run: |
