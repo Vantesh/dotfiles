@@ -10,22 +10,24 @@
 ## Python and safety
 
 - Write modern, readable Python for the target in `ruff.toml`. Prefer pathlib, context managers, straightforward functions and useful type annotations. Keep dependencies minimal.
-- Use Ruff for linting and formatting: `ruff check .` and `ruff format --check .`. Fix real violations; avoid blanket exclusions and widespread suppressions. Format with `ruff format .`.
+- Use BasedPyright in recommended mode for static type checking and Ruff for linting and formatting: `ruff check .` and `ruff format --check .`. Fix real violations; avoid blanket exclusions and widespread suppressions. Format with `ruff format .`.
 - Do not introduce generic runners, namespace classes, speculative abstractions or function-wrapper hell. Keep one-line operations direct; share helpers only for meaningful repeated responsibilities or invariants.
 - Preserve unmanaged configuration, ownership and permissions. Avoid unnecessary rewrites. Publish important configuration atomically, create temporary files safely, clean them up, and do not follow untrusted symlinks in privileged writes.
 - Use explicit subprocess argument lists and handle exit statuses. Capture only needed output; use timeouts for bounded operations while preserving interactive authentication and package-manager behavior. Propagate meaningful failures.
 - Prefer sequential execution. Retain necessary locks and atomic publication for real shared-state risks; close files, descriptors and subprocess resources deterministically. Do not build hypothetical recovery or concurrency frameworks.
 - Use Loguru directly for Python provisioning. Keep terminal output concise and TTY-aware, respect `NO_COLOR`, and preserve private XDG logs (0700 directories, 0600 files), rotation and retention. Keep `diagnose=False` and `backtrace=False`; never log secrets, vault responses, sensitive arguments or environments. Logging failures must not report provisioning success.
-- Keep tests small and behavior-focused using the existing unittest infrastructure. Protect idempotency, profile isolation, failure propagation, secret-safe diagnostics and meaningful publication/boot/filesystem safety. Do not add test frameworks, coverage targets or tests for trivial helpers.
+- pytest is the sole Python test runner. New tests use native pytest functions and ordinary assertions; retained unittest tests are temporary and migrate incrementally alongside relevant code. Keep fixtures/utilities small and test only supported behavior, real requirements and meaningful failures: idempotency, profile isolation, secret-safe diagnostics, failure propagation and necessary publication/boot/filesystem safety. Do not pursue test counts, coverage targets, hypothetical matrices or tests for trivial helpers.
 
-Run the meaningful behavioral tests and existing validation workflow before committing:
+Ruff, BasedPyright and pytest must pass before committing Python changes. With the Mise `python-dev` environment active:
 
 ```sh
-python3 -B -m unittest discover -s .github/tests -v
-python3 -B .github/tests/validate.py
+ruff check .
+ruff format --check .
+basedpyright
+pytest -q
 ```
 
-The validator also lints/formats rendered Python modifier templates. Keep functional corrections distinguishable from formatting changes where practical.
+`python3 -B .github/tests/validate.py` coordinates static checks, including type-checking rendered Python modifiers, ShellCheck and Mise syntax. CI runs this validator and pytest once each. Keep functional corrections distinguishable from formatting changes where practical.
 
 ## Git and phase completion
 
