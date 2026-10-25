@@ -65,6 +65,14 @@ Early setup respects XDG overrides and prepares private GnuPG storage, Bash/Pyth
 
 `OFFLINE` continues to control supported external downloads; it does not turn package setup into an offline installer. Pacman/AUR still need the packages and repository access they normally require. Package commands remain unattended (`--yes`/`--noconfirm`); sudo authentication is still required. Mise applies missing packages without `--update`, avoiding a separate database refresh or partial system upgrade.
 
+## Personal sudo and Pacman policy
+
+The direct Python before-scripts `01_sudo` and `03_pacman` remain personal-only. Sudoers retains `passwd_timeout=0`, `passwd_tries=10` and preservation of `EDITOR`/`VISUAL`; faillock retains `deny=20`, `unlock_time=120` and `fail_interval=900`. All sudoers candidates and the existing policy are checked with `visudo` before activation, with a full-policy check afterward.
+
+Pacman enables its existing Color, VerbosePkgLists and ParallelDownloads settings, keeps the configured download count, adds ILoveCandy and places the exact packaged mirrorlist exclusion last in `[options]`. Native `pacman-conf` parsing accounts for included NoExtract entries. Paccache keeps two versions. Mise still owns the declared cache hooks and Reflector files, followed by a systemd daemon reload; mirrors and unrelated repositories are preserved.
+
+Each policy hook authenticates through native sudo before one synchronous privileged Python invocation. Shared `lib/policy_files.py` snapshots the affected files, preserves metadata, rejects unsafe targets and publishes atomically only if the target still matches its snapshot. Failure rolls back only this invocation's versions; intervening edits are preserved and reported. Unchanged reapplication does not rewrite policy files or log changes. A later Mise/reload failure remains retryable with the successfully published Pacman settings retained.
+
 ## Common services and Fish
 
 The service after-hook runs native Mise service and login-shell provisioning for both profiles. Common system units are NetworkManager, Bluetooth, `fstrim.timer`, `reflector.timer`, `pacman-filesdb-refresh.timer`, `paccache.timer` and `pkgfile-update.timer`. The existing disabled/masked `systemd-networkd-wait-online.service` policy is retained. Personal-only WARP, SSH agent and NVIDIA sleep services keep their existing enrollment or hardware boundaries. UFW rules/activation and Ly lifecycle remain personal-only and unchanged.
@@ -83,7 +91,7 @@ SF Pro Text still comes from Apple's official DMG and installs under `~/.local/s
 
 ## Python execution
 
-The prerequisite installer remains shell because Python may not exist yet. Authentication runs next on every personal apply, followed by the package before-script; Snapper remains a personal-only after-script. Chezmoi explicitly uses `/usr/bin/python3 -B` for Python scripts. Public package/desktop setup stays available to both profiles.
+The prerequisite installer remains shell because Python may not exist yet. Authentication runs next on every personal apply. The personal sudo/faillock policy runs before packages; personal Pacman policy runs after packages, and Snapper remains a personal-only after-script. Chezmoi explicitly uses `/usr/bin/python3 -B` for Python scripts. Public package/desktop setup stays available to both profiles.
 
 The workflows live directly in `.chezmoiscripts/linux/`; the shared `configure_logging()` implementation lives in `.chezmoitemplates/lib/provision_logging.py`. Each rendered workflow imports from its source directory using a quoted Chezmoi value, independent of the working directory and global `PYTHONPATH`. Ordinary library files cannot live under `.chezmoiscripts/`, where Chezmoi requires scripts.
 
@@ -93,7 +101,7 @@ Run-script contents and existing configuration inputs control reapplication. Pac
 
 ## Bootstrap logs
 
-The Python authentication, package and Snapper workflows use Loguru. Terminal messages show time, level and a short action or error; color is enabled only on a suitable TTY and respects `NO_COLOR`. Successful checks stay quiet. Later provisioning hooks still use their existing Bash logging.
+The Python authentication, package, sudo/faillock, Pacman policy and Snapper workflows use Loguru. Terminal messages show time, level and a short action or error; color is enabled only on a suitable TTY and respects `NO_COLOR`. Successful checks stay quiet. Later provisioning hooks still use their existing Bash logging.
 
 Diagnostics are written to `$XDG_STATE_HOME/chezmoi/logs/setup.log`, falling back to `~/.local/state/chezmoi/logs/setup.log`. The log directory is private (`0700`); current and rotated logs are user-owned with mode `0600`. Loguru rotates at 5 MiB and retains five rotated files. The file is opened only when a message is logged, so successful no-op checks do not create or append a setup log.
 
