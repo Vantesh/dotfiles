@@ -159,7 +159,9 @@ hl.bind("XF86PowerOff", hl.dsp.exec_cmd(ipc .. "panel-toggle session"), { descri
 hl.bind("SUPER + Escape", hl.dsp.exec_cmd(ipc .. "panel-toggle session"), { description = "Open session menu" })
 
 hl.bind("SUPER + F1", require("scripts.gamemode").toggle, { description = "Toggle game mode" })
+{{ if .personal -}}
 hl.bind("SUPER + F12", require("scripts.movie_mode").toggle, { description = "Toggle movie mode" })
+{{ end -}}
 hl.bind("SUPER + CTRL + I", hl.dsp.exec_cmd(ipc .. "caffeine-toggle"),
   { description = "Toggle idle inhibitor" })
 hl.bind("SUPER + SHIFT + N", hl.dsp.exec_cmd(ipc .. "nightlight-force-toggle"), { description = "Toggle forced night light" })

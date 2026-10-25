@@ -30,10 +30,10 @@ chezmoi init --apply vantesh
 
 Setup installs its prerequisites and asks one question: **Is this a personal setup?** The answer defaults to No and is saved for subsequent applies.
 
-- **Nonpersonal:** installs common packages and nonsecret dotfiles, applies common system/user services and sets Fish as the login shell. It does not access Bitwarden, provision personal services, drivers, firewall or the login manager, customize desktop preferences, modify boot/filesystem/firmware settings, enroll devices, or reboot. General desktop commonization belongs to a later phase.
-- **Personal:** adds private configuration and the existing driver, Btrfs/Snapper, swapfile/hibernation, Zswap, Limine/Secure Boot, desktop and service provisioning. Hardware and system-integrity checks still apply. Authentication and enrollment can require interaction.
+- **Nonpersonal:** installs common packages and nonsecret dotfiles, applies common system/user services, sets Fish as the login shell and configures the common desktop, including public fonts, icons and cursor themes. It does not access Bitwarden, provision personal services, drivers, firewall or the login manager, modify boot/filesystem/firmware settings, enroll devices, or reboot.
+- **Personal:** adds private configuration and the existing driver, Btrfs/Snapper, swapfile/hibernation, Zswap, Limine/Secure Boot and personal service provisioning. Hardware and system-integrity checks still apply. Authentication and enrollment can require interaction.
 
-Both profiles support repeated application. Previous dotfiles versions and profile transitions are unsupported; use manual cleanup or a fresh installation rather than expecting migration. Nonpersonal installs retain the existing package prerequisites, including Chaotic-AUR trust/repository setup, the initial full system upgrade, and an AUR helper. A compatible Vulkan provider must already be installed so baseline dependencies cannot select an unintended driver stack.
+Both profiles support repeated application. Previous dotfiles versions and profile transitions are unsupported; use manual cleanup or a fresh installation rather than expecting migration. Nonpersonal installs retain the existing package prerequisites, including Chaotic-AUR trust/repository setup, the initial full system upgrade, and an AUR helper.
 
 > [!WARNING]
 > **If you are not me, answer No to “Is this a personal setup”.** This option is for me only. It expects my private Bitwarden entries and their exact fields; missing or incorrect entries will make setup fail.
@@ -72,6 +72,14 @@ The service after-hook runs native Mise service and login-shell provisioning for
 A short state-aware loop retains the existing packaged user units: GNOME Keyring's socket/service, MPRIS proxy and udiskie. System services run first; healthy user units are not re-enabled or restarted, and unavailable optional units are skipped. These are existing unit identities, rather than newly generated Mise user services. Personal snapshot exclusions for locate and avatar assignment remain gated. Nonpersonal Reflector uses its packaged defaults; the existing personal Pacman/Reflector customization remains in its earlier phase.
 
 Fish remains fixed at `/usr/bin/fish`, installed by the common package declarations. Setup rejects root and a missing/non-executable Fish binary before applying workstation tasks. Mise reads the current account's login shell, validates its shell-list entry and changes it only when needed; chsh authentication remains native. The new login shell takes effect at the next login. No other account is selected through shell environment variables.
+
+## Common desktop
+
+Both profiles receive the existing GTK/Qt appearance, Nautilus preferences, MIME associations, XDG integration, terminal and editor configuration. The GTK and Nautilus hooks read the four managed preferences before setting them; GSettings and its installed schemas/session must be usable. The existing root GTK mirror remains personal-only. Private identities/accounts stay personal. The fixed Dell/laptop monitor placement, dual-display workspace automation and movie-mode binding are personal-only; both profiles retain the existing automatic output fallback and general workspace appearance.
+
+Mise supplies the existing theme and font packages. Chezmoi externals retain Apple Color Emoji and Maple Mono downloads (336-hour refresh) and macOS cursor downloads (744-hour refresh). The MacTahoe hook installs the upstream repository into the user's XDG data icons directory; Noctalia's runtime recoloring, cursor mappings and light/dark switching remain separate and unchanged. Unrelated package changes do not rerun the asset hooks.
+
+SF Pro Text still comes from Apple's official DMG and installs under `~/.local/share/fonts/SF-Pro-Text`. Its checksum manifest skips intact fonts; completion is recorded only after the font cache refresh succeeds. `OFFLINE` skips missing SF Pro and MacTahoe downloads, as well as the existing externals; removing it makes those hooks eligible again. A correctly installed SF Pro collection is not downloaded or cached again. Failed hooks remain retryable through Chezmoi.
 
 ## Bootstrap logs
 

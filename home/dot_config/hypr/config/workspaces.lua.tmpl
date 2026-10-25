@@ -1,3 +1,4 @@
+{{ if .personal -}}
 local apps = require("config.apps")
 local monitors = require("config.monitors")
 local minimize = require("scripts.minimize")
@@ -37,6 +38,7 @@ add_placement_rule({
   persistent = true,
 })
 
+{{ end -}}
 hl.workspace_rule({
   workspace = "w[tv1]",
   gaps_out = 1,
@@ -51,6 +53,7 @@ hl.workspace_rule({
   no_shadow = true,
 })
 
+{{ if .personal -}}
 local spotify_rule = hl.window_rule({
   name = "spotify-workspace",
   match = { class = "^([Ss]potify|[Ss]potifast|[Ss]poticast)$" },
@@ -197,3 +200,4 @@ hl.on("hyprland.start", function()
     hl.exec_cmd("sleep 5 && exec " .. apps.launcher .. " -- " .. apps.music)
   end)
 end)
+{{ end -}}

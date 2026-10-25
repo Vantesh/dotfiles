@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-{{ if .personal -}}
 # Install upstream MacTahoe themes; Noctalia generates its custom theme on demand.
 # OFFLINE: {{ env "OFFLINE" | quote }}
 
@@ -44,5 +43,3 @@ install_mactahoe_icons() (
 )
 
 install_mactahoe_icons
-
-{{ end -}}

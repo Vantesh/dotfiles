@@ -175,13 +175,25 @@ esac""",
         "rbw",
         "lspci",
         "hostnamectl",
-        "gsettings",
         "sbctl",
         "findmnt",
         "busctl",
         "chsh",
     ):
         stub(env, command, "exit 97", log=True)
+    stub(
+        env,
+        "gsettings",
+        """[ "$1" = get ] || exit 97
+case "$3" in
+    font-name) echo "'SF Pro Text 12'" ;;
+    button-layout) echo "':'" ;;
+    default-zoom-level) echo "'small-plus'" ;;
+    show-delete-permanently) echo true ;;
+    *) exit 97 ;;
+esac""",
+        log=True,
+    )
     stub(
         env,
         "systemctl",
@@ -209,6 +221,13 @@ esac""",
         result = run_setup(env, command + ["apply"])
         assert result.returncode == 0, result.stdout + result.stderr
         assert (tmp_path / ".config/fish/config.fish").is_file()
+        for common in (
+            "mimeapps.list",
+            "qtengine/config.json",
+            "gtk-3.0/gtk.css",
+            "kitty/kitty.conf",
+        ):
+            assert (tmp_path / ".config" / common).is_file()
         assert not (tmp_path / ".ssh/id_rsa").exists()
         assert not (tmp_path / ".config/git/identity").exists()
         secrets = tmp_path / ".config/fish/conf.d/secrets.fish"
@@ -230,7 +249,7 @@ esac""",
         ["mise", "--env", "packages", "bootstrap", "packages", "apply", "--yes"],
         ["mise", "--quiet", "--env", "", "bootstrap", "--only", "services,user", "--yes"],
     ]
-    assert all(call[0] in ("sudo", "mise", "systemctl") for call in observed), observed
+    assert all(call[0] in ("sudo", "mise", "systemctl", "gsettings") for call in observed), observed
     assert all(call[1:3] == ["--user", "show"] for call in observed if call[0] == "systemctl")
 
 

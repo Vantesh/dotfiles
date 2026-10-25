@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-{{ if .personal -}}
+# OFFLINE: {{ env "OFFLINE" | quote }}
 set -euo pipefail
 
 {{ include ".chezmoitemplates/lib/common.sh" }}
@@ -9,7 +9,10 @@ readonly fonts_dir="$HOME/.local/share/fonts/SF-Pro-Text"
 readonly completion_file="$fonts_dir/.installed.sha256"
 
 if [[ -f "$completion_file" ]] && (cd "$fonts_dir" && sha256sum --check --status -- "$completion_file"); then
-  log SKIP "SF Pro Text installation is complete"
+  exit 0
+fi
+
+if [[ -n "${OFFLINE:-}" ]]; then
   exit 0
 fi
 
@@ -56,5 +59,3 @@ manifest_stage=$(mktemp "$fonts_dir/.installed.sha256.XXXXXX")
 mv -Tf -- "$manifest_stage" "$completion_file"
 manifest_stage=''
 log INFO "Installed ${#fonts[@]} SF Pro Text fonts in $fonts_dir"
-
-{{ end -}}
