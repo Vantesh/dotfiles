@@ -34,7 +34,7 @@ jobs:
           persist-credentials: false
 
       - name: Install dependencies
-        run: pacman -Syu --noconfirm git git-delta bash shellcheck chezmoi diffutils python
+        run: pacman -Syu --noconfirm git git-delta bash shellcheck chezmoi diffutils python python-loguru
 
       - name: Configure isolated home
         run: |

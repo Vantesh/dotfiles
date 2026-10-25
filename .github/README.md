@@ -49,6 +49,8 @@ Mise files in the repository (`chezmoi cd`):
 - `mise/conf.d/firewall.toml` → firewall rules.
 - `mise/conf.d/pacman-hooks.toml` → package-cache cleanup hooks.
 
+A small shell entry point installs Arch’s `python` and `python-loguru` packages when missing, then runs `.chezmoitemplates/bootstrap.py` with system Python. That bootstrap owns Git, base-devel, Mise availability and personal-only rbw/pinentry initialization; desktop package selection stays in Mise.
+
 Service, firewall, login-shell and other provisioning declarations apply only to personal setups. Fish configuration is included in both profiles.
 
 ## Btrfs layout
@@ -202,7 +204,7 @@ Edit `.tmpl` files directly in the source repo. Use `chezmoi add` to import deli
 
 ## Script tests
 
-Setup-script tests require Python 3.11+, Bash, and chezmoi; static checks also require ShellCheck.
+Setup-script tests require Python 3.11+, Loguru (`python-loguru`), Bash, and chezmoi; static checks also require ShellCheck.
 
 ```bash
 python3 -B -m unittest discover -s .github/tests -v
