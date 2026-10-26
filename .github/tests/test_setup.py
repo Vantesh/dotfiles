@@ -146,6 +146,7 @@ def render_python(
         "run_onchange_after_01_snapshots.py.tmpl",
         "run_onchange_after_02_laptop_power.py",
         "run_onchange_after_16_fingerprint.py",
+        "run_onchange_after_10_atuin.py",
         "run_onchange_after_03_hibernation.py.tmpl",
     ],
 )

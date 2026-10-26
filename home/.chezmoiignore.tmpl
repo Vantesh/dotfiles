@@ -14,11 +14,6 @@
 .config/hypr/scripts/movie_mode.lua
 {{ end -}}
 
-# The Atuin hook publishes this config at an explicit non-default XDG root.
-{{ if ne (env "XDG_CONFIG_HOME" | default (joinPath .chezmoi.homeDir ".config")) (joinPath .chezmoi.homeDir ".config") -}}
-.config/atuin
-{{ end -}}
-
 # Import only the managed SSH keys, never during previews or verbose/debug output.
 .ssh/{id_*,*.pem,known_hosts*,authorized_keys}
 .config/git/allowed_signers
