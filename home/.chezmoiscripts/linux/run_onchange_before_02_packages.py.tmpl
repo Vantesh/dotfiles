@@ -1,9 +1,11 @@
 #!/usr/bin/python3 -B
+# profile: {{ .personal | toJson }}
+# distribution: {{ .chezmoi.osRelease.id | toJson }}
+# source-dir: {{ .chezmoi.sourceDir | toJson }}
 # mise/config.toml: {{ include "../mise/config.toml" | sha256sum }}
 # mise/conf.d/packages.toml: {{ include "../mise/conf.d/packages.toml" | sha256sum }}
 """Prepare package prerequisites, then let Mise apply the declared package groups."""
 
-import json
 import os
 import re
 import shutil
@@ -11,28 +13,12 @@ import stat
 import subprocess
 import sys
 import tempfile
-from base64 import b64decode
 from pathlib import Path
-from typing import TypedDict, cast
+from typing import cast
 
 from loguru import logger
 
-
-class ScriptConfig(TypedDict):
-    source_dir: str
-    distro: str
-    personal: bool
-
-
-CONFIG = cast(
-    ScriptConfig,
-    json.loads(
-        b64decode(
-            "{{ dict "source_dir" .chezmoi.sourceDir "distro" .chezmoi.osRelease.id "personal" .personal | toJson | b64enc }}"
-        )
-    ),
-)
-SOURCE_DIR = Path(CONFIG["source_dir"])
+SOURCE_DIR = Path(os.environ["CHEZMOI_SOURCE_DIR"])
 sys.path.insert(0, str(SOURCE_DIR / ".chezmoitemplates"))
 
 
@@ -318,14 +304,20 @@ def verify_nvidia(family: str, kernels: list[str]) -> None:
 
 
 def main() -> int:
+    if os.environ.get("DOTFILES_PERSONAL_ENABLED") not in ("0", "1"):
+        print(
+            "ERROR: DOTFILES_PERSONAL_ENABLED must be '0' or '1'; run through Chezmoi.",
+            file=sys.stderr,
+        )
+        return 1
     from lib.provision_logging import configure_logging
 
     if os.geteuid() == 0:
         print("ERROR: Run package setup as a regular user.", file=sys.stderr)
         return 1
     root_argument = SOURCE_DIR.parent
-    distro = CONFIG["distro"]
-    personal = CONFIG["personal"]
+    distro = os.environ["CHEZMOI_OS_RELEASE_ID"]
+    personal = os.environ["DOTFILES_PERSONAL_ENABLED"] == "1"
     file_sink = None
     try:
         file_sink = configure_logging()

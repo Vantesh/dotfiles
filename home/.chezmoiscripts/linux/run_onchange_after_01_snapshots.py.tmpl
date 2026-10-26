@@ -1,5 +1,6 @@
 {{ if .personal -}}
 #!/usr/bin/python3 -B
+# distribution: {{ .chezmoi.osRelease.id | toJson }}
 # snapper_boot.sh: {{ include ".chezmoitemplates/lib/snapper_boot.sh" | sha256sum }}
 # snapboot.sh: {{ include ".chezmoitemplates/lib/snapboot.sh" | sha256sum }}
 # common.sh: {{ include ".chezmoitemplates/lib/common.sh" | sha256sum }}
@@ -17,22 +18,14 @@ import stat
 import subprocess
 import sys
 import tempfile
-from base64 import b64decode
 from pathlib import Path
 from typing import Never, cast
 from uuid import UUID
 
 from loguru import logger
 
-CONFIG = cast(
-    "dict[str, str]",
-    json.loads(
-        b64decode(
-            "{{ dict "source_dir" .chezmoi.sourceDir "distro" .chezmoi.osRelease.id | toJson | b64enc }}"
-        )
-    ),
-)
-SOURCE_DIR = Path(CONFIG["source_dir"])
+# Embedded source context remains available when sudo strips the environment.
+SOURCE_DIR = Path({{ .chezmoi.sourceDir | toJson }})
 sys.path.insert(0, str(SOURCE_DIR / ".chezmoitemplates"))
 
 LIMINE = Path("/usr/bin/limine")
@@ -320,7 +313,7 @@ def main() -> int:
             raise ValueError(
                 "Run Snapper setup as the regular account; sudo is used only for system operations."
             )
-        distro = CONFIG["distro"]
+        distro = os.environ["CHEZMOI_OS_RELEASE_ID"]
         if (
             distro.lower() in ("cachyos", "garuda")
             or not os.access(LIMINE, os.X_OK)

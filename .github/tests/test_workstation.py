@@ -74,7 +74,14 @@ def test_chezmoi_applies_workstation_tasks_in_both_profiles(
     # This is the real apply path, including its actual fixed Fish path check.
     shutil.copy(SCRIPTS / HOOK, scripts / HOOK)
     config = tmp_path / "chezmoi.json"
-    config.write_text(json.dumps({"data": {"personal": personal, "distroFamily": "arch"}}))
+    config.write_text(
+        json.dumps(
+            {
+                "data": {"personal": personal, "distroFamily": "arch"},
+                "scriptEnv": {"DOTFILES_PERSONAL_ENABLED": "1" if personal else "0"},
+            }
+        )
+    )
     command = [
         CHEZMOI,
         "--config",
@@ -250,7 +257,7 @@ def test_locate_and_avatar_remain_personal_and_retryable(
         "sudo",
         """case "$1" in
     -v) exit 0 ;;
-    -n) shift; exec "$@" ;;
+    -n) shift; unset CHEZMOI_SOURCE_DIR CHEZMOI_WORKING_TREE DOTFILES_PERSONAL_ENABLED; exec "$@" ;;
     systemctl) exit 23 ;;
     *) exit 97 ;;
 esac""",

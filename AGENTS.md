@@ -25,11 +25,10 @@ This unpublished architectural rewrite requires no compatibility with discarded 
 
 ## Chezmoi Python configuration
 
-- Prefer plain `.py` when rendering is unnecessary. Runtime personal gating is valid: recognize explicit enabled/disabled values and fail closed on absent or invalid state before logging, secrets or privileged changes. Template exclusion is optional; retain `.py.tmpl` for meaningful rendered settings, declaration hashes and retry triggers. Preserve script ordering and Chezmoi run semantics; profile transitions remain unsupported, so a plain `run_onchange` hook need not rerun on environment changes alone.
-- Concentrate related rendered values in a small typed JSON configuration section near the imports. Encode with `toJson` and `b64enc`, then decode with standard-library `b64decode()` and `json.loads()`; this preserves types and arbitrary string contents without evaluating configuration as Python.
-- Use `scriptEnv` selectively for non-sensitive runtime context that does not need to change `run_onchange` content. Prefer Chezmoi's existing environment variables where sufficient. Carry validated profile/source context explicitly across privileged self-execution when sudo strips the environment.
-- Name repository-owned environment variables with intention-revealing `DOTFILES_` names that distinguish booleans, paths and configuration values.
-- Keep ordinary Python syntax easy to edit, lint and type-check. Use one configuration source per value; avoid forwarding wrappers and general configuration loaders.
+- Prefer plain `.py` when rendering is unnecessary. Use `scriptEnv` or existing Chezmoi/environment variables for non-sensitive runtime settings; use one source per value and intention-revealing `DOTFILES_` names for repository-owned exports. Keep secrets out of shared environments.
+- Retain `.py.tmpl` for meaningful change detection. Group declaration hashes and configuration triggers in comments, using single-line safe representations such as `toJson`. Environment changes alone do not trigger `run_onchange`; preserve existing profile, font, distribution, OFFLINE and retry dependencies. Fixed fresh-install profiles do not require transition support.
+- Keep executable Python free of Go syntax where practical. Small rendered constants and template exclusions are valid exceptions when they preserve operational safety or dynamic settings that `scriptEnv` cannot supply reliably; explain the reason rather than adding configuration loaders or forwarding wrappers.
+- Runtime personal guards are valid and template exclusion is optional. Fail closed on absent/invalid profile state before logging, secrets or privileged changes. Preserve ordering and synchronous privileged execution; pass validated context explicitly where needed, without depending on sudo environment inheritance.
 
 ## Python conventions and operational safety
 

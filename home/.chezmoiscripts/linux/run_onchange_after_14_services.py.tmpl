@@ -1,16 +1,15 @@
 #!/usr/bin/python3 -B
+# profile: {{ .personal | toJson }}
+# working-tree: {{ .chezmoi.workingTree | toJson }}
 # data: distroFamily={{ .distroFamily | toJson }}
 # mise/config.toml: {{ include "../mise/config.toml" | sha256sum }}
 # mise/conf.d/services.toml: {{ include "../mise/conf.d/services.toml" | sha256sum }}
-{{ if .personal -}}
-# mise/config.personal.toml: {{ include "../mise/config.personal.toml" | sha256sum }}
-# mise/conf.d/firewall.toml: {{ include "../mise/conf.d/firewall.toml" | sha256sum }}
-# OFFLINE: {{ if env "OFFLINE" }}1{{ else }}0{{ end }}
-{{ end -}}
+# mise/config.personal.toml: {{ if .personal }}{{ include "../mise/config.personal.toml" | sha256sum }}{{ else }}disabled{{ end }}
+# mise/conf.d/firewall.toml: {{ if .personal }}{{ include "../mise/conf.d/firewall.toml" | sha256sum }}{{ else }}disabled{{ end }}
+# OFFLINE: {{ if .personal }}{{ if env "OFFLINE" }}1{{ else }}0{{ end }}{{ else }}disabled{{ end }}
 # mise/conf.d/login-shell.toml: {{ include "../mise/conf.d/login-shell.toml" | sha256sum }}
 """Let Mise converge workstation services and Fish before their packaged user clients."""
 
-import json
 import os
 import re
 import shutil
@@ -19,31 +18,15 @@ import subprocess
 import sys
 import tempfile
 import traceback
-from base64 import b64decode
 from pathlib import Path
-from typing import TypedDict, cast
+from typing import cast
 
 from loguru import logger
 
-
-class ScriptConfig(TypedDict):
-    source_dir: str
-    working_tree: str
-    personal: bool
-
-
-CONFIG = cast(
-    ScriptConfig,
-    json.loads(
-        b64decode(
-            "{{ dict "source_dir" .chezmoi.sourceDir "working_tree" .chezmoi.workingTree "personal" .personal | toJson | b64enc }}"
-        )
-    ),
-)
-SOURCE_DIR = Path(CONFIG["source_dir"])
+# Embedded source context remains available when sudo strips the environment.
+SOURCE_DIR = Path({{ .chezmoi.sourceDir | toJson }})
 sys.path.insert(0, str(SOURCE_DIR / ".chezmoitemplates"))
-WORKING_TREE = Path(CONFIG["working_tree"])
-PERSONAL = CONFIG["personal"]
+PERSONAL = os.environ.get("DOTFILES_PERSONAL_ENABLED") == "1"
 FISH = Path("/usr/bin/fish")
 UPDATEDB_CONF = Path("/etc/updatedb.conf")
 USER_SERVICES = (
@@ -133,15 +116,21 @@ def terminate(_signum: int, _frame: object) -> None:
 
 def main() -> int:
     _ = signal.signal(signal.SIGTERM, terminate)
-    if sys.argv[1:] == ["--configure-locate"]:
+    if sys.argv[1:2] == ["--configure-locate"]:
         try:
-            if not PERSONAL:
+            if len(sys.argv) != 3 or sys.argv[2] != "1":
                 raise ValueError("Locate customization is personal-only.")
             exclude_snapshots_from_locate()
             return 0
         except (OSError, ValueError, subprocess.CalledProcessError) as error:
             traceback.print_exc()
             return error.returncode if isinstance(error, subprocess.CalledProcessError) else 1
+    if os.environ.get("DOTFILES_PERSONAL_ENABLED") not in ("0", "1"):
+        print(
+            "ERROR: DOTFILES_PERSONAL_ENABLED must be '0' or '1'; run through Chezmoi.",
+            file=sys.stderr,
+        )
+        return 1
     from lib.provision_logging import configure_logging
 
     file_sink = None
@@ -159,6 +148,9 @@ def main() -> int:
             raise FileNotFoundError(
                 "chsh is unavailable; install util-linux before configuring Fish."
             )
+        working_tree = Path(os.environ.get("CHEZMOI_WORKING_TREE", ""))
+        if not working_tree.is_absolute():
+            raise ValueError("Chezmoi must supply an absolute CHEZMOI_WORKING_TREE.")
         if PERSONAL and shutil.which("updatedb"):
             _ = subprocess.run(["sudo", "-v"], check=True)
             result = subprocess.run(
@@ -169,6 +161,7 @@ def main() -> int:
                     "-B",
                     str(Path(__file__).resolve()),
                     "--configure-locate",
+                    "1",
                 ],
                 check=True,
                 capture_output=True,
@@ -198,8 +191,8 @@ def main() -> int:
             MISE_CONFIG_DIR="/dev/null",
             MISE_SYSTEM_CONFIG_DIR="/dev/null",
             MISE_AUTO_ENV="false",
-            MISE_CEILING_PATHS=str(WORKING_TREE.parent),
-            MISE_TRUSTED_CONFIG_PATHS=str(WORKING_TREE / "mise"),
+            MISE_CEILING_PATHS=str(working_tree.parent),
+            MISE_TRUSTED_CONFIG_PATHS=str(working_tree / "mise"),
         )
         _ = subprocess.run(
             [
@@ -212,7 +205,7 @@ def main() -> int:
                 "services,firewall,user" if PERSONAL else "services,user",
                 "--yes",
             ],
-            cwd=WORKING_TREE,
+            cwd=working_tree,
             env=env,
             check=True,
         )

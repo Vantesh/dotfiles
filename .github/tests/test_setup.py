@@ -89,12 +89,15 @@ def render_python(
     """Render a real workflow for focused subprocess and filesystem tests."""
     assert CHEZMOI is not None
     home = Path(env["HOME"])
+    env.update(
+        DOTFILES_PERSONAL_ENABLED="1" if personal else "0",
+        CHEZMOI_SOURCE_DIR=str(source),
+        CHEZMOI_WORKING_TREE=str(source.parent),
+        CHEZMOI_OS_RELEASE_ID=distro,
+    )
     if name.endswith(".py"):
         rendered = home / name
         shutil.copy(source / ".chezmoiscripts/linux" / name, rendered)
-        env.update(
-            DOTFILES_PERSONAL_ENABLED="1" if personal else "0", CHEZMOI_SOURCE_DIR=str(source)
-        )
         return rendered
     config = home / "python-render.json"
     config.write_text("{}")
@@ -156,8 +159,41 @@ def test_plain_personal_guards_precede_source_resolution_and_all_side_effects(
     assert not (tmp_path / "state").exists()
 
 
+@pytest.mark.parametrize(
+    "hook",
+    [PACKAGES, "run_onchange_after_06_theming.py.tmpl", "run_onchange_after_14_services.py.tmpl"],
+)
+def test_environment_driven_workflows_reject_invalid_profiles_before_logging(
+    env: dict[str, str], tmp_path: Path, hook: str
+) -> None:
+    script = render_python(env, hook)
+    env["DOTFILES_PERSONAL_ENABLED"] = "true"
+    result = run_setup(env, [PYTHON, "-B", str(script)])
+    assert result.returncode == 1, result.stderr
+    assert "DOTFILES_PERSONAL_ENABLED must be '0' or '1'" in result.stderr
+    assert not calls(env)
+    assert not (tmp_path / "state").exists()
+
+
+def test_template_trigger_comments_keep_multiline_context_out_of_python(
+    env: dict[str, str], tmp_path: Path
+) -> None:
+    source = tmp_path / 'source "quoted" \\ path\nUnicode 雪'
+    scripts = source / ".chezmoiscripts/linux"
+    scripts.mkdir(parents=True)
+    shutil.copy(SCRIPTS / PACKAGES, scripts / PACKAGES)
+    shutil.copytree(ROOT / "mise", source.parent / "mise")
+    script = render_python(
+        env, PACKAGES, personal=False, distro='arch\nraise RuntimeError("injected")', source=source
+    )
+    compile(script.read_text(), str(script), "exec")
+    # Trigger values stay on comment lines; no statement is introduced.
+    assert '\nraise RuntimeError("injected")' not in script.read_text()
+    assert not calls(env)
+
+
 @pytest.mark.parametrize("personal", [False, True], ids=["nonpersonal", "personal"])
-def test_rendered_python_configuration_preserves_strings_and_types(
+def test_runtime_profile_and_rendered_exceptions_preserve_strings_and_types(
     env: dict[str, str], tmp_path: Path, personal: bool
 ) -> None:
     source = tmp_path / 'source "quoted" \' \\ newline\nUnicode 雪😀'
@@ -771,13 +807,22 @@ def apply_packages(
     )
 
 
+@pytest.mark.parametrize("raw_source", [False, True], ids=["rendered", "raw-python"])
 def test_fresh_kvm_baseline_needs_no_vulkan_provider_or_personal_probes(
-    package_env: dict[str, str], tmp_path: Path
+    package_env: dict[str, str], tmp_path: Path, raw_source: bool
 ) -> None:
     for name in ("lspci", "hostnamectl", "rbw", "systemctl", "sbctl"):
         stub(package_env, name, "exit 97", log=True)
     package_env.update(MISE_ENV="personal", MISE_CONFIG_FILE="/unrelated/config.toml")
-    result = apply_packages(package_env)
+    if raw_source:
+        package_env.update(
+            DOTFILES_PERSONAL_ENABLED="0",
+            CHEZMOI_SOURCE_DIR=str(ROOT / "home"),
+            CHEZMOI_OS_RELEASE_ID="arch",
+        )
+        result = run_setup(package_env, [PYTHON, "-B", str(SCRIPTS / PACKAGES)])
+    else:
+        result = apply_packages(package_env)
     assert result.returncode == 0, result.stderr
     assert "Installing baseline packages with Mise." in result.stderr
     recorded = calls(package_env)
@@ -1011,7 +1056,14 @@ def test_chezmoi_retries_failures_and_tracks_only_package_dependencies(
     launcher = PACKAGES
     shutil.copy(SCRIPTS / launcher, scripts / launcher)
     config = tmp_path / "chezmoi.json"
-    config.write_text(json.dumps({"data": {"personal": False, "distroFamily": "arch"}}))
+    config.write_text(
+        json.dumps(
+            {
+                "data": {"personal": False, "distroFamily": "arch"},
+                "scriptEnv": {"DOTFILES_PERSONAL_ENABLED": "0"},
+            }
+        )
+    )
     command = [
         CHEZMOI,
         "--config",

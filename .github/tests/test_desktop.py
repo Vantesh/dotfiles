@@ -55,7 +55,7 @@ esac""",
         "sudo",
         """case "$1" in
     -v) exit 0 ;;
-    -n) shift; exec "$@" ;;
+    -n) shift; unset CHEZMOI_SOURCE_DIR CHEZMOI_WORKING_TREE DOTFILES_PERSONAL_ENABLED; exec "$@" ;;
     *) exit 97 ;;
 esac""",
         log=True,
@@ -126,6 +126,7 @@ def desktop_command(tmp_path: Path, personal: bool) -> list[str]:
         json.dumps(
             {
                 "data": {"personal": personal, "distroFamily": "arch"},
+                "scriptEnv": {"DOTFILES_PERSONAL_ENABLED": "1" if personal else "0"},
                 "interpreters": {"py": {"command": "/usr/bin/python3", "args": ["-B"]}},
             }
         )

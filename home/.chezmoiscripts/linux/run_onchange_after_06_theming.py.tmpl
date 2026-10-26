@@ -1,10 +1,10 @@
 #!/usr/bin/python3 -B
+# profile: {{ .personal | toJson }}
 # OFFLINE: {{ env "OFFLINE" | toJson }}
 """Apply GTK preferences and independently converge the public desktop assets."""
 
 import filecmp
 import hashlib
-import json
 import os
 import shutil
 import signal
@@ -12,31 +12,17 @@ import subprocess
 import sys
 import tempfile
 import traceback
-from base64 import b64decode
 from pathlib import Path
-from typing import TypedDict, cast
+from typing import cast
 
 from loguru import logger
 
-
-class ScriptConfig(TypedDict):
-    source_dir: str
-    personal: bool
-    font_name: str
-
-
-CONFIG = cast(
-    ScriptConfig,
-    json.loads(
-        b64decode(
-            "{{ dict "source_dir" .chezmoi.sourceDir "personal" .personal "font_name" (cat .font.ui.name .font.ui.size) | toJson | b64enc }}"
-        )
-    ),
-)
-SOURCE_DIR = Path(CONFIG["source_dir"])
+# Embedded source context remains available when sudo strips the environment.
+SOURCE_DIR = Path({{ .chezmoi.sourceDir | toJson }})
 sys.path.insert(0, str(SOURCE_DIR / ".chezmoitemplates"))
-PERSONAL = CONFIG["personal"]
-FONT_NAME = CONFIG["font_name"]
+PERSONAL = os.environ.get("DOTFILES_PERSONAL_ENABLED") == "1"
+# Font data is unavailable during init; keep font-data edits live on each apply.
+FONT_NAME = {{ cat .font.ui.name .font.ui.size | toJson }}
 ROOT_CONFIG = Path("/root/.config")
 MACTAHOE_REPO = "https://github.com/vinceliuice/MacTahoe-icon-theme.git"
 MACTAHOE_VARIANTS = ("MacTahoe", "MacTahoe-light", "MacTahoe-dark")
@@ -131,6 +117,7 @@ def configure_gtk() -> None:
             str(config_home),
             theme,
             str(scheme == "'prefer-dark'").lower(),
+            "1",
         ],
         check=True,
         capture_output=True,
@@ -324,13 +311,19 @@ def main() -> int:
     _ = signal.signal(signal.SIGTERM, terminate)
     if sys.argv[1:2] == ["--mirror-gtk"]:
         try:
-            if not PERSONAL or len(sys.argv) != 5 or sys.argv[4] not in ("true", "false"):
+            if len(sys.argv) != 6 or sys.argv[5] != "1" or sys.argv[4] not in ("true", "false"):
                 raise ValueError("Invalid root GTK invocation.")
             mirror_root_gtk(Path(sys.argv[2]), sys.argv[3], sys.argv[4] == "true")
             return 0
         except (OSError, ValueError, subprocess.CalledProcessError) as error:
             traceback.print_exc()
             return error.returncode if isinstance(error, subprocess.CalledProcessError) else 1
+    if os.environ.get("DOTFILES_PERSONAL_ENABLED") not in ("0", "1"):
+        print(
+            "ERROR: DOTFILES_PERSONAL_ENABLED must be '0' or '1'; run through Chezmoi.",
+            file=sys.stderr,
+        )
+        return 1
     from lib.provision_logging import configure_logging
 
     file_sink = None

@@ -225,6 +225,18 @@ def test_policy_direct_apply_isolated_and_idempotent(
         assert {path: path.read_bytes() for path in after} == before
 
 
+def test_missing_runtime_worktree_stops_before_privileged_policy(policy: dict[str, str]) -> None:
+    script = render_python(policy, HOOKS[1], source=Path(policy["POLICY_SOURCE"]))
+    policy.pop("CHEZMOI_WORKING_TREE")
+    result = run_setup(policy, ["/usr/bin/python3", "-B", str(script)])
+    assert result.returncode == 1, result.stderr
+    assert "CHEZMOI_WORKING_TREE" in result.stderr
+    assert calls(policy) == []
+    assert (
+        Path(policy["POLICY_ETC"]) / "conf.d/pacman-contrib"
+    ).read_text() == "# cache\nPACCACHE_ARGS='-k3'\nOTHER=keep\n"
+
+
 @pytest.mark.parametrize("invalid", ["candidate", "existing"])
 def test_invalid_sudoers_never_activates_candidates(policy: dict[str, str], invalid: str) -> None:
     etc = Path(policy["POLICY_ETC"])

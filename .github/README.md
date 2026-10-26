@@ -101,6 +101,10 @@ Chezmoi exports `DOTFILES_PERSONAL_ENABLED` as exactly `"0"` or `"1"` and `DOTFI
 
 Authentication and sudo/faillock check the profile before logging, imports of provisioning helpers or any personal operation. Disabled mode exits quietly; missing/malformed state fails with a diagnostic. The privileged sudo child receives the source path and validated profile as explicit arguments and still requires root. Sudo's plain `run_onchange` hook tracks source edits, not environment-only profile changes; profile transitions remain unsupported, so use manual cleanup or a fresh install. Reapplying a fixed profile remains idempotent.
 
+Runtime profile selection comes from `scriptEnv`; Python reads the distribution ID, working tree and source path from Chezmoi's existing environment where needed. Templates track the same values and declaration hashes through safely encoded, single-line dependency comments. `OFFLINE` and `NOCONFIRM` keep their existing runtime meanings.
+
+Small rendered source paths remain in privileged workflows so sudo environment filtering cannot break imports. GTK's complete font name remains a rendered value: `.chezmoidata` is unavailable while the init configuration template runs, and `scriptEnv` values are literal rather than dynamically re-rendered. Keeping that value in the hook preserves font-data changes without stale exports or a custom loader. GTK and locate children receive validated personal context explicitly. Validation also checks unrendered Python templates whose Go syntax is confined to comments.
+
 Run-script contents and existing configuration inputs control reapplication. Package declarations and profile/distro selection retain their meaningful triggers; shared logging changes do not automatically rerun package or filesystem provisioning. Deliberate helper-only reruns can use a scoped Chezmoi state reset. No library-wide fingerprint scheme is used.
 
 ## Bootstrap logs

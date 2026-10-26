@@ -78,7 +78,7 @@ def main():
         for path in python_paths:
             compile(path.read_text(), str(path), "exec")
         # Render Python run scripts and settings modifiers before linting/type checking.
-        template_count = 0
+        template_count = raw_template_count = 0
         rendered_python: list[str] = []
         for path in sorted((ROOT / "home").rglob("*.tmpl")):
             if not (
@@ -86,8 +86,16 @@ def main():
                 or path.read_text().startswith("#!/usr/bin/env python3")
             ):
                 continue
-            for personal in (False, True):
-                source = fixture.render(path, personal=personal)
+            variants = [
+                (str(personal), fixture.render(path, personal=personal))
+                for personal in (False, True)
+            ]
+            raw = path.read_text()
+            if path.name.endswith(".py.tmpl") and all(
+                "{{" not in line or line.lstrip().startswith("#") for line in raw.splitlines()
+            ):
+                variants.append(("source", raw))
+            for variant, source in variants:
                 compile(source, str(path), "exec")
                 for arguments in (("check",), ("format", "--check")):
                     subprocess.run(
@@ -105,11 +113,14 @@ def main():
                         check=True,
                     )
                 relative = path.relative_to(ROOT).with_suffix("").with_suffix(".py")
-                rendered = fixture.directory / "rendered" / str(personal) / relative
+                rendered = fixture.directory / "rendered" / variant / relative
                 rendered.parent.mkdir(parents=True, exist_ok=True)
                 _ = rendered.write_text(source)
                 rendered_python.append(str(rendered))
-                template_count += 1
+                if variant == "source":
+                    raw_template_count += 1
+                else:
+                    template_count += 1
         subprocess.run(
             ["basedpyright", "--project", str(ROOT / "pyproject.toml"), *rendered_python],
             cwd=ROOT,
@@ -124,7 +135,8 @@ def main():
             + f"({lint_count} distinct linted)"
         )
         print(
-            f"Python syntax: {len(python_paths)} files and {template_count} Python template renderings passed"
+            f"Python syntax: {len(python_paths)} files, {raw_template_count} unrendered templates "
+            + f"and {template_count} Python template renderings passed"
         )
     finally:
         fixture.doCleanups()

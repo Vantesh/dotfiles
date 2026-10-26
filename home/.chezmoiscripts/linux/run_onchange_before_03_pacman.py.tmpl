@@ -1,11 +1,11 @@
 {{ if .personal -}}
 #!/usr/bin/python3 -B
+# working-tree: {{ .chezmoi.workingTree | toJson }}
 # mise/config.toml: {{ include "../mise/config.toml" | sha256sum }}
 # mise/conf.d/pacman-hooks.toml: {{ include "../mise/conf.d/pacman-hooks.toml" | sha256sum }}
 # mise/conf.d/reflector.toml: {{ include "../mise/conf.d/reflector.toml" | sha256sum }}
 """Apply the personal Pacman/cache policy, then let Mise publish its system files."""
 
-import json
 import os
 import re
 import shutil
@@ -14,23 +14,14 @@ import subprocess
 import sys
 import tempfile
 import traceback
-from base64 import b64decode
 from pathlib import Path
 from typing import cast
 
 from loguru import logger
 
-CONFIG = cast(
-    "dict[str, str]",
-    json.loads(
-        b64decode(
-            "{{ dict "source_dir" .chezmoi.sourceDir "working_tree" .chezmoi.workingTree | toJson | b64enc }}"
-        )
-    ),
-)
-SOURCE_DIR = Path(CONFIG["source_dir"])
+# Embedded source context remains available when sudo strips the environment.
+SOURCE_DIR = Path({{ .chezmoi.sourceDir | toJson }})
 sys.path.insert(0, str(SOURCE_DIR / ".chezmoitemplates"))
-WORKING_TREE = Path(CONFIG["working_tree"])
 PACMAN_CONF = Path("/etc/pacman.conf")
 PACCACHE_CONFIG = Path("/etc/conf.d/pacman-contrib")
 
@@ -143,6 +134,9 @@ def main() -> int:
             raise ValueError(
                 "Run policy setup as the regular account; sudo publishes system files."
             )
+        working_tree = Path(os.environ.get("CHEZMOI_WORKING_TREE", ""))
+        if not working_tree.is_absolute():
+            raise ValueError("Chezmoi must supply an absolute CHEZMOI_WORKING_TREE.")
         for command in ("sudo", "paccache", "pacman-conf", "mise"):
             if shutil.which(command) is None:
                 raise FileNotFoundError(
@@ -165,12 +159,12 @@ def main() -> int:
             MISE_CONFIG_DIR="/dev/null",
             MISE_SYSTEM_CONFIG_DIR="/dev/null",
             MISE_AUTO_ENV="false",
-            MISE_CEILING_PATHS=str(WORKING_TREE.parent),
-            MISE_TRUSTED_CONFIG_PATHS=str(WORKING_TREE / "mise"),
+            MISE_CEILING_PATHS=str(working_tree.parent),
+            MISE_TRUSTED_CONFIG_PATHS=str(working_tree / "mise"),
         )
         _ = subprocess.run(
             ["mise", "--env", "", "bootstrap", "--only", "files", "--yes"],
-            cwd=WORKING_TREE,
+            cwd=working_tree,
             env=env,
             check=True,
         )
