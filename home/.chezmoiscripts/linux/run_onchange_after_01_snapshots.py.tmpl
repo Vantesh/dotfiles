@@ -2,9 +2,10 @@
 # profile: {{ .personal | toJson }}
 # source-dir: {{ if .personal }}{{ .chezmoi.sourceDir | toJson }}{{ else }}disabled{{ end }}
 # distribution: {{ if .personal }}{{ .chezmoi.osRelease.id | toJson }}{{ else }}disabled{{ end }}
-# snapper_boot.sh: {{ if .personal }}{{ include ".chezmoitemplates/lib/snapper_boot.sh" | sha256sum }}{{ else }}disabled{{ end }}
-# snapboot.sh: {{ if .personal }}{{ include ".chezmoitemplates/lib/snapboot.sh" | sha256sum }}{{ else }}disabled{{ end }}
-# common.sh: {{ if .personal }}{{ include ".chezmoitemplates/lib/common.sh" | sha256sum }}{{ else }}disabled{{ end }}
+# snapshot_boot.py: {{ if .personal }}{{ include ".chezmoitemplates/lib/snapshot_boot.py" | sha256sum }}{{ else }}disabled{{ end }}
+# initramfs.py: {{ if .personal }}{{ include ".chezmoitemplates/lib/initramfs.py" | sha256sum }}{{ else }}disabled{{ end }}
+# limine_config.py: {{ if .personal }}{{ include ".chezmoitemplates/lib/limine_config.py" | sha256sum }}{{ else }}disabled{{ end }}
+# limine_cmdline.py: {{ if .personal }}{{ include ".chezmoitemplates/lib/limine_cmdline.py" | sha256sum }}{{ else }}disabled{{ end }}
 """Provision the existing personal root Snapper configuration on the supported Btrfs layout."""
 
 import argparse
@@ -276,11 +277,40 @@ def enable_services() -> None:
         logger.info("Enabled {}.", unit)
 
 
+def configure_snapshot_boot(stage: str, state: Path, source_dir: Path, personal: str) -> None:
+    _ = subprocess.run(["sudo", "-v"], check=True)
+    result = subprocess.run(
+        [
+            "sudo",
+            "-n",
+            sys.executable,
+            "-B",
+            str(Path(__file__).resolve()),
+            "--configure-boot",
+            stage,
+            str(state),
+            str(source_dir),
+            personal,
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    for message in result.stdout.splitlines():
+        logger.info(message)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     _ = parser.add_argument("--optimize-fstab", nargs=2, help=argparse.SUPPRESS)
+    _ = parser.add_argument("--configure-boot", nargs=4, help=argparse.SUPPRESS)
     args = parser.parse_args()
+    boot = cast("list[str] | None", args.configure_boot)
     context = cast("list[str] | None", args.optimize_fstab)
+    if boot is not None:
+        if context is not None or boot[0] not in ("prepare", "overlay"):
+            parser.error("Expected one supported privileged snapshot operation.")
+        context = boot[2:]
     personal = context[1] if context is not None else os.environ.get("DOTFILES_PERSONAL_ENABLED")
     if personal == "0":
         return 0
@@ -307,7 +337,17 @@ def main() -> int:
 
         _ = signal.signal(signal.SIGTERM, terminate)
         try:
-            if optimize_fstab(FSTAB):
+            if boot is not None:
+                from lib.snapshot_boot import configure_snapshot_overlay, prepare_snapshot_boot
+
+                state = Path(boot[1])
+                if not state.is_absolute():
+                    raise ValueError("Snapshot boot setup requires an absolute state directory.")
+                if boot[0] == "prepare":
+                    prepare_snapshot_boot(state)
+                else:
+                    configure_snapshot_overlay(state)
+            elif optimize_fstab(FSTAB):
                 print("changed")
             return 0
         except (OSError, ValueError, subprocess.CalledProcessError) as error:
@@ -334,10 +374,10 @@ def main() -> int:
             raise FileNotFoundError(
                 "mkinitcpio is unavailable; complete Limine package installation."
             )
-        boot_helper = source_dir / ".chezmoitemplates/lib/snapper_boot.sh"
-        _ = subprocess.run(["bash", str(boot_helper), "prepare"], check=True)
+        state = Path(os.environ.get("XDG_STATE_HOME") or Path.home() / ".local/state") / "chezmoi"
+        configure_snapshot_boot("prepare", state, source_dir, personal)
         configure_snapper(current)
-        _ = subprocess.run(["bash", str(boot_helper), "overlay"], check=True)
+        configure_snapshot_boot("overlay", state, source_dir, personal)
         result = subprocess.run(
             [
                 "sudo",

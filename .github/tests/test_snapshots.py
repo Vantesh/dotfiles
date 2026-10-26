@@ -48,7 +48,9 @@ def snapper(env: dict[str, str], tmp_path: Path) -> dict[str, str]:
     shutil.copytree(ROOT / "home/.chezmoitemplates", templates)
     module = scripts / HOOK
     module.write_text(
-        module.read_text().replace('Path("/usr/bin/limine")', f"Path({str(limine)!r})")
+        module.read_text()
+        .replace('Path("/usr/bin/limine")', f"Path({str(limine)!r})")
+        .replace("if os.geteuid() != 0:", "if False:")
     )
     stub(env, "mkinitcpio", "exit 97")
     stub(env, "rbw", "exit 97", log=True)
@@ -57,13 +59,14 @@ def snapper(env: dict[str, str], tmp_path: Path) -> dict[str, str]:
         "btrfs",
         '[ "$1 $2" = "subvolume show" ] || exit 97; [ "$3" != /.snapshots ] || exit "${BTRFS_STATUS:-0}"; exit 0',
     )
-    stub(
-        env,
-        "bash",
-        """case "$1" in
-    */snapper_boot.sh) printf 'boot\\t%s\\t\\n' "$2" >> "$CALLS"; exit 0 ;;
-    *) exec /bin/bash "$@" ;;
-esac""",
+    (templates / "lib/snapshot_boot.py").write_text(
+        "import os\nfrom pathlib import Path\n"
+        + "def prepare_snapshot_boot(state):\n"
+        + "    assert 'CHEZMOI_SOURCE_DIR' not in os.environ\n"
+        + "    with Path(os.environ['CALLS']).open('a') as stream: stream.write('boot\\tprepare\\t\\n')\n"
+        + "def configure_snapshot_overlay(state):\n"
+        + "    assert 'CHEZMOI_SOURCE_DIR' not in os.environ\n"
+        + "    with Path(os.environ['CALLS']).open('a') as stream: stream.write('boot\\toverlay\\t\\n')\n"
     )
     stub(
         env,
@@ -75,6 +78,8 @@ esac""",
         env,
         "sudo",
         """case "$1" in
+    -v) exit 0 ;;
+    -n) shift; unset CHEZMOI_SOURCE_DIR DOTFILES_PERSONAL_ENABLED; exec "$@" ;;
     test)
         [ "$3" = /.snapshots ] || exit 97
         exec /usr/bin/test "$2" "$HOME/snapshots" ;;
@@ -384,6 +389,8 @@ def test_rendered_snapper_reexecutes_synchronously_without_source_environment(
         snapper,
         "sudo",
         """case "$1" in
+    -v) exit 0 ;;
+    -n) shift; unset CHEZMOI_SOURCE_DIR DOTFILES_PERSONAL_ENABLED; exec "$@" ;;
     */python|*/python3)
         unset CHEZMOI_SOURCE_DIR CHEZMOI_WORKING_TREE CHEZMOI_OS_RELEASE_ID DOTFILES_PERSONAL_ENABLED PYTHONPATH
         exec "$@" ;;

@@ -142,7 +142,7 @@ Snapper's number cleanup (limit 10), disabled timeline creation and empty pre/po
 
 Root's explicit `relatime` fstab option becomes `noatime` through a guarded atomic edit that preserves ownership/mode and other mount entries, including `@swap`. Reload failures restore this invocation's edit while preserving intervening manual changes. Failures stop setup and remain retryable through Chezmoi. There are no new completion markers. Python uses the existing private Loguru logs; sudo authentication stays native.
 
-Snapshot boot configuration remains in `.chezmoitemplates/lib/snapper_boot.sh` until Phase 6C. Its Limine settings, overlay selection and deferred rebuild behavior are unchanged. Shared boot Bash helpers remain because Phase 6C still consumes them.
+Snapshot boot configuration now lives in `.chezmoitemplates/lib/snapshot_boot.py`, invoked through the Snapper entry point with explicit privileged arguments. Limine settings, overlay selection and pending rebuild coordination are preserved. The late rebuild still consumes the retained boot helper until its Python migration.
 
 ## Managed laptop hibernation
 

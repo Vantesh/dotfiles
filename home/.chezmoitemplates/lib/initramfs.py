@@ -52,7 +52,6 @@ def read_hooks(mode: str = "current", candidate: str = "") -> list[str]:
 source /dev/stdin
 if [[ "${HOOKS@a}" != *a* ]]; then read -r -a HOOKS <<< "${HOOKS:-}"; fi
 printf '%s\\n' "${HOOKS[*]}"
-if [[ "${FILES@a}" != *a* ]]; then read -r -a FILES <<< "${FILES:-}"; fi
 printf '%s\\n' "${FILES[*]-}"
 """
     output = subprocess.run(

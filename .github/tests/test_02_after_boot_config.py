@@ -11,6 +11,7 @@ from typing import override
 
 import pytest
 from helpers import CHEZMOI, LIB, SCRIPTS, ScriptCase
+from lib.snapshot_boot import OVERLAY_CONFIG
 from test_setup import env as env
 from test_setup import run_setup, stub
 
@@ -823,22 +824,7 @@ esac""",
                 )
 
     def test_preflight_checks_the_exact_candidate_not_only_the_ownership_probe(self) -> None:
-        function = self.function(
-            LIB / "snapper_boot.sh",
-            "add_mkinitcpio_overlay_hook",
-        )
-        result = self.shell(
-            self.libraries("common.sh")
-            + function
-            + r"""
-get_mkinitcpio_hooks() { echo 'base systemd block filesystems strip'; }
-mkinitcpio_hook_exists() { return 0; }
-write_mkinitcpio_dropin() { printf '%s\n' "$2"; }
-add_mkinitcpio_overlay_hook
-"""
-        )
-        self.assertEqual(result.returncode, 0, result.stderr)
-        (self.dropins / "snapper.conf").write_text(result.stdout)
+        (self.dropins / "snapper.conf").write_text(OVERLAY_CONFIG)
         self.main.write_text(self.original.replace("fsck)", "fsck strip)"))
         conditional = self.dropins / "zz-strip.conf"
         conditional.write_text('if [[ "${HOOKS[-1]}" != strip ]]; then HOOKS+=(strip); fi\n')
@@ -969,54 +955,30 @@ add_mkinitcpio_overlay_hook
                 self.assertFalse(self.marker.exists())
 
     def test_snapper_hook_is_applied_once(self) -> None:
-        function = self.function(
-            LIB / "snapper_boot.sh",
-            "add_mkinitcpio_overlay_hook",
-        )
-        for hooks, expected in (
-            (
-                "base systemd block filesystems",
-                "base systemd block filesystems sd-btrfs-overlayfs",
-            ),
-            (
-                "base systemd block filesystems sd-btrfs-overlayfs",
-                "base systemd block filesystems sd-btrfs-overlayfs",
-            ),
-            (
-                "base udev block filesystems",
-                "base udev block filesystems btrfs-overlayfs",
-            ),
-            (
-                "base systemd block filesystems strip",
-                "base systemd block filesystems sd-btrfs-overlayfs strip",
-            ),
-            ("base systemd block filesystems", None),
+        for hooks in (
+            "base systemd block filesystems",
+            "base udev block filesystems",
+            "base systemd block filesystems strip",
         ):
-            with self.subTest(hooks=hooks, expected=expected):
-                self.env.update(HOOK_ENV=hooks, FAILURE="snapshot-hook" if expected is None else "")
-                (self.directory / "snapper.conf").unlink(missing_ok=True)
-                result = self.shell(
-                    self.libraries("common.sh")
-                    + function
-                    + r"""
-get_mkinitcpio_hooks() { printf '%s\n' "$HOOK_ENV"; }
-mkinitcpio_hook_exists() { [[ "$FAILURE:$1" != snapshot-hook:sd-btrfs-overlayfs ]]; }
-write_mkinitcpio_dropin() { printf '%s\n' "$2" > "$HOME/snapper.conf"; }
-add_mkinitcpio_overlay_hook || exit 1
-HOOKS=("""
-                    + hooks
-                    + r""")
-source "$HOME/snapper.conf"
-source "$HOME/snapper.conf"
-printf '%s\n' "${HOOKS[*]}"
-"""
+            with self.subTest(hooks=hooks):
+                self.main.write_text(f"HOOKS=({hooks})\n")
+                (self.dropins / "snapper.conf").unlink(missing_ok=True)
+                self.marker.unlink(missing_ok=True)
+                operation = "from lib import snapshot_boot\nsnapshot_boot.configure_snapshot_overlay(state)\nprint(' '.join(initramfs.read_hooks()))\n"
+                result = self.boot_python(operation)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                overlay = "sd-btrfs-overlayfs" if "systemd" in hooks else "btrfs-overlayfs"
+                expected = (
+                    hooks.replace(" strip", f" {overlay} strip")
+                    if "strip" in hooks
+                    else hooks + " " + overlay
                 )
-                if expected is None:
-                    self.assertNotEqual(result.returncode, 0, result.stderr)
-                    self.assertFalse((self.directory / "snapper.conf").exists())
-                else:
-                    self.assertEqual(result.returncode, 0, result.stderr)
-                    self.assertEqual(result.stdout.strip(), expected)
+                self.assertEqual(result.stdout.strip(), expected)
+                self.marker.unlink()
+                repeated = self.boot_python(operation)
+                self.assertEqual(repeated.returncode, 0, repeated.stderr)
+                self.assertEqual(repeated.stdout, result.stdout)
+                self.assertFalse(self.marker.exists())
 
 
 class BootConfigTests(ScriptCase):
@@ -1031,33 +993,22 @@ class BootConfigTests(ScriptCase):
         self.marker = self.directory / "state/chezmoi/initramfs.pending"
         self.env["BOOT"] = str(self.boot)
         self.env["FAIL_STAGING"] = "1"
-        self.stub("tee", 'exec /usr/bin/tee "$@"')
-        self.stub("limine-entry-tool", "exit 97")
-        self.stub(
-            "sudo",
-            r'''case "$1" in
-    test|cmp|grep|awk|install|chmod|mv|rm) ;;
-    tee) if [ "$FAIL_STAGING" = 1 ]; then printf 'stage-write\t\n' >> "$CALLS"; exit 23; fi ;;
-    *) exit 97 ;;
-esac
-for arg do
-    case "$arg" in /*) case "$arg" in "$HOME"/*|/dev/null) ;; *) exit 97 ;; esac ;; esac
-done
-exec "$@"''',
-        )
+        self.env.update(SUDO_UID=str(os.getuid()), SUDO_GID=str(os.getgid()))
 
     def configure(self) -> subprocess.CompletedProcess[str]:
-        return self.shell(
-            self.libraries("common.sh", "snapboot.sh")
-            + r"""
-get_limine_boot_directory() { echo "$BOOT"; }
-LIMINE_OPTIONS=(timeout=0.5)
-"""
-            + self.function(
-                SCRIPTS / "run_onchange_after_08_theming.sh.tmpl", "configure_limine_options"
-            )
-            + "\nconfigure_limine_options\n"
+        library = self.directory / "source/.chezmoitemplates/lib"
+        library.mkdir(parents=True, exist_ok=True)
+        for path in LIB.glob("*.py"):
+            shutil.copy(path, library / path.name)
+        policy = library / "policy_files.py"
+        policy.write_text(
+            policy.read_text().replace("parent.st_uid != 0", "parent.st_uid != os.getuid()")
         )
+        self.marker.parent.mkdir(parents=True, exist_ok=True)
+        self.marker.parent.chmod(0o700)
+        driver = self.directory / "theme.py"
+        driver.write_text(THEME_DRIVER)
+        return self.run_process(["/usr/bin/python3", "-B", str(driver)], name="Limine appearance")
 
     def test_failed_staging_preserves_boot_config_and_rebuild_request(self) -> None:
         result = self.configure()
@@ -1222,3 +1173,41 @@ def test_boot_order_retries_and_stripped_privileged_environment(
         assert events.read_text().splitlines() == ["13"]
     else:
         assert not events.exists()
+
+
+THEME_DRIVER = r"""import os, sys
+from pathlib import Path
+home = Path(os.environ['HOME']); sys.path.insert(0, str(home / 'source/.chezmoitemplates'))
+from lib import limine_theme, policy_files
+limine_theme.boot_directory = lambda: home / 'esp'
+original = policy_files.replace_config
+def replace(path, *args, **kwargs):
+    if path == home / 'esp/limine.conf' and os.environ['FAIL_STAGING'] == '1':
+        with Path(os.environ['CALLS']).open('a') as stream: stream.write('stage-write\t\n')
+        raise OSError('Fixture staging failure')
+    return original(path, *args, **kwargs)
+policy_files.replace_config = replace
+limine_theme.configure_limine_theme(home / 'state/chezmoi')
+"""
+
+
+def test_boot_partition_requires_a_mounted_fat32_filesystem(
+    env: dict[str, str], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from lib import limine_config
+
+    etc = tmp_path / "etc"
+    (etc / "default").mkdir(parents=True)
+    config = etc / "default/limine"
+    config.write_text('ESP_PATH="/boot"\n')
+    monkeypatch.setattr(limine_config, "ETC", etc)
+    monkeypatch.setattr(limine_config, "SHARE", tmp_path / "share")
+    monkeypatch.setenv("PATH", env["PATH"])
+    stub(env, "findmnt", '[ "$*" = "-rn -o FSTYPE --mountpoint /boot" ] || exit 97; echo vfat')
+    assert limine_config.boot_directory() == Path("/boot")
+    stub(env, "findmnt", "echo ext4")
+    with pytest.raises(ValueError, match="FAT32"):
+        limine_config.boot_directory()
+    config.write_text("ESP_PATH=relative\n")
+    with pytest.raises(ValueError, match="absolute"):
+        limine_config.boot_directory()

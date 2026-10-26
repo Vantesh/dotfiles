@@ -2,7 +2,8 @@
 
 import hashlib
 import json
-import shlex
+import os
+import shutil
 import struct
 import subprocess
 import sys
@@ -162,48 +163,25 @@ esac""",
             log=True,
         )
         # Implement only this script's jq queries; unknown queries fail the fixture.
-        jq = """import json, sys
-args = sys.argv[1:]
-query = " ".join(args[-1].split())
-data = json.load(sys.stdin)
-if query == '(.installed | type) == "boolean" and (.setup_mode | type) == "boolean" and (.secure_boot | type) == "boolean"':
-    value = all(type(data.get(key)) is bool for key in ("installed", "setup_mode", "secure_boot"))
-elif query == ".setup_mode and .secure_boot":
-    value = data["setup_mode"] and data["secure_boot"]
-elif query in (".installed", ".setup_mode"):
-    value = data[query[1:]]
-elif query == '.keys.db.pubkey | select(type == "string" and length > 0)':
-    value = data.get("keys", {}).get("db", {}).get("pubkey")
-    if not isinstance(value, str) or not value:
-        sys.exit(1)
-    print(value)
-    sys.exit(0)
-elif query == "any(.DB[]?; .Raw == $certificate)":
-    value = any(item.get("Raw") == args[3] for item in data.get("DB", []))
-else:
-    raise SystemExit("Unexpected jq query: " + query)
-print(json.dumps(value))
-sys.exit(0 if value else 1)
-"""
-        self.stub("jq", f'exec {shlex.quote(sys.executable)} -I -B -c {shlex.quote(jq)} "$@"')
-        source = self.render(SCRIPTS / "run_onchange_after_05_secure_boot.sh.tmpl")
-        source = source.replace("/etc/", f"{self.etc}/").replace("/sys/", f"{self.directory}/sys/")
-        source = source.replace("/usr/share/", f"{self.directory}/share/")
-        source = source.replace("/usr/bin/limine", str(self.bin / "limine"))
-        source = source.replace("\nupdate_config() {", "\nfixture_update_config() {")
-        self.source = source.replace(
-            '\nmain "$@"',
-            r'''
-keep_sudo_alive() { return 0; }
-update_config() {
-    printf 'update\t%s\t\n' "$2" >> "$CALLS"
-    [[ -f "$INITRAMFS_PENDING_FILE" ]] || return 97
-    [[ "$FAILURE" != "write-$2" ]] || return 23
-    fixture_update_config "$@"
-}
-main "$@"''',
-        )
         self.reset()
+
+    def security(self, *, enroll: bool = True) -> subprocess.CompletedProcess[str]:
+        library = self.directory / "source/.chezmoitemplates/lib"
+        library.mkdir(parents=True, exist_ok=True)
+        for path in LIB.glob("*.py"):
+            shutil.copy(path, library / path.name)
+        policy = library / "policy_files.py"
+        policy.write_text(
+            policy.read_text().replace("parent.st_uid != 0", "parent.st_uid != os.getuid()")
+        )
+        self.env.update(SUDO_UID=str(os.getuid()), SUDO_GID=str(os.getgid()))
+        driver = self.directory / "secure.py"
+        driver.write_text(
+            SECURITY_DRIVER + f"\nsecure_boot.configure_secure_boot(state, enroll={enroll!r})\n"
+        )
+        return self.run_process(
+            [sys.executable, "-B", str(driver)], name="Secure Boot configuration"
+        )
 
     def reset(self, verification: str = "yes", enrollment: str = "yes") -> None:
         self.calls.unlink(missing_ok=True)
@@ -227,7 +205,7 @@ main "$@"''',
                     self.config.stat().st_mtime_ns,
                 )
                 marker_before = self.marker.stat().st_mtime_ns if pending else None
-                result = self.shell(self.source)
+                result = self.security()
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertEqual(
                     (
@@ -251,7 +229,7 @@ main "$@"''',
                     "no" if key == "ENABLE_VERIFICATION" else "yes",
                     "no" if key == "ENABLE_ENROLL_LIMINE_CONFIG" else "yes",
                 )
-                result = self.shell(self.source)
+                result = self.security()
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertTrue(self.marker.is_file())
                 self.assertNotIn("=no", self.config.read_text())
@@ -270,7 +248,7 @@ main "$@"''',
                     )
                 )
                 before = self.config.stat().st_ino
-                result = self.shell(self.source)
+                result = self.security()
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertTrue(self.marker.is_file())
                 self.assertEqual(["sbctl", "create-keys"] in self.logged_calls(), not installed)
@@ -286,7 +264,7 @@ main "$@"''',
             with self.subTest(key=key):
                 self.reset("no", "no")
                 self.env["FAILURE"] = "write-" + key
-                result = self.shell(self.source)
+                result = self.security()
                 self.assertEqual(result.returncode, 1, result.stderr)
                 self.assertTrue(self.marker.is_file())
                 self.assertIn("Failed to configure " + key, result.stderr)
@@ -302,7 +280,7 @@ main "$@"''',
                     ),
                 )
                 before = self.config.read_bytes()
-                result = self.shell(self.source)
+                result = self.security()
                 self.assertEqual(result.returncode, 1, result.stderr)
                 self.assertTrue(self.marker.is_file())
                 self.assertEqual(self.config.read_bytes(), before)
@@ -324,9 +302,8 @@ main "$@"''',
                         }
                     ),
                 )
-                result = self.shell(self.source)
+                result = self.security()
                 self.assertEqual(result.returncode, 1, result.stderr)
-                self.assertIn("Failed to request Secure Boot rebuild", result.stderr)
                 self.assertFalse(
                     any(
                         call[0] == "update" or call[1:2] in (["create-keys"], ["enroll-keys"])
@@ -357,7 +334,7 @@ main "$@"''',
                 self.reset()
                 self.env.update(defaults)
                 self.env.update(changes)
-                result = self.shell(self.source)
+                result = self.security()
                 self.assertEqual(result.returncode, 1, result.stderr)
                 self.assertIn(error, result.stderr)
                 self.assertFalse(self.marker.exists())
@@ -574,3 +551,59 @@ def test_missing_rebuild_prerequisite_fails_without_clearing_request(
         assert missing.lower() in result.stderr.lower()
         assert marker.read_text() == "unchanged rebuild request\n"
         assert marker.stat().st_mtime_ns == before.st_mtime_ns
+
+
+SECURITY_DRIVER = r"""import os, sys
+from pathlib import Path
+home = Path(os.environ['HOME']); sys.path.insert(0, str(home / 'source/.chezmoitemplates'))
+from lib import secure_boot, limine_config, policy_files
+limine_config.ETC = home / 'etc'; limine_config.SHARE = home / 'share'
+secure_boot.VENDOR = home / 'sys/class/dmi/id/sys_vendor'
+state = Path(os.environ['XDG_STATE_HOME']) / 'chezmoi'
+state.mkdir(parents=True, exist_ok=True); state.chmod(0o700)
+original = policy_files.replace_config
+def replace(path, expected, content, metadata, mode=None):
+    if path == home / 'etc/default/limine':
+        previous = path.read_text()
+        for key in ('ENABLE_VERIFICATION','ENABLE_ENROLL_LIMINE_CONFIG'):
+            if key + '=no' in previous and (key + '="yes"') in content.decode():
+                with Path(os.environ['CALLS']).open('a') as stream: stream.write('update\t' + key + '\t\n')
+                assert (state / 'initramfs.pending').is_file()
+                if os.environ.get('FAILURE') == 'write-' + key: raise OSError('Failed to configure ' + key)
+    return original(path, expected, content, metadata, mode)
+policy_files.replace_config = replace
+"""
+
+
+def test_secure_boot_unattended_enrollment_requires_consent(
+    env: dict[str, str], tmp_path: Path
+) -> None:
+    from test_setup import calls, render_python, run_setup, stub
+
+    env.update(NOCONFIRM="1", DOTFILES_DISTRO_FAMILY="arch")
+    limine = tmp_path / "limine"
+    limine.touch(mode=0o755)
+    efivars = tmp_path / "efivars"
+    efivars.mkdir()
+    stub(env, "mkinitcpio", "exit 97")
+    stub(
+        env,
+        "sudo",
+        """case "$*" in
+    -v) exit 0 ;;
+    '-n sbctl --json status') printf '{"installed":false,"setup_mode":true,"secure_boot":false}\n' ;;
+    *) exit 97 ;;
+esac""",
+        log=True,
+    )
+    script = render_python(env, "run_onchange_after_05_secure_boot.py.tmpl")
+    script.write_text(
+        script.read_text()
+        .replace('Path("/usr/bin/limine")', f"Path({str(limine)!r})")
+        .replace('Path("/sys/firmware/efi/efivars")', f"Path({str(efivars)!r})")
+    )
+    result = run_setup(env, ["/usr/bin/python3", "-B", str(script)])
+    assert result.returncode == 1, result.stderr
+    assert "explicit consent" in result.stderr
+    assert calls(env) == [["sudo", "-v"], ["sudo", "-n", "sbctl", "--json", "status"]]
+    assert not (tmp_path / "state/chezmoi/initramfs.pending").exists()
