@@ -158,6 +158,14 @@ Root's explicit `relatime` fstab option becomes `noatime` through a guarded atom
 
 Snapshot boot configuration now lives in `.chezmoitemplates/lib/snapshot_boot.py`, invoked through the Snapper entry point with explicit privileged arguments. Limine settings, overlay selection and pending rebuild coordination are preserved. The late Python rebuild consumes the shared pending request after all boot configuration hooks.
 
+## Personal Goodix enrollment
+
+The plain `16_fingerprint` hook supports the known `27c6:5395` USB reader. It requires the declared `libfprint-goodix53x5-533c-git` package and fprintd's default device reporting `Goodix HTK32 Fingerprint Sensor`. The [driver's USB table and device name](https://github.com/nikicat/goodix53x5-libfprint/blob/52584a5/drivers/goodix53x5/goodix53x5.c) were verified against the installed package revision. A generic libfprint package or USB ID alone is insufficient. Missing hardware skips quietly; a missing compatible package or different default reader skips with a diagnostic. Failures querying an installed supported reader stop setup.
+
+The personal guard runs before logging or inspection. Read-only fprintd D-Bus calls preserve existing prints, and enrollment requires explicit terminal consent. Native `sudo fprintd-enroll -f right-index-finger` receives the actual regular account explicitly, so console enrollment does not require a graphical Polkit agent. Its input/output stays on the terminal; no biometric output is recorded in setup logs. A successful command is followed by a fresh enrollment-state query before reporting completion. No PAM, Polkit, sudo policy, device permissions or fingerprint login settings are changed.
+
+CI, `NOCONFIRM=1`, no terminal and declined prompts skip enrollment. Successful/intentional skips are cached by Chezmoi; enroll later through the native tool when wanted. Required failures remain retryable without state files, deletion or automatic re-enrollment. Driver installation stays in the earlier personal package group; this hook only inspects it.
+
 ## Laptop power management
 
 The personal `run_onchange_after_02_laptop_power.py` hook uses `hostnamectl chassis` and skips non-laptops before any download or privileged operation. Failed hardware inspection stops setup. Nonpersonal installs skip the hook before logging or inspecting hardware.
@@ -343,7 +351,7 @@ CI invokes the same validator and reports missing prerequisites. The stock Arch 
 - **Super + U:** system update.
 - **Super + B:** browser.
 - **Bash history:** move `~/.bash_history` to `~/.local/state/bash/history` if needed, preserving existing history.
-- **Fingerprint:** setup offers enrollment only with its fingerprint packages installed and a detected reader without enrolled prints. Touch the reader when prompted, or run `fprintd-enroll` later.
+- **Fingerprint:** personal setup offers enrollment only for the declared Goodix driver and a matching reader reported by fprintd, without existing prints. Touch the reader when prompted, or run `fprintd-enroll` later.
 - **WARP:** setup registers it once without connecting. Connect manually when wanted.
 
 ## Credits

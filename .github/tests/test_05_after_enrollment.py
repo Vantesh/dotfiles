@@ -1,9 +1,12 @@
 """Enrollment preserves existing accounts and requires a usable fingerprint reader."""
 
 import json
+import os
+import pty
+import pwd
 import shutil
+import subprocess
 from pathlib import Path
-from typing import override
 
 import pytest
 from helpers import CHEZMOI, ROOT, SCRIPTS, ScriptCase
@@ -162,257 +165,178 @@ def test_warp_failure_is_required_and_preserves_exit_status(
     assert "account-private-fixture" not in log + result.stdout + result.stderr
 
 
-class FingerprintTests(ScriptCase):
-    @override
-    def setUp(self) -> None:
-        super().setUp()
-        self.source = self.render(SCRIPTS / "run_onchange_after_16_fingerprint.sh.tmpl")
-        self.stub("pacman", "exit 1")
+FINGERPRINT = "run_onchange_after_16_fingerprint.py"
 
-    def test_fingerprint_enrollment_requires_a_reader_without_prints_and_interactive_consent(
-        self,
-    ) -> None:
-        terminal = self.directory / "terminal"
-        enrolled = self.directory / "enrolled"
-        self.env["ENROLLED"] = str(enrolled)
-        self.env["SUDO_USER"] = "fixture-user"
-        source = self.source.replace("/dev/tty", str(terminal))
-        enrollment = ["fprintd-enroll", "-f", "right-index-finger", "fixture-user"]
-        self.stub(
-            "id",
-            """
-case "$*" in
-    -u) case "$FPRINT_CASE" in root-*) echo 0 ;; *) echo 1000 ;; esac ;;
-    -un) echo fixture-user ;;
-    '-u -- fixture-user') echo 1000 ;;
-    '-u -- root') echo 0 ;;
-    *) exit 97 ;;
-esac
-""",
-        )
-        self.stub(
-            "ps",
-            """
-case "$FPRINT_CASE" in
-    tty|tty-failed|root-tty) echo ' tty2' ;;
-    terminal-unavailable) exit 1 ;;
-    *) echo pts/3 ;;
-esac
-""",
-        )
-        self.stub(
-            "sudo",
-            """
-if [ "$1" = -u ]; then
-    [ "$2" = fixture-user ] || exit 97
-    shift 2
-    exec "$@"
+
+@pytest.fixture
+def fingerprint_env(env: dict[str, str], tmp_path: Path) -> dict[str, str]:
+    reader = tmp_path / "usb/1-1"
+    reader.mkdir(parents=True)
+    (reader / "idVendor").write_text("27c6\n")
+    (reader / "idProduct").write_text("5395\n")
+    script = render_python(env, FINGERPRINT)
+    script.write_text(
+        script.read_text().replace('Path("/sys/bus/usb/devices")', f"Path({str(reader.parent)!r})")
+    )
+    stub(
+        env,
+        "pacman",
+        '''if [ "${DRIVER_DATABASE_ERROR:-0}" = 1 ]; then
+    echo 'error: could not open package database' >&2; exit 1
 fi
-[ "$*" = 'fprintd-enroll -f right-index-finger fixture-user' ] || exit 97
-PRIVILEGED=1 exec "$@"
-""",
-            log=True,
-        )
-        package_check = ["pacman", "-Q", "--", "libfprint-goodix53x5-533c-git"]
-        self.stub(
-            "pacman",
-            """
-[ "$*" = '-Q -- libfprint-goodix53x5-533c-git' ] || exit 97
-case "$FPRINT_CASE" in
-    packages-unused|packages-incomplete) exit 1 ;;
-    package-query-failed) exit 23 ;;
-    *) exit 0 ;;
-esac
-""",
-            log=True,
-        )
-        manager = [
-            "gdbus",
-            "call",
-            "--system",
-            "--dest",
-            "net.reactivated.Fprint",
-            "--object-path",
-            "/net/reactivated/Fprint/Manager",
-            "--method",
-            "net.reactivated.Fprint.Manager.GetDefaultDevice",
-        ]
-        listing = [
-            "gdbus",
-            "call",
-            "--system",
-            "--dest",
-            "net.reactivated.Fprint",
-            "--object-path",
-            "/net/reactivated/Fprint/Device/0",
-            "--method",
-            "net.reactivated.Fprint.Device.ListEnrolledFingers",
-            "fixture-user",
-        ]
-        self.stub(
-            "gdbus",
-            """
-case "$*" in
-    'call --system --dest net.reactivated.Fprint --object-path /net/reactivated/Fprint/Manager --method net.reactivated.Fprint.Manager.GetDefaultDevice')
-        if [ "$FPRINT_CASE" = absent ]; then
-            echo 'Error: GDBus.Error:net.reactivated.Fprint.Error.NoSuchDevice: No devices available' >&2
-            exit 1
-        fi
+if [ "${DRIVER_STATUS:-0}" = 1 ]; then
+    echo "error: package 'libfprint-goodix53x5-533c-git' was not found" >&2
+elif [ "${DRIVER_STATUS:-0}" != 0 ]; then
+    echo 'error: could not read package database' >&2
+fi
+exit "${DRIVER_STATUS:-0}"''',
+        log=True,
+    )
+    stub(env, "sudo", 'exec "$@"', log=True)
+    stub(
+        env,
+        "gdbus",
+        """case "$*" in
+    *Manager.GetDefaultDevice)
+        [ "${MANAGER_STATUS:-0}" = 0 ] || exit "$MANAGER_STATUS"
         echo "(objectpath '/net/reactivated/Fprint/Device/0',)" ;;
-    'call --system --dest net.reactivated.Fprint --object-path /net/reactivated/Fprint/Device/0 --method net.reactivated.Fprint.Device.ListEnrolledFingers fixture-user')
-        if [ -e "$ENROLLED" ] || [ "$FPRINT_CASE" = existing ]; then
-            echo "(['right-index-finger'],)"; exit 0
+    *Properties.Get*)
+        if [ "${OTHER_READER:-0}" = 1 ]; then echo "(<'Other fingerprint reader'>,)"
+        else echo "(<'Goodix HTK32 Fingerprint Sensor'>,)"; fi ;;
+    *ListEnrolledFingers*)
+        if [ "${LIST_STATUS:-0}" != 0 ]; then
+            echo 'GDBus.Error:net.reactivated.Fprint.Error.PermissionDenied: Not authorized' >&2
+            exit "$LIST_STATUS"
         fi
-        if [ "$FPRINT_CASE" = denied ]; then
-            echo 'Error: GDBus.Error:net.reactivated.Fprint.Error.PermissionDenied: Not authorized' >&2
-        elif [ "$FPRINT_CASE" = empty ]; then
-            echo '(@as [],)'; exit 0
+        if [ -f "$HOME/enrolled" ]; then echo "(['right-index-finger'],)"
         else
-            echo 'Error: GDBus.Error:net.reactivated.Fprint.Error.NoEnrolledPrints: No prints enrolled' >&2
-        fi
-        exit 1 ;;
-    *) exit 97 ;;
-esac
-""",
-            log=True,
-        )
-        self.stub(
-            "fprintd-enroll",
-            """
-[ "$*" = '-f right-index-finger fixture-user' ] || exit 97
-case "$FPRINT_CASE" in
-    tty|root-tty|authorization)
-        if [ "${PRIVILEGED:-0}" != 1 ]; then
-            echo 'EnrollStart failed: GDBus.Error:net.reactivated.Fprint.Error.PermissionDenied: Not Authorized: net.reactivated.fprint.device.enroll'
+            echo 'GDBus.Error:net.reactivated.Fprint.Error.NoEnrolledPrints: No prints enrolled' >&2
             exit 1
         fi ;;
-    failed|tty-failed) echo 'Enroll result: enroll-failed'; exit 23 ;;
-    unsupported) echo 'EnrollStart failed: net.reactivated.Fprint.Error.EnrollNotSupported'; exit 1 ;;
-    communication) echo 'EnrollStart failed: net.reactivated.Fprint.Error.Internal: communication failed'; exit 1 ;;
-esac
-echo 'right-index-finger' > "$ENROLLED"
-""",
-            log=True,
+    *) exit 97 ;;
+esac""",
+        log=True,
+    )
+    stub(
+        env,
+        "fprintd-enroll",
+        '''echo 'native-biometric-output-fixture'
+[ "${ENROLL_STATUS:-0}" = 0 ] || exit "$ENROLL_STATUS"
+[ "${NO_SAVED_PRINT:-0}" = 0 ] || exit 0
+touch "$HOME/enrolled"''',
+        log=True,
+    )
+    return env
+
+
+def fingerprint_with_terminal(env: dict[str, str], answer: str) -> subprocess.CompletedProcess[str]:
+    setsid = shutil.which("setsid")
+    assert setsid is not None
+    master, slave = pty.openpty()
+    try:
+        _ = os.write(master, (answer + "\n").encode())
+        return subprocess.run(
+            [setsid, "--ctty", "--wait", PYTHON, "-B", str(Path(env["HOME"]) / FINGERPRINT)],
+            stdin=slave,
+            capture_output=True,
+            text=True,
+            env=env,
+            check=False,
+            timeout=15,
         )
-        for scenario in (
-            "tooling-unavailable",
-            "packages-unused",
-            "packages-incomplete",
-            "package-query-failed",
-            "absent",
-            "existing",
-            "denied",
-            "declined",
-            "headless",
-            "unattended",
-            "ci",
-            "failed",
-            "unsupported",
-            "communication",
-            "authorization",
-            "tty",
-            "tty-failed",
-            "root-tty",
-            "root-desktop",
-            "terminal-unavailable",
-            "root-unknown",
-            "root-user",
-            "empty",
-            "fresh",
-        ):
-            with self.subTest(scenario=scenario):
-                self.calls.unlink(missing_ok=True)
-                enrolled.unlink(missing_ok=True)
-                terminal.unlink(missing_ok=True)
-                enroller = self.bin / "fprintd-enroll"
-                if scenario == "tooling-unavailable":
-                    enroller.rename(enroller.with_suffix(".disabled"))
-                if scenario != "headless":
-                    terminal.write_text("n\n" if scenario == "declined" else "y\n")
-                self.env.update(
-                    FPRINT_CASE=scenario,
-                    CI="1" if scenario == "ci" else "",
-                    NOCONFIRM="1" if scenario == "unattended" else "0",
-                    SUDO_USER=""
-                    if scenario == "root-unknown"
-                    else "root"
-                    if scenario == "root-user"
-                    else "fixture-user",
-                )
-                result = self.shell(source)
-                if scenario == "tooling-unavailable":
-                    enroller.with_suffix(".disabled").rename(enroller)
-                expected_status = {
-                    "tooling-unavailable": 127,
-                    "package-query-failed": 23,
-                    "root-unknown": 1,
-                    "root-user": 1,
-                    "denied": 1,
-                    "failed": 23,
-                    "tty-failed": 23,
-                    "unsupported": 1,
-                    "communication": 1,
-                    "authorization": 1,
-                    "terminal-unavailable": 1,
-                }.get(scenario, 0)
-                self.assertEqual(result.returncode, expected_status, result.stderr)
-                calls = self.logged_calls()
-                self.assertEqual(
-                    enrolled.exists(),
-                    scenario in ("empty", "fresh", "tty", "root-tty", "root-desktop"),
-                )
-                if scenario == "ci":
-                    self.assertEqual(calls, [])
-                elif scenario in (
-                    "tooling-unavailable",
-                    "packages-unused",
-                    "packages-incomplete",
-                    "package-query-failed",
-                    "root-unknown",
-                    "root-user",
-                ):
-                    self.assertEqual(calls, [package_check])
-                else:
-                    self.assertIn(package_check, calls)
-                    self.assertIn(manager, calls)
-                    if scenario != "absent":
-                        self.assertIn(listing, calls)
-                    self.assertEqual(
-                        enrollment in calls,
-                        scenario
-                        in (
-                            "failed",
-                            "unsupported",
-                            "communication",
-                            "empty",
-                            "fresh",
-                            "authorization",
-                            "tty",
-                            "tty-failed",
-                            "root-tty",
-                            "root-desktop",
-                        ),
-                    )
-                    self.assertLessEqual(calls.count(enrollment), 1)
-                privileged = ["sudo", *enrollment]
-                self.assertEqual(privileged in calls, scenario in ("tty", "tty-failed", "root-tty"))
-                if scenario in ("tty", "root-tty"):
-                    self.assertLess(calls.index(privileged), calls.index(enrollment))
-                if scenario == "root-desktop":
-                    self.assertIn(["sudo", "-u", "fixture-user", *enrollment], calls)
-                if scenario in (
-                    "denied",
-                    "failed",
-                    "unsupported",
-                    "communication",
-                    "authorization",
-                    "tty-failed",
-                    "terminal-unavailable",
-                ):
-                    self.assertIn("ERROR:", result.stderr)
-                if scenario in ("empty", "fresh"):
-                    self.calls.unlink()
-                    repeated = self.shell(source)
-                    self.assertEqual(repeated.returncode, 0, repeated.stderr)
-                    self.assertNotIn(enrollment, self.logged_calls())
-                    self.assertEqual(enrolled.read_text(), "right-index-finger\n")
+    finally:
+        os.close(slave)
+        os.close(master)
+
+
+@pytest.mark.parametrize("scenario", ["absent", "driver-missing", "other-reader", "enrolled"])
+def test_fingerprint_requires_the_supported_reader_and_preserves_existing_prints(
+    fingerprint_env: dict[str, str], tmp_path: Path, scenario: str
+) -> None:
+    if scenario == "absent":
+        shutil.rmtree(tmp_path / "usb/1-1")
+    elif scenario == "driver-missing":
+        fingerprint_env["DRIVER_STATUS"] = "1"
+    elif scenario == "other-reader":
+        fingerprint_env["OTHER_READER"] = "1"
+    else:
+        (tmp_path / "enrolled").write_text("existing-print")
+    result = run_setup(fingerprint_env, [PYTHON, "-B", str(tmp_path / FINGERPRINT)])
+    assert result.returncode == 0, result.stderr
+    observed = calls(fingerprint_env)
+    assert not any(call[0] in ("sudo", "fprintd-enroll") for call in observed)
+    if scenario == "absent":
+        assert observed == []
+        assert result.stdout == result.stderr == ""
+    elif scenario == "driver-missing":
+        assert observed == [["pacman", "-Q", "--", "libfprint-goodix53x5-533c-git"]]
+        assert "no declared compatible driver" in result.stderr
+    elif scenario == "enrolled":
+        assert (tmp_path / "enrolled").read_text() == "existing-print"
+
+
+@pytest.mark.parametrize("flag", ["CI", "NOCONFIRM", "headless"])
+def test_fingerprint_unattended_execution_never_enrolls(
+    fingerprint_env: dict[str, str], tmp_path: Path, flag: str
+) -> None:
+    command = [PYTHON, "-B", str(tmp_path / FINGERPRINT)]
+    if flag == "headless":
+        setsid = shutil.which("setsid")
+        assert setsid is not None
+        command = [setsid, "--wait", *command]
+    else:
+        fingerprint_env[flag] = "1"
+    result = run_setup(fingerprint_env, command)
+    assert result.returncode == 0, result.stderr
+    assert not (tmp_path / "enrolled").exists()
+    assert not any(call[0] in ("sudo", "fprintd-enroll") for call in calls(fingerprint_env))
+
+
+@pytest.mark.parametrize("answer", ["n", "yes"], ids=["declined", "confirmed"])
+def test_fingerprint_enrollment_needs_consent_and_is_verified_before_success(
+    fingerprint_env: dict[str, str], tmp_path: Path, answer: str
+) -> None:
+    result = fingerprint_with_terminal(fingerprint_env, answer)
+    assert result.returncode == 0, result.stderr
+    assert (tmp_path / "enrolled").exists() == (answer == "yes")
+    if answer == "yes":
+        repeated = fingerprint_with_terminal(fingerprint_env, "yes")
+        assert repeated.returncode == 0, repeated.stderr
+        user = pwd.getpwuid(os.getuid()).pw_name
+        assert [call for call in calls(fingerprint_env) if call[0] == "fprintd-enroll"] == [
+            ["fprintd-enroll", "-f", "right-index-finger", user]
+        ]
+        assert ["sudo", "fprintd-enroll", "-f", "right-index-finger", user] in calls(
+            fingerprint_env
+        )
+    log = (tmp_path / "state/chezmoi/logs/setup.log").read_text()
+    assert "native-biometric-output-fixture" not in log + result.stdout + result.stderr
+
+
+@pytest.mark.parametrize(
+    "failure,status",
+    [
+        ("DRIVER_STATUS", 23),
+        ("DRIVER_DATABASE_ERROR", 1),
+        ("MANAGER_STATUS", 24),
+        ("LIST_STATUS", 25),
+        ("ENROLL_STATUS", 26),
+        ("NO_SAVED_PRINT", 1),
+    ],
+)
+def test_fingerprint_required_failures_never_claim_success(
+    fingerprint_env: dict[str, str], tmp_path: Path, failure: str, status: int
+) -> None:
+    fingerprint_env[failure] = "1" if failure == "NO_SAVED_PRINT" else str(status)
+    result = fingerprint_with_terminal(fingerprint_env, "yes")
+    assert result.returncode == status, result.stderr
+    assert f"Fingerprint setup failed (exit {status})" in result.stderr
+    assert "Fingerprint enrollment completed" not in result.stderr
+    assert not (tmp_path / "enrolled").exists()
+    assert "Traceback" not in result.stderr
+    if failure == "NO_SAVED_PRINT":
+        assert "no enrolled prints" in result.stderr
+    if failure.startswith("DRIVER_"):
+        assert "package database" in result.stderr
+    if failure in ("DRIVER_STATUS", "DRIVER_DATABASE_ERROR", "MANAGER_STATUS", "LIST_STATUS"):
+        assert not any(call[0] == "fprintd-enroll" for call in calls(fingerprint_env))

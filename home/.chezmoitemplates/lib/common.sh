@@ -18,7 +18,6 @@ if [[ -n "${NO_COLOR:-}" ]] || [[ ! -t 2 ]] || [[ "${TERM:-}" == "dumb" ]]; then
   readonly COLOR_YELLOW=""
   readonly COLOR_RED=""
   readonly COLOR_BLUE=""
-  readonly COLOR_CYAN=""
   readonly COLOR_MAGENTA=""
 else
   readonly COLOR_RESET="\033[0m"
@@ -26,7 +25,6 @@ else
   readonly COLOR_YELLOW="\033[1;33m"
   readonly COLOR_RED="\033[1;31m"
   readonly COLOR_BLUE="\033[1;34m"
-  readonly COLOR_CYAN="\033[1;36m"
   readonly COLOR_MAGENTA="\033[0;35m"
 fi
 
@@ -93,78 +91,6 @@ die() {
 
   log ERROR "$@"
   exit "$exit_code"
-}
-
-# Prompts user for yes/no confirmation.
-#
-# Loops until valid input (y/yes/n/no) is received. Case-insensitive.
-# Empty input uses the default value.
-#
-# Arguments:
-#   $1 - Prompt text (default: "Continue?")
-#   $2 - Default answer: 'y' or 'n' (default: 'y')
-# Globals:
-#   LAST_ERROR - Set on invalid default value
-# Outputs:
-#   Prompt to stderr, reads from stdin
-# Returns:
-#   0 for yes, 1 for no, 2 for invalid default
-confirm() {
-  local prompt="${1:-Continue?}"
-  local default="${2:-y}"
-
-  if [[ "${NOCONFIRM:-0}" == "1" ]]; then
-    return 0
-  fi
-
-  local options
-
-  case "${default,,}" in
-  y | yes)
-    options="[Y/n]"
-    ;;
-  n | no)
-    options="[y/N]"
-    ;;
-  *)
-    LAST_ERROR="default must be 'y' or 'n'"
-    return 2
-    ;;
-  esac
-
-  while true; do
-    printf '\n%b%s%b %s ' "$COLOR_CYAN" "$prompt" "$COLOR_RESET" "$options" >&2
-
-    if [[ -t 0 ]]; then
-      if ! read -r response; then
-        response=""
-      fi
-    elif [[ -r /dev/tty ]]; then
-      if ! read -r response </dev/tty; then
-        response=""
-      fi
-    else
-      response="$default"
-    fi
-
-    response="${response,,}"
-
-    if [[ -z "$response" ]]; then
-      response="$default"
-    fi
-
-    case "$response" in
-    y | yes)
-      return 0
-      ;;
-    n | no)
-      return 1
-      ;;
-    *)
-      printf '%bInvalid input. Please enter y or n.%b\n' "$COLOR_YELLOW" "$COLOR_RESET" >&2
-      ;;
-    esac
-  done
 }
 
 # Checks if a command is available in PATH.
