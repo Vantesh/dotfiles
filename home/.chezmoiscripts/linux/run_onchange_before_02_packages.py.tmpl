@@ -18,9 +18,6 @@ from typing import cast
 
 from loguru import logger
 
-SOURCE_DIR = Path(os.environ["CHEZMOI_SOURCE_DIR"])
-sys.path.insert(0, str(SOURCE_DIR / ".chezmoitemplates"))
-
 
 def prepare_xdg() -> None:
     home = Path.home()
@@ -310,12 +307,17 @@ def main() -> int:
             file=sys.stderr,
         )
         return 1
+    source_dir = Path(os.environ["CHEZMOI_SOURCE_DIR"])
+    if not source_dir.is_absolute():
+        print("ERROR: Chezmoi must supply an absolute source directory.", file=sys.stderr)
+        return 1
+    sys.path.insert(0, str(source_dir / ".chezmoitemplates"))
     from lib.provision_logging import configure_logging
 
     if os.geteuid() == 0:
         print("ERROR: Run package setup as a regular user.", file=sys.stderr)
         return 1
-    root_argument = SOURCE_DIR.parent
+    root_argument = source_dir.parent
     distro = os.environ["CHEZMOI_OS_RELEASE_ID"]
     personal = os.environ["DOTFILES_PERSONAL_ENABLED"] == "1"
     file_sink = None

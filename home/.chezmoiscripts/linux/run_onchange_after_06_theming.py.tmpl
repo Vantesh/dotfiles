@@ -1,4 +1,5 @@
 #!/usr/bin/python3 -B
+# source-dir: {{ .chezmoi.sourceDir | toJson }}
 # profile: {{ .personal | toJson }}
 # OFFLINE: {{ env "OFFLINE" | toJson }}
 """Apply GTK preferences and independently converge the public desktop assets."""
@@ -17,9 +18,6 @@ from typing import cast
 
 from loguru import logger
 
-# Embedded source context remains available when sudo strips the environment.
-SOURCE_DIR = Path({{ .chezmoi.sourceDir | toJson }})
-sys.path.insert(0, str(SOURCE_DIR / ".chezmoitemplates"))
 PERSONAL = os.environ.get("DOTFILES_PERSONAL_ENABLED") == "1"
 # Font data is unavailable during init; keep font-data edits live on each apply.
 FONT_NAME = {{ cat .font.ui.name .font.ui.size | toJson }}
@@ -71,7 +69,7 @@ def mirror_root_gtk(config_home: Path, theme: str, prefer_dark: bool) -> None:
         print("Updated the personal root GTK mirror.")
 
 
-def configure_gtk() -> None:
+def configure_gtk(source_dir: Path) -> None:
     if shutil.which("gsettings") is None:
         logger.warning("gsettings unavailable; skipping GTK preferences.")
         return
@@ -118,6 +116,7 @@ def configure_gtk() -> None:
             theme,
             str(scheme == "'prefer-dark'").lower(),
             "1",
+            str(source_dir),
         ],
         check=True,
         capture_output=True,
@@ -308,10 +307,19 @@ def terminate(_signum: int, _frame: object) -> None:
 
 
 def main() -> int:
+    privileged = sys.argv[1:2] == ["--mirror-gtk"]
+    if privileged and len(sys.argv) != 7:
+        print("ERROR: Root GTK setup requires its source directory.", file=sys.stderr)
+        return 1
+    source_dir = Path(sys.argv[6]) if privileged else Path(os.environ["CHEZMOI_SOURCE_DIR"])
+    if not source_dir.is_absolute():
+        print("ERROR: Chezmoi must supply an absolute source directory.", file=sys.stderr)
+        return 1
+    sys.path.insert(0, str(source_dir / ".chezmoitemplates"))
     _ = signal.signal(signal.SIGTERM, terminate)
-    if sys.argv[1:2] == ["--mirror-gtk"]:
+    if privileged:
         try:
-            if len(sys.argv) != 6 or sys.argv[5] != "1" or sys.argv[4] not in ("true", "false"):
+            if sys.argv[5] != "1" or sys.argv[4] not in ("true", "false"):
                 raise ValueError("Invalid root GTK invocation.")
             mirror_root_gtk(Path(sys.argv[2]), sys.argv[3], sys.argv[4] == "true")
             return 0
@@ -333,7 +341,7 @@ def main() -> int:
             raise ValueError("Unsupported theming arguments.")
         if os.geteuid() == 0:
             raise ValueError("Run desktop provisioning as the regular account.")
-        configure_gtk()
+        configure_gtk(source_dir)
         install_mactahoe_icons()
         install_sf_pro_text()
         return 0

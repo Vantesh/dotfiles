@@ -103,11 +103,14 @@ def main() -> int:
         )
         return 1
     # Carry validated context as arguments: sudo need not preserve scriptEnv.
-    source = sys.argv[2] if privileged else os.environ.get("CHEZMOI_SOURCE_DIR")
-    if not source or not Path(source).is_absolute():
+    try:
+        source_dir = Path(sys.argv[2]) if privileged else Path(os.environ["CHEZMOI_SOURCE_DIR"])
+    except KeyError:
+        print("ERROR: Chezmoi must supply CHEZMOI_SOURCE_DIR.", file=sys.stderr)
+        return 1
+    if not source_dir.is_absolute():
         print("ERROR: Chezmoi must supply an absolute CHEZMOI_SOURCE_DIR.", file=sys.stderr)
         return 1
-    source_dir = Path(source)
     sys.path.insert(0, str(source_dir / ".chezmoitemplates"))
     _ = signal.signal(signal.SIGTERM, terminate)
     if privileged:

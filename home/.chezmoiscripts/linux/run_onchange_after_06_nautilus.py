@@ -10,9 +10,6 @@ from pathlib import Path
 
 from loguru import logger
 
-SOURCE_DIR = Path(os.environ["CHEZMOI_SOURCE_DIR"])
-sys.path.insert(0, str(SOURCE_DIR / ".chezmoitemplates"))
-
 
 def terminate(_signum: int, _frame: object) -> None:
     raise SystemExit(143)
@@ -20,6 +17,11 @@ def terminate(_signum: int, _frame: object) -> None:
 
 def main() -> int:
     _ = signal.signal(signal.SIGTERM, terminate)
+    source_dir = Path(os.environ["CHEZMOI_SOURCE_DIR"])
+    if not source_dir.is_absolute():
+        print("ERROR: Chezmoi must supply an absolute source directory.", file=sys.stderr)
+        return 1
+    sys.path.insert(0, str(source_dir / ".chezmoitemplates"))
     from lib.provision_logging import configure_logging
 
     file_sink = None

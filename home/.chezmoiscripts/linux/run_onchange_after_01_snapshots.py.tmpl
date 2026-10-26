@@ -1,5 +1,6 @@
 {{ if .personal -}}
 #!/usr/bin/python3 -B
+# source-dir: {{ .chezmoi.sourceDir | toJson }}
 # distribution: {{ .chezmoi.osRelease.id | toJson }}
 # snapper_boot.sh: {{ include ".chezmoitemplates/lib/snapper_boot.sh" | sha256sum }}
 # snapboot.sh: {{ include ".chezmoitemplates/lib/snapboot.sh" | sha256sum }}
@@ -24,13 +25,8 @@ from uuid import UUID
 
 from loguru import logger
 
-# Embedded source context remains available when sudo strips the environment.
-SOURCE_DIR = Path({{ .chezmoi.sourceDir | toJson }})
-sys.path.insert(0, str(SOURCE_DIR / ".chezmoitemplates"))
-
 LIMINE = Path("/usr/bin/limine")
 FSTAB = Path("/etc/fstab")
-BOOT_HELPER = SOURCE_DIR / ".chezmoitemplates/lib/snapper_boot.sh"
 SETTINGS = {
     "NUMBER_CLEANUP": "yes",
     "NUMBER_LIMIT": "10",
@@ -282,11 +278,21 @@ def enable_services() -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    _ = parser.add_argument("--optimize-fstab", action="store_true", help=argparse.SUPPRESS)
+    _ = parser.add_argument("--optimize-fstab", type=Path, help=argparse.SUPPRESS)
     args = parser.parse_args()
+    privileged_source = cast("Path | None", args.optimize_fstab)
+    source_dir = (
+        privileged_source
+        if privileged_source is not None
+        else Path(os.environ["CHEZMOI_SOURCE_DIR"])
+    )
+    if not source_dir.is_absolute():
+        print("ERROR: Chezmoi must supply an absolute source directory.", file=sys.stderr)
+        return 1
+    sys.path.insert(0, str(source_dir / ".chezmoitemplates"))
     # A narrowly scoped privileged entry point: no selectable system paths and
     # no privileged logging into the regular account's private XDG directory.
-    if cast("bool", args.optimize_fstab):
+    if privileged_source is not None:
         if os.geteuid() != 0:
             print("fstab updates require root.", file=sys.stderr)
             return 1
@@ -323,11 +329,19 @@ def main() -> int:
         supported, current = inspect_layout()
         if not supported:
             return 0
-        _ = subprocess.run(["bash", str(BOOT_HELPER), "prepare"], check=True)
+        boot_helper = source_dir / ".chezmoitemplates/lib/snapper_boot.sh"
+        _ = subprocess.run(["bash", str(boot_helper), "prepare"], check=True)
         configure_snapper(current)
-        _ = subprocess.run(["bash", str(BOOT_HELPER), "overlay"], check=True)
+        _ = subprocess.run(["bash", str(boot_helper), "overlay"], check=True)
         result = subprocess.run(
-            ["sudo", sys.executable, "-B", str(Path(__file__).resolve()), "--optimize-fstab"],
+            [
+                "sudo",
+                sys.executable,
+                "-B",
+                str(Path(__file__).resolve()),
+                "--optimize-fstab",
+                str(source_dir),
+            ],
             check=True,
             capture_output=True,
             text=True,

@@ -1,5 +1,6 @@
 {{ if .personal -}}
 #!/usr/bin/python3 -B
+# source-dir: {{ .chezmoi.sourceDir | toJson }}
 {{ $stateHome := env "XDG_STATE_HOME" | default (joinPath .chezmoi.homeDir ".local/state") -}}
 # retry-generation: {{ with stat (joinPath $stateHome "chezmoi/hibernation.pending") }}{{ .size }}{{ else }}0{{ end }}
 # mise/config.nvidia-sleep.toml: {{ include "../mise/config.nvidia-sleep.toml" | sha256sum }}
@@ -24,8 +25,6 @@ from typing import cast
 
 from loguru import logger
 
-SOURCE_DIR = Path({{ .chezmoi.sourceDir | toJson }})
-sys.path.insert(0, str(SOURCE_DIR / ".chezmoitemplates"))
 ETC = Path("/etc")
 DEV = Path("/dev")
 SYS = Path("/sys")
@@ -34,7 +33,6 @@ SHARE = Path("/usr/share")
 LIMINE = Path("/usr/bin/limine")
 SWAP_MOUNT = Path("/swap")
 SWAP_FILE = SWAP_MOUNT / "swapfile"
-PARSER = SOURCE_DIR / ".chezmoitemplates/lib/limine_cmdline.py"
 
 
 class ManualSetup(ValueError):
@@ -282,9 +280,9 @@ def independently_managed_swap(entries: list[tuple[str, str, str, str]]) -> bool
     return False
 
 
-def persistent_cmdline() -> str:
+def persistent_cmdline(parser: Path) -> str:
     return subprocess.run(
-        [sys.executable, "-I", "-B", str(PARSER), "hibernation"],
+        [sys.executable, "-I", "-B", str(parser), "hibernation"],
         check=True,
         capture_output=True,
         text=True,
@@ -552,7 +550,7 @@ def configure_btrfs_swap(
     return SetupResult.CONFIGURED, "".join(f"\n{entry}\n" for entry in additions)
 
 
-def configure_resume(device: BtrfsDevice, state: Path, work: Path) -> None:
+def configure_resume(device: BtrfsDevice, state: Path, work: Path, parser: Path) -> None:
     from lib.policy_files import publish_config, rollback_configs, snapshot_config
 
     directory = ETC / "limine-entry-tool.d"
@@ -587,7 +585,7 @@ def configure_resume(device: BtrfsDevice, state: Path, work: Path) -> None:
             content = 'KERNEL_CMDLINE[default]= "' + original.replace('"', r"\"") + '"\n' + content
         _ = candidate.write_text(content)
         _ = subprocess.run(
-            [sys.executable, "-I", "-B", str(PARSER), "deduplicate-file", str(candidate)],
+            [sys.executable, "-I", "-B", str(parser), "deduplicate-file", str(candidate)],
             check=True,
         )
         if config.original is None or candidate.read_bytes() != config.backup.read_bytes():
@@ -610,7 +608,7 @@ def configure_resume(device: BtrfsDevice, state: Path, work: Path) -> None:
             sys.executable,
             "-I",
             "-B",
-            str(PARSER),
+            str(parser),
             "fragment-file",
             managed.name,
             str(candidate),
@@ -625,7 +623,7 @@ def configure_resume(device: BtrfsDevice, state: Path, work: Path) -> None:
             _ = publish_config(config, candidate.read_bytes())
         # Re-evaluate precedence after publication: later defaults must not
         # suppress this resume owner while the workflow reports completion.
-        _ = persistent_cmdline()
+        _ = persistent_cmdline(parser)
     except BaseException:
         rollback_configs([config])
         raise
@@ -633,10 +631,10 @@ def configure_resume(device: BtrfsDevice, state: Path, work: Path) -> None:
         print("Configured managed Btrfs swapfile resume.")
 
 
-def configure_zswap(state: Path, work: Path) -> None:
+def configure_zswap(state: Path, work: Path, parser: Path) -> None:
     from lib.policy_files import publish_config, rollback_configs, snapshot_config
 
-    previous = persistent_cmdline()
+    previous = persistent_cmdline(parser)
     fragment = ETC / "limine-entry-tool.d/zswap.conf"
     if (
         any(token.startswith("zswap.") for token in previous.split())
@@ -699,7 +697,7 @@ def configure_zswap(state: Path, work: Path) -> None:
         _ = publish_config(
             config, b'KERNEL_CMDLINE[default]+=" zswap.enabled=1 zswap.compressor=lz4"\n'
         )
-        updated = persistent_cmdline().split()
+        updated = persistent_cmdline(parser).split()
         retained = [token for token in updated if not token.startswith("zswap.")]
         if (
             updated.count("zswap.enabled=1") != 1
@@ -747,7 +745,7 @@ def configure_sleep(work: Path) -> None:
     _ = subprocess.run(["udevadm", "settle"], check=True)
 
 
-def apply_hibernation(state: Path) -> SetupResult:
+def apply_hibernation(state: Path, parser: Path) -> SetupResult:
     from lib.policy_files import inspect_file, publish_config, rollback_configs, snapshot_config
 
     if os.geteuid() != 0:
@@ -773,7 +771,7 @@ def apply_hibernation(state: Path) -> SetupResult:
         print(f"{error} Configure hibernation manually; existing state was preserved.")
         return SetupResult.MANUAL
     try:
-        cmdline = persistent_cmdline()
+        cmdline = persistent_cmdline(parser)
     except subprocess.CalledProcessError as error:
         diagnostic = cast("str | None", error.stderr)
         reason = diagnostic.strip() if diagnostic else str(error)
@@ -798,21 +796,21 @@ def apply_hibernation(state: Path) -> SetupResult:
                 _ = subprocess.run(["systemctl", "daemon-reload"], check=True)
             if inspect_btrfs_device(SWAP_FILE) != device:
                 raise ValueError("Swapfile device changed; refusing to publish resume parameters.")
-            configure_resume(device, state, work)
+            configure_resume(device, state, work, parser)
         except BaseException:
             rollback_configs([fstab])
             if fstab.published is not None:
                 _ = subprocess.run(["systemctl", "daemon-reload"], check=False)
             raise
         try:
-            configure_zswap(state, work)
+            configure_zswap(state, work, parser)
         except (OSError, ValueError, subprocess.CalledProcessError) as error:
             print(f"WARNING: Optional Zswap setup skipped; hibernation remains configured: {error}")
         configure_sleep(work)
     return SetupResult.CONFIGURED
 
 
-def configure_nvidia_sleep() -> None:
+def configure_nvidia_sleep(source_dir: Path) -> None:
     info = subprocess.run(["lspci", "-nn"], check=True, capture_output=True, text=True).stdout
     if not any(
         "NVIDIA Corporation" in line
@@ -824,7 +822,7 @@ def configure_nvidia_sleep() -> None:
         return
     declarations = cast(
         "dict[str, object]",
-        tomllib.loads((SOURCE_DIR.parent / "mise/config.nvidia-sleep.toml").read_text()),
+        tomllib.loads((source_dir.parent / "mise/config.nvidia-sleep.toml").read_text()),
     )
     bootstrap = cast("dict[str, object]", declarations["bootstrap"])
     services = cast("dict[str, dict[str, str | bool]]", bootstrap["services"])
@@ -900,6 +898,7 @@ def configure_nvidia_sleep() -> None:
                 str(Path(__file__).resolve()),
                 "--nvidia-pm",
                 address,
+                str(source_dir),
             ],
             check=True,
             capture_output=True,
@@ -916,14 +915,24 @@ def terminate(_signum: int, _frame: object) -> None:
 
 
 def main() -> int:
+    privileged = sys.argv[1:2] in (["--configure"], ["--nvidia-pm"])
+    if privileged and len(sys.argv) != 4:
+        print("ERROR: Privileged hibernation setup requires its source directory.", file=sys.stderr)
+        return 1
+    source_dir = Path(sys.argv[3]) if privileged else Path(os.environ["CHEZMOI_SOURCE_DIR"])
+    if not source_dir.is_absolute():
+        print("ERROR: Chezmoi must supply an absolute source directory.", file=sys.stderr)
+        return 1
+    sys.path.insert(0, str(source_dir / ".chezmoitemplates"))
+    parser = source_dir / ".chezmoitemplates/lib/limine_cmdline.py"
     _ = signal.signal(signal.SIGTERM, terminate)
-    if sys.argv[1:2] in (["--configure"], ["--nvidia-pm"]):
+    if privileged:
         try:
-            if sys.argv[1] == "--configure" and len(sys.argv) == 3:
-                outcome = apply_hibernation(Path(sys.argv[2]))
+            if sys.argv[1] == "--configure" and len(sys.argv) == 4:
+                outcome = apply_hibernation(Path(sys.argv[2]), parser)
                 print(f"HIBERNATION_RESULT={outcome.name}")
                 return 0
-            if sys.argv[1] == "--nvidia-pm" and len(sys.argv) == 3:
+            if sys.argv[1] == "--nvidia-pm" and len(sys.argv) == 4:
                 from lib.policy_files import publish_config, snapshot_config
 
                 if os.geteuid() != 0 or not re.fullmatch(
@@ -990,6 +999,7 @@ def main() -> int:
                 str(Path(__file__).resolve()),
                 "--configure",
                 str(state),
+                str(source_dir),
             ],
             check=False,
             capture_output=True,
@@ -1014,7 +1024,7 @@ def main() -> int:
             return 0
         if outcome == SetupResult.DEFERRED:
             return 0
-        configure_nvidia_sleep()
+        configure_nvidia_sleep(source_dir)
         pending.unlink(missing_ok=True)
         return 0
     except (OSError, ValueError, subprocess.CalledProcessError) as error:

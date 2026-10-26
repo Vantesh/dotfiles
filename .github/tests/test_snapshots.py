@@ -80,7 +80,7 @@ esac""",
         exec /usr/bin/test "$2" "$HOME/snapshots" ;;
     snapper|btrfs|systemctl) exec "$@" ;;
     */python|*/python3)
-        case "$*" in *--optimize-fstab) exit "${FSTAB_STATUS:-0}" ;; *) exit 97 ;; esac ;;
+        case "$*" in *--optimize-fstab*) exit "${FSTAB_STATUS:-0}" ;; *) exit 97 ;; esac ;;
     *) exit 97 ;;
 esac""",
         log=True,
@@ -378,7 +378,7 @@ def test_rendered_snapper_reexecutes_synchronously_without_source_environment(
         "sudo",
         """case "$1" in
     */python|*/python3)
-        unset CHEZMOI_SOURCE_DIR DOTFILES_PERSONAL_ENABLED PYTHONPATH
+        unset CHEZMOI_SOURCE_DIR CHEZMOI_WORKING_TREE CHEZMOI_OS_RELEASE_ID DOTFILES_PERSONAL_ENABLED PYTHONPATH
         exec "$@" ;;
     test)
         [ "$3" = /.snapshots ] || exit 97
@@ -392,7 +392,8 @@ esac""",
     assert result.returncode == 0, result.stderr
     assert fstab.read_text() == FSTAB.replace("rw,relatime,subvol=/@ ", "rw,noatime,subvol=/@ ")
     reexec = next(call for call in calls(snapper) if "--optimize-fstab" in call)
-    executable = Path(reexec[-2])
+    executable = Path(reexec[reexec.index("--optimize-fstab") - 1])
+    assert reexec[-1] == str(tmp_path / "source")
     assert executable.parent != hook.parent and not executable.exists()
     assert executable.name.endswith(".01_snapshots.py")
     assert (tmp_path / "snapper.json").is_file()

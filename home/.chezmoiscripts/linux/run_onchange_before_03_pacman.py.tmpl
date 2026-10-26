@@ -1,5 +1,6 @@
 {{ if .personal -}}
 #!/usr/bin/python3 -B
+# source-dir: {{ .chezmoi.sourceDir | toJson }}
 # working-tree: {{ .chezmoi.workingTree | toJson }}
 # mise/config.toml: {{ include "../mise/config.toml" | sha256sum }}
 # mise/conf.d/pacman-hooks.toml: {{ include "../mise/conf.d/pacman-hooks.toml" | sha256sum }}
@@ -19,9 +20,6 @@ from typing import cast
 
 from loguru import logger
 
-# Embedded source context remains available when sudo strips the environment.
-SOURCE_DIR = Path({{ .chezmoi.sourceDir | toJson }})
-sys.path.insert(0, str(SOURCE_DIR / ".chezmoitemplates"))
 PACMAN_CONF = Path("/etc/pacman.conf")
 PACCACHE_CONFIG = Path("/etc/conf.d/pacman-contrib")
 
@@ -113,8 +111,17 @@ def terminate(_signum: int, _frame: object) -> None:
 
 
 def main() -> int:
+    privileged = sys.argv[1:2] == ["--apply-policy"]
+    if privileged and len(sys.argv) != 3:
+        print("ERROR: Privileged Pacman setup requires its source directory.", file=sys.stderr)
+        return 1
+    source_dir = Path(sys.argv[2]) if privileged else Path(os.environ["CHEZMOI_SOURCE_DIR"])
+    if not source_dir.is_absolute():
+        print("ERROR: Chezmoi must supply an absolute source directory.", file=sys.stderr)
+        return 1
+    sys.path.insert(0, str(source_dir / ".chezmoitemplates"))
     _ = signal.signal(signal.SIGTERM, terminate)
-    if sys.argv[1:] == ["--apply-policy"]:
+    if privileged:
         try:
             apply_policy()
             return 0
@@ -144,7 +151,15 @@ def main() -> int:
                 )
         _ = subprocess.run(["sudo", "-v"], check=True)
         result = subprocess.run(
-            ["sudo", "-n", sys.executable, "-B", str(Path(__file__).resolve()), "--apply-policy"],
+            [
+                "sudo",
+                "-n",
+                sys.executable,
+                "-B",
+                str(Path(__file__).resolve()),
+                "--apply-policy",
+                str(source_dir),
+            ],
             check=True,
             capture_output=True,
             text=True,

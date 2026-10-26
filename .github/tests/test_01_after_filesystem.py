@@ -165,7 +165,7 @@ def hibernation(env: dict[str, str], tmp_path: Path) -> dict[str, str]:
     stub(
         env,
         "sudo",
-        'case "$1" in -v) exit "${SUDO_STATUS:-0}" ;; -n) shift; exec "$@" ;; *) exit 97 ;; esac',
+        'case "$1" in -v) exit "${SUDO_STATUS:-0}" ;; -n) shift; unset CHEZMOI_SOURCE_DIR CHEZMOI_WORKING_TREE CHEZMOI_OS_RELEASE_ID DOTFILES_PERSONAL_ENABLED; exec "$@" ;; *) exit 97 ;; esac',
         log=True,
     )
     # Native filesystem tools are never invoked on the development host.

@@ -1,4 +1,5 @@
 #!/usr/bin/python3 -B
+# source-dir: {{ .chezmoi.sourceDir | toJson }}
 # profile: {{ .personal | toJson }}
 # working-tree: {{ .chezmoi.workingTree | toJson }}
 # data: distroFamily={{ .distroFamily | toJson }}
@@ -23,9 +24,6 @@ from typing import cast
 
 from loguru import logger
 
-# Embedded source context remains available when sudo strips the environment.
-SOURCE_DIR = Path({{ .chezmoi.sourceDir | toJson }})
-sys.path.insert(0, str(SOURCE_DIR / ".chezmoitemplates"))
 PERSONAL = os.environ.get("DOTFILES_PERSONAL_ENABLED") == "1"
 FISH = Path("/usr/bin/fish")
 UPDATEDB_CONF = Path("/etc/updatedb.conf")
@@ -115,10 +113,19 @@ def terminate(_signum: int, _frame: object) -> None:
 
 
 def main() -> int:
+    privileged = sys.argv[1:2] == ["--configure-locate"]
+    if privileged and len(sys.argv) != 4:
+        print("ERROR: Locate setup requires its source directory.", file=sys.stderr)
+        return 1
+    source_dir = Path(sys.argv[3]) if privileged else Path(os.environ["CHEZMOI_SOURCE_DIR"])
+    if not source_dir.is_absolute():
+        print("ERROR: Chezmoi must supply an absolute source directory.", file=sys.stderr)
+        return 1
+    sys.path.insert(0, str(source_dir / ".chezmoitemplates"))
     _ = signal.signal(signal.SIGTERM, terminate)
-    if sys.argv[1:2] == ["--configure-locate"]:
+    if privileged:
         try:
-            if len(sys.argv) != 3 or sys.argv[2] != "1":
+            if sys.argv[2] != "1":
                 raise ValueError("Locate customization is personal-only.")
             exclude_snapshots_from_locate()
             return 0
@@ -162,6 +169,7 @@ def main() -> int:
                     str(Path(__file__).resolve()),
                     "--configure-locate",
                     "1",
+                    str(source_dir),
                 ],
                 check=True,
                 capture_output=True,

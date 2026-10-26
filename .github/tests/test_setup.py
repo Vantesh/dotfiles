@@ -206,6 +206,7 @@ def test_runtime_profile_and_rendered_exceptions_preserve_strings_and_types(
     font = "Font \"double\" 'single' \\ path\nUnicode 雪😀\u2028separator"
     (data / "font.json").write_text(json.dumps({"font": {"ui": {"name": font, "size": 11}}}))
     rendered = render_python(env, name, personal=personal, source=source)
+    env.pop("CHEZMOI_SOURCE_DIR")
     # Load definitions only: no desktop settings or privileged operations run.
     result = run_setup(
         env,
@@ -215,14 +216,13 @@ def test_runtime_profile_and_rendered_exceptions_preserve_strings_and_types(
             "-c",
             """import json, runpy, sys
 ns = runpy.run_path(sys.argv[1])
-print(json.dumps({"source": str(ns["SOURCE_DIR"]), "personal": ns["PERSONAL"], "font": ns["FONT_NAME"]}))
+print(json.dumps({"personal": ns["PERSONAL"], "font": ns["FONT_NAME"]}))
 """,
             str(rendered),
         ],
     )
     assert result.returncode == 0, result.stderr
     values = cast("dict[str, object]", json.loads(result.stdout))
-    assert values["source"] == str(source)
     assert values["personal"] is personal
     assert values["font"] == f"{font} 11"
     assert not calls(env)
@@ -1103,7 +1103,7 @@ def test_direct_python_execution_follows_bootstrap_and_real_source_imports(
     env: dict[str, str], tmp_path: Path, bootstrap: list[str], personal: bool
 ) -> None:
     assert CHEZMOI is not None
-    repository = tmp_path / "checkout with spaces"
+    repository = tmp_path / 'checkout "quoted" \\ path\nUnicode 雪😀'
     source = repository / "home"
     scripts = source / ".chezmoiscripts/linux"
     scripts.mkdir(parents=True)
@@ -1114,8 +1114,9 @@ def test_direct_python_execution_follows_bootstrap_and_real_source_imports(
         shutil.copy(SCRIPTS / name, scripts / name)
     # Observe only execution context; the authentication workflow itself remains
     # intact. Poison PATH Python so the configured interpreter is essential.
-    probe = scripts / "run_before_00_execution_probe.py"
+    probe = scripts / "run_before_00_execution_probe.py.tmpl"
     probe.write_text("""#!/usr/bin/python3 -B
+# source-dir: {{ .chezmoi.sourceDir | toJson }}
 import json, os, sys
 from pathlib import Path
 source = Path(os.environ["CHEZMOI_SOURCE_DIR"])
@@ -1123,7 +1124,7 @@ sys.path.insert(0, str(source / ".chezmoitemplates"))
 from lib.provision_logging import configure_logging
 assert (Path.home() / "installed").exists()
 with (Path.home() / "execution.jsonl").open("a") as stream:
-    stream.write(json.dumps({"file": __file__, "cwd": str(Path.cwd()), "source": str(source), "interpreter": sys.executable, "bytecode": sys.dont_write_bytecode, "logging": configure_logging.__module__}) + "\\n")
+    stream.write(json.dumps({"file": __file__, "cwd": str(Path.cwd()), "source": str(source), "working_tree": os.environ["CHEZMOI_WORKING_TREE"], "distro": os.environ["CHEZMOI_OS_RELEASE_ID"], "interpreter": sys.executable, "bytecode": sys.dont_write_bytecode, "logging": configure_logging.__module__}) + "\\n")
 """)
     stub(env, "python3", "exit 97", log=True)
     stub(env, "pacman", '[ "$1" = -Q ] && test -f "$HOME/installed"')
@@ -1167,6 +1168,8 @@ with (Path.home() / "execution.jsonl").open("a") as stream:
     assert len(contexts) == 2
     for context in contexts:
         assert context["source"] == str(source)
+        assert context["working_tree"] == str(repository)
+        assert context["distro"] == "arch"
         assert context["cwd"] == str(tmp_path)
         assert context["interpreter"] == PYTHON
         assert context["bytecode"] is True

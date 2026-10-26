@@ -225,6 +225,21 @@ def test_policy_direct_apply_isolated_and_idempotent(
         assert {path: path.read_bytes() for path in after} == before
 
 
+@pytest.mark.parametrize("hook", HOOKS, ids=["sudo", "pacman"])
+def test_privileged_policy_rejects_relative_source_without_environment(
+    policy: dict[str, str], hook: str
+) -> None:
+    script = render_python(policy, hook, source=Path(policy["POLICY_SOURCE"]))
+    policy.pop("CHEZMOI_SOURCE_DIR")
+    policy.pop("DOTFILES_PERSONAL_ENABLED")
+    args = ["--apply-policy", "relative-source", *(["1"] if hook == HOOKS[0] else [])]
+    result = run_setup(policy, ["/usr/bin/python3", "-B", str(script), *args])
+    assert result.returncode == 1, result.stderr
+    assert "absolute" in result.stderr
+    assert calls(policy) == []
+    assert not (Path(policy["POLICY_ETC"]) / "sudoers.d/passwd_tries").exists()
+
+
 def test_missing_runtime_worktree_stops_before_privileged_policy(policy: dict[str, str]) -> None:
     script = render_python(policy, HOOKS[1], source=Path(policy["POLICY_SOURCE"]))
     policy.pop("CHEZMOI_WORKING_TREE")

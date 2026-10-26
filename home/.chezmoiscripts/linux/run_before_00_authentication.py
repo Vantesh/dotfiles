@@ -119,11 +119,15 @@ def main() -> int:
             file=sys.stderr,
         )
         return 1
-    source = os.environ.get("CHEZMOI_SOURCE_DIR")
-    if not source or not Path(source).is_absolute():
+    try:
+        source_dir = Path(os.environ["CHEZMOI_SOURCE_DIR"])
+    except KeyError:
+        print("ERROR: Chezmoi must supply CHEZMOI_SOURCE_DIR.", file=sys.stderr)
+        return 1
+    if not source_dir.is_absolute():
         print("ERROR: Chezmoi must supply an absolute CHEZMOI_SOURCE_DIR.", file=sys.stderr)
         return 1
-    sys.path.insert(0, str(Path(source) / ".chezmoitemplates"))
+    sys.path.insert(0, str(source_dir / ".chezmoitemplates"))
     from lib.provision_logging import configure_logging
 
     file_sink = None
