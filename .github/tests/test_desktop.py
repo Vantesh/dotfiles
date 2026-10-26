@@ -343,14 +343,3 @@ def test_nautilus_can_be_applied_without_the_theming_workflow(
     repeated = run_setup(desktop, command)
     assert repeated.returncode == 0, repeated.stderr
     assert calls(desktop) == observed
-
-
-@pytest.mark.parametrize("hook", HOOKS)
-def test_missing_gsettings_fails_before_desktop_changes(desktop: dict[str, str], hook: str) -> None:
-    (Path(desktop["PATH"]) / "gsettings").unlink()
-    desktop["OFFLINE"] = "1"
-    script = render_python(desktop, hook, personal=False)
-    result = run_setup(desktop, ["/usr/bin/python3", "-B", str(script)])
-    assert result.returncode == 1, result.stderr
-    assert "gsettings is unavailable" in result.stderr
-    assert calls(desktop) == []

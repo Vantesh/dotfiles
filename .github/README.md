@@ -350,9 +350,9 @@ basedpyright
 pytest -q
 ```
 
-`python3 -B .github/tests/validate.py` coordinates these checks plus both profiles of rendered Python run scripts and settings modifiers, shell/Python syntax and Mise TOML validation. It runs pytest once; do not run the suite again through unittest. `ruff.toml` and `pyproject.toml` target Python 3.14; pytest discovers the retained tests under `.github/tests`. Native pytest migration remains a separate task.
+`python3 -B .github/tests/validate.py` coordinates these checks plus both profiles of rendered Python run scripts and settings modifiers, shell/Python syntax and Mise TOML validation. It runs pytest once; do not run the suite again through unittest. `ruff.toml` and `pyproject.toml` target Python 3.14; pytest discovers the retained tests under `.github/tests`.
 
-BasedPyright explicitly includes `.github/tests`, `home/.chezmoiscripts` and `home/.chezmoitemplates/lib`; confirm actual discovery with `basedpyright --verbose`. BasedPyright 1.40.2 (Pyright 1.1.414) has the [upstream hidden-directory regression](https://github.com/microsoft/pyright/issues/11861): it checks zero files and rejects `useDefaultExcludes`. That installation cannot validate this layout; the validator fails rather than accepting an empty check. The option is appropriate only with a checker release that supports it. Tool versions are managed externally, with no pinned installer or fallback here. Kitty's embedded module and the separate theme updater retain Ruff/syntax checks outside the provisioning type-check scope.
+BasedPyright explicitly includes `.github/tests`, `home/.chezmoiscripts` and `home/.chezmoitemplates/lib`; confirm actual discovery with `basedpyright --verbose`. The validator rejects zero-file analysis, so the installed checker must support this hidden-directory layout. Development tool versions are managed externally. Kitty's embedded module and the separate theme updater retain Ruff/syntax checks outside the provisioning type-check scope.
 
 CI invokes the same validator and reports missing prerequisites. The stock Arch container does not provide the complete development toolchain; a suitable runner/image must supply it separately. This repository does not bootstrap one.
 

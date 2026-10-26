@@ -317,14 +317,13 @@ def main() -> int:
     if os.geteuid() == 0:
         print("ERROR: Run package setup as a regular user.", file=sys.stderr)
         return 1
-    root_argument = source_dir.parent
     distro = os.environ["CHEZMOI_OS_RELEASE_ID"]
     personal = os.environ["DOTFILES_PERSONAL_ENABLED"] == "1"
     file_sink = None
     try:
         file_sink = configure_logging()
         prepare_xdg()
-        root = root_argument.resolve()
+        root = source_dir.parent.resolve()
         os.chdir(root)
         for name in (
             "MISE_CONFIG_FILE",

@@ -1,7 +1,6 @@
 """Temporary homes, command stubs, and isolated setup-template rendering."""
 
 import json
-import re
 import shlex
 import shutil
 import subprocess
@@ -21,14 +20,6 @@ class ScriptCase(unittest.TestCase):
     bin: Path
     calls: Path
     env: dict[str, str]
-
-    @override
-    def __str__(self) -> str:
-        return self._testMethodName.removeprefix("test_").replace("_", " ").capitalize()
-
-    @override
-    def shortDescription(self) -> None:
-        return None
 
     @override
     def setUp(self) -> None:
@@ -117,19 +108,6 @@ class ScriptCase(unittest.TestCase):
         path = self.directory / "fixture.sh"
         path.write_text(script)
         return self.run_process(["/bin/bash", str(path)], name=name)
-
-    def libraries(self, *names: str) -> str:
-        return "".join(f"source {shlex.quote(str(LIB / name))}\n" for name in names)
-
-    def function(self, path: Path, name: str) -> str:
-        match = re.search(
-            rf"^{re.escape(name)}\(\) \{{\n.*?^\}}",
-            path.read_text(),
-            re.MULTILINE | re.DOTALL,
-        )
-        if match is None:
-            self.fail(f"{path}: function {name!r} not found")
-        return match.group() + "\n"
 
     def render(self, path: Path, *, personal: bool = True) -> str:
         if not CHEZMOI:

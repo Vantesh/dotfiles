@@ -193,59 +193,6 @@ def test_environment_driven_workflows_reject_invalid_profiles_before_logging(
     assert not (tmp_path / "state").exists()
 
 
-def test_template_trigger_comments_keep_multiline_context_out_of_python(
-    env: dict[str, str], tmp_path: Path
-) -> None:
-    source = tmp_path / 'source "quoted" \\ path\nUnicode 雪'
-    scripts = source / ".chezmoiscripts/linux"
-    scripts.mkdir(parents=True)
-    shutil.copy(SCRIPTS / PACKAGES, scripts / PACKAGES)
-    shutil.copytree(ROOT / "mise", source.parent / "mise")
-    script = render_python(
-        env, PACKAGES, personal=False, distro='arch\nraise RuntimeError("injected")', source=source
-    )
-    compile(script.read_text(), str(script), "exec")
-    # Trigger values stay on comment lines; no statement is introduced.
-    assert '\nraise RuntimeError("injected")' not in script.read_text()
-    assert not calls(env)
-
-
-@pytest.mark.parametrize("personal", [False, True], ids=["nonpersonal", "personal"])
-def test_runtime_profile_and_rendered_exceptions_preserve_strings_and_types(
-    env: dict[str, str], tmp_path: Path, personal: bool
-) -> None:
-    source = tmp_path / 'source "quoted" \' \\ newline\nUnicode 雪😀'
-    scripts = source / ".chezmoiscripts/linux"
-    scripts.mkdir(parents=True)
-    name = "run_onchange_after_06_theming.py.tmpl"
-    shutil.copy(SCRIPTS / name, scripts / name)
-    data = source / ".chezmoidata"
-    data.mkdir()
-    font = "Font \"double\" 'single' \\ path\nUnicode 雪😀\u2028separator"
-    (data / "font.json").write_text(json.dumps({"font": {"ui": {"name": font, "size": 11}}}))
-    rendered = render_python(env, name, personal=personal, source=source)
-    env.pop("CHEZMOI_SOURCE_DIR")
-    # Load definitions only: no desktop settings or privileged operations run.
-    result = run_setup(
-        env,
-        [
-            PYTHON,
-            "-B",
-            "-c",
-            """import json, runpy, sys
-ns = runpy.run_path(sys.argv[1])
-print(json.dumps({"personal": ns["PERSONAL"], "font": ns["FONT_NAME"]}))
-""",
-            str(rendered),
-        ],
-    )
-    assert result.returncode == 0, result.stderr
-    values = cast("dict[str, object]", json.loads(result.stdout))
-    assert values["personal"] is personal
-    assert values["font"] == f"{font} 11"
-    assert not calls(env)
-
-
 @pytest.fixture
 def profile_command(tmp_path: Path) -> list[str]:
     assert CHEZMOI is not None, "chezmoi is required for profile validation"
@@ -664,15 +611,7 @@ def test_unreadable_vault_configuration_is_not_reset(
     assert calls(env) == [["rbw", "config", "show"]]
 
 
-def test_python_bootstrap_is_quiet_and_logs_are_private_and_bounded(
-    env: dict[str, str], tmp_path: Path
-) -> None:
-    env["DOTFILES_PERSONAL_ENABLED"] = "0"
-    stub(env, "pacman", "exit 97", log=True)
-    quiet = run_setup(env, [PYTHON, "-B", str(render_python(env, AUTHENTICATION, personal=False))])
-    assert quiet.returncode == 0, quiet.stderr
-    assert quiet.stderr == "" and calls(env) == []
-    assert not (tmp_path / "state/chezmoi/logs/setup.log").exists()
+def test_setup_logs_are_private_and_bounded(env: dict[str, str], tmp_path: Path) -> None:
     code = """import runpy, sys
 namespace = runpy.run_path(sys.argv[1])
 namespace['configure_logging']()

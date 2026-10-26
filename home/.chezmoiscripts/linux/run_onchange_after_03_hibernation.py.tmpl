@@ -138,14 +138,12 @@ def main() -> int:
     _ = signal.signal(signal.SIGTERM, terminate)
     if privileged:
         try:
-            if sys.argv[1] == "--configure" and len(sys.argv) == 5:
+            if sys.argv[1] == "--configure":
                 outcome = apply_hibernation(Path(sys.argv[2]), parser)
                 print(f"HIBERNATION_RESULT={outcome.name}")
-                return 0
-            if sys.argv[1] == "--nvidia-pm":
+            else:
                 configure_nvidia_power(sys.argv[2])
-                return 0
-            raise ValueError("Unsupported privileged hibernation arguments.")
+            return 0
         except (OSError, ValueError, subprocess.CalledProcessError) as error:
             traceback.print_exc()
             return error.returncode if isinstance(error, subprocess.CalledProcessError) else 1
@@ -191,11 +189,10 @@ def main() -> int:
                 str(source_dir),
                 personal,
             ],
-            check=False,
+            check=True,
             capture_output=True,
             text=True,
         )
-        result.check_returncode()
         messages = result.stdout.splitlines()
         if not messages or messages[-1] not in {
             f"HIBERNATION_RESULT={outcome.name}" for outcome in SetupResult

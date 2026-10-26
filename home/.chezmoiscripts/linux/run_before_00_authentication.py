@@ -96,8 +96,7 @@ def configure_bitwarden() -> int:
         if result.returncode:
             logger.error("Cannot set Bitwarden lock timeout (exit {}).", result.returncode)
             return result.returncode
-        else:
-            logger.info("Configured Bitwarden lock timeout.")
+        logger.info("Configured Bitwarden lock timeout.")
 
     # rbw uses pinentry for authentication. Keep stdin/environment available,
     # but discard command output rather than risking credentials in diagnostics.

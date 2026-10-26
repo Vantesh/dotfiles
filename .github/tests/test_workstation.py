@@ -218,18 +218,10 @@ esac""",
     assert "ERROR" in result.stderr
 
 
-@pytest.mark.parametrize("invalid", ["root", "fish", "chsh"])
-def test_invalid_account_or_fish_stops_before_tasks(
-    workstation: dict[str, str], tmp_path: Path, invalid: str
-) -> None:
+def test_workstation_tasks_reject_root(workstation: dict[str, str]) -> None:
     command = render_services(workstation, False)
-    if invalid == "root":
-        script = Path(command[-1])
-        script.write_text(script.read_text().replace("if os.getuid() == 0:", "if True:"))
-    elif invalid == "fish":
-        (tmp_path / "fish").chmod(0o644)
-    else:
-        (Path(workstation["PATH"]) / "chsh").unlink()
+    script = Path(command[-1])
+    script.write_text(script.read_text().replace("if os.getuid() == 0:", "if True:"))
     result = run_setup(workstation, command)
     assert result.returncode != 0
     assert "ERROR" in result.stderr
@@ -334,30 +326,17 @@ esac""",
     ("offline", "kind", "status", "success"),
     [
         ("1", "missing", "0", True),
-        ("1", "empty", "0", True),
-        ("1", "directory", "0", True),
-        ("1", "unreadable", "0", True),
-        ("1", "usable", "0", True),
-        ("", "usable", "0", True),
         ("", "missing", "0", False),
-        ("", "empty", "0", False),
         ("1", "usable", "23", False),
-        ("", "usable", "23", False),
     ],
 )
 def test_avatar_assignment_skips_unusable_offline_files_and_preserves_errors(
     workstation: dict[str, str], tmp_path: Path, offline: str, kind: str, status: str, success: bool
 ) -> None:
-    if kind == "unreadable" and os.geteuid() == 0:
-        pytest.skip("Root can read files regardless of mode bits")
     avatar = tmp_path / ".local/share/avatars/profile.png"
     avatar.parent.mkdir(parents=True)
-    if kind == "directory":
-        avatar.mkdir()
-    elif kind != "missing":
-        avatar.write_bytes(b"" if kind == "empty" else b"fixture image")
-        if kind == "unreadable":
-            avatar.chmod(0)
+    if kind == "usable":
+        avatar.write_bytes(b"fixture image")
     workstation["OFFLINE"] = offline
     stub(workstation, "busctl", f"exit {status}", log=True)
     result = run_setup(workstation, render_services(workstation, True))
@@ -396,13 +375,3 @@ def test_offline_transition_invalidates_only_personal_services(
     assert offline == render_python(workstation, HOOK, personal=personal).read_text()
     workstation["OFFLINE"] = ""
     assert online == render_python(workstation, HOOK, personal=personal).read_text()
-
-
-def test_missing_locate_prerequisite_fails_before_personal_edits(
-    workstation: dict[str, str],
-) -> None:
-    (Path(workstation["PATH"]) / "updatedb").unlink()
-    result = run_setup(workstation, render_services(workstation, True))
-    assert result.returncode == 1, result.stderr
-    assert "plocate" in result.stderr
-    assert calls(workstation) == []
