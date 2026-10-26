@@ -137,6 +137,8 @@ def render_python(
         AUTHENTICATION,
         "run_onchange_before_01_sudo.py",
         "run_onchange_before_03_pacman.py.tmpl",
+        "run_onchange_after_00_initramfs_config.py.tmpl",
+        "run_onchange_after_04_quiet_boot.py.tmpl",
         "run_onchange_after_01_snapshots.py.tmpl",
         "run_onchange_after_03_hibernation.py.tmpl",
     ],

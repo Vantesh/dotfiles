@@ -31,6 +31,14 @@ def persistent_cmdline(parser: Path) -> str:
 
 
 def request_rebuild(state: Path) -> None:
+    info = state.lstat()
+    if (
+        not state.is_absolute()
+        or not stat.S_ISDIR(info.st_mode)
+        or info.st_uid != int(os.environ["SUDO_UID"])
+        or info.st_mode & 0o022
+    ):
+        raise ValueError("Rebuild state requires a safe directory owned by the regular account.")
     descriptor = os.open(
         state / "initramfs.pending", os.O_WRONLY | os.O_CREAT | os.O_NOFOLLOW | os.O_NONBLOCK, 0o600
     )

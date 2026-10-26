@@ -873,19 +873,3 @@ printf '%s\\n%s\\n' "$status" "$LAST_ERROR"
     status, *diagnostic = result.stdout.splitlines()
     assert int(status) == expected
     assert bool("".join(diagnostic)) == (expected != 0)
-
-    # The entry point must skip only verified non-Btrfs, not a failed inspection.
-    hook = (SCRIPTS / "run_onchange_after_00_initramfs_config.sh.tmpl").read_text()
-    main = hook[hook.index("main() {") : hook.index('\nmain "$@"')]
-    limine = Path(env["HOME"]) / "limine"
-    limine.touch(mode=0o755)
-    main = main.replace("/usr/bin/limine", str(limine))
-    command = (
-        f'source "{LIB / "common.sh"}"\nsource "{LIB / "snapboot.sh"}"\n'
-        + "keep_sudo_alive() { return 0; }\nconfigure_systemd_initramfs() { return 0; }\n"
-        + main
-        + "\nmain\n"
-    )
-    stub(env, "mkinitcpio", "exit 97")
-    result = run_setup(env, ["/bin/bash", "-c", command])
-    assert result.returncode == (0 if inspection in ("btrfs", "ext4") else expected), result.stderr

@@ -1,10 +1,18 @@
 """Boot-option writes must preserve a usable config and a pending rebuild."""
 
+import json
+import os
+import re
+import shutil
 import subprocess
 from itertools import product
+from pathlib import Path
 from typing import override
 
-from helpers import LIB, SCRIPTS, ScriptCase
+import pytest
+from helpers import CHEZMOI, LIB, SCRIPTS, ScriptCase
+from test_setup import env as env
+from test_setup import run_setup, stub
 
 
 class SystemdInitramfsTests(ScriptCase):
@@ -100,84 +108,44 @@ esac""",
             UNLOCK="rd.luks.name=bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb=root",
         )
 
-    def configure(
-        self, *, persistent: bool = False, entrypoint: bool = False
+    def boot_python(
+        self, operation: str, *, persistent: bool = True
     ) -> subprocess.CompletedProcess[str]:
-        source = (
-            (LIB / "snapboot.sh")
-            .read_text()
-            .replace("/etc/", f"{self.etc}/")
-            .replace("/usr/share/", f"{self.directory}/share/")
-            .replace("/crypto_keyfile.bin", f"{self.directory}/crypto_keyfile.bin")
+        library = self.directory / "parser-source/.chezmoitemplates/lib"
+        for path in LIB.glob("*.py"):
+            if path.name == "limine_cmdline.py":
+                continue
+            shutil.copy(path, library / path.name)
+        policy = library / "policy_files.py"
+        policy.write_text(
+            policy.read_text()
+            .replace("parent.st_uid != 0", "parent.st_uid != os.getuid()")
+            .replace("os.chown(stage, 0, 0)", "os.chown(stage, os.getuid(), os.getgid())")
+            .replace("== (0, 0, mode)", "== (os.getuid(), os.getgid(), mode)")
         )
-        if not persistent:
-            source += "\nget_limine_cmdline() { get_limine_cmdline_fixture; }\n"
-        run = 'configure_systemd_initramfs || { printf "%s\\n" "$LAST_ERROR" >&2; exit 1; }\n'
-        if entrypoint:
-            self.stub("limine", "exit 97")
-            run = (
-                self.function(
-                    SCRIPTS / "run_onchange_after_00_initramfs_config.sh.tmpl", "main"
-                ).replace("/usr/bin/limine", str(self.bin / "limine"))
-                + r"""
-command_exists() { return 0; }
-check_btrfs() { return 0; }
-is_laptop() { [[ "$LAPTOP" = 1 ]]; }
-keep_sudo_alive() { return 0; }
-main || exit 1
-"""
-            )
-        return self.shell(
-            self.libraries("common.sh")
-            + source
-            + r"""
-inspect_btrfs_device() {
-    [[ "$FAILURE" != identity ]] || return 3
-    resume_uuid=aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa
-    luks_uuid=""; luks_device_id=""; root_mapping=""
-    if [[ "$ENCRYPTED" = 1 ]]; then
-        luks_uuid=bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb
-        luks_device_id=8:2
-        root_mapping="${MAPPING:-root}"
-    fi
-}
-get_limine_cmdline_fixture() {
-    if [[ "$FAILURE" = unlock ]]; then echo 'root=/dev/mapper/root';
-    elif [[ "$FAILURE" = conflict ]]; then echo "root=/dev/mapper/root $UNLOCK rd.luks.name=cccccccc-cccc-cccc-cccc-cccccccccccc=root";
-    else echo "root=/dev/mapper/root $UNLOCK"; fi
-}
-get_limine_config_value() { printf '%s\n' "$UKI_OPTIONS"; }
-mkinitcpio_hook_exists() { [[ "$1:$FAILURE" != sd-encrypt:hook ]]; }
-"""
-            + run
-            + "get_mkinitcpio_hooks\n"
+        self.marker.parent.mkdir(parents=True, exist_ok=True)
+        self.marker.parent.chmod(0o700)
+        self.env.update(
+            SUDO_UID=str(os.getuid()), SUDO_GID=str(os.getgid()), PERSISTENT=str(int(persistent))
+        )
+        driver = self.directory / "boot.py"
+        driver.write_text(BOOT_DRIVER + "\n" + operation)
+        return self.run_process(
+            ["/usr/bin/python3", "-B", str(driver)], name="Python boot configuration"
+        )
+
+    def configure(self, *, persistent: bool = False) -> subprocess.CompletedProcess[str]:
+        return self.boot_python(
+            "initramfs.configure_systemd_initramfs(parser, state)\nprint(' '.join(initramfs.read_hooks()))\n",
+            persistent=persistent,
         )
 
     def ensure_defaults(self) -> subprocess.CompletedProcess[str]:
-        source = (
-            (LIB / "snapboot.sh")
-            .read_text()
-            .replace("/etc/", f"{self.etc}/")
-            .replace("/usr/share/", f"{self.directory}/share/")
-        )
-        return self.shell(
-            self.libraries("common.sh")
-            + source
-            + '\nensure_limine_cmdline_defaults || { printf "%s\\n" "$LAST_ERROR" >&2; exit 1; }\n'
-        )
+        return self.boot_python("limine_config.ensure_limine_defaults(parser, state)\n")
 
     def write_fragment(self, name: str, params: str) -> subprocess.CompletedProcess[str]:
-        self.env.update(FRAGMENT=name, PARAMETERS=params)
-        source = (
-            (LIB / "snapboot.sh")
-            .read_text()
-            .replace("/etc/", f"{self.etc}/")
-            .replace("/usr/share/", f"{self.directory}/share/")
-        )
-        return self.shell(
-            self.libraries("common.sh")
-            + source
-            + '\nupdate_limine_cmdline "$FRAGMENT" "$PARAMETERS" || { printf "%s\\n" "$LAST_ERROR" >&2; exit 1; }\n'
+        return self.boot_python(
+            f"limine_config.publish_limine_fragment(parser, state, {name!r}, {params!r})\n"
         )
 
     def test_feature_fragments_preserve_directives_and_request_only_changed_writes(self) -> None:
@@ -468,7 +436,7 @@ mkinitcpio_hook_exists() { [[ "$1:$FAILURE" != sd-encrypt:hook ]]; }
                 before = {
                     path: path.read_text() for path in (self.kernel, self.defaults) if path.exists()
                 }
-                result = self.configure(persistent=True, entrypoint=True)
+                result = self.configure(persistent=True)
                 self.assertEqual(result.returncode, 0, result.stderr)
                 for path, text in before.items():
                     expected = (
@@ -485,7 +453,7 @@ mkinitcpio_hook_exists() { [[ "$1:$FAILURE" != sd-encrypt:hook ]]; }
                 paths = [*before, self.managed]
                 after = [path.read_bytes() for path in paths]
                 self.marker.unlink()
-                result = self.configure(persistent=True, entrypoint=True)
+                result = self.configure(persistent=True)
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertEqual([path.read_bytes() for path in paths], after)
                 self.assertFalse(self.marker.exists())
@@ -653,7 +621,6 @@ mkinitcpio_hook_exists() { [[ "$1:$FAILURE" != sd-encrypt:hook ]]; }
                     ),
                     before,
                 )
-                self.assertIn("Rolled back", result.stderr)
                 self.assertTrue(self.marker.exists())
 
     def test_matching_systemd_selection_and_crypttab_policy_are_preserved(self) -> None:
@@ -738,7 +705,7 @@ mkinitcpio_hook_exists() { [[ "$1:$FAILURE" != sd-encrypt:hook ]]; }
                         )
                 self.env["ENCRYPTED"] = encrypted
                 before = (self.kernel.read_bytes(), self.defaults.read_bytes())
-                result = self.configure(persistent=True, entrypoint=True)
+                result = self.configure(persistent=True)
                 self.assertEqual(result.returncode, 0, result.stderr)
                 hooks = result.stdout.split()
                 self.assertIn("systemd", hooks)
@@ -748,7 +715,7 @@ mkinitcpio_hook_exists() { [[ "$1:$FAILURE" != sd-encrypt:hook ]]; }
                 self.assertFalse(self.defaults.with_name("50-hibernation.conf").exists())
                 self.assertFalse({"udev", "encrypt", "resume"}.intersection(hooks))
                 self.marker.unlink()
-                result = self.configure(persistent=True, entrypoint=True)
+                result = self.configure(persistent=True)
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertFalse(self.marker.exists())
 
@@ -1111,3 +1078,147 @@ LIMINE_OPTIONS=(timeout=0.5)
         self.assertIn("/Arch\nprotocol: linux\n", self.config.read_text())
         self.assertEqual(alternate.read_text(), "recovery config\n")
         self.assertTrue(self.marker.exists())
+
+
+BOOT_DRIVER = r"""import os, sys
+from pathlib import Path
+sys.path.insert(0, str(Path(os.environ['CHEZMOI_SOURCE_DIR']) / '.chezmoitemplates'))
+from lib import initramfs, limine_config, policy_files
+from lib.hibernation_swap import BtrfsDevice
+home = Path(os.environ['HOME']); etc = home / 'etc'; state = home / 'state/chezmoi'
+parser = Path(os.environ['CHEZMOI_SOURCE_DIR']) / '.chezmoitemplates/lib/limine_cmdline.py'
+initramfs.ETC = limine_config.ETC = etc
+initramfs.SYS = home / 'sys'
+initramfs.LIB = home / 'usr/lib'
+initramfs.KEYFILE = home / 'crypto_keyfile.bin'
+limine_config.SHARE = home / 'share'
+failure = os.environ.get('FAILURE', '')
+uuid = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb' if os.environ['ENCRYPTED'] == '1' else ''
+mapping = os.environ.get('MAPPING', 'root')
+base = initramfs.SYS / 'dev/block/8:1'
+(base / 'dm').mkdir(parents=True, exist_ok=True)
+(base / 'dm/name').write_text(mapping)
+(base / 'slaves/backing').mkdir(parents=True, exist_ok=True)
+(base / 'slaves/backing/dev').write_text('8:2')
+def inspect(target):
+    if failure == 'identity': raise ValueError('Invalid root identity')
+    return BtrfsDevice(Path('/dev/fixture'), 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '8:1', uuid)
+initramfs.inspect_btrfs_device = inspect
+initramfs.hook_exists = lambda hook: not (failure == 'hook' and hook == 'sd-encrypt')
+limine_config.read_limine_value = lambda key: os.environ.get('UKI_OPTIONS', '')
+if os.environ['PERSISTENT'] == '0':
+    def cmdline(parser, *args):
+        if args[0] != 'initramfs': raise ValueError('Unexpected operation')
+        if failure == 'unlock': return 'root=/dev/mapper/root'
+        value = 'root=/dev/mapper/root ' + os.environ['UNLOCK']
+        if failure == 'conflict': value += ' rd.luks.name=cccccccc-cccc-cccc-cccc-cccccccccccc=root'
+        return value
+    initramfs.parser_command = cmdline
+original_replace = policy_files.replace_config
+def replace(path, *args, **kwargs):
+    if (failure in ('write','publish') and path.name == '00-chezmoi-systemd.conf') or (failure == 'defaults-publish' and path.name == '01-default.conf') or (failure == 'fragment-publish' and path.name == '20-quiet-boot.conf'):
+        raise OSError('Fixture publication failure')
+    result = original_replace(path, *args, **kwargs)
+    if failure == 'postcheck' and path.name == '00-chezmoi-systemd.conf':
+        (etc / 'default').mkdir(exist_ok=True)
+        (etc / 'default/limine').write_text('KERNEL_CMDLINE[default]= "root=UUID=independent"\n')
+    return result
+policy_files.replace_config = replace
+"""
+
+
+@pytest.mark.parametrize("personal", [False, True], ids=["nonpersonal", "personal"])
+def test_boot_order_retries_and_stripped_privileged_environment(
+    env: dict[str, str], tmp_path: Path, personal: bool
+) -> None:
+    source = tmp_path / "boot source/home"
+    scripts = source / ".chezmoiscripts/linux"
+    scripts.mkdir(parents=True)
+    library = source / ".chezmoitemplates/lib"
+    shutil.copytree(LIB, library)
+    events = tmp_path / "events"
+    (tmp_path / "limine").touch(mode=0o755)
+    (tmp_path / "fail").touch()
+    for module, function, tag in (
+        ("initramfs.py", "configure_systemd_initramfs", "00"),
+        ("limine_config.py", "configure_quiet_boot", "04"),
+    ):
+        (library / module).write_text(
+            "import os, subprocess\nfrom pathlib import Path\n"
+            + f"def {function}(parser, state, **options):\n"
+            + "    assert 'CHEZMOI_SOURCE_DIR' not in os.environ\n"
+            + "    assert 'DOTFILES_PERSONAL_ENABLED' not in os.environ\n"
+            + "    assert parser.is_absolute() and parser.is_file() and state.is_absolute()\n"
+            + f"    with (Path.home() / 'events').open('a') as stream: stream.write('{tag}\\n')\n"
+            + "    if (Path.home() / 'fail').exists(): raise subprocess.CalledProcessError(23, 'fixture')\n"
+        )
+    selected: list[str] = []
+    for path in SCRIPTS.iterdir():
+        match = re.search(
+            r"_(00_initramfs_config|01_snapshots|03_hibernation|04_quiet_boot|05_secure_boot|08_(?:theming|limine_theme)|13_initramfs|99_finalize)\.",
+            path.name,
+        )
+        if not match:
+            continue
+        tag = match[1][:2]
+        selected.append(tag)
+        if tag in ("00", "04"):
+            text = path.read_text().replace(
+                'Path("/usr/bin/limine")', f"Path({str(tmp_path / 'limine')!r})"
+            )
+            text = text.replace("if os.geteuid() != 0 or", "if False or")
+        else:
+            text = (
+                "#!/usr/bin/python3 -B\nimport os\nfrom pathlib import Path\n"
+                + "if os.environ['DOTFILES_PERSONAL_ENABLED'] == '1':\n"
+                + f"    with (Path.home() / 'events').open('a') as stream: stream.write('{tag}\\n')\n"
+            )
+        (scripts / path.name).write_text(text)
+    assert sorted(selected) == ["00", "01", "03", "04", "05", "08", "13", "99"]
+    stub(env, "findmnt", "echo btrfs")
+    stub(env, "mkinitcpio", "exit 97")
+    stub(
+        env,
+        "sudo",
+        'case "$1" in -v) exit 0 ;; -n) shift; unset CHEZMOI_SOURCE_DIR DOTFILES_PERSONAL_ENABLED; exec "$@" ;; *) exit 97 ;; esac',
+    )
+    config = tmp_path / "chezmoi.json"
+    config.write_text(
+        json.dumps(
+            {
+                "data": {"personal": personal},
+                "scriptEnv": {"DOTFILES_PERSONAL_ENABLED": "1" if personal else "0"},
+            }
+        )
+    )
+    command = [
+        str(CHEZMOI),
+        "--config",
+        str(config),
+        "--source",
+        str(source),
+        "--destination",
+        str(tmp_path / "target"),
+        "--no-tty",
+        "apply",
+    ]
+    first = run_setup(env, command)
+    if personal:
+        assert first.returncode != 0, first.stderr
+        assert events.read_text().splitlines() == ["00"]
+        events.unlink()
+    else:
+        assert first.returncode == 0, first.stderr
+        assert not events.exists()
+    (tmp_path / "fail").unlink()
+    result = run_setup(env, command)
+    assert result.returncode == 0, result.stderr
+    if personal:
+        assert events.read_text().splitlines() == sorted(selected)
+        events.unlink()
+    result = run_setup(env, command)
+    assert result.returncode == 0, result.stderr
+    if personal:
+        assert events.read_text().splitlines() == ["13"]
+    else:
+        assert not events.exists()
