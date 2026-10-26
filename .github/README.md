@@ -65,6 +65,16 @@ Early setup respects XDG overrides and prepares private GnuPG storage, Bash/Pyth
 
 `OFFLINE` continues to control supported external downloads; it does not turn package setup into an offline installer. Pacman/AUR still need the packages and repository access they normally require. Package commands remain unattended (`--yes`/`--noconfirm`); sudo authentication is still required. Mise applies missing packages without `--update`, avoiding a separate database refresh or partial system upgrade.
 
+## Personal Ly login manager
+
+The plain `run_onchange_after_09_login_manager.py` hook selects `ly@tty1.service` for the next boot. The installed Ly 1.4.1 unit uses `/dev/%I`, conflicts with the matching getty and is wanted by `multi-user.target`; it does not install a `display-manager.service` alias. The hook verifies the native tty1 properties before changing enablement. It disables only `getty@tty1.service`, where enabled, and leaves other console gettys available. Logind already avoids busy VTs and requests automatic gettys without replacing active conflicting services, so no masks or automatic-VT overrides are added.
+
+Recognized SDDM, greetd, GDM/GDM3, LightDM, LXDM and emptty units are disabled only if present and enabled. Both persistent and runtime enablement are cleared when present. Other enabled Ly TTY instances are discovered through systemd and disabled for future boots. The shared display-manager alias must resolve to the exact inspected file of a known unit; unknown, stale, non-symlink or ambiguous ownership fails before changes. Native disablement must clear a recognized competing alias before proceeding. Setup never manually repairs those links or uses forced enablement.
+
+Service operations change enablement only: there is no `--now`, service start/stop/restart, logout or automatic reboot. The current graphical session remains running. Ly takes over after a deliberate reboot; if an operation fails, the hook attempts to restore only the prior enablement it touched and rolls back its own config edit. Required failures remain eligible for Chezmoi retry. Inspect reported recovery errors before rebooting.
+
+Existing Ly appearance, empty-password rejection and password-clearing preferences remain. Ly now owns its saved user/session choice; setup no longer overwrites `save.ini` with a hard-coded session index. On first login, select the intended UWSM-managed session (for example **Hyprland (uwsm-managed)**). Session desktop files, UWSM commands and environment configuration are unchanged, including any separately installed Niri session. Ly only authenticates and launches the selected desktop entry.
+
 ## Atuin paths on fresh installations
 
 Atuin 18.24.2's [`ATUIN_CONFIG_DIR`](https://github.com/atuinsh/atuin/blob/v18.24.2/crates/atuin-common/src/dirs.rs) selects `config.toml` and `server.toml` before the broader `ATUIN_HOME` mechanism. Fish and the personal Python `10_atuin` hook set it to `~/.config/atuin`, the actual Chezmoi `dot_config/private_atuin` target. There is one Chezmoi-managed config, with no manual publishing, duplicate files, symlinks or `ATUIN_HOME` override. A nondefault `XDG_CONFIG_HOME` does **not** relocate this source target; this repository keeps Atuin's config at `~/.config/atuin/config.toml` rather than creating a second managed copy.

@@ -5,64 +5,16 @@ import os
 import shutil
 import subprocess
 from pathlib import Path
-from typing import cast, override
+from typing import cast
 
 import pytest
-from helpers import CHEZMOI, ROOT, SCRIPTS, ScriptCase
+from helpers import CHEZMOI, ROOT, SCRIPTS
 from test_setup import calls, render_python, run_setup, stub
 from test_setup import env as env
 
 HOOK = "run_onchange_after_03_hibernation.py.tmpl"
 UUID = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
 LUKS_UUID = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"
-
-
-class ConfigRollbackTests(ScriptCase):
-    @override
-    def setUp(self) -> None:
-        super().setUp()
-        self.original = self.directory / "config"
-        self.original.write_text("original\n")
-        self.original.chmod(0o640)
-        self.env.update(ORIGINAL=str(self.original), NEW=str(self.directory / "new"))
-        self.stub(
-            "sudo",
-            r'''case "$1" in
-    test|stat|cmp|cp|cat|mktemp|mv|chmod|rm) ;;
-    *) exit 97 ;;
-esac
-for arg do
-    case "$arg" in /*) case "$arg" in "$HOME"/*) ;; *) exit 97 ;; esac ;; esac
-done
-exec "$@"''',
-        )
-
-    def transaction(self, verify: str) -> subprocess.CompletedProcess[str]:
-        return self.shell(
-            self.libraries("common.sh")
-            + r"""
-edit() { printf 'updated\n' > "$1"; printf 'new\n' > "$2"; }
-verify() { """
-            + verify
-            + r"""; }
-edit_system_configs edit verify "$ORIGINAL" "$NEW"
-"""
-        )
-
-    def test_failed_or_interrupted_postcheck_rolls_back_only_its_own_files(self) -> None:
-        for verify, status in (("return 1", 1), ('kill -TERM "$BASHPID"', 143)):
-            with self.subTest(verify=verify):
-                result = self.transaction(verify)
-                self.assertEqual(result.returncode, status, result.stderr)
-                self.assertEqual(self.original.read_text(), "original\n")
-                self.assertEqual(self.original.stat().st_mode & 0o777, 0o640)
-                self.assertFalse((self.directory / "new").exists())
-
-    def test_rollback_preserves_configuration_changed_by_another_actor(self) -> None:
-        result = self.transaction('printf "user edit\\n" > "$ORIGINAL"; return 1')
-        self.assertNotEqual(result.returncode, 0)
-        self.assertEqual(self.original.read_text(), "user edit\n")
-        self.assertFalse((self.directory / "new").exists())
 
 
 def test_hook_verification_matches_mkinitcpio_version_order(

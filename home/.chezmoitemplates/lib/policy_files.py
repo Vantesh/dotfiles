@@ -1,4 +1,4 @@
-"""Snapshot and guarded atomic publication for the two personal policy workflows."""
+"""Snapshot and guarded atomic publication for personal system configuration."""
 
 import os
 import shutil
