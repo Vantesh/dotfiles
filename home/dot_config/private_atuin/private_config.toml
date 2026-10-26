@@ -193,7 +193,6 @@ model = "balanced"
 
 [logs]
 enabled = true
-dir = "~/.local/share/atuin/logs"
 level = "info"
 retention = "2d"
 

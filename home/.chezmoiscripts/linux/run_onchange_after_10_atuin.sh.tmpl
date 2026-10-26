@@ -11,6 +11,15 @@ set -euo pipefail
 
 shopt -s nullglob globstar
 
+# This setup hook runs before a new login session loads Fish or environment.d.
+export ATUIN_HOME="${XDG_CONFIG_HOME:-$HOME/.config}/atuin"
+export ATUIN_DATA_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/atuin"
+export ATUIN_LOGS__DIR="${XDG_STATE_HOME:-$HOME/.local/state}/atuin"
+if [[ -n "${XDG_RUNTIME_DIR:-}" ]]; then
+  export ATUIN_DAEMON__SOCKET_PATH="$XDG_RUNTIME_DIR/atuin.sock"
+  export ATUIN_DAEMON__PIDFILE_PATH="$XDG_RUNTIME_DIR/atuin.pid"
+fi
+
 {{ include ".chezmoitemplates/lib/common.sh" }}
 
 # Logs in with runtime vault credentials and synchronizes history.

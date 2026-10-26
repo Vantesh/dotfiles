@@ -65,6 +65,12 @@ Early setup respects XDG overrides and prepares private GnuPG storage, Bash/Pyth
 
 `OFFLINE` continues to control supported external downloads; it does not turn package setup into an offline installer. Pacman/AUR still need the packages and repository access they normally require. Package commands remain unattended (`--yes`/`--noconfirm`); sudo authentication is still required. Mise applies missing packages without `--update`, avoiding a separate database refresh or partial system upgrade.
 
+## Atuin paths on fresh installations
+
+Atuin 18.24.2 prefers `~/.atuin` when its XDG data directory does not yet exist. The [upstream path changes](https://github.com/atuinsh/atuin/pull/4380) and [follow-up fixes](https://github.com/atuinsh/atuin/pull/4421) preserve existing directories but do not select XDG data on a clean home. Before launching Atuin, Fish and the existing personal login hook set its supported `ATUIN_HOME`, `ATUIN_DATA_DIR` and `ATUIN_LOGS__DIR` overrides. `ATUIN_HOME` selects configuration only; the separate data/log settings prevent it from collecting everything under that directory.
+
+Configuration and themes use `$XDG_CONFIG_HOME/atuin`, persistent stores and keys use `$XDG_DATA_HOME/atuin`, and logs use `$XDG_STATE_HOME/atuin`. Unset/empty variables use `~/.config`, `~/.local/share` and `~/.local/state`. When `XDG_RUNTIME_DIR` is present, the native daemon socket/pidfile settings use `atuin.sock` and `atuin.pid` there; otherwise Atuin retains its native temporary-socket and data-directory pidfile defaults. No active cache-directory setting is available in this version; no invented cache override is exported. The managed config is installed before the first setup or Fish launch. Sync/authentication settings and history filters are unchanged. Existing `~/.atuin` contents are neither migrated nor deleted.
+
 ## Personal sudo and Pacman policy
 
 The direct Python before-scripts `01_sudo` and `03_pacman` remain personal-only through early runtime guards. Sudoers retains `passwd_timeout=0`, `passwd_tries=10` and preservation of `EDITOR`/`VISUAL`; faillock retains `deny=20`, `unlock_time=120` and `fail_interval=900`. All sudoers candidates and the existing policy are checked with `visudo` before activation, with a full-policy check afterward.
