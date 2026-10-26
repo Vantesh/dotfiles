@@ -23,6 +23,13 @@ Optimize for readability, correctness, maintainability and safe reapplication. U
 
 This unpublished architectural rewrite requires no compatibility with discarded dotfiles internals. Remove old execution paths, aliases, duplicate implementations, script-name shims and migration frameworks. Preserve existing data, supported fresh-install behavior, security boundaries and operational safeguards; these are distinct from obsolete compatibility.
 
+## Chezmoi Python configuration
+
+- Prefer plain `.py` when rendering is unnecessary. Retain `.py.tmpl` for profile gates, rendered values, configuration-driven execution or declaration hashes; preserve script ordering and Chezmoi run semantics.
+- Concentrate related rendered values in a small typed JSON configuration section near the imports. Encode with `toJson` and `b64enc`, then decode with standard-library `b64decode()` and `json.loads()`; this preserves types and arbitrary string contents without evaluating configuration as Python.
+- Use `scriptEnv` selectively for non-sensitive runtime context that does not need to change `run_onchange` content. Prefer Chezmoi's existing environment variables where sufficient. Keep required paths embedded for privileged self-execution when sudo strips the environment.
+- Keep ordinary Python syntax easy to edit, lint and type-check. Use one configuration source per value; avoid forwarding wrappers and general configuration loaders.
+
 ## Python conventions and operational safety
 
 - Follow Python 3.14, `ruff.toml` and `pyproject.toml`. Prefer ordinary control flow, cohesive functions, clear interface annotations, `pathlib`, context managers and the standard library. Add dependencies or classes only for concrete benefits. Avoid mutable global provisioning state, import-time side effects and clever expressions that obscure intent.
