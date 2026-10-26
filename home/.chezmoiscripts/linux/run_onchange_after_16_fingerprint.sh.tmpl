@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 {{ if .personal -}}
-# 15_enrollment.sh - Register WARP and offer fingerprint enrollment
+# 16_fingerprint.sh - Offer personal fingerprint enrollment
 #
 # Runs after services and before finalization when its rendered content changes.
 # Globals:
@@ -11,29 +11,6 @@
 set -euo pipefail
 
 {{ include ".chezmoitemplates/lib/common.sh" }}
-
-# Register a missing account without changing WARP's connection state.
-register_warp() {
-  command_exists warp-cli || die 127 "warp-cli not found; complete package installation"
-
-  local registration status
-  if registration=$(LC_ALL=C warp-cli --accept-tos registration show 2>&1); then
-    log SKIP "WARP is already registered"
-    return 0
-  else
-    status=$?
-  fi
-  if [[ "${registration,,}" != *"missing registration."* ]]; then
-    die "$status" "Cannot inspect WARP registration; check warp-svc, then reapply"
-  fi
-
-  if warp-cli --accept-tos registration new; then
-    log INFO "Registered WARP; connect manually when wanted"
-  else
-    status=$?
-    die "$status" "WARP registration failed; check warp-svc or run warp-cli registration new"
-  fi
-}
 
 # Offer enrollment for this setup's fingerprint packages, preserving existing prints.
 enroll_fingerprint() {
@@ -122,7 +99,6 @@ main() {
   fi
   log STEP "Configuring device enrollment"
 
-  register_warp
   enroll_fingerprint
 }
 

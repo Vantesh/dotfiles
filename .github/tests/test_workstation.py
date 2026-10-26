@@ -135,6 +135,7 @@ def test_service_declarations_keep_masks_and_personal_boundaries() -> None:
     assert set(common) == {
         "NetworkManager.service",
         "bluetooth.service",
+        "warp-svc.service",
         "fstrim.timer",
         "reflector.timer",
         "pacman-filesdb-refresh.timer",
@@ -151,7 +152,8 @@ def test_service_declarations_keep_masks_and_personal_boundaries() -> None:
         "dict[str, dict[str, str | bool]]",
         tomllib.loads((ROOT / "mise/config.personal.toml").read_text())["bootstrap"]["services"],
     )
-    assert set(personal) == {"warp-svc.service", "ufw.service"}
+    assert common["warp-svc.service"] == {"state": "running", "enabled": True}
+    assert set(personal) == {"ufw.service"}
     assert personal["ufw.service"] == {"state": "running", "enabled": True}
     assert tomllib.loads((ROOT / "mise/conf.d/login-shell.toml").read_text()) == {
         "bootstrap": {"user": {"login_shell": "/usr/bin/fish"}}

@@ -371,6 +371,18 @@ esac""",
         '[ "$1 $2" = "--user show" ] || exit 97; printf "LoadState=loaded\\nUnitFileState=static\\nActiveState=active\\n"',
         log=True,
     )
+    stub(
+        env,
+        "warp-cli",
+        """case "$*" in
+    '--accept-tos registration show')
+        [ -f "$HOME/registered" ] && exit 0
+        echo 'Missing registration.' >&2; exit 1 ;;
+    '--accept-tos registration new') touch "$HOME/registered" ;;
+    *) exit 97 ;;
+esac""",
+        log=True,
+    )
     command = [
         CHEZMOI,
         "--config",
@@ -420,7 +432,15 @@ esac""",
         ["mise", "--env", "packages", "bootstrap", "packages", "apply", "--yes"],
         ["mise", "--quiet", "--env", "", "bootstrap", "--only", "services,user", "--yes"],
     ]
-    assert all(call[0] in ("sudo", "mise", "systemctl", "gsettings") for call in observed), observed
+    assert [call[1:] for call in observed if call[0] == "warp-cli"] == [
+        ["--accept-tos", "registration", "show"],
+        ["--accept-tos", "registration", "new"],
+        ["--accept-tos", "registration", "show"],
+    ]
+    assert (tmp_path / "registered").exists()
+    assert all(
+        call[0] in ("sudo", "mise", "systemctl", "gsettings", "warp-cli") for call in observed
+    ), observed
     assert all(call[1:3] == ["--user", "show"] for call in observed if call[0] == "systemctl")
 
 

@@ -1,8 +1,15 @@
 """Enrollment preserves existing accounts and requires a usable fingerprint reader."""
 
+import json
+import shutil
+from pathlib import Path
 from typing import override
 
-from helpers import ROOT, SCRIPTS, ScriptCase
+import pytest
+from helpers import CHEZMOI, ROOT, SCRIPTS, ScriptCase
+from test_setup import PYTHON, calls, render_python, run_setup, stub
+from test_setup import env as env
+from test_workstation import workstation as workstation
 
 
 class AvatarTests(ScriptCase):
@@ -25,87 +32,142 @@ class AvatarTests(ScriptCase):
                     self.assertEqual(source.strip(), "")
 
 
-class EnrollmentTests(ScriptCase):
-    @override
-    def setUp(self) -> None:
-        super().setUp()
-        self.source = self.render(SCRIPTS / "run_onchange_after_15_enrollment.sh.tmpl")
-        self.stub("warp-cli", "exit 0")
-        self.stub("pacman", "exit 1")
+WARP = "run_onchange_after_15_warp.py"
 
-    def test_warp_registration_is_created_once_without_connecting(self) -> None:
-        registration = self.directory / "registration"
-        self.env["REGISTRATION"] = str(registration)
-        self.stub(
-            "warp-cli",
-            """
-case "$*" in
+
+@pytest.fixture
+def warp_env(workstation: dict[str, str]) -> dict[str, str]:
+    stub(
+        workstation,
+        "warp-cli",
+        """case "$*" in
     '--accept-tos registration show')
-        if [ -e "$REGISTRATION" ]; then echo 'Account type: Free'; else
+        [ "${WARP_UNAVAILABLE:-0}" = 0 ] || exit "$WARP_UNAVAILABLE"
+        if [ -f "$HOME/registered" ]; then
+            [ "${WARP_VERIFY_STATUS:-0}" = 0 ] || exit "$WARP_VERIFY_STATUS"
+            echo 'Account type: Team; account-private-fixture'
+        else
             echo 'Error: Missing registration. Try running: "warp-cli registration new"' >&2
             exit 1
         fi ;;
-    '--accept-tos registration new') echo 'fixture-account' > "$REGISTRATION" ;;
+    '--accept-tos registration new')
+        [ "${WARP_NEW_STATUS:-0}" = 0 ] || exit "$WARP_NEW_STATUS"
+        echo 'fixture-registration' > "$HOME/registered" ;;
     *) exit 97 ;;
-esac
-""",
-            log=True,
-        )
-        for attempt in ("initial", "repeated"):
-            with self.subTest(attempt=attempt):
-                result = self.shell(self.source)
-                self.assertEqual(result.returncode, 0, result.stderr)
-                self.assertTrue(registration.is_file(), result.stderr)
-                self.assertEqual(registration.read_text(), "fixture-account\n")
-        self.assertEqual(
-            self.logged_calls(),
-            [
-                ["warp-cli", "--accept-tos", "registration", "show"],
-                ["warp-cli", "--accept-tos", "registration", "new"],
-                ["warp-cli", "--accept-tos", "registration", "show"],
-            ],
-        )
+esac""",
+        log=True,
+    )
+    return workstation
 
-    def test_warp_preserves_existing_registration_and_reports_unavailable_setup(self) -> None:
-        self.stub(
-            "warp-cli",
-            """
-case "$*" in
-    '--accept-tos registration show')
-        case "$WARP_CASE" in
-            existing) echo 'Account type: Team'; exit 0 ;;
-            unavailable) echo 'Unable to connect to CloudflareWARP daemon' >&2 ;;
-            failed) echo 'Error: Missing registration.' >&2 ;;
-        esac
-        exit 1 ;;
-    '--accept-tos registration new') exit 23 ;;
-    *) exit 97 ;;
-esac
-""",
-            log=True,
+
+@pytest.mark.parametrize("personal", [False, True], ids=["nonpersonal", "personal"])
+def test_chezmoi_registers_warp_after_services_and_retries_without_connecting(
+    warp_env: dict[str, str], tmp_path: Path, personal: bool
+) -> None:
+    assert CHEZMOI is not None
+    repository = tmp_path / "source"
+    source = repository / "home"
+    scripts = source / ".chezmoiscripts/linux"
+    scripts.mkdir(parents=True)
+    shutil.copytree(ROOT / "mise", repository / "mise")
+    shutil.copytree(ROOT / "home/.chezmoitemplates/lib", source / ".chezmoitemplates/lib")
+    for name in ("run_onchange_after_14_services.py.tmpl", WARP):
+        shutil.copy(SCRIPTS / name, scripts / name)
+    config = tmp_path / "chezmoi.json"
+    config.write_text(
+        json.dumps(
+            {
+                "data": {"personal": personal, "distroFamily": "arch"},
+                "scriptEnv": {"DOTFILES_PERSONAL_ENABLED": "1" if personal else "0"},
+            }
         )
-        for scenario in ("existing", "unavailable", "failed", "ci"):
-            with self.subTest(scenario=scenario):
-                self.calls.unlink(missing_ok=True)
-                self.env.update(WARP_CASE=scenario, CI="1" if scenario == "ci" else "")
-                result = self.shell(self.source)
-                self.assertEqual(
-                    result.returncode,
-                    {"unavailable": 1, "failed": 23}.get(scenario, 0),
-                    result.stderr,
-                )
-                expected = (
-                    []
-                    if scenario == "ci"
-                    else [
-                        ["warp-cli", "--accept-tos", "registration", "show"],
-                    ]
-                )
-                if scenario == "failed":
-                    expected.append(["warp-cli", "--accept-tos", "registration", "new"])
-                self.assertEqual(self.logged_calls(), expected)
-                if scenario in ("unavailable", "failed"):
-                    self.assertIn("ERROR:", result.stderr)
+    )
+    command = [
+        CHEZMOI,
+        "--config",
+        str(config),
+        "--source",
+        str(source),
+        "--working-tree",
+        str(repository),
+        "--destination",
+        str(tmp_path / "target"),
+        "--no-tty",
+        "apply",
+    ]
+    warp_env["WARP_NEW_STATUS"] = "23"
+    failed = run_setup(warp_env, command)
+    assert failed.returncode != 0
+    assert "exit 23" in failed.stderr
+    assert not (tmp_path / "registered").exists()
+    observed = calls(warp_env)
+    assert next(i for i, call in enumerate(observed) if call[0] == "mise") < next(
+        i for i, call in enumerate(observed) if call[0] == "warp-cli"
+    )
+    warp_env["WARP_NEW_STATUS"] = "0"
+    retried = run_setup(warp_env, command)
+    assert retried.returncode == 0, retried.stderr
+    assert (tmp_path / "registered").read_text() == "fixture-registration\n"
+    observed = calls(warp_env)
+    assert [call[1:] for call in observed if call[0] == "warp-cli"] == [
+        ["--accept-tos", "registration", "show"],
+        ["--accept-tos", "registration", "new"],
+        ["--accept-tos", "registration", "show"],
+        ["--accept-tos", "registration", "new"],
+        ["--accept-tos", "registration", "show"],
+    ]
+    cached = run_setup(warp_env, command)
+    assert cached.returncode == 0, cached.stderr
+    assert calls(warp_env) == observed
+    log = (tmp_path / "state/chezmoi/logs/setup.log").read_text()
+    assert "account-private-fixture" not in log + retried.stdout + retried.stderr
+
+
+def test_warp_reuses_existing_team_registration_without_mutation(
+    warp_env: dict[str, str], tmp_path: Path
+) -> None:
+    existing = tmp_path / "registered"
+    existing.write_text("existing-Team-registration")
+    before = existing.stat().st_mtime_ns
+    script = render_python(warp_env, WARP, personal=False)
+    for _ in range(2):
+        result = run_setup(warp_env, [PYTHON, "-B", str(script)])
+        assert result.returncode == 0, result.stderr
+        assert result.stdout == result.stderr == ""
+    assert existing.read_text() == "existing-Team-registration"
+    assert existing.stat().st_mtime_ns == before
+    assert calls(warp_env) == [["warp-cli", "--accept-tos", "registration", "show"]] * 2
+
+
+@pytest.mark.parametrize(
+    "failure,status",
+    [
+        ("WARP_UNAVAILABLE", 24),
+        ("WARP_NEW_STATUS", 23),
+        ("WARP_VERIFY_STATUS", 27),
+    ],
+)
+def test_warp_failure_is_required_and_preserves_exit_status(
+    warp_env: dict[str, str], tmp_path: Path, failure: str, status: int
+) -> None:
+    warp_env[failure] = str(status)
+    script = render_python(warp_env, WARP, personal=False)
+    result = run_setup(warp_env, [PYTHON, "-B", str(script)])
+    assert result.returncode == status, result.stderr
+    assert f"WARP registration failed (exit {status})" in result.stderr
+    assert "check warp-svc and reapply" in result.stderr
+    assert "Traceback" not in result.stderr
+    log = (tmp_path / "state/chezmoi/logs/setup.log").read_text()
+    assert "CalledProcessError" in log
+    assert "account-private-fixture" not in log + result.stdout + result.stderr
+
+
+class FingerprintTests(ScriptCase):
+    @override
+    def setUp(self) -> None:
+        super().setUp()
+        self.source = self.render(SCRIPTS / "run_onchange_after_16_fingerprint.sh.tmpl")
+        self.stub("pacman", "exit 1")
 
     def test_fingerprint_enrollment_requires_a_reader_without_prints_and_interactive_consent(
         self,

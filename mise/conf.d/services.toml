@@ -30,3 +30,8 @@ enabled = true
 state = "stopped"
 enabled = false
 masked = true
+
+# Device registration is common; setup never connects the tunnel.
+[bootstrap.services."warp-svc.service"]
+state = "running"
+enabled = true

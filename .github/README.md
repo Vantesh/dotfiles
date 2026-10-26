@@ -30,7 +30,7 @@ chezmoi init --apply vantesh
 
 Setup installs its prerequisites and asks one question: **Is this a personal setup?** The answer defaults to No and is saved for subsequent applies.
 
-- **Nonpersonal:** installs common packages and nonsecret dotfiles, applies common system/user services, sets Fish as the login shell and configures the common desktop, including public fonts, icons and cursor themes. It does not access Bitwarden, provision personal services, drivers, firewall or the login manager, modify boot/filesystem/firmware settings, enroll devices, or reboot.
+- **Nonpersonal:** installs common packages and nonsecret dotfiles, applies common system/user services, sets Fish as the login shell, configures the common desktop, including public fonts, icons and cursor themes, and registers WARP without connecting. It does not access Bitwarden, provision personal services, drivers, firewall or the login manager, modify boot/filesystem/firmware settings, enroll fingerprints, or reboot.
 - **Personal:** adds private configuration and the existing driver, Btrfs/Snapper, swapfile/hibernation, Zswap, Limine/Secure Boot and personal service provisioning. Hardware and system-integrity checks still apply. Authentication and enrollment can require interaction.
 
 Both profiles support repeated application. Previous dotfiles versions and profile transitions are unsupported; use manual cleanup or a fresh installation rather than expecting migration. Nonpersonal installs retain the existing package prerequisites, including Chaotic-AUR trust/repository setup, the initial full system upgrade, and an AUR helper.
@@ -51,7 +51,7 @@ Mise files in the repository (`chezmoi cd`):
 
 The shell entry point checks `python`, `python-loguru`, `git`, `base-devel` and `mise`, adding `rbw` and `pinentry` only for personal setups. It installs missing packages in one native Pacman transaction before Python starts. The next before-script, `.chezmoiscripts/linux/run_before_00_authentication.py`, configures private logging and personal-only Bitwarden authentication; it does not install prerequisites again. Desktop package selection stays in Mise.
 
-Common services and Fish login-shell setup apply to both profiles. `mise/config.personal.toml` adds the existing WARP and UFW service declarations only in the personal environment; the firewall phase remains personal-only. Fish's interactive configuration stays under Chezmoi.
+Common services and Fish login-shell setup apply to both profiles. `mise/conf.d/services.toml` also starts the common WARP daemon. `mise/config.personal.toml` adds UFW only in the personal environment; the firewall phase remains personal-only. Fish's interactive configuration stays under Chezmoi.
 
 ## Package execution and early XDG setup
 
@@ -71,6 +71,12 @@ Atuin 18.24.2 prefers `~/.atuin` when its XDG data directory does not yet exist.
 
 Configuration and themes use `$XDG_CONFIG_HOME/atuin`, persistent stores and keys use `$XDG_DATA_HOME/atuin`, and logs use `$XDG_STATE_HOME/atuin`. Unset/empty variables use `~/.config`, `~/.local/share` and `~/.local/state`. When `XDG_RUNTIME_DIR` is present, the native daemon socket/pidfile settings use `atuin.sock` and `atuin.pid` there; otherwise Atuin retains its native temporary-socket and data-directory pidfile defaults. No active cache-directory setting is available in this version; no invented cache override is exported. The managed config is installed before the first setup or Fish launch. Sync/authentication settings and history filters are unchanged. Existing `~/.atuin` contents are neither migrated nor deleted.
 
+## WARP device registration
+
+Cloudflare WARP is common to both profiles. The existing package declaration installs it, and Mise enables/starts `warp-svc.service` before the plain `15_warp` Python hook. Verified with `warp-cli 2026.8.2110.0`, setup reads `registration show`, runs `registration new` only for the native missing-registration error, then checks `registration show` again. These are the [current consumer CLI commands](https://developers.cloudflare.com/warp-client/get-started/linux/). Existing Free, premium and Teams registrations are retained without importing credentials or changing accounts. Account/device details are not written to provisioning logs.
+
+Registration accepts the native terms of service but never calls `connect`, changes mode/DNS/routing, or resets/disconnects an existing account. A fresh device stays disconnected; connect deliberately through the official CLI or GUI. Required failures stop the apply and remain eligible for Chezmoi retry. Successful unchanged registration hooks are cached; there is no dotfiles registration marker. Fingerprint enrollment is a separate personal-only hook after WARP.
+
 ## Personal sudo and Pacman policy
 
 The direct Python before-scripts `01_sudo` and `03_pacman` remain personal-only through early runtime guards. Sudoers retains `passwd_timeout=0`, `passwd_tries=10` and preservation of `EDITOR`/`VISUAL`; faillock retains `deny=20`, `unlock_time=120` and `fail_interval=900`. All sudoers candidates and the existing policy are checked with `visudo` before activation, with a full-policy check afterward.
@@ -81,7 +87,7 @@ Each policy hook authenticates through native sudo before one synchronous privil
 
 ## Common services and Fish
 
-The Python service after-hook (`14_services`) runs native Mise service and login-shell provisioning for both profiles. Common system units are NetworkManager, Bluetooth, `fstrim.timer`, `reflector.timer`, `pacman-filesdb-refresh.timer`, `paccache.timer` and `pkgfile-update.timer`. The existing disabled/masked `systemd-networkd-wait-online.service` policy is retained. Personal-only WARP, SSH agent and NVIDIA sleep services keep their existing enrollment or hardware boundaries. UFW rules/activation and Ly lifecycle remain personal-only and unchanged.
+The Python service after-hook (`14_services`) runs native Mise service and login-shell provisioning for both profiles. Common system units are NetworkManager, Bluetooth, WARP, `fstrim.timer`, `reflector.timer`, `pacman-filesdb-refresh.timer`, `paccache.timer` and `pkgfile-update.timer`. The existing disabled/masked `systemd-networkd-wait-online.service` policy is retained. Personal-only SSH agent and NVIDIA sleep services keep their existing hardware and profile boundaries. UFW rules/activation and Ly lifecycle remain personal-only and unchanged.
 
 A short state-aware loop retains the existing packaged user units: GNOME Keyring's socket/service, MPRIS proxy and udiskie. System services run first; healthy user units are not re-enabled or restarted, and unavailable optional units are skipped. These are existing unit identities, rather than newly generated Mise user services. Personal snapshot exclusions for locate and avatar assignment remain gated. Nonpersonal Reflector uses its packaged defaults; the existing personal Pacman/Reflector customization remains in its earlier phase.
 
