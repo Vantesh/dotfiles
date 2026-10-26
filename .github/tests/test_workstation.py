@@ -2,7 +2,6 @@
 
 import json
 import os
-import shlex
 import shutil
 import tomllib
 from pathlib import Path
@@ -45,15 +44,7 @@ def workstation(env: dict[str, str]) -> dict[str, str]:
 exit "${MISE_STATUS:-0}"''',
         log=True,
     )
-    stub(
-        env,
-        "systemctl",
-        """case "$*" in
-    '--user show '*) printf 'LoadState=loaded\\nUnitFileState=static\\nActiveState=active\\n' ;;
-    *) exit 97 ;;
-esac""",
-        log=True,
-    )
+    stub(env, "systemctl", "exit 97", log=True)
     for command in ("rbw", "sbctl", "busctl", "ufw", "chsh", "updatedb"):
         stub(env, command, "exit 97", log=True)
     stub(
@@ -117,10 +108,8 @@ def test_chezmoi_applies_workstation_tasks_in_both_profiles(
         "services,firewall,user" if personal else "services,user",
         "--yes",
     ]
-    assert [call for call in calls(workstation) if call[0] == "mise"] == [expected]
     recorded = calls(workstation)
-    assert all(call[0] in ("mise", "systemctl") for call in recorded), recorded
-    assert all(call[1] == "--user" for call in recorded if call[0] == "systemctl")
+    assert recorded == [expected]  # All service activation belongs to Mise.
     repeated = run_setup(workstation, command)
     assert repeated.returncode == 0, repeated.stderr
     assert repeated.stderr == ""
@@ -132,7 +121,12 @@ def test_service_declarations_keep_masks_and_personal_boundaries() -> None:
         "dict[str, dict[str, str | bool]]",
         tomllib.loads((ROOT / "mise/conf.d/services.toml").read_text())["bootstrap"]["services"],
     )
-    assert set(common) == {
+    system = {
+        name: declaration
+        for name, declaration in common.items()
+        if declaration.get("scope") != "user"
+    }
+    assert set(system) == {
         "NetworkManager.service",
         "bluetooth.service",
         "warp-svc.service",
@@ -153,69 +147,30 @@ def test_service_declarations_keep_masks_and_personal_boundaries() -> None:
         tomllib.loads((ROOT / "mise/config.personal.toml").read_text())["bootstrap"]["services"],
     )
     assert common["warp-svc.service"] == {"state": "running", "enabled": True}
-    assert set(personal) == {"ufw.service"}
+    assert set(personal) == {"ufw.service", "ssh-agent.socket"}
     assert personal["ufw.service"] == {"state": "running", "enabled": True}
     assert tomllib.loads((ROOT / "mise/conf.d/login-shell.toml").read_text()) == {
         "bootstrap": {"user": {"login_shell": "/usr/bin/fish"}}
     }
-
-
-def test_packaged_user_services_only_change_missing_state(
-    workstation: dict[str, str], tmp_path: Path
-) -> None:
-    stub(
-        workstation,
-        "systemctl",
-        """case "$*" in
-    '--user show '*' -- udiskie')
-        echo LoadState=loaded
-        if test -f "$HOME/enabled"; then echo UnitFileState=enabled; else echo UnitFileState=disabled; fi
-        if test -f "$HOME/active"; then echo ActiveState=active; else echo ActiveState=inactive; fi ;;
-    '--user show '*) printf 'LoadState=loaded\\nUnitFileState=static\\nActiveState=active\\n' ;;
-    '--user --quiet enable -- udiskie') touch "$HOME/enabled" ;;
-    '--user --quiet start -- udiskie') touch "$HOME/active" ;;
-    *) exit 97 ;;
-esac""",
-        log=True,
-    )
-    command = render_services(workstation, False)
-    first = run_setup(workstation, command)
-    assert first.returncode == 0, first.stderr
-    assert (tmp_path / "active").exists() and (tmp_path / "enabled").exists()
-    repeated = run_setup(workstation, command)
-    assert repeated.returncode == 0, repeated.stderr
-    assert repeated.stderr == ""
-    recorded = calls(workstation)
-    assert recorded.count(["systemctl", "--user", "--quiet", "enable", "--", "udiskie"]) == 1
-    assert recorded.count(["systemctl", "--user", "--quiet", "start", "--", "udiskie"]) == 1
-    assert not any("restart" in call or "disable" in call for call in recorded)
-    services = next(call for call in recorded if call[0] == "mise")
-    assert recorded.index(services) < recorded.index(
-        ["systemctl", "--user", "--quiet", "start", "--", "udiskie"]
-    )
-
-
-@pytest.mark.parametrize("failure", ["inspect", "start", "mise", "missing-unit"])
-def test_service_failures_preserve_status(workstation: dict[str, str], failure: str) -> None:
-    if failure == "mise":
-        workstation["MISE_STATUS"] = "23"
-    else:
-        stub(
-            workstation,
-            "systemctl",
-            f"""case "$*" in
-    '--user show '*)
-        [ {shlex.quote(failure)} != inspect ] || exit 23
-        if [ {shlex.quote(failure)} = missing-unit ]; then echo LoadState=not-found; exit 0; fi
-        printf 'LoadState=loaded\\nUnitFileState=enabled\\nActiveState=inactive\\n' ;;
-    '--user --quiet start '*) exit 23 ;;
-    *) exit 97 ;;
-esac""",
-            log=True,
-        )
-    result = run_setup(workstation, render_services(workstation, False))
-    assert result.returncode == (1 if failure == "missing-unit" else 23), result.stderr
-    assert "ERROR" in result.stderr
+    user_units = {
+        name: declaration
+        for name, declaration in common.items()
+        if declaration.get("scope") == "user"
+    }
+    assert set(user_units) == {
+        "gnome-keyring-daemon.service",
+        "gnome-keyring-daemon.socket",
+        "mpris-proxy.service",
+        "udiskie.service",
+    }
+    for declaration in (*user_units.values(), personal["ssh-agent.socket"]):
+        assert declaration == {
+            "scope": "user",
+            "state": "running",
+            "enabled": True,
+            "masked": False,
+        }
+    assert tomllib.loads((ROOT / "mise/config.toml").read_text())["min_version"] == "2026.10.20"
 
 
 def test_workstation_tasks_reject_root(workstation: dict[str, str]) -> None:
@@ -296,32 +251,6 @@ esac""",
         assert failed.returncode == 23
 
 
-def test_masked_static_user_unit_is_unmasked_and_started_once(workstation: dict[str, str]) -> None:
-    stub(
-        workstation,
-        "systemctl",
-        """case "$*" in
-    '--user show --property=UnitFileState --value -- udiskie') echo static ;;
-    '--user show '*' -- udiskie')
-        if test -f "$HOME/unmasked"; then echo LoadState=loaded; echo UnitFileState=static; else echo LoadState=masked; echo UnitFileState=masked; fi
-        if test -f "$HOME/active"; then echo ActiveState=active; else echo ActiveState=inactive; fi ;;
-    '--user show '*) printf 'LoadState=loaded\\nUnitFileState=static\\nActiveState=active\\n' ;;
-    '--user --quiet unmask -- udiskie') touch "$HOME/unmasked" ;;
-    '--user --quiet start -- udiskie') touch "$HOME/active" ;;
-    *) exit 97 ;;
-esac""",
-        log=True,
-    )
-    command = render_services(workstation, False)
-    for _ in range(2):
-        result = run_setup(workstation, command)
-        assert result.returncode == 0, result.stderr
-    recorded = calls(workstation)
-    assert recorded.count(["systemctl", "--user", "--quiet", "unmask", "--", "udiskie"]) == 1
-    assert recorded.count(["systemctl", "--user", "--quiet", "start", "--", "udiskie"]) == 1
-    assert not any("enable" in call or "restart" in call for call in recorded)
-
-
 @pytest.mark.parametrize(
     ("offline", "kind", "status", "success"),
     [
@@ -375,3 +304,10 @@ def test_offline_transition_invalidates_only_personal_services(
     assert offline == render_python(workstation, HOOK, personal=personal).read_text()
     workstation["OFFLINE"] = ""
     assert online == render_python(workstation, HOOK, personal=personal).read_text()
+
+
+def test_mise_service_failure_preserves_status(workstation: dict[str, str]) -> None:
+    workstation["MISE_STATUS"] = "23"
+    result = run_setup(workstation, render_services(workstation, False))
+    assert result.returncode == 23, result.stderr
+    assert "ERROR" in result.stderr

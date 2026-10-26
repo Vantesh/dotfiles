@@ -9,7 +9,7 @@
 # mise/conf.d/firewall.toml: {{ if .personal }}{{ include "../mise/conf.d/firewall.toml" | sha256sum }}{{ else }}disabled{{ end }}
 # OFFLINE: {{ if .personal }}{{ if env "OFFLINE" }}1{{ else }}0{{ end }}{{ else }}disabled{{ end }}
 # mise/conf.d/login-shell.toml: {{ include "../mise/conf.d/login-shell.toml" | sha256sum }}
-"""Let Mise converge workstation services and Fish before their packaged user clients."""
+"""Let Mise converge system/user services and Fish for the selected profile."""
 
 import os
 import re
@@ -27,12 +27,6 @@ from loguru import logger
 PERSONAL = os.environ.get("DOTFILES_PERSONAL_ENABLED") == "1"
 FISH = Path("/usr/bin/fish")
 UPDATEDB_CONF = Path("/etc/updatedb.conf")
-USER_SERVICES = (
-    "gnome-keyring-daemon.socket",
-    "gnome-keyring-daemon.service",
-    "mpris-proxy",
-    "udiskie",
-) + (("ssh-agent.socket",) if PERSONAL else ())
 
 
 def exclude_snapshots_from_locate() -> None:
@@ -60,54 +54,6 @@ def exclude_snapshots_from_locate() -> None:
         except BaseException:
             rollback_configs([config])
             raise
-
-
-def converge_packaged_user_services() -> None:
-    for unit in USER_SERVICES:
-        result = subprocess.run(
-            [
-                "systemctl",
-                "--user",
-                "show",
-                "--property=LoadState",
-                "--property=UnitFileState",
-                "--property=ActiveState",
-                "--",
-                unit,
-            ],
-            check=True,
-            stdout=subprocess.PIPE,
-            text=True,
-        )
-        properties = dict(line.split("=", 1) for line in result.stdout.splitlines() if "=" in line)
-        load = properties.get("LoadState")
-        if load == "not-found":
-            raise ValueError(
-                f"Required packaged user unit is missing: {unit}; complete package installation."
-            )
-        if load not in ("loaded", "masked"):
-            raise ValueError(f"Cannot inspect {unit} (user): LoadState={load}")
-        state, active = properties.get("UnitFileState"), properties.get("ActiveState")
-        if not state or not active:
-            raise ValueError(f"Incomplete systemd state for {unit} (user).")
-        changed = False
-        if load == "masked" or state.startswith("masked"):
-            _ = subprocess.run(["systemctl", "--user", "--quiet", "unmask", "--", unit], check=True)
-            state = subprocess.run(
-                ["systemctl", "--user", "show", "--property=UnitFileState", "--value", "--", unit],
-                check=True,
-                stdout=subprocess.PIPE,
-                text=True,
-            ).stdout.strip()
-            changed = True
-        if state not in ("enabled", "static"):
-            _ = subprocess.run(["systemctl", "--user", "--quiet", "enable", "--", unit], check=True)
-            changed = True
-        if active != "active":
-            _ = subprocess.run(["systemctl", "--user", "--quiet", "start", "--", unit], check=True)
-            changed = True
-        if changed:
-            logger.info("Configured {} (user).", unit)
 
 
 def terminate(_signum: int, _frame: object) -> None:
@@ -215,7 +161,6 @@ def main() -> int:
             env=env,
             check=True,
         )
-        converge_packaged_user_services()
         if PERSONAL:
             avatar = Path.home() / ".local/share/avatars/profile.png"
             if avatar.is_file() and os.access(avatar, os.R_OK) and avatar.stat().st_size:

@@ -321,12 +321,6 @@ esac""",
     )
     stub(
         env,
-        "systemctl",
-        '[ "$1 $2" = "--user show" ] || exit 97; printf "LoadState=loaded\\nUnitFileState=static\\nActiveState=active\\n"',
-        log=True,
-    )
-    stub(
-        env,
         "warp-cli",
         """case "$*" in
     '--accept-tos registration show')
@@ -393,10 +387,7 @@ esac""",
     ]
     assert (tmp_path / "registered").exists()
     assert (tmp_path / "common-greeter").read_text() == "configured\n"
-    assert all(
-        call[0] in ("sudo", "mise", "systemctl", "gsettings", "warp-cli") for call in observed
-    ), observed
-    assert all(call[1:3] == ["--user", "show"] for call in observed if call[0] == "systemctl")
+    assert all(call[0] in ("sudo", "mise", "gsettings", "warp-cli") for call in observed), observed
 
 
 def secret_modifier(env: dict[str, str], personal: bool) -> list[str]:

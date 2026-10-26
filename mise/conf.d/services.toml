@@ -35,3 +35,27 @@ masked = true
 [bootstrap.services."warp-svc.service"]
 state = "running"
 enabled = true
+
+[bootstrap.services."gnome-keyring-daemon.socket"]
+scope = "user"
+state = "running"
+enabled = true
+masked = false
+
+[bootstrap.services."gnome-keyring-daemon.service"]
+scope = "user"
+state = "running"
+enabled = true
+masked = false
+
+[bootstrap.services."mpris-proxy.service"]
+scope = "user"
+state = "running"
+enabled = true
+masked = false
+
+[bootstrap.services."udiskie.service"]
+scope = "user"
+state = "running"
+enabled = true
+masked = false
