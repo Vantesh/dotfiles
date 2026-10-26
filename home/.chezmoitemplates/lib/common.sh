@@ -177,23 +177,6 @@ command_exists() {
   command -v "$1" >/dev/null 2>&1
 }
 
-# Reloads systemd daemon configuration.
-#
-# Globals:
-#   LAST_ERROR - Set on failure
-# Returns:
-#   0 on success, 1 on failure
-reload_systemd_daemon() {
-  LAST_ERROR=""
-
-  if ! sudo systemctl daemon-reload >/dev/null 2>&1; then
-    LAST_ERROR="Failed to reload systemd daemon"
-    return 1
-  fi
-
-  return 0
-}
-
 # Detects if system is a laptop.
 #
 # Uses hostnamectl to check chassis type for laptop/notebook.
@@ -419,52 +402,6 @@ edit_system_configs() (
   fi
   rollback=false
 )
-
-# Writes content to system config file with proper permissions.
-#
-# Creates parent directories if needed. Sets ownership to root:root and
-# permissions to 644. Uses sudo for creation and writing.
-# Arguments:
-#   $1 - Config file path
-# Globals:
-#   LAST_ERROR - Set on failure
-# Returns:
-#   0 on success, 1 on failure, 2 on invalid args
-write_system_config() {
-  local config_file="$1"
-
-  LAST_ERROR=""
-
-  if [[ -z "$config_file" ]]; then
-    LAST_ERROR="write_system_config() requires config_file argument"
-    return 2
-  fi
-
-  if [[ "$config_file" != /* ]]; then
-    LAST_ERROR="config_file must be an absolute path: $config_file"
-    return 2
-  fi
-
-  local parent_dir
-  parent_dir="$(dirname "$config_file")"
-
-  if ! sudo mkdir -p "$parent_dir"; then
-    LAST_ERROR="Failed to create directory: $parent_dir"
-    return 1
-  fi
-
-  if ! sudo tee "$config_file" >/dev/null; then
-    LAST_ERROR="Failed to write to $config_file"
-    return 1
-  fi
-
-  if ! sudo chmod 644 "$config_file"; then
-    LAST_ERROR="Failed to set permissions (644) for $config_file"
-    return 1
-  fi
-
-  return 0
-}
 
 # Creates .bak backup of file
 #

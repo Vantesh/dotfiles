@@ -13,6 +13,17 @@ class SystemdInitramfsTests(ScriptCase):
         super().setUp()
         self.etc = self.directory / "etc"
         self.etc.mkdir()
+        parser_source = self.directory / "parser-source"
+        parser = parser_source / ".chezmoitemplates/lib/limine_cmdline.py"
+        parser.parent.mkdir(parents=True)
+        parser.write_text(
+            (LIB / "limine_cmdline.py")
+            .read_text()
+            .replace("/etc/", f"{self.etc}/")
+            .replace("/usr/share/", f"{self.directory}/share/")
+            .replace("/crypto_keyfile.bin", f"{self.directory}/crypto_keyfile.bin")
+        )
+        self.env["CHEZMOI_SOURCE_DIR"] = str(parser_source)
         self.dropins = self.etc / "mkinitcpio.conf.d"
         self.dropins.mkdir()
         self.main = self.etc / "mkinitcpio.conf"

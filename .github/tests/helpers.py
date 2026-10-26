@@ -44,6 +44,7 @@ class ScriptCase(unittest.TestCase):
             "TMPDIR": str(self.directory),
             "CALLS": str(self.calls),
             "NO_COLOR": "1",
+            "CHEZMOI_SOURCE_DIR": str(ROOT / "home"),
             **{
                 f"XDG_{name}_HOME": str(self.directory / name.lower())
                 for name in ("CONFIG", "DATA", "CACHE", "STATE")

@@ -134,7 +134,19 @@ Snapper's number cleanup (limit 10), disabled timeline creation and empty pre/po
 
 Root's explicit `relatime` fstab option becomes `noatime` through a guarded atomic edit that preserves ownership/mode and other mount entries, including `@swap`. Reload failures restore this invocation's edit while preserving intervening manual changes. Failures stop setup and remain retryable through Chezmoi. There are no new completion markers. Python uses the existing private Loguru logs; sudo authentication stays native.
 
-Snapshot boot configuration remains in `.chezmoitemplates/lib/snapper_boot.sh` until Phase 6C. Its Limine settings, overlay selection and deferred rebuild behavior are unchanged. Shared boot/hibernation Bash helpers remain because those phases still consume them.
+Snapshot boot configuration remains in `.chezmoitemplates/lib/snapper_boot.sh` until Phase 6C. Its Limine settings, overlay selection and deferred rebuild behavior are unchanged. Shared boot Bash helpers remain because Phase 6C still consumes them.
+
+## Managed laptop hibernation
+
+The personal `03_hibernation.py.tmpl` workflow supports Limine, mkinitcpio and the existing single-device Btrfs laptop layout, either plain or directly LUKS-backed. Non-Btrfs systems, other bootloaders and non-laptops skip it. Independently managed swap/resume settings, unsupported device topologies and swapfiles without a matching ownership record remain untouched for manual setup.
+
+Native Btrfs creates `@swap` and `/swap/swapfile` only when missing. The size formula remains rounded-up RAM in GiB plus the rounded square root of that RAM, with a 2 GiB minimum. Existing managed files are never resized or reformatted. Filesystem/block-device UUIDs, mount identity, link count and native `map-swapfile` suitability/offset checks precede activation and resume publication. Guarded fstab edits preserve unrelated entries and intervening changes; temporary top-level mounts are checked and cleaned up even after interruption.
+
+State stays under `$XDG_STATE_HOME/chezmoi` (default `~/.local/state/chezmoi`). `hibernation.swapfile` records the verified filesystem UUID, path and inode. `hibernation.pending` advances the next Chezmoi retry generation and clears only after completion or a verified unsupported/manual outcome. Missing mkinitcpio or unverifiable persistent arguments defer setup; actual command failures remain nonzero and pending. `initramfs.pending` is never cleared by this workflow: the verified Phase 6C rebuild remains authoritative.
+
+Zswap runs only after managed swap/resume succeeds, requires at least 30 GiB RAM and skips available/configured Zram without changing it. Existing Zswap preferences, including explicit disablement, remain intact. The existing `zswap.conf` Limine fragment retains `zswap.enabled=1 zswap.compressor=lz4`; no `/etc/cmdline.d` or replacement kernel-command-line mechanism is introduced. Optional Zswap failure leaves hibernation configured and reports a warning.
+
+Systemd sleep/logind policy and USB wakeup rules are unchanged. NVIDIA detection still gates its existing Mise-owned sleep units, which stay enabled but stopped outside sleep transactions, and its PCI power-control tmpfiles entry. The persistent Limine parser now lives in `.chezmoitemplates/lib/limine_cmdline.py`; retained Bash boot consumers invoke that same parser until Phase 6C. This phase does not deploy boot artifacts, rebuild initramfs, sign EFI files, or attempt suspend/hibernation.
 
 ## Boot configuration
 
