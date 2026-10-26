@@ -1,10 +1,10 @@
-{{ if .personal -}}
 #!/usr/bin/python3 -B
-# source-dir: {{ .chezmoi.sourceDir | toJson }}
-# working-tree: {{ .chezmoi.workingTree | toJson }}
-# mise/config.toml: {{ include "../mise/config.toml" | sha256sum }}
-# mise/conf.d/pacman-hooks.toml: {{ include "../mise/conf.d/pacman-hooks.toml" | sha256sum }}
-# mise/conf.d/reflector.toml: {{ include "../mise/conf.d/reflector.toml" | sha256sum }}
+# profile: {{ .personal | toJson }}
+# source-dir: {{ if .personal }}{{ .chezmoi.sourceDir | toJson }}{{ else }}disabled{{ end }}
+# working-tree: {{ if .personal }}{{ .chezmoi.workingTree | toJson }}{{ else }}disabled{{ end }}
+# mise/config.toml: {{ if .personal }}{{ include "../mise/config.toml" | sha256sum }}{{ else }}disabled{{ end }}
+# mise/conf.d/pacman-hooks.toml: {{ if .personal }}{{ include "../mise/conf.d/pacman-hooks.toml" | sha256sum }}{{ else }}disabled{{ end }}
+# mise/conf.d/reflector.toml: {{ if .personal }}{{ include "../mise/conf.d/reflector.toml" | sha256sum }}{{ else }}disabled{{ end }}
 """Apply the personal Pacman/cache policy, then let Mise publish its system files."""
 
 import os
@@ -112,8 +112,20 @@ def terminate(_signum: int, _frame: object) -> None:
 
 def main() -> int:
     privileged = sys.argv[1:2] == ["--apply-policy"]
-    if privileged and len(sys.argv) != 3:
-        print("ERROR: Privileged Pacman setup requires its source directory.", file=sys.stderr)
+    if privileged and len(sys.argv) != 4:
+        print(
+            "ERROR: Privileged Pacman setup requires its source directory and profile.",
+            file=sys.stderr,
+        )
+        return 1
+    personal = sys.argv[3] if privileged else os.environ.get("DOTFILES_PERSONAL_ENABLED")
+    if personal == "0":
+        return 0
+    if personal != "1":
+        print(
+            "ERROR: DOTFILES_PERSONAL_ENABLED must be '0' or '1'; run through Chezmoi.",
+            file=sys.stderr,
+        )
         return 1
     source_dir = Path(sys.argv[2]) if privileged else Path(os.environ["CHEZMOI_SOURCE_DIR"])
     if not source_dir.is_absolute():
@@ -159,6 +171,7 @@ def main() -> int:
                 str(Path(__file__).resolve()),
                 "--apply-policy",
                 str(source_dir),
+                personal,
             ],
             check=True,
             capture_output=True,
@@ -212,4 +225,3 @@ def main() -> int:
 if __name__ == "__main__":
     status = main()
     sys.exit(status if status >= 0 else 128 - status)
-{{ end -}}

@@ -132,7 +132,14 @@ esac""",
 def apply_command(tmp_path: Path, *, personal: bool = True) -> list[str]:
     assert CHEZMOI is not None
     config = tmp_path / "chezmoi.json"
-    config.write_text(json.dumps({"data": {"personal": personal}}))
+    config.write_text(
+        json.dumps(
+            {
+                "data": {"personal": personal},
+                "scriptEnv": {"DOTFILES_PERSONAL_ENABLED": "1" if personal else "0"},
+            }
+        )
+    )
     return [
         CHEZMOI,
         "--config",
@@ -393,7 +400,7 @@ esac""",
     assert fstab.read_text() == FSTAB.replace("rw,relatime,subvol=/@ ", "rw,noatime,subvol=/@ ")
     reexec = next(call for call in calls(snapper) if "--optimize-fstab" in call)
     executable = Path(reexec[reexec.index("--optimize-fstab") - 1])
-    assert reexec[-1] == str(tmp_path / "source")
+    assert reexec[-2:] == [str(tmp_path / "source"), "1"]
     assert executable.parent != hook.parent and not executable.exists()
     assert executable.name.endswith(".01_snapshots.py")
     assert (tmp_path / "snapper.json").is_file()

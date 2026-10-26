@@ -1,10 +1,10 @@
-{{ if .personal -}}
 #!/usr/bin/python3 -B
-# source-dir: {{ .chezmoi.sourceDir | toJson }}
-# distribution: {{ .chezmoi.osRelease.id | toJson }}
-# snapper_boot.sh: {{ include ".chezmoitemplates/lib/snapper_boot.sh" | sha256sum }}
-# snapboot.sh: {{ include ".chezmoitemplates/lib/snapboot.sh" | sha256sum }}
-# common.sh: {{ include ".chezmoitemplates/lib/common.sh" | sha256sum }}
+# profile: {{ .personal | toJson }}
+# source-dir: {{ if .personal }}{{ .chezmoi.sourceDir | toJson }}{{ else }}disabled{{ end }}
+# distribution: {{ if .personal }}{{ .chezmoi.osRelease.id | toJson }}{{ else }}disabled{{ end }}
+# snapper_boot.sh: {{ if .personal }}{{ include ".chezmoitemplates/lib/snapper_boot.sh" | sha256sum }}{{ else }}disabled{{ end }}
+# snapboot.sh: {{ if .personal }}{{ include ".chezmoitemplates/lib/snapboot.sh" | sha256sum }}{{ else }}disabled{{ end }}
+# common.sh: {{ if .personal }}{{ include ".chezmoitemplates/lib/common.sh" | sha256sum }}{{ else }}disabled{{ end }}
 """Provision the existing personal root Snapper configuration on the supported Btrfs layout."""
 
 import argparse
@@ -278,21 +278,26 @@ def enable_services() -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    _ = parser.add_argument("--optimize-fstab", type=Path, help=argparse.SUPPRESS)
+    _ = parser.add_argument("--optimize-fstab", nargs=2, help=argparse.SUPPRESS)
     args = parser.parse_args()
-    privileged_source = cast("Path | None", args.optimize_fstab)
-    source_dir = (
-        privileged_source
-        if privileged_source is not None
-        else Path(os.environ["CHEZMOI_SOURCE_DIR"])
-    )
+    context = cast("list[str] | None", args.optimize_fstab)
+    personal = context[1] if context is not None else os.environ.get("DOTFILES_PERSONAL_ENABLED")
+    if personal == "0":
+        return 0
+    if personal != "1":
+        print(
+            "ERROR: DOTFILES_PERSONAL_ENABLED must be '0' or '1'; run through Chezmoi.",
+            file=sys.stderr,
+        )
+        return 1
+    source_dir = Path(context[0]) if context is not None else Path(os.environ["CHEZMOI_SOURCE_DIR"])
     if not source_dir.is_absolute():
         print("ERROR: Chezmoi must supply an absolute source directory.", file=sys.stderr)
         return 1
     sys.path.insert(0, str(source_dir / ".chezmoitemplates"))
     # A narrowly scoped privileged entry point: no selectable system paths and
     # no privileged logging into the regular account's private XDG directory.
-    if privileged_source is not None:
+    if context is not None:
         if os.geteuid() != 0:
             print("fstab updates require root.", file=sys.stderr)
             return 1
@@ -341,6 +346,7 @@ def main() -> int:
                 str(Path(__file__).resolve()),
                 "--optimize-fstab",
                 str(source_dir),
+                personal,
             ],
             check=True,
             capture_output=True,
@@ -378,4 +384,3 @@ def main() -> int:
 if __name__ == "__main__":
     status = main()
     sys.exit(status if status >= 0 else 128 - status)
-{{ end -}}

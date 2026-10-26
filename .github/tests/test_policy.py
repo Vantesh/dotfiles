@@ -206,8 +206,7 @@ def test_policy_direct_apply_isolated_and_idempotent(
     if personal:
         invocation = next(call for call in observed if "--apply-policy" in call)
         executable = Path(invocation[invocation.index("--apply-policy") - 1])
-        if hook == HOOKS[0]:
-            assert invocation[-2:] == [str(source), "1"]
+        assert invocation[-2:] == [str(source), "1"]
         assert executable.parent != source / ".chezmoiscripts/linux" and not executable.exists()
     assert not list(etc.rglob(".chezmoi-*"))
     if hook == HOOKS[0] and not personal:
@@ -232,7 +231,7 @@ def test_privileged_policy_rejects_relative_source_without_environment(
     script = render_python(policy, hook, source=Path(policy["POLICY_SOURCE"]))
     policy.pop("CHEZMOI_SOURCE_DIR")
     policy.pop("DOTFILES_PERSONAL_ENABLED")
-    args = ["--apply-policy", "relative-source", *(["1"] if hook == HOOKS[0] else [])]
+    args = ["--apply-policy", "relative-source", "1"]
     result = run_setup(policy, ["/usr/bin/python3", "-B", str(script), *args])
     assert result.returncode == 1, result.stderr
     assert "absolute" in result.stderr

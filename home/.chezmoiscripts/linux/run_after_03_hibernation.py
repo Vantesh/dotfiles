@@ -1,9 +1,4 @@
-{{ if .personal -}}
 #!/usr/bin/python3 -B
-# source-dir: {{ .chezmoi.sourceDir | toJson }}
-{{ $stateHome := env "XDG_STATE_HOME" | default (joinPath .chezmoi.homeDir ".local/state") -}}
-# retry-generation: {{ with stat (joinPath $stateHome "chezmoi/hibernation.pending") }}{{ .size }}{{ else }}0{{ end }}
-# mise/config.nvidia-sleep.toml: {{ include "../mise/config.nvidia-sleep.toml" | sha256sum }}
 """Configure only the managed Btrfs laptop swap/resume layout; leave boot deployment deferred."""
 
 import json
@@ -389,18 +384,6 @@ def request_rebuild(state: Path) -> None:
         os.fchown(stream.fileno(), int(os.environ["SUDO_UID"]), int(os.environ["SUDO_GID"]))
         os.fchmod(stream.fileno(), 0o600)
     # Never clear this request here; Phase 6C's verified rebuild owns completion.
-
-
-def record_hibernation_retry(pending: Path) -> None:
-    descriptor = os.open(
-        pending, os.O_WRONLY | os.O_APPEND | os.O_CREAT | os.O_NOFOLLOW | os.O_NONBLOCK, 0o600
-    )
-    with os.fdopen(descriptor, "w") as stream:
-        info = os.fstat(stream.fileno())
-        if not stat.S_ISREG(info.st_mode) or info.st_nlink != 1 or info.st_uid != os.getuid():
-            raise ValueError("Hibernation retry state requires a safe user-owned regular file.")
-        os.fchmod(stream.fileno(), 0o600)
-        _ = stream.write(".")
 
 
 def require_unchanged_fstab(expected: os.stat_result) -> None:
@@ -899,6 +882,7 @@ def configure_nvidia_sleep(source_dir: Path) -> None:
                 "--nvidia-pm",
                 address,
                 str(source_dir),
+                "1",
             ],
             check=True,
             capture_output=True,
@@ -916,8 +900,20 @@ def terminate(_signum: int, _frame: object) -> None:
 
 def main() -> int:
     privileged = sys.argv[1:2] in (["--configure"], ["--nvidia-pm"])
-    if privileged and len(sys.argv) != 4:
-        print("ERROR: Privileged hibernation setup requires its source directory.", file=sys.stderr)
+    if privileged and len(sys.argv) != 5:
+        print(
+            "ERROR: Privileged hibernation setup requires its source directory and profile.",
+            file=sys.stderr,
+        )
+        return 1
+    personal = sys.argv[4] if privileged else os.environ.get("DOTFILES_PERSONAL_ENABLED")
+    if personal == "0":
+        return 0
+    if personal != "1":
+        print(
+            "ERROR: DOTFILES_PERSONAL_ENABLED must be '0' or '1'; run through Chezmoi.",
+            file=sys.stderr,
+        )
         return 1
     source_dir = Path(sys.argv[3]) if privileged else Path(os.environ["CHEZMOI_SOURCE_DIR"])
     if not source_dir.is_absolute():
@@ -928,11 +924,11 @@ def main() -> int:
     _ = signal.signal(signal.SIGTERM, terminate)
     if privileged:
         try:
-            if sys.argv[1] == "--configure" and len(sys.argv) == 4:
+            if sys.argv[1] == "--configure" and len(sys.argv) == 5:
                 outcome = apply_hibernation(Path(sys.argv[2]), parser)
                 print(f"HIBERNATION_RESULT={outcome.name}")
                 return 0
-            if sys.argv[1] == "--nvidia-pm" and len(sys.argv) == 4:
+            if sys.argv[1] == "--nvidia-pm" and len(sys.argv) == 5:
                 from lib.policy_files import publish_config, snapshot_config
 
                 if os.geteuid() != 0 or not re.fullmatch(
@@ -958,8 +954,6 @@ def main() -> int:
 
     file_sink = None
     state = Path(os.environ.get("XDG_STATE_HOME") or Path.home() / ".local/state") / "chezmoi"
-    pending = state / "hibernation.pending"
-    retry_recorded = False
     try:
         file_sink = configure_logging()
         if sys.argv[1:] or os.geteuid() == 0:
@@ -967,7 +961,6 @@ def main() -> int:
                 "Run hibernation provisioning as the regular account without arguments."
             )
         if not os.access(LIMINE, os.X_OK):
-            pending.unlink(missing_ok=True)
             return 0
         filesystem = subprocess.run(
             ["findmnt", "-n", "-o", "FSTYPE", "/"], check=True, capture_output=True, text=True
@@ -975,20 +968,16 @@ def main() -> int:
         if not filesystem or "\n" in filesystem:
             raise ValueError("Cannot inspect one root filesystem type.")
         if filesystem != "btrfs":
-            pending.unlink(missing_ok=True)
             return 0
         chassis = subprocess.run(
             ["hostnamectl", "chassis"], check=True, capture_output=True, text=True
         ).stdout.strip()
         if chassis not in ("laptop", "notebook"):
-            pending.unlink(missing_ok=True)
             return 0
         if shutil.which("mkinitcpio") is None:
-            record_hibernation_retry(pending)
             logger.warning("mkinitcpio unavailable; hibernation setup remains pending.")
             return 0
-        record_hibernation_retry(pending)
-        retry_recorded = True
+
         _ = subprocess.run(["sudo", "-v"], check=True)
         result = subprocess.run(
             [
@@ -1000,6 +989,7 @@ def main() -> int:
                 "--configure",
                 str(state),
                 str(source_dir),
+                personal,
             ],
             check=False,
             capture_output=True,
@@ -1020,12 +1010,11 @@ def main() -> int:
             else:
                 logger.info(message)
         if outcome == SetupResult.MANUAL:
-            pending.unlink(missing_ok=True)
             return 0
         if outcome == SetupResult.DEFERRED:
             return 0
         configure_nvidia_sleep(source_dir)
-        pending.unlink(missing_ok=True)
+
         return 0
     except (OSError, ValueError, subprocess.CalledProcessError) as error:
         status = error.returncode if isinstance(error, subprocess.CalledProcessError) else 1
@@ -1042,15 +1031,11 @@ def main() -> int:
                     logger.debug("System diagnostic:\n{}", diagnostic.rstrip())
             else:
                 logger.opt(exception=True).error("Hibernation setup stopped: {}", error)
-            if not retry_recorded:
-                record_hibernation_retry(pending)
         except OSError, ValueError:
             if file_sink is not None:
                 logger.remove(file_sink)
         return status
     except KeyboardInterrupt:
-        if not retry_recorded:
-            record_hibernation_retry(pending)
         logger.warning("Hibernation setup interrupted; reapply when ready.")
         return 130
 
@@ -1058,4 +1043,3 @@ def main() -> int:
 if __name__ == "__main__":
     status = main()
     sys.exit(status if status >= 0 else 128 - status)
-{{ end -}}

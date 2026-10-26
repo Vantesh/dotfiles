@@ -67,7 +67,7 @@ Early setup respects XDG overrides and prepares private GnuPG storage, Bash/Pyth
 
 ## Personal sudo and Pacman policy
 
-The direct Python before-scripts `01_sudo` and `03_pacman` remain personal-only. Sudoers retains `passwd_timeout=0`, `passwd_tries=10` and preservation of `EDITOR`/`VISUAL`; faillock retains `deny=20`, `unlock_time=120` and `fail_interval=900`. All sudoers candidates and the existing policy are checked with `visudo` before activation, with a full-policy check afterward.
+The direct Python before-scripts `01_sudo` and `03_pacman` remain personal-only through early runtime guards. Sudoers retains `passwd_timeout=0`, `passwd_tries=10` and preservation of `EDITOR`/`VISUAL`; faillock retains `deny=20`, `unlock_time=120` and `fail_interval=900`. All sudoers candidates and the existing policy are checked with `visudo` before activation, with a full-policy check afterward.
 
 Pacman enables its existing Color, VerbosePkgLists and ParallelDownloads settings, keeps the configured download count, adds ILoveCandy and places the exact packaged mirrorlist exclusion last in `[options]`. Native `pacman-conf` parsing accounts for included NoExtract entries. Paccache keeps two versions. Mise still owns the declared cache hooks and Reflector files, followed by a systemd daemon reload; mirrors and unrelated repositories are preserved.
 
@@ -136,7 +136,7 @@ Btrfs volume
 /boot                  EFI System Partition
 ```
 
-The personal Snapper workflow runs directly from `.chezmoiscripts/linux/run_onchange_after_01_snapshots.py.tmpl`. Python verifies a writable Btrfs root mounted from `@`, validates existing `root`/`/.snapshots` state, and lets native Snapper create its configuration and snapshot subvolume. Conflicting layouts or orphaned snapshot trees stop setup for manual inspection; nothing is deleted or adopted automatically. CachyOS/Garuda retain their existing preconfigured-Snapper skip.
+The personal Snapper workflow checks its runtime profile before logging or system inspection and runs directly from `.chezmoiscripts/linux/run_onchange_after_01_snapshots.py.tmpl`. Python verifies a writable Btrfs root mounted from `@`, validates existing `root`/`/.snapshots` state, and lets native Snapper create its configuration and snapshot subvolume. Conflicting layouts or orphaned snapshot trees stop setup for manual inspection; nothing is deleted or adopted automatically. CachyOS/Garuda retain their existing preconfigured-Snapper skip.
 
 Snapper's number cleanup (limit 10), disabled timeline creation and empty pre/post cleanup (minimum age 1800 seconds) are unchanged. Only differing settings are applied. The two snapshot units remain enable-only; healthy units are untouched. Locate snapshot exclusions stay in the existing personal services hook.
 
@@ -146,11 +146,11 @@ Snapshot boot configuration remains in `.chezmoitemplates/lib/snapper_boot.sh` u
 
 ## Managed laptop hibernation
 
-The personal `03_hibernation.py.tmpl` workflow supports Limine, mkinitcpio and the existing single-device Btrfs laptop layout, either plain or directly LUKS-backed. Non-Btrfs systems, other bootloaders and non-laptops skip it. Independently managed swap/resume settings, unsupported device topologies and swapfiles without a matching ownership record remain untouched for manual setup.
+The personal `run_after_03_hibernation.py` workflow supports Limine, mkinitcpio and the existing single-device Btrfs laptop layout, either plain or directly LUKS-backed. Non-Btrfs systems, other bootloaders and non-laptops skip it. Independently managed swap/resume settings, unsupported device topologies and swapfiles without a matching ownership record remain untouched for manual setup.
 
 Native Btrfs creates `@swap` and `/swap/swapfile` only when missing. The size formula remains rounded-up RAM in GiB plus the rounded square root of that RAM, with a 2 GiB minimum. Existing managed files are never resized or reformatted. Filesystem/block-device UUIDs, mount identity, link count and native `map-swapfile` suitability/offset checks precede activation and resume publication. Guarded fstab edits preserve unrelated entries and intervening changes; temporary top-level mounts are checked and cleaned up even after interruption.
 
-State stays under `$XDG_STATE_HOME/chezmoi` (default `~/.local/state/chezmoi`). `hibernation.swapfile` records the verified filesystem UUID, path and inode. `hibernation.pending` advances the next Chezmoi retry generation and clears only after completion or a verified unsupported/manual outcome. Missing mkinitcpio or unverifiable persistent arguments defer setup; actual command failures remain nonzero and pending. `initramfs.pending` is never cleared by this workflow: the verified Phase 6C rebuild remains authoritative.
+State stays under `$XDG_STATE_HOME/chezmoi` (default `~/.local/state/chezmoi`). `hibernation.swapfile` records the verified filesystem UUID, path and inode. The plain after-hook runs on every apply, checks the profile and supported laptop layout, and inspects/reuses actual managed swap state. Missing mkinitcpio or unverifiable persistent arguments defer setup; actual command failures remain nonzero. Both retry on subsequent applies without editing the script or a marker. No hibernation retry counter or completion marker is used; an unrelated `hibernation.pending` file is not read or modified. `initramfs.pending` is never cleared by this workflow: the verified Phase 6C rebuild remains authoritative.
 
 Zswap runs only after managed swap/resume succeeds, requires at least 30 GiB RAM and skips available/configured Zram without changing it. Existing Zswap preferences, including explicit disablement, remain intact. The existing `zswap.conf` Limine fragment retains `zswap.enabled=1 zswap.compressor=lz4`; no `/etc/cmdline.d` or replacement kernel-command-line mechanism is introduced. Optional Zswap failure leaves hibernation configured and reports a warning.
 

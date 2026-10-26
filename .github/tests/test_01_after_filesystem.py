@@ -12,7 +12,7 @@ from helpers import CHEZMOI, LIB, ROOT, SCRIPTS, ScriptCase
 from test_setup import calls, render_python, run_setup, stub
 from test_setup import env as env
 
-HOOK = "run_onchange_after_03_hibernation.py.tmpl"
+HOOK = "run_after_03_hibernation.py"
 UUID = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
 LUKS_UUID = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"
 
@@ -320,24 +320,20 @@ def managed_swap(hibernation: dict[str, str]) -> Path:
     return path
 
 
-@pytest.mark.parametrize("encrypted", [False, True], ids=["plain", "luks"])
-def test_direct_hibernation_creates_verified_swap_and_reapplies(
-    hibernation: dict[str, str], tmp_path: Path, encrypted: bool
-) -> None:
+def hibernation_command(hibernation: dict[str, str], tmp_path: Path) -> list[str]:
     assert CHEZMOI is not None
-    if encrypted:
-        hibernation["ENCRYPTED"] = "1"
     source = Path(hibernation["HIBERNATION_SOURCE"])
     config = tmp_path / "chezmoi.json"
     config.write_text(
         json.dumps(
             {
                 "data": {"personal": True},
+                "scriptEnv": {"DOTFILES_PERSONAL_ENABLED": "1"},
                 "interpreters": {"py": {"command": "/usr/bin/python3", "args": ["-B"]}},
             }
         )
     )
-    command = [
+    return [
         CHEZMOI,
         "--config",
         str(config),
@@ -349,6 +345,15 @@ def test_direct_hibernation_creates_verified_swap_and_reapplies(
         str(tmp_path),
         "apply",
     ]
+
+
+@pytest.mark.parametrize("encrypted", [False, True], ids=["plain", "luks"])
+def test_direct_hibernation_creates_verified_swap_and_reapplies(
+    hibernation: dict[str, str], tmp_path: Path, encrypted: bool
+) -> None:
+    if encrypted:
+        hibernation["ENCRYPTED"] = "1"
+    command = hibernation_command(hibernation, tmp_path)
     for _ in range(2):
         result = run_setup(hibernation, command)
         assert result.returncode == 0, result.stderr
@@ -360,12 +365,11 @@ def test_direct_hibernation_creates_verified_swap_and_reapplies(
     assert (tmp_path / "etc/limine-entry-tool.d/zswap.conf").exists()
     state = Path(hibernation["XDG_STATE_HOME"]) / "chezmoi"
     assert (state / "initramfs.pending").exists()
-    assert not (state / "hibernation.pending").exists()
     assert (tmp_path / "etc/fstab").read_text().count("none swap") == 1
     observed = calls(hibernation)
     assert sum("mkswapfile" in call for call in observed) == 1
     assert sum(call[0] == "swapon" and len(call) == 2 for call in observed) == 1
-    # A forced re-execution verifies actual state rather than relying on Chezmoi.
+    # Direct re-execution also verifies actual state without requesting a needless rebuild.
     before = resume.stat().st_mtime_ns
     (state / "initramfs.pending").unlink()
     result = run_hibernation(hibernation)
@@ -386,12 +390,9 @@ def test_direct_hibernation_creates_verified_swap_and_reapplies(
         "chassis-inspection",
     ],
 )
-def test_hibernation_gates_preserve_isolation_and_retry_state(
+def test_hibernation_gates_preserve_isolation_and_failures(
     hibernation: dict[str, str], tmp_path: Path, scenario: str
 ) -> None:
-    pending = Path(hibernation["XDG_STATE_HOME"]) / "chezmoi/hibernation.pending"
-    pending.parent.mkdir(parents=True)
-    pending.write_text("old")
     if scenario == "bootloader":
         (tmp_path / "limine").chmod(0o644)
     elif scenario == "non-btrfs":
@@ -408,14 +409,11 @@ def test_hibernation_gates_preserve_isolation_and_retry_state(
         )
         result = run_setup(hibernation, ["/usr/bin/python3", "-B", str(script)])
         assert calls(hibernation) == []
-        assert pending.read_text() == "old"
+        assert not (Path(hibernation["XDG_STATE_HOME"]) / "chezmoi").exists()
     else:
         result = run_hibernation(hibernation)
         assert not any(call[0] == "sudo" for call in calls(hibernation))
-        if scenario == "missing-mkinitcpio" or scenario.endswith("inspection"):
-            assert pending.read_text() == "old."
-        else:
-            assert not pending.exists()
+    assert not (tmp_path / "etc/limine-entry-tool.d/50-hibernation.conf").exists()
     assert result.returncode == (23 if scenario.endswith("inspection") else 0), result.stderr
 
 
@@ -438,7 +436,6 @@ def test_existing_swap_is_reused_only_with_matching_ownership(
     assert (
         Path(hibernation["FIXTURE"]) / "etc/limine-entry-tool.d/50-hibernation.conf"
     ).exists() == (ownership == "matching")
-    assert not (Path(hibernation["XDG_STATE_HOME"]) / "chezmoi/hibernation.pending").exists()
 
 
 @pytest.mark.parametrize("owner", ["active", "fstab", "unit"])
@@ -488,7 +485,6 @@ def test_failed_inspection_never_publishes_resume(
     assert (tmp_path / "etc/fstab").read_bytes() == before
     assert not (tmp_path / "etc/limine-entry-tool.d/50-hibernation.conf").exists()
     assert not (tmp_path / "etc/limine-entry-tool.d/zswap.conf").exists()
-    assert (Path(hibernation["XDG_STATE_HOME"]) / "chezmoi/hibernation.pending").read_text() == "."
 
 
 @pytest.mark.parametrize(
@@ -556,7 +552,6 @@ def test_resume_publication_failure_rolls_back_only_its_fstab(
     assert (tmp_path / "etc/fstab").stat().st_mode & 0o777 == 0o640
     assert not (tmp_path / "etc/limine-entry-tool.d/50-hibernation.conf").exists()
     state = Path(hibernation["XDG_STATE_HOME"]) / "chezmoi"
-    assert (state / "hibernation.pending").read_text() == "."
     assert (state / "initramfs.pending").exists()
     if failure == "verify-resume":
         late = tmp_path / "etc/default/limine"
@@ -566,7 +561,6 @@ def test_resume_publication_failure_rolls_back_only_its_fstab(
     result = run_hibernation(hibernation)
     assert result.returncode == 0, result.stderr
     assert sum("mkswapfile" in call for call in calls(hibernation)) == 1
-    assert not (state / "hibernation.pending").exists()
 
 
 @pytest.mark.parametrize("status", ["2", "3", "23"])
@@ -576,30 +570,62 @@ def test_native_swap_failure_codes_are_not_manual_or_deferred_success(
     hibernation.update(FAILURE="swap-inspection", FAIL_STATUS=status)
     result = run_hibernation(hibernation)
     assert result.returncode == int(status), result.stderr
-    assert (Path(hibernation["XDG_STATE_HOME"]) / "chezmoi/hibernation.pending").exists()
     assert not any(call[0] == "mount" for call in calls(hibernation))
 
 
-def test_consecutive_deferrals_change_rendered_retry_generation(
-    hibernation: dict[str, str],
+@pytest.mark.parametrize("outcome", ["failure", "deferred"])
+def test_native_apply_retries_hibernation_with_unchanged_script_and_pending_file(
+    hibernation: dict[str, str], tmp_path: Path, outcome: str
 ) -> None:
-    mkinitcpio = Path(hibernation["PATH"]) / "mkinitcpio"
-    mkinitcpio.rename(mkinitcpio.with_suffix(".disabled"))
-    versions: list[str] = []
-    pending = Path(hibernation["XDG_STATE_HOME"]) / "chezmoi/hibernation.pending"
-    for generation in range(1, 4):
-        versions.append(
-            render_python(
-                hibernation, HOOK, source=Path(hibernation["HIBERNATION_SOURCE"])
-            ).read_text()
+    command = hibernation_command(hibernation, tmp_path)
+    source = Path(hibernation["HIBERNATION_SOURCE"])
+    script = source / ".chezmoiscripts/linux" / HOOK
+    original = script.read_bytes()
+    for number, label in (("02", "order-before"), ("04", "order-after")):
+        probe = script.parent / f"run_after_{number}_probe.py"
+        probe.write_text(
+            "#!/usr/bin/python3 -B\nimport os\nfrom pathlib import Path\n"
+            + f'with Path(os.environ["CALLS"]).open("a") as stream: stream.write("{label}\\t\\n")\n'
         )
-        result = run_hibernation(hibernation)
-        assert result.returncode == 0, result.stderr
-        assert pending.stat().st_size == generation
-    assert len(set(versions)) == 3
-    mkinitcpio.with_suffix(".disabled").rename(mkinitcpio)
-    assert run_hibernation(hibernation).returncode == 0
-    assert not pending.exists()
+    pending = Path(hibernation["XDG_STATE_HOME"]) / "chezmoi/hibernation.pending"
+    pending.parent.mkdir(parents=True)
+    pending.write_text("unchanged")
+    pending_state = (pending.read_bytes(), pending.stat().st_size, pending.stat().st_mtime_ns)
+    late = tmp_path / "etc/default/limine"
+    if outcome == "failure":
+        hibernation["FAILURE"] = "activate-swap"
+    else:
+        late.write_text('KERNEL_CMDLINE[default]="root=UUID=independent"\n')
+    for attempt in (1, 2):
+        before = len(calls(hibernation))
+        result = run_setup(hibernation, command)
+        observed = calls(hibernation)[before:]
+        assert observed[0] == ["order-before"]
+        assert (observed[-1] == ["order-after"]) == (outcome == "deferred")
+        assert (result.returncode != 0) == (outcome == "failure"), result.stderr
+        assert sum("--configure" in call for call in calls(hibernation)) == attempt
+        assert script.read_bytes() == original
+        assert (
+            pending.read_bytes(),
+            pending.stat().st_size,
+            pending.stat().st_mtime_ns,
+        ) == pending_state
+    # Resolve only the failed native operation / independent Limine conflict.
+    if outcome == "failure":
+        hibernation.pop("FAILURE")
+    else:
+        late.unlink()
+    result = run_setup(hibernation, command)
+    assert result.returncode == 0, result.stderr
+    assert calls(hibernation)[-1] == ["order-after"]
+    assert (tmp_path / "etc/limine-entry-tool.d/50-hibernation.conf").exists()
+    assert sum("mkswapfile" in call for call in calls(hibernation)) == 1
+    assert script.read_bytes() == original
+    assert (
+        pending.read_bytes(),
+        pending.stat().st_size,
+        pending.stat().st_mtime_ns,
+    ) == pending_state
 
 
 @pytest.mark.parametrize("gib", [29, 30])
@@ -695,7 +721,6 @@ def test_nvidia_sleep_is_hardware_gated_and_mise_owned(
         hibernation["MISE_STATUS"] = "23"
         failed = run_hibernation(hibernation)
         assert failed.returncode == 23
-        assert (Path(hibernation["XDG_STATE_HOME"]) / "chezmoi/hibernation.pending").exists()
     assert not any("start" in call or "restart" in call for call in calls(hibernation))
 
 
@@ -709,7 +734,6 @@ def test_persistent_resume_preflight_defers_without_swap_changes(
     assert result.returncode == 0, result.stderr
     assert late.read_text() == original
     assert not any(call[0] == "mount" or "mkswapfile" in call for call in calls(hibernation))
-    assert (Path(hibernation["XDG_STATE_HOME"]) / "chezmoi/hibernation.pending").exists()
 
 
 @pytest.mark.parametrize("unsupported", ["multi-device", "topology"])
@@ -722,7 +746,6 @@ def test_verified_unsupported_layouts_require_manual_setup_without_mutation(
     assert "manually" in result.stderr
     assert not any(call[0] == "mount" or "mkswapfile" in call for call in calls(hibernation))
     assert not (tmp_path / "etc/limine-entry-tool.d/50-hibernation.conf").exists()
-    assert not (Path(hibernation["XDG_STATE_HOME"]) / "chezmoi/hibernation.pending").exists()
 
 
 def test_interrupted_successful_top_level_mount_is_unmounted_safely(
@@ -735,7 +758,6 @@ def test_interrupted_successful_top_level_mount_is_unmounted_safely(
     assert any(call[0] == "umount" for call in calls(hibernation))
     assert not list(tmp_path.glob("chezmoi-btrfs-top-*"))
     assert not (tmp_path / "etc/limine-entry-tool.d/50-hibernation.conf").exists()
-    assert (Path(hibernation["XDG_STATE_HOME"]) / "chezmoi/hibernation.pending").read_text() == "."
 
 
 @pytest.mark.parametrize("failure", ["fstab-before-snapshot", "fstab-after-snapshot"])
@@ -768,24 +790,18 @@ def test_equivalent_device_and_subvolume_id_entries_are_not_rewritten(
     assert not any("mkswapfile" in call for call in calls(hibernation))
 
 
-@pytest.mark.parametrize("target", ["pending-symlink", "owner-hardlink"])
-def test_unsafe_state_records_preserve_unmanaged_files(
-    hibernation: dict[str, str], tmp_path: Path, target: str
+def test_unsafe_swap_ownership_record_preserves_unmanaged_file(
+    hibernation: dict[str, str], tmp_path: Path
 ) -> None:
     state = Path(hibernation["XDG_STATE_HOME"]) / "chezmoi"
     state.mkdir(parents=True)
     unmanaged = tmp_path / "unmanaged-state"
     unmanaged.write_text("preserve unmanaged data\n")
-    if target == "pending-symlink":
-        (state / "hibernation.pending").symlink_to(unmanaged)
-    else:
-        (state / "hibernation.swapfile").hardlink_to(unmanaged)
+    (state / "hibernation.swapfile").hardlink_to(unmanaged)
     result = run_hibernation(hibernation)
     assert result.returncode == 1, result.stderr
     assert unmanaged.read_text() == "preserve unmanaged data\n"
     assert not (tmp_path / "etc/limine-entry-tool.d/50-hibernation.conf").exists()
-    if target == "pending-symlink":
-        assert not any(call[0] == "sudo" for call in calls(hibernation))
 
 
 @pytest.mark.parametrize(

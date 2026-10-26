@@ -131,7 +131,16 @@ def render_python(
     return rendered
 
 
-@pytest.mark.parametrize("hook", [AUTHENTICATION, "run_onchange_before_01_sudo.py"])
+@pytest.mark.parametrize(
+    "hook",
+    [
+        AUTHENTICATION,
+        "run_onchange_before_01_sudo.py",
+        "run_onchange_before_03_pacman.py.tmpl",
+        "run_onchange_after_01_snapshots.py.tmpl",
+        "run_after_03_hibernation.py",
+    ],
+)
 @pytest.mark.parametrize("profile", [None, "true", "0"], ids=["missing", "invalid", "disabled"])
 def test_plain_personal_guards_precede_source_resolution_and_all_side_effects(
     env: dict[str, str], tmp_path: Path, hook: str, profile: str | None

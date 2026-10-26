@@ -117,6 +117,12 @@ def main() -> int:
     if privileged and len(sys.argv) != 4:
         print("ERROR: Locate setup requires its source directory.", file=sys.stderr)
         return 1
+    if not privileged and os.environ.get("DOTFILES_PERSONAL_ENABLED") not in ("0", "1"):
+        print(
+            "ERROR: DOTFILES_PERSONAL_ENABLED must be '0' or '1'; run through Chezmoi.",
+            file=sys.stderr,
+        )
+        return 1
     source_dir = Path(sys.argv[3]) if privileged else Path(os.environ["CHEZMOI_SOURCE_DIR"])
     if not source_dir.is_absolute():
         print("ERROR: Chezmoi must supply an absolute source directory.", file=sys.stderr)
@@ -132,12 +138,6 @@ def main() -> int:
         except (OSError, ValueError, subprocess.CalledProcessError) as error:
             traceback.print_exc()
             return error.returncode if isinstance(error, subprocess.CalledProcessError) else 1
-    if os.environ.get("DOTFILES_PERSONAL_ENABLED") not in ("0", "1"):
-        print(
-            "ERROR: DOTFILES_PERSONAL_ENABLED must be '0' or '1'; run through Chezmoi.",
-            file=sys.stderr,
-        )
-        return 1
     from lib.provision_logging import configure_logging
 
     file_sink = None
