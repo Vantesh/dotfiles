@@ -12,7 +12,7 @@ from helpers import CHEZMOI, LIB, ROOT, SCRIPTS, ScriptCase
 from test_setup import calls, render_python, run_setup, stub
 from test_setup import env as env
 
-HOOK = "run_after_03_hibernation.py"
+HOOK = "run_onchange_after_03_hibernation.py.tmpl"
 UUID = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
 LUKS_UUID = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"
 
@@ -128,22 +128,31 @@ def hibernation(env: dict[str, str], tmp_path: Path) -> dict[str, str]:
     limine = tmp_path / "limine"
     limine.touch(mode=0o755)
     swap = tmp_path / "swap"
-    text = (SCRIPTS / HOOK).read_text()
-    for original, value in (
-        ("/etc", etc),
-        ("/dev", dev),
-        ("/proc", proc),
-        ("/sys", sysfs),
-        ("/usr/share", tmp_path / "share"),
-        ("/usr/bin/limine", limine),
-        ("/swap", swap),
-    ):
-        text = text.replace(f'Path("{original}")', f"Path({str(value)!r})")
-    # The copied entry point is the only code allowed to address fixture paths.
-    text = text.replace("if os.geteuid() != 0:", "if False:").replace(
-        "if os.geteuid() != 0 or", "if False or"
-    )
-    (scripts / HOOK).write_text(text)
+    shutil.copy(SCRIPTS / HOOK, scripts / HOOK)
+    implementations = [
+        scripts / HOOK,
+        *(
+            source / ".chezmoitemplates/lib" / name
+            for name in ("hibernation_swap.py", "hibernation_policy.py", "hibernation_nvidia.py")
+        ),
+    ]
+    for module in implementations:
+        text = module.read_text()
+        for original, value in (
+            ("/etc", etc),
+            ("/dev", dev),
+            ("/proc", proc),
+            ("/sys", sysfs),
+            ("/usr/share", tmp_path / "share"),
+            ("/usr/bin/limine", limine),
+            ("/swap", swap),
+        ):
+            text = text.replace(f'Path("{original}")', f"Path({str(value)!r})")
+        # Waive UID checks only in copied code; every system path is private.
+        text = text.replace("if os.geteuid() != 0:", "if False:").replace(
+            "if os.geteuid() != 0 or", "if False or"
+        )
+        module.write_text(text)
     parser = source / ".chezmoitemplates/lib/limine_cmdline.py"
     parser.write_text(
         parser.read_text().replace("/etc/", f"{etc}/").replace("/usr/share/", f"{tmp_path}/share/")
@@ -354,9 +363,12 @@ def test_direct_hibernation_creates_verified_swap_and_reapplies(
     if encrypted:
         hibernation["ENCRYPTED"] = "1"
     command = hibernation_command(hibernation, tmp_path)
-    for _ in range(2):
-        result = run_setup(hibernation, command)
-        assert result.returncode == 0, result.stderr
+    result = run_setup(hibernation, command)
+    assert result.returncode == 0, result.stderr
+    observed = calls(hibernation)
+    result = run_setup(hibernation, command)
+    assert result.returncode == 0, result.stderr
+    assert calls(hibernation) == observed
     resume = tmp_path / "etc/limine-entry-tool.d/50-hibernation.conf"
     assert (
         resume.read_text()
@@ -414,7 +426,9 @@ def test_hibernation_gates_preserve_isolation_and_failures(
         result = run_hibernation(hibernation)
         assert not any(call[0] == "sudo" for call in calls(hibernation))
     assert not (tmp_path / "etc/limine-entry-tool.d/50-hibernation.conf").exists()
-    assert result.returncode == (23 if scenario.endswith("inspection") else 0), result.stderr
+    assert result.returncode == (
+        23 if scenario.endswith("inspection") else 2 if scenario == "missing-mkinitcpio" else 0
+    ), result.stderr
 
 
 @pytest.mark.parametrize("ownership", ["matching", "missing", "stale"])
@@ -574,7 +588,7 @@ def test_native_swap_failure_codes_are_not_manual_or_deferred_success(
 
 
 @pytest.mark.parametrize("outcome", ["failure", "deferred"])
-def test_native_apply_retries_hibernation_with_unchanged_script_and_pending_file(
+def test_run_onchange_retries_errors_and_deferrals_then_skips_success(
     hibernation: dict[str, str], tmp_path: Path, outcome: str
 ) -> None:
     command = hibernation_command(hibernation, tmp_path)
@@ -587,10 +601,6 @@ def test_native_apply_retries_hibernation_with_unchanged_script_and_pending_file
             "#!/usr/bin/python3 -B\nimport os\nfrom pathlib import Path\n"
             + f'with Path(os.environ["CALLS"]).open("a") as stream: stream.write("{label}\\t\\n")\n'
         )
-    pending = Path(hibernation["XDG_STATE_HOME"]) / "chezmoi/hibernation.pending"
-    pending.parent.mkdir(parents=True)
-    pending.write_text("unchanged")
-    pending_state = (pending.read_bytes(), pending.stat().st_size, pending.stat().st_mtime_ns)
     late = tmp_path / "etc/default/limine"
     if outcome == "failure":
         hibernation["FAILURE"] = "activate-swap"
@@ -599,18 +609,14 @@ def test_native_apply_retries_hibernation_with_unchanged_script_and_pending_file
     for attempt in (1, 2):
         before = len(calls(hibernation))
         result = run_setup(hibernation, command)
+        assert result.returncode != 0, result.stderr
         observed = calls(hibernation)[before:]
         assert observed[0] == ["order-before"]
-        assert (observed[-1] == ["order-after"]) == (outcome == "deferred")
-        assert (result.returncode != 0) == (outcome == "failure"), result.stderr
+        assert not any(call == ["order-after"] for call in observed)
         assert sum("--configure" in call for call in calls(hibernation)) == attempt
         assert script.read_bytes() == original
-        assert (
-            pending.read_bytes(),
-            pending.stat().st_size,
-            pending.stat().st_mtime_ns,
-        ) == pending_state
-    # Resolve only the failed native operation / independent Limine conflict.
+        assert (tmp_path / "etc/fstab").read_text().count("none swap") == 0
+    # Resolve only the native failure / independent Limine conflict.
     if outcome == "failure":
         hibernation.pop("FAILURE")
     else:
@@ -619,13 +625,35 @@ def test_native_apply_retries_hibernation_with_unchanged_script_and_pending_file
     assert result.returncode == 0, result.stderr
     assert calls(hibernation)[-1] == ["order-after"]
     assert (tmp_path / "etc/limine-entry-tool.d/50-hibernation.conf").exists()
-    assert sum("mkswapfile" in call for call in calls(hibernation)) == 1
+    assert (Path(hibernation["XDG_STATE_HOME"]) / "chezmoi/initramfs.pending").exists()
     assert script.read_bytes() == original
-    assert (
-        pending.read_bytes(),
-        pending.stat().st_size,
-        pending.stat().st_mtime_ns,
-    ) == pending_state
+    observed = [call for call in calls(hibernation) if not call[0].startswith("order-")]
+    result = run_setup(hibernation, command)
+    assert result.returncode == 0, result.stderr
+    assert [call for call in calls(hibernation) if not call[0].startswith("order-")] == observed
+    # The extracted implementation is a real execution dependency.
+    module = source / ".chezmoitemplates/lib/hibernation_policy.py"
+    module.write_text(module.read_text() + "\n# Recheck changed implementation.\n")
+    result = run_setup(hibernation, command)
+    assert result.returncode == 0, result.stderr
+    assert sum("--configure" in call for call in calls(hibernation)) == 4
+    assert sum("mkswapfile" in call for call in calls(hibernation)) == 1
+
+
+def test_run_onchange_records_manual_configuration_without_repeating_it(
+    hibernation: dict[str, str], tmp_path: Path
+) -> None:
+    hibernation["ACTIVE_SWAP"] = "/dev/independent"
+    command = hibernation_command(hibernation, tmp_path)
+    result = run_setup(hibernation, command)
+    assert result.returncode == 0, result.stderr
+    assert "independently managed" in result.stderr
+    observed = calls(hibernation)
+    result = run_setup(hibernation, command)
+    assert result.returncode == 0, result.stderr
+    assert calls(hibernation) == observed
+    assert not any(call[0] == "mount" or "mkswapfile" in call for call in observed)
+    assert not (tmp_path / "etc/limine-entry-tool.d/50-hibernation.conf").exists()
 
 
 @pytest.mark.parametrize("gib", [29, 30])
@@ -731,7 +759,8 @@ def test_persistent_resume_preflight_defers_without_swap_changes(
     original = 'KERNEL_CMDLINE[default]="root=UUID=independent"\n'
     late.write_text(original)
     result = run_hibernation(hibernation)
-    assert result.returncode == 0, result.stderr
+    assert result.returncode == 2, result.stderr
+    assert "incomplete" in result.stderr
     assert late.read_text() == original
     assert not any(call[0] == "mount" or "mkswapfile" in call for call in calls(hibernation))
 

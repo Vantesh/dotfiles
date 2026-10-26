@@ -138,7 +138,7 @@ def render_python(
         "run_onchange_before_01_sudo.py",
         "run_onchange_before_03_pacman.py.tmpl",
         "run_onchange_after_01_snapshots.py.tmpl",
-        "run_after_03_hibernation.py",
+        "run_onchange_after_03_hibernation.py.tmpl",
     ],
 )
 @pytest.mark.parametrize("profile", [None, "true", "0"], ids=["missing", "invalid", "disabled"])

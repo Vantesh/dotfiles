@@ -1,0 +1,252 @@
+#!/usr/bin/python3 -B
+# profile: {{ .personal | toJson }}
+# source-dir: {{ if .personal }}{{ .chezmoi.sourceDir | toJson }}{{ else }}disabled{{ end }}
+# hibernation_swap.py: {{ if .personal }}{{ include ".chezmoitemplates/lib/hibernation_swap.py" | sha256sum }}{{ else }}disabled{{ end }}
+# hibernation_policy.py: {{ if .personal }}{{ include ".chezmoitemplates/lib/hibernation_policy.py" | sha256sum }}{{ else }}disabled{{ end }}
+# hibernation_nvidia.py: {{ if .personal }}{{ include ".chezmoitemplates/lib/hibernation_nvidia.py" | sha256sum }}{{ else }}disabled{{ end }}
+# mise/config.nvidia-sleep.toml: {{ if .personal }}{{ include "../mise/config.nvidia-sleep.toml" | sha256sum }}{{ else }}disabled{{ end }}
+"""Orchestrate verified personal hibernation; leave boot-artifact completion deferred."""
+
+import os
+import shutil
+import signal
+import stat
+import subprocess
+import sys
+import tempfile
+import traceback
+from pathlib import Path
+from typing import TYPE_CHECKING, cast
+
+from loguru import logger
+
+if TYPE_CHECKING:
+    from lib.hibernation_swap import SetupResult
+
+LIMINE = Path("/usr/bin/limine")
+
+
+def apply_hibernation(state: Path, parser: Path) -> SetupResult:
+    from lib.hibernation_policy import (
+        configure_resume,
+        configure_sleep,
+        configure_zswap,
+        persistent_cmdline,
+    )
+    from lib.hibernation_swap import (
+        ETC,
+        SWAP_FILE,
+        ManualSetup,
+        SetupResult,
+        configure_btrfs_swap,
+        fstab_entries,
+        independently_managed_swap,
+        inspect_btrfs_device,
+        require_unchanged_fstab,
+    )
+    from lib.policy_files import inspect_file, publish_config, rollback_configs, snapshot_config
+
+    if os.geteuid() != 0:
+        raise PermissionError("System hibernation configuration requires root.")
+    info = state.lstat()
+    if (
+        not stat.S_ISDIR(info.st_mode)
+        or info.st_uid != int(os.environ["SUDO_UID"])
+        or info.st_mode & 0o022
+    ):
+        raise ValueError(
+            "Hibernation state requires a safe directory owned by the regular account."
+        )
+    initial_fstab = inspect_file(ETC / "fstab")
+    if initial_fstab is None:
+        raise ValueError("fstab is missing; resolve it before configuring swap.")
+    entries = fstab_entries()
+    if independently_managed_swap(entries):
+        return SetupResult.MANUAL
+    try:
+        device = inspect_btrfs_device(Path("/"))
+    except ManualSetup as error:
+        print(f"{error} Configure hibernation manually; existing state was preserved.")
+        return SetupResult.MANUAL
+    try:
+        cmdline = persistent_cmdline(parser)
+    except subprocess.CalledProcessError as error:
+        diagnostic = cast("str | None", error.stderr)
+        reason = diagnostic.strip() if diagnostic else str(error)
+        print(f"WARNING: Persistent Limine arguments need manual review; setup deferred: {reason}")
+        return SetupResult.DEFERRED
+    if any(
+        token.startswith(("resume=", "resume_offset=")) or token in ("noresume", "hibernate=no")
+        for token in cmdline.split()
+    ):
+        print("Existing external resume policy; configure hibernation manually, left untouched.")
+        return SetupResult.MANUAL
+    with tempfile.TemporaryDirectory(prefix="chezmoi-hibernation-") as temporary:
+        work = Path(temporary)
+        fstab = snapshot_config(ETC / "fstab", work / "fstab.before")
+        require_unchanged_fstab(initial_fstab)
+        try:
+            outcome, additions = configure_btrfs_swap(device, entries, state, initial_fstab)
+            if outcome != SetupResult.CONFIGURED:
+                return outcome
+            if additions:
+                _ = publish_config(fstab, fstab.backup.read_bytes() + additions.encode())
+                _ = subprocess.run(["systemctl", "daemon-reload"], check=True)
+            if inspect_btrfs_device(SWAP_FILE) != device:
+                raise ValueError("Swapfile device changed; refusing to publish resume parameters.")
+            configure_resume(device, state, work, parser)
+        except BaseException:
+            rollback_configs([fstab])
+            if fstab.published is not None:
+                _ = subprocess.run(["systemctl", "daemon-reload"], check=False)
+            raise
+        try:
+            configure_zswap(state, work, parser)
+        except (OSError, ValueError, subprocess.CalledProcessError) as error:
+            print(f"WARNING: Optional Zswap setup skipped; hibernation remains configured: {error}")
+        configure_sleep(work)
+    return SetupResult.CONFIGURED
+
+
+def terminate(_signum: int, _frame: object) -> None:
+    raise SystemExit(143)
+
+
+def main() -> int:
+    privileged = sys.argv[1:2] in (["--configure"], ["--nvidia-pm"])
+    if privileged and len(sys.argv) != 5:
+        print(
+            "ERROR: Privileged hibernation setup requires its source directory and profile.",
+            file=sys.stderr,
+        )
+        return 1
+    personal = sys.argv[4] if privileged else os.environ.get("DOTFILES_PERSONAL_ENABLED")
+    if personal == "0":
+        return 0
+    if personal != "1":
+        print(
+            "ERROR: DOTFILES_PERSONAL_ENABLED must be '0' or '1'; run through Chezmoi.",
+            file=sys.stderr,
+        )
+        return 1
+    source_dir = Path(sys.argv[3]) if privileged else Path(os.environ["CHEZMOI_SOURCE_DIR"])
+    if not source_dir.is_absolute():
+        print("ERROR: Chezmoi must supply an absolute source directory.", file=sys.stderr)
+        return 1
+    sys.path.insert(0, str(source_dir / ".chezmoitemplates"))
+    parser = source_dir / ".chezmoitemplates/lib/limine_cmdline.py"
+    from lib.hibernation_nvidia import configure_nvidia_power, configure_nvidia_sleep
+    from lib.hibernation_swap import SetupResult
+
+    _ = signal.signal(signal.SIGTERM, terminate)
+    if privileged:
+        try:
+            if sys.argv[1] == "--configure" and len(sys.argv) == 5:
+                outcome = apply_hibernation(Path(sys.argv[2]), parser)
+                print(f"HIBERNATION_RESULT={outcome.name}")
+                return 0
+            if sys.argv[1] == "--nvidia-pm":
+                configure_nvidia_power(sys.argv[2])
+                return 0
+            raise ValueError("Unsupported privileged hibernation arguments.")
+        except (OSError, ValueError, subprocess.CalledProcessError) as error:
+            traceback.print_exc()
+            return error.returncode if isinstance(error, subprocess.CalledProcessError) else 1
+    from lib.provision_logging import configure_logging
+
+    file_sink = None
+    state = Path(os.environ.get("XDG_STATE_HOME") or Path.home() / ".local/state") / "chezmoi"
+    try:
+        file_sink = configure_logging()
+        if sys.argv[1:] or os.geteuid() == 0:
+            raise ValueError(
+                "Run hibernation provisioning as the regular account without arguments."
+            )
+        if not os.access(LIMINE, os.X_OK):
+            return 0
+        filesystem = subprocess.run(
+            ["findmnt", "-n", "-o", "FSTYPE", "/"], check=True, capture_output=True, text=True
+        ).stdout.strip()
+        if not filesystem or "\n" in filesystem:
+            raise ValueError("Cannot inspect one root filesystem type.")
+        if filesystem != "btrfs":
+            return 0
+        chassis = subprocess.run(
+            ["hostnamectl", "chassis"], check=True, capture_output=True, text=True
+        ).stdout.strip()
+        if chassis not in ("laptop", "notebook"):
+            return 0
+        if shutil.which("mkinitcpio") is None:
+            logger.warning(
+                "mkinitcpio unavailable; hibernation deferred. Install it, then reapply."
+            )
+            return int(SetupResult.DEFERRED)
+
+        _ = subprocess.run(["sudo", "-v"], check=True)
+        result = subprocess.run(
+            [
+                "sudo",
+                "-n",
+                sys.executable,
+                "-B",
+                str(Path(__file__).resolve()),
+                "--configure",
+                str(state),
+                str(source_dir),
+                personal,
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        result.check_returncode()
+        messages = result.stdout.splitlines()
+        if not messages or messages[-1] not in {
+            f"HIBERNATION_RESULT={outcome.name}" for outcome in SetupResult
+        }:
+            raise ValueError("Hibernation configuration did not report a verified outcome.")
+        outcome = SetupResult[messages[-1].split("=", 1)[1]]
+        if result.stderr:
+            logger.debug("System diagnostic:\n{}", result.stderr.rstrip())
+        for message in messages[:-1]:
+            if message.startswith("WARNING: "):
+                logger.warning(message.removeprefix("WARNING: "))
+            else:
+                logger.info(message)
+        if outcome == SetupResult.MANUAL:
+            return 0
+        if outcome == SetupResult.DEFERRED:
+            logger.warning(
+                "Hibernation remains incomplete; resolve the diagnostic above and reapply."
+            )
+            return int(SetupResult.DEFERRED)
+        configure_nvidia_sleep(source_dir, Path(__file__).resolve())
+
+        return 0
+    except (OSError, ValueError, subprocess.CalledProcessError) as error:
+        status = error.returncode if isinstance(error, subprocess.CalledProcessError) else 1
+        try:
+            if isinstance(error, subprocess.CalledProcessError):
+                diagnostic = cast("str | None", error.stderr)
+                reason = (
+                    diagnostic.strip().splitlines()[-1]
+                    if diagnostic and diagnostic.strip()
+                    else str(error)
+                )
+                logger.error("Hibernation setup failed (exit {}): {}", status, reason)
+                if diagnostic:
+                    logger.debug("System diagnostic:\n{}", diagnostic.rstrip())
+            else:
+                logger.opt(exception=True).error("Hibernation setup stopped: {}", error)
+        except OSError, ValueError:
+            if file_sink is not None:
+                logger.remove(file_sink)
+        return status
+    except KeyboardInterrupt:
+        logger.warning("Hibernation setup interrupted; reapply when ready.")
+        return 130
+
+
+if __name__ == "__main__":
+    status = main()
+    sys.exit(status if status >= 0 else 128 - status)
