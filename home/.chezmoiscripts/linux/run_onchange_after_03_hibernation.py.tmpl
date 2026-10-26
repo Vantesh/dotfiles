@@ -71,10 +71,10 @@ def apply_hibernation(state: Path, parser: Path) -> SetupResult:
     try:
         cmdline = persistent_cmdline(parser)
     except subprocess.CalledProcessError as error:
-        diagnostic = cast("str | None", error.stderr)
-        reason = diagnostic.strip() if diagnostic else str(error)
-        print(f"WARNING: Persistent Limine arguments need manual review; setup deferred: {reason}")
-        return SetupResult.DEFERRED
+        error.add_note(
+            "Cannot verify persistent Limine arguments; inspect /etc/kernel/cmdline and Limine drop-ins, then reapply."
+        )
+        raise
     if any(
         token.startswith(("resume=", "resume_offset=")) or token in ("noresume", "hibernate=no")
         for token in cmdline.split()
@@ -100,10 +100,7 @@ def apply_hibernation(state: Path, parser: Path) -> SetupResult:
             if fstab.published is not None:
                 _ = subprocess.run(["systemctl", "daemon-reload"], check=False)
             raise
-        try:
-            configure_zswap(state, work, parser)
-        except (OSError, ValueError, subprocess.CalledProcessError) as error:
-            print(f"WARNING: Optional Zswap setup skipped; hibernation remains configured: {error}")
+        configure_zswap(state, work, parser)
         configure_sleep(work)
     return SetupResult.CONFIGURED
 
@@ -162,8 +159,6 @@ def main() -> int:
             raise ValueError(
                 "Run hibernation provisioning as the regular account without arguments."
             )
-        if not os.access(LIMINE, os.X_OK):
-            return 0
         filesystem = subprocess.run(
             ["findmnt", "-n", "-o", "FSTYPE", "/"], check=True, capture_output=True, text=True
         ).stdout.strip()
@@ -176,11 +171,12 @@ def main() -> int:
         ).stdout.strip()
         if chassis not in ("laptop", "notebook"):
             return 0
-        if shutil.which("mkinitcpio") is None:
-            logger.warning(
-                "mkinitcpio unavailable; hibernation deferred. Install it, then reapply."
+        if not os.access(LIMINE, os.X_OK):
+            raise FileNotFoundError(
+                "Limine is unavailable; complete bootloader setup, then reapply."
             )
-            return int(SetupResult.DEFERRED)
+        if shutil.which("mkinitcpio") is None:
+            raise FileNotFoundError("mkinitcpio is unavailable; install it, then reapply.")
 
         _ = subprocess.run(["sudo", "-v"], check=True)
         result = subprocess.run(
@@ -215,11 +211,6 @@ def main() -> int:
                 logger.info(message)
         if outcome == SetupResult.MANUAL:
             return 0
-        if outcome == SetupResult.DEFERRED:
-            logger.warning(
-                "Hibernation remains incomplete; resolve the diagnostic above and reapply."
-            )
-            return int(SetupResult.DEFERRED)
         configure_nvidia_sleep(source_dir, Path(__file__).resolve())
 
         return 0

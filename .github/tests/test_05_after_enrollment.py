@@ -30,6 +30,8 @@ class EnrollmentTests(ScriptCase):
     def setUp(self) -> None:
         super().setUp()
         self.source = self.render(SCRIPTS / "run_onchange_after_15_enrollment.sh.tmpl")
+        self.stub("warp-cli", "exit 0")
+        self.stub("pacman", "exit 1")
 
     def test_warp_registration_is_created_once_without_connecting(self) -> None:
         registration = self.directory / "registration"
@@ -87,7 +89,11 @@ esac
                 self.calls.unlink(missing_ok=True)
                 self.env.update(WARP_CASE=scenario, CI="1" if scenario == "ci" else "")
                 result = self.shell(self.source)
-                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(
+                    result.returncode,
+                    {"unavailable": 1, "failed": 23}.get(scenario, 0),
+                    result.stderr,
+                )
                 expected = (
                     []
                     if scenario == "ci"
@@ -99,7 +105,7 @@ esac
                     expected.append(["warp-cli", "--accept-tos", "registration", "new"])
                 self.assertEqual(self.logged_calls(), expected)
                 if scenario in ("unavailable", "failed"):
-                    self.assertIn("WARN:", result.stderr)
+                    self.assertIn("ERROR:", result.stderr)
 
     def test_fingerprint_enrollment_requires_a_reader_without_prints_and_interactive_consent(
         self,
@@ -274,15 +280,29 @@ echo 'right-index-finger' > "$ENROLLED"
                 result = self.shell(source)
                 if scenario == "tooling-unavailable":
                     enroller.with_suffix(".disabled").rename(enroller)
-                self.assertEqual(result.returncode, 0, result.stderr)
+                expected_status = {
+                    "tooling-unavailable": 127,
+                    "package-query-failed": 23,
+                    "root-unknown": 1,
+                    "root-user": 1,
+                    "denied": 1,
+                    "failed": 23,
+                    "tty-failed": 23,
+                    "unsupported": 1,
+                    "communication": 1,
+                    "authorization": 1,
+                    "terminal-unavailable": 1,
+                }.get(scenario, 0)
+                self.assertEqual(result.returncode, expected_status, result.stderr)
                 calls = self.logged_calls()
                 self.assertEqual(
                     enrolled.exists(),
                     scenario in ("empty", "fresh", "tty", "root-tty", "root-desktop"),
                 )
-                if scenario in ("ci", "tooling-unavailable"):
+                if scenario == "ci":
                     self.assertEqual(calls, [])
                 elif scenario in (
+                    "tooling-unavailable",
                     "packages-unused",
                     "packages-incomplete",
                     "package-query-failed",
@@ -327,7 +347,7 @@ echo 'right-index-finger' > "$ENROLLED"
                     "tty-failed",
                     "terminal-unavailable",
                 ):
-                    self.assertIn("WARN:", result.stderr)
+                    self.assertIn("ERROR:", result.stderr)
                 if scenario in ("empty", "fresh"):
                     self.calls.unlink()
                     repeated = self.shell(source)

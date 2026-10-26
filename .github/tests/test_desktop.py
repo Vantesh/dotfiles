@@ -237,16 +237,30 @@ def test_font_cache_failure_retries_without_publishing_completion(
     assert sum(call[0] == "git" for call in calls(desktop)) == 1
 
 
-def test_preference_failure_remains_retryable(desktop: dict[str, str], tmp_path: Path) -> None:
-    desktop["SETTINGS_STATUS"] = "23"
+@pytest.mark.parametrize("failure", ["command-error", "missing-gsettings"])
+def test_preference_failure_remains_retryable(
+    desktop: dict[str, str], tmp_path: Path, failure: str
+) -> None:
+    executable = Path(desktop["PATH"]) / "gsettings"
+    if failure == "missing-gsettings":
+        executable.rename(executable.with_suffix(".disabled"))
+    else:
+        desktop["SETTINGS_STATUS"] = "23"
     command = desktop_command(tmp_path, False)
     result = run_setup(desktop, command)
     assert result.returncode != 0
     assert not any(call[0] in ("git", "curl") for call in calls(desktop))
-    del desktop["SETTINGS_STATUS"]
+    if failure == "missing-gsettings":
+        executable.with_suffix(".disabled").rename(executable)
+    else:
+        del desktop["SETTINGS_STATUS"]
     result = run_setup(desktop, command)
     assert result.returncode == 0, result.stderr
     assert (tmp_path / "preferences/show-delete-permanently").read_text() == "true\n"
+    observed = calls(desktop)
+    result = run_setup(desktop, command)
+    assert result.returncode == 0, result.stderr
+    assert calls(desktop) == observed
 
 
 def test_mactahoe_partial_install_retries_with_space_free_paths(
@@ -329,3 +343,14 @@ def test_nautilus_can_be_applied_without_the_theming_workflow(
     repeated = run_setup(desktop, command)
     assert repeated.returncode == 0, repeated.stderr
     assert calls(desktop) == observed
+
+
+@pytest.mark.parametrize("hook", HOOKS)
+def test_missing_gsettings_fails_before_desktop_changes(desktop: dict[str, str], hook: str) -> None:
+    (Path(desktop["PATH"]) / "gsettings").unlink()
+    desktop["OFFLINE"] = "1"
+    script = render_python(desktop, hook, personal=False)
+    result = run_setup(desktop, ["/usr/bin/python3", "-B", str(script)])
+    assert result.returncode == 1, result.stderr
+    assert "gsettings is unavailable" in result.stderr
+    assert calls(desktop) == []

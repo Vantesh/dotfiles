@@ -238,6 +238,7 @@ elif name == 'btrfs':
         if failure == 'offset-command': fail()
         output('invalid' if failure == 'offset-value' else '123')
 elif name == 'swapon':
+    if failure == 'zswap-inspection' and (etc / 'limine-entry-tool.d/50-hibernation.conf').exists(): fail()
     if args[0].startswith('--show'):
         if failure == 'swap-inspection': fail(int(os.environ.get('FAIL_STATUS', '23')))
         active = os.environ.get('ACTIVE_SWAP', '')
@@ -427,7 +428,11 @@ def test_hibernation_gates_preserve_isolation_and_failures(
         assert not any(call[0] == "sudo" for call in calls(hibernation))
     assert not (tmp_path / "etc/limine-entry-tool.d/50-hibernation.conf").exists()
     assert result.returncode == (
-        23 if scenario.endswith("inspection") else 2 if scenario == "missing-mkinitcpio" else 0
+        23
+        if scenario.endswith("inspection")
+        else 1
+        if scenario in ("missing-mkinitcpio", "bootloader")
+        else 0
     ), result.stderr
 
 
@@ -578,7 +583,7 @@ def test_resume_publication_failure_rolls_back_only_its_fstab(
 
 
 @pytest.mark.parametrize("status", ["2", "3", "23"])
-def test_native_swap_failure_codes_are_not_manual_or_deferred_success(
+def test_native_swap_failure_codes_are_not_manual_success(
     hibernation: dict[str, str], status: str
 ) -> None:
     hibernation.update(FAILURE="swap-inspection", FAIL_STATUS=status)
@@ -587,8 +592,8 @@ def test_native_swap_failure_codes_are_not_manual_or_deferred_success(
     assert not any(call[0] == "mount" for call in calls(hibernation))
 
 
-@pytest.mark.parametrize("outcome", ["failure", "deferred"])
-def test_run_onchange_retries_errors_and_deferrals_then_skips_success(
+@pytest.mark.parametrize("outcome", ["swap-failure", "boot-conflict", "zswap-failure"])
+def test_run_onchange_retries_failures_then_skips_success(
     hibernation: dict[str, str], tmp_path: Path, outcome: str
 ) -> None:
     command = hibernation_command(hibernation, tmp_path)
@@ -602,8 +607,10 @@ def test_run_onchange_retries_errors_and_deferrals_then_skips_success(
             + f'with Path(os.environ["CALLS"]).open("a") as stream: stream.write("{label}\\t\\n")\n'
         )
     late = tmp_path / "etc/default/limine"
-    if outcome == "failure":
+    if outcome == "swap-failure":
         hibernation["FAILURE"] = "activate-swap"
+    elif outcome == "zswap-failure":
+        hibernation["FAILURE"] = "zswap-inspection"
     else:
         late.write_text('KERNEL_CMDLINE[default]="root=UUID=independent"\n')
     for attempt in (1, 2):
@@ -615,9 +622,14 @@ def test_run_onchange_retries_errors_and_deferrals_then_skips_success(
         assert not any(call == ["order-after"] for call in observed)
         assert sum("--configure" in call for call in calls(hibernation)) == attempt
         assert script.read_bytes() == original
-        assert (tmp_path / "etc/fstab").read_text().count("none swap") == 0
+        assert (tmp_path / "etc/fstab").read_text().count("none swap") == (
+            outcome == "zswap-failure"
+        )
+        if outcome == "zswap-failure":
+            assert (tmp_path / "etc/limine-entry-tool.d/50-hibernation.conf").exists()
+            assert (Path(hibernation["XDG_STATE_HOME"]) / "chezmoi/initramfs.pending").exists()
     # Resolve only the native failure / independent Limine conflict.
-    if outcome == "failure":
+    if outcome != "boot-conflict":
         hibernation.pop("FAILURE")
     else:
         late.unlink()
@@ -752,15 +764,15 @@ def test_nvidia_sleep_is_hardware_gated_and_mise_owned(
     assert not any("start" in call or "restart" in call for call in calls(hibernation))
 
 
-def test_persistent_resume_preflight_defers_without_swap_changes(
+def test_persistent_resume_preflight_fails_without_swap_changes(
     hibernation: dict[str, str], tmp_path: Path
 ) -> None:
     late = tmp_path / "etc/default/limine"
     original = 'KERNEL_CMDLINE[default]="root=UUID=independent"\n'
     late.write_text(original)
     result = run_hibernation(hibernation)
-    assert result.returncode == 2, result.stderr
-    assert "incomplete" in result.stderr
+    assert result.returncode == 1, result.stderr
+    assert "Cannot verify persistent Limine arguments" in result.stderr
     assert late.read_text() == original
     assert not any(call[0] == "mount" or "mkswapfile" in call for call in calls(hibernation))
 
@@ -861,3 +873,19 @@ printf '%s\\n%s\\n' "$status" "$LAST_ERROR"
     status, *diagnostic = result.stdout.splitlines()
     assert int(status) == expected
     assert bool("".join(diagnostic)) == (expected != 0)
+
+    # The entry point must skip only verified non-Btrfs, not a failed inspection.
+    hook = (SCRIPTS / "run_onchange_after_00_initramfs_config.sh.tmpl").read_text()
+    main = hook[hook.index("main() {") : hook.index('\nmain "$@"')]
+    limine = Path(env["HOME"]) / "limine"
+    limine.touch(mode=0o755)
+    main = main.replace("/usr/bin/limine", str(limine))
+    command = (
+        f'source "{LIB / "common.sh"}"\nsource "{LIB / "snapboot.sh"}"\n'
+        + "keep_sudo_alive() { return 0; }\nconfigure_systemd_initramfs() { return 0; }\n"
+        + main
+        + "\nmain\n"
+    )
+    stub(env, "mkinitcpio", "exit 97")
+    result = run_setup(env, ["/bin/bash", "-c", command])
+    assert result.returncode == (0 if inspection in ("btrfs", "ext4") else expected), result.stderr

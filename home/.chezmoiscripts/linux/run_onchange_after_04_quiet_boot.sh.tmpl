@@ -26,8 +26,7 @@ main() {
   fi
 
   if ! command_exists mkinitcpio; then
-    log WARN "mkinitcpio not found, skipping quiet boot setup"
-    return 0
+    die 127 "mkinitcpio not found; complete the Limine installation"
   fi
 
   if ! keep_sudo_alive; then

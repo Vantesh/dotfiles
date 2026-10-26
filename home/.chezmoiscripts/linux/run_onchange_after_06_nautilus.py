@@ -28,8 +28,9 @@ def main() -> int:
     try:
         file_sink = configure_logging()
         if shutil.which("gsettings") is None:
-            logger.warning("gsettings unavailable; skipping Nautilus preferences.")
-            return 0
+            raise FileNotFoundError(
+                "gsettings is unavailable; complete desktop package installation."
+            )
         for schema, key, desired, value in (
             ("org.gnome.nautilus.icon-view", "default-zoom-level", "'small-plus'", "small-plus"),
             ("org.gnome.nautilus.preferences", "show-delete-permanently", "true", "true"),

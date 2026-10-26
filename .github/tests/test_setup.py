@@ -361,7 +361,7 @@ esac""",
     stub(
         env,
         "systemctl",
-        '[ "$1 $2" = "--user show" ] || exit 97; echo LoadState=not-found',
+        '[ "$1 $2" = "--user show" ] || exit 97; printf "LoadState=loaded\\nUnitFileState=static\\nActiveState=active\\n"',
         log=True,
     )
     command = [
@@ -493,7 +493,8 @@ def bootstrap(env: dict[str, str], tmp_path: Path) -> list[str]:
         "rbw",
         """case "$*" in
     'config show') printf '%s\\n' "$RBW_CONFIG"; exit "${RBW_CONFIG_STATUS:-0}" ;;
-    'config set email fixture@example.invalid'|'config set lock_timeout 10800') exit 0 ;;
+    'config set email fixture@example.invalid') exit 0 ;;
+    'config set lock_timeout 10800') exit "${RBW_LOCK_STATUS:-0}" ;;
     login) printf '%s\\n' "${RBW_LOGIN_ERROR:-}" >&2; exit "${RBW_LOGIN_STATUS:-0}" ;;
     *) exit 97 ;;
 esac""",
@@ -1192,3 +1193,16 @@ with (Path.home() / "execution.jsonl").open("a") as stream:
     )
     assert sum(call[0] == "sudo" for call in observed) == 2
     assert bootstrap  # Reuse the established private prerequisite/vault fixture.
+
+
+def test_lock_timeout_failure_stops_before_vault_login(
+    env: dict[str, str], authentication: list[str]
+) -> None:
+    env.update(RBW_CONFIG=json.dumps({"email": "fixture@example.invalid"}), RBW_LOCK_STATUS="23")
+    result = run_setup(env, authentication)
+    assert result.returncode == 23, result.stderr
+    assert calls(env) == [
+        ["rbw", "config", "show"],
+        ["rbw", "config", "set", "lock_timeout", "10800"],
+    ]
+    assert "fixture@example.invalid" not in result.stderr

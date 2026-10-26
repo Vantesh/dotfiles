@@ -94,7 +94,8 @@ def configure_bitwarden() -> int:
             stderr=subprocess.DEVNULL,
         )
         if result.returncode:
-            logger.warning("Cannot set Bitwarden lock timeout (exit {}).", result.returncode)
+            logger.error("Cannot set Bitwarden lock timeout (exit {}).", result.returncode)
+            return result.returncode
         else:
             logger.info("Configured Bitwarden lock timeout.")
 

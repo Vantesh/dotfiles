@@ -9,14 +9,19 @@ set -euo pipefail
 {{ include ".chezmoitemplates/lib/snapboot.sh" }}
 
 main() {
-  if [[ ! -x /usr/bin/limine ]] || ! command_exists mkinitcpio; then
-    log SKIP "Limine/mkinitcpio unavailable, skipping initramfs configuration"
+  if [[ ! -x /usr/bin/limine ]]; then
+    log SKIP "Unsupported bootloader (only Limine is supported), skipping initramfs configuration"
     return 0
   fi
-  if ! check_btrfs; then
+  local filesystem_status=0
+  check_btrfs || filesystem_status=$?
+  if [[ "$filesystem_status" -eq 1 ]]; then
     log SKIP "Root filesystem is not Btrfs, skipping initramfs configuration"
     return 0
+  elif [[ "$filesystem_status" -ne 0 ]]; then
+    die "$filesystem_status" "Cannot inspect root filesystem: $LAST_ERROR"
   fi
+  command_exists mkinitcpio || die 127 "mkinitcpio not found; complete the Limine installation"
   keep_sudo_alive || die "Cannot inspect initramfs prerequisites: $LAST_ERROR"
   configure_systemd_initramfs || die "Cannot configure systemd initramfs: $LAST_ERROR"
 }

@@ -6,9 +6,12 @@ import shlex
 import struct
 import subprocess
 import sys
+from pathlib import Path
 from typing import override
 
-from helpers import LIB, SCRIPTS, ScriptCase
+import pytest
+from helpers import CHEZMOI, LIB, ROOT, SCRIPTS, ScriptCase
+from test_setup import env as env
 
 
 class InitramfsTests(ScriptCase):
@@ -529,3 +532,45 @@ printf '%s\\n' init usr/lib/modules/fixture-version/kernel/fixture.ko""",
                 self.assertEqual(result.returncode, 0 if case == "matching" else 1, result.stderr)
                 self.assertEqual(image.read_bytes(), original)
                 self.assertEqual(config.read_text(), "timeout: 5\n/+Fixture\n")
+
+
+@pytest.mark.parametrize("missing", ["limine", "mkinitcpio"])
+def test_missing_rebuild_prerequisite_fails_without_clearing_request(
+    env: dict[str, str], tmp_path: Path, missing: str
+) -> None:
+    from test_setup import run_setup, stub
+
+    marker = tmp_path / "state/chezmoi/initramfs.pending"
+    marker.parent.mkdir(parents=True)
+    for name in ("limine", "mkinitcpio"):
+        if name != missing:
+            stub(env, name, "exit 97")
+    # Rendering uses the existing renderer, independently of the Python helper.
+    config = tmp_path / "chezmoi.json"
+    config.write_text('{"data":{"personal":true}}')
+    rendered = run_setup(
+        env,
+        [
+            str(CHEZMOI),
+            "--config",
+            str(config),
+            "--source",
+            str(ROOT / "home"),
+            "execute-template",
+            (SCRIPTS / "run_after_13_initramfs.sh.tmpl").read_text(),
+        ],
+    )
+    assert rendered.returncode == 0, rendered.stderr
+    script = tmp_path / "rebuild.sh"
+    script.write_text(rendered.stdout.replace("/usr/bin/limine", str(Path(env["PATH"]) / "limine")))
+    command = ["/bin/bash", str(script)]
+    result = run_setup(env, command)
+    assert result.returncode == 0, result.stderr
+    marker.write_text("unchanged rebuild request\n")
+    before = marker.stat()
+    for _ in range(2):
+        result = run_setup(env, command)
+        assert result.returncode == 127, result.stderr
+        assert missing.lower() in result.stderr.lower()
+        assert marker.read_text() == "unchanged rebuild request\n"
+        assert marker.stat().st_mtime_ns == before.st_mtime_ns

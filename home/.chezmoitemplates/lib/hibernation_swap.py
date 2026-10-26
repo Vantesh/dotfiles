@@ -8,7 +8,7 @@ import stat
 import subprocess
 import tempfile
 from dataclasses import dataclass
-from enum import IntEnum
+from enum import StrEnum
 from pathlib import Path
 from typing import cast
 
@@ -24,10 +24,9 @@ class ManualSetup(ValueError):
     """A verified unsupported layout must remain independently managed."""
 
 
-class SetupResult(IntEnum):
-    CONFIGURED = 0
-    DEFERRED = 2
-    MANUAL = 3
+class SetupResult(StrEnum):
+    CONFIGURED = "configured"
+    MANUAL = "manual"
 
 
 @dataclass(frozen=True)

@@ -14,54 +14,70 @@ set -euo pipefail
 
 # Register a missing account without changing WARP's connection state.
 register_warp() {
-  command_exists warp-cli || return 0
+  command_exists warp-cli || die 127 "warp-cli not found; complete package installation"
 
-  local registration
+  local registration status
   if registration=$(LC_ALL=C warp-cli --accept-tos registration show 2>&1); then
     log SKIP "WARP is already registered"
     return 0
+  else
+    status=$?
   fi
   if [[ "${registration,,}" != *"missing registration."* ]]; then
-    log WARN "Cannot inspect WARP registration; leaving it unchanged. Check warp-svc and retry."
-    return 0
+    die "$status" "Cannot inspect WARP registration; check warp-svc, then reapply"
   fi
 
   if warp-cli --accept-tos registration new; then
     log INFO "Registered WARP; connect manually when wanted"
   else
-    log WARN "WARP registration failed; retry with warp-cli registration new"
+    status=$?
+    die "$status" "WARP registration failed; check warp-svc or run warp-cli registration new"
   fi
 }
 
 # Offer enrollment for this setup's fingerprint packages, preserving existing prints.
 enroll_fingerprint() {
-  command_exists fprintd-enroll && command_exists gdbus && command_exists pacman || return 0
+  command_exists pacman || die 127 "pacman not found; cannot inspect fingerprint packages"
+  local status dependency
   # Only offer enrollment for the fingerprint package group used by this setup.
-  pacman -Q -- libfprint-goodix53x5-533c-git >/dev/null 2>&1 || return 0
+  if pacman -Q -- libfprint-goodix53x5-533c-git >/dev/null 2>&1; then
+    :
+  else
+    status=$?
+    [[ "$status" -eq 1 ]] && return 0
+    die "$status" "Cannot inspect fingerprint packages; check pacman, then reapply"
+  fi
+  for dependency in fprintd-enroll gdbus; do
+    command_exists "$dependency" || die 127 "$dependency not found; repair the fingerprint package installation"
+  done
 
   local current_uid target_user target_uid
-  current_uid=$(id -u) || return 0
+  current_uid=$(id -u) || die "$?" "Cannot inspect the enrollment account"
   if [[ "$current_uid" -eq 0 ]]; then
     target_user="${SUDO_USER:-}"
   else
-    target_user=$(id -un) || return 0
+    target_user=$(id -un) || die "$?" "Cannot identify the enrollment account"
   fi
   if [[ -z "$target_user" ]] || ! target_uid=$(id -u -- "$target_user") || [[ "$target_uid" -eq 0 ]]; then
-    log WARN "Cannot identify a non-root enrollment user; skipping enrollment"
-    return 0
+    die "Cannot identify a non-root enrollment account; run setup as the regular account"
   fi
 
   local device fingers
   local device_pattern="^\(objectpath '(/net/reactivated/Fprint/Device/[0-9]+)',\)$"
-  if ! device=$(LC_ALL=C gdbus call --system --dest net.reactivated.Fprint \
+  if device=$(LC_ALL=C gdbus call --system --dest net.reactivated.Fprint \
     --object-path /net/reactivated/Fprint/Manager \
     --method net.reactivated.Fprint.Manager.GetDefaultDevice 2>&1); then
-    log SKIP "No usable fingerprint reader reported by fprintd"
-    return 0
+    :
+  else
+    status=$?
+    if [[ "$device" == *net.reactivated.Fprint.Error.NoSuchDevice:* ]]; then
+      log SKIP "No fingerprint reader reported by fprintd"
+      return 0
+    fi
+    die "$status" "Cannot inspect fingerprint reader; check fprintd, then reapply"
   fi
   if [[ ! "$device" =~ $device_pattern ]]; then
-    log WARN "Cannot identify the fingerprint reader; skipping enrollment"
-    return 0
+    die "Cannot identify the fingerprint reader from fprintd's response"
   fi
   device="${BASH_REMATCH[1]}"
 
@@ -72,9 +88,11 @@ enroll_fingerprint() {
       log SKIP "A fingerprint is already enrolled"
       return 0
     fi
-  elif [[ "$fingers" != *net.reactivated.Fprint.Error.NoEnrolledPrints:* ]]; then
-    log WARN "Cannot inspect existing fingerprints; skipping enrollment"
-    return 0
+  else
+    status=$?
+    if [[ "$fingers" != *net.reactivated.Fprint.Error.NoEnrolledPrints:* ]]; then
+      die "$status" "Cannot inspect existing fingerprints; check fprintd permissions, then reapply"
+    fi
   fi
 
   if [[ "${NOCONFIRM:-0}" == "1" ]] || ! { true </dev/tty; } 2>/dev/null; then
@@ -84,15 +102,15 @@ enroll_fingerprint() {
   if confirm "Enroll a fingerprint now? Touch the reader when prompted." "n"; then
     local terminal
     local -a enroll_command=(fprintd-enroll -f right-index-finger "$target_user")
-    terminal=$(ps -o tty= -p "$$") || { log WARN "Cannot identify the enrollment terminal; skipping enrollment"; return 0; }
+    terminal=$(ps -o tty= -p "$$") || die "$?" "Cannot identify the enrollment terminal"
     if [[ "$terminal" =~ ^[[:space:]]*tty[0-9]+[[:space:]]*$ ]]; then
       enroll_command=(sudo "${enroll_command[@]}")
     elif [[ "$current_uid" -eq 0 ]]; then
       enroll_command=(sudo -u "$target_user" "${enroll_command[@]}")
     fi
-    if ! LC_ALL=C "${enroll_command[@]}" </dev/tty; then
-      log WARN "Fingerprint enrollment did not complete for $target_user; retry manually with fprintd-enroll"
-    fi
+    LC_ALL=C "${enroll_command[@]}" </dev/tty ||
+      die "$?" "Fingerprint enrollment did not complete for $target_user; inspect fprintd, then reapply"
+
   fi
   return 0
 }

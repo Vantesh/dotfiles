@@ -85,6 +85,8 @@ main() {
     log STEP "Laptop Optimizations"
 
     configure_auto_cpufreq
+  elif [[ -n "$LAST_ERROR" ]]; then
+    die "Cannot inspect laptop hardware: $LAST_ERROR"
   fi
 }
 

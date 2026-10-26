@@ -71,8 +71,7 @@ def mirror_root_gtk(config_home: Path, theme: str, prefer_dark: bool) -> None:
 
 def configure_gtk(source_dir: Path) -> None:
     if shutil.which("gsettings") is None:
-        logger.warning("gsettings unavailable; skipping GTK preferences.")
-        return
+        raise FileNotFoundError("gsettings is unavailable; complete desktop package installation.")
     for schema, key, value in (
         ("org.gnome.desktop.interface", "font-name", FONT_NAME),
         ("org.gnome.desktop.wm.preferences", "button-layout", ":"),

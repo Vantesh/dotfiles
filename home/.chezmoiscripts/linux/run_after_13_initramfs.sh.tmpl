@@ -35,19 +35,11 @@ checked_limine_command() {
 }
 
 main() {
-  if [[ ! -x /usr/bin/limine ]]; then
-    log WARN "Unsupported bootloader (only Limine is supported), skipping initramfs rebuild"
-    return 0
-  fi
-
   if [[ ! -f "$INITRAMFS_PENDING_FILE" ]]; then
     return 0
   fi
-
-  if ! command_exists mkinitcpio; then
-    log WARN "mkinitcpio not found, keeping initramfs rebuild pending"
-    return 0
-  fi
+  [[ -x /usr/bin/limine ]] || die 127 "Limine not found; restore it before rebuilding; rebuild remains pending"
+  command_exists mkinitcpio || die 127 "mkinitcpio not found; install it and reapply; rebuild remains pending"
 
   local dependency
   for dependency in limine-install limine-mkinitcpio python3 pacman lsinitcpio; do

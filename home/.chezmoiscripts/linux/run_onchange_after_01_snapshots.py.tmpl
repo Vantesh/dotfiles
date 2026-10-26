@@ -325,15 +325,15 @@ def main() -> int:
                 "Run Snapper setup as the regular account; sudo is used only for system operations."
             )
         distro = os.environ["CHEZMOI_OS_RELEASE_ID"]
-        if (
-            distro.lower() in ("cachyos", "garuda")
-            or not os.access(LIMINE, os.X_OK)
-            or not shutil.which("mkinitcpio")
-        ):
+        if distro.lower() in ("cachyos", "garuda") or not os.access(LIMINE, os.X_OK):
             return 0
         supported, current = inspect_layout()
         if not supported:
             return 0
+        if shutil.which("mkinitcpio") is None:
+            raise FileNotFoundError(
+                "mkinitcpio is unavailable; complete Limine package installation."
+            )
         boot_helper = source_dir / ".chezmoitemplates/lib/snapper_boot.sh"
         _ = subprocess.run(["bash", str(boot_helper), "prepare"], check=True)
         configure_snapper(current)

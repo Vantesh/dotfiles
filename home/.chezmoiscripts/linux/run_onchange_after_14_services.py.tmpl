@@ -82,7 +82,9 @@ def converge_packaged_user_services() -> None:
         properties = dict(line.split("=", 1) for line in result.stdout.splitlines() if "=" in line)
         load = properties.get("LoadState")
         if load == "not-found":
-            continue
+            raise ValueError(
+                f"Required packaged user unit is missing: {unit}; complete package installation."
+            )
         if load not in ("loaded", "masked"):
             raise ValueError(f"Cannot inspect {unit} (user): LoadState={load}")
         state, active = properties.get("UnitFileState"), properties.get("ActiveState")
@@ -158,7 +160,11 @@ def main() -> int:
         working_tree = Path(os.environ.get("CHEZMOI_WORKING_TREE", ""))
         if not working_tree.is_absolute():
             raise ValueError("Chezmoi must supply an absolute CHEZMOI_WORKING_TREE.")
-        if PERSONAL and shutil.which("updatedb"):
+        if PERSONAL:
+            if shutil.which("updatedb") is None:
+                raise FileNotFoundError(
+                    "updatedb is unavailable; install the declared plocate package."
+                )
             _ = subprocess.run(["sudo", "-v"], check=True)
             result = subprocess.run(
                 [
@@ -177,15 +183,7 @@ def main() -> int:
             )
             for message in result.stdout.splitlines():
                 logger.info(message)
-            # Locate indexing is intentionally best-effort; its packaged static
-            # timer is already linked for subsequent boots.
-            result = subprocess.run(
-                ["sudo", "systemctl", "start", "plocate-updatedb.timer"], check=False
-            )
-            if result.returncode:
-                logger.warning(
-                    "Failed to start plocate-updatedb.timer; locate indexing is deferred."
-                )
+            _ = subprocess.run(["sudo", "systemctl", "start", "plocate-updatedb.timer"], check=True)
         env = os.environ.copy()
         for name in (
             "MISE_CONFIG_FILE",

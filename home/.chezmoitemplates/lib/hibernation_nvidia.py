@@ -113,7 +113,7 @@ def configure_nvidia_sleep(source_dir: Path, entrypoint: Path) -> None:
         for message in result.stdout.splitlines():
             logger.info(message)
     else:
-        logger.warning("Cannot detect the NVIDIA PCI address; power configuration left unchanged.")
+        raise ValueError("Cannot identify the detected NVIDIA GPU's PCI address; inspect lspci.")
 
 
 def configure_nvidia_power(address: str) -> None:

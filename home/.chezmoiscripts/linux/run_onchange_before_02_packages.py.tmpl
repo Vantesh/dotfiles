@@ -173,10 +173,10 @@ def personal_packages(distro: str) -> tuple[list[str], str | None, list[str]]:
         ):
             groups.append("fingerprint-goodix")
             break
-    if shutil.which("limine") and shutil.which("mkinitcpio"):
+    if shutil.which("limine"):
+        if shutil.which("mkinitcpio") is None:
+            raise FileNotFoundError("mkinitcpio is unavailable; complete the Limine installation.")
         groups.extend(("limine-mkinitcpio", "snapper"))
-    else:
-        logger.warning("Limine/mkinitcpio unavailable; skipping their personal package groups.")
     if not family:
         return groups, None, []
 

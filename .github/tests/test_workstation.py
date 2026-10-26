@@ -49,13 +49,23 @@ exit "${MISE_STATUS:-0}"''',
         env,
         "systemctl",
         """case "$*" in
-    '--user show '*) echo 'LoadState=not-found' ;;
+    '--user show '*) printf 'LoadState=loaded\\nUnitFileState=static\\nActiveState=active\\n' ;;
     *) exit 97 ;;
 esac""",
         log=True,
     )
-    for command in ("rbw", "sbctl", "busctl", "ufw", "chsh"):
+    for command in ("rbw", "sbctl", "busctl", "ufw", "chsh", "updatedb"):
         stub(env, command, "exit 97", log=True)
+    stub(
+        env,
+        "sudo",
+        """case "$1" in
+    -v) exit 0 ;;
+    -n) case "$*" in *--configure-locate*) exit 0 ;; *) exit 97 ;; esac ;;
+    systemctl) [ "$*" = 'systemctl start plocate-updatedb.timer' ] ;;
+    *) exit 97 ;;
+esac""",
+    )
     return env
 
 
@@ -159,7 +169,7 @@ def test_packaged_user_services_only_change_missing_state(
         echo LoadState=loaded
         if test -f "$HOME/enabled"; then echo UnitFileState=enabled; else echo UnitFileState=disabled; fi
         if test -f "$HOME/active"; then echo ActiveState=active; else echo ActiveState=inactive; fi ;;
-    '--user show '*) echo LoadState=not-found ;;
+    '--user show '*) printf 'LoadState=loaded\\nUnitFileState=static\\nActiveState=active\\n' ;;
     '--user --quiet enable -- udiskie') touch "$HOME/enabled" ;;
     '--user --quiet start -- udiskie') touch "$HOME/active" ;;
     *) exit 97 ;;
@@ -183,7 +193,7 @@ esac""",
     )
 
 
-@pytest.mark.parametrize("failure", ["inspect", "start", "mise"])
+@pytest.mark.parametrize("failure", ["inspect", "start", "mise", "missing-unit"])
 def test_service_failures_preserve_status(workstation: dict[str, str], failure: str) -> None:
     if failure == "mise":
         workstation["MISE_STATUS"] = "23"
@@ -194,6 +204,7 @@ def test_service_failures_preserve_status(workstation: dict[str, str], failure: 
             f"""case "$*" in
     '--user show '*)
         [ {shlex.quote(failure)} != inspect ] || exit 23
+        if [ {shlex.quote(failure)} = missing-unit ]; then echo LoadState=not-found; exit 0; fi
         printf 'LoadState=loaded\\nUnitFileState=enabled\\nActiveState=inactive\\n' ;;
     '--user --quiet start '*) exit 23 ;;
     *) exit 97 ;;
@@ -201,7 +212,7 @@ esac""",
             log=True,
         )
     result = run_setup(workstation, render_services(workstation, False))
-    assert result.returncode == 23, result.stderr
+    assert result.returncode == (1 if failure == "missing-unit" else 23), result.stderr
     assert "ERROR" in result.stderr
 
 
@@ -258,7 +269,7 @@ def test_locate_and_avatar_remain_personal_and_retryable(
         """case "$1" in
     -v) exit 0 ;;
     -n) shift; unset CHEZMOI_SOURCE_DIR CHEZMOI_WORKING_TREE DOTFILES_PERSONAL_ENABLED; exec "$@" ;;
-    systemctl) exit 23 ;;
+    systemctl) exit "${TIMER_STATUS:-0}" ;;
     *) exit 97 ;;
 esac""",
         log=True,
@@ -279,10 +290,13 @@ esac""",
     assert any(call[0] == "busctl" for call in recorded) == personal
     assert not any(call[0] == "updatedb" for call in recorded)
     if personal:
-        assert "indexing is deferred" in first.stderr
         assert next(
             index for index, call in enumerate(recorded) if "--configure-locate" in call
         ) < next(index for index, call in enumerate(recorded) if call[0] == "mise")
+        workstation["TIMER_STATUS"] = "23"
+        failed = run_setup(workstation, command)
+        assert failed.returncode == 23
+        workstation.pop("TIMER_STATUS")
         workstation["AVATAR_STATUS"] = "23"
         failed = run_setup(workstation, command)
         assert failed.returncode == 23
@@ -297,7 +311,7 @@ def test_masked_static_user_unit_is_unmasked_and_started_once(workstation: dict[
     '--user show '*' -- udiskie')
         if test -f "$HOME/unmasked"; then echo LoadState=loaded; echo UnitFileState=static; else echo LoadState=masked; echo UnitFileState=masked; fi
         if test -f "$HOME/active"; then echo ActiveState=active; else echo ActiveState=inactive; fi ;;
-    '--user show '*) echo LoadState=not-found ;;
+    '--user show '*) printf 'LoadState=loaded\\nUnitFileState=static\\nActiveState=active\\n' ;;
     '--user --quiet unmask -- udiskie') touch "$HOME/unmasked" ;;
     '--user --quiet start -- udiskie') touch "$HOME/active" ;;
     *) exit 97 ;;
@@ -380,3 +394,13 @@ def test_offline_transition_invalidates_only_personal_services(
     assert offline == render_python(workstation, HOOK, personal=personal).read_text()
     workstation["OFFLINE"] = ""
     assert online == render_python(workstation, HOOK, personal=personal).read_text()
+
+
+def test_missing_locate_prerequisite_fails_before_personal_edits(
+    workstation: dict[str, str],
+) -> None:
+    (Path(workstation["PATH"]) / "updatedb").unlink()
+    result = run_setup(workstation, render_services(workstation, True))
+    assert result.returncode == 1, result.stderr
+    assert "plocate" in result.stderr
+    assert calls(workstation) == []

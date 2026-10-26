@@ -82,8 +82,7 @@ main() {
     return 0
   fi
   if ! command_exists mkinitcpio; then
-    log SKIP "mkinitcpio not found, skipping Limine Secure Boot setup"
-    return 0
+    die 127 "mkinitcpio not found; complete the Limine installation"
   fi
   if ! keep_sudo_alive; then
     die "Failed to obtain sudo access: $LAST_ERROR"
