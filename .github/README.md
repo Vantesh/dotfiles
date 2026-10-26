@@ -144,6 +144,14 @@ Root's explicit `relatime` fstab option becomes `noatime` through a guarded atom
 
 Snapshot boot configuration now lives in `.chezmoitemplates/lib/snapshot_boot.py`, invoked through the Snapper entry point with explicit privileged arguments. Limine settings, overlay selection and pending rebuild coordination are preserved. The late Python rebuild consumes the shared pending request after all boot configuration hooks.
 
+## Laptop power management
+
+The personal `run_onchange_after_02_laptop_power.py` hook uses `hostnamectl chassis` and skips non-laptops before any download or privileged operation. Failed hardware inspection stops setup. Nonpersonal installs skip the hook before logging or inspecting hardware.
+
+A missing `/usr/local/bin/auto-cpufreq` is installed from the latest stable upstream Git release, using a full checkout for upstream version detection. The source installer installs the application; the installed CLI's `--install` then deploys its daemon. This two-step contract was verified against [auto-cpufreq v3.2.0](https://github.com/AdnanHodzic/auto-cpufreq/tree/v3.2.0). Upstream owns unit creation, enablement/start and power-manager integration: it disables supported power-profiles-daemon/tuned services and warns about TLP. It also disables Bluetooth autostart when Bluetooth support is present; setup no longer overrides that upstream choice. Use upstream's `sudo auto-cpufreq --bluetooth_boot_on` if wanted.
+
+The hook only reads daemon activity because upstream refuses `--install` while already running. Inactive or missing daemons use the official installer, including after a failed attempt; inspection errors fail explicitly. Dotfiles do not unmask or activate the service themselves, and Mise has no auto-cpufreq declaration. Native installer output and sudo prompts stay visible. Source checkouts are removed after each attempt, including root-owned build files. Existing application installations are reused rather than automatically updated; use upstream's update workflow deliberately. Chezmoi caches successful runs and retries failures on the next apply without extra state markers.
+
 ## Managed laptop hibernation
 
 The personal `run_onchange_after_03_hibernation.py.tmpl` workflow supports Limine, mkinitcpio and the existing single-device Btrfs laptop layout, either plain or directly LUKS-backed. Non-Btrfs systems and non-laptops skip it. A supported Btrfs laptop requires working Limine and mkinitcpio before setup can continue. Independently managed swap/resume settings, unsupported device topologies and swapfiles without a matching ownership record remain untouched for manual setup.

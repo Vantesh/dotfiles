@@ -144,6 +144,7 @@ def render_python(
         "run_after_13_initramfs.py",
         "run_onchange_after_99_finalize.py",
         "run_onchange_after_01_snapshots.py.tmpl",
+        "run_onchange_after_02_laptop_power.py",
         "run_onchange_after_03_hibernation.py.tmpl",
     ],
 )

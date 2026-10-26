@@ -177,31 +177,6 @@ command_exists() {
   command -v "$1" >/dev/null 2>&1
 }
 
-# Detects if system is a laptop.
-#
-# Uses hostnamectl to check chassis type for laptop/notebook.
-#
-# Globals:
-#   LAST_ERROR - Set on failure
-# Returns:
-#   0 if laptop, 1 otherwise or on error
-is_laptop() {
-  local chassis
-
-  LAST_ERROR=""
-
-  if ! chassis=$(hostnamectl chassis 2>/dev/null); then
-    LAST_ERROR="Failed to detect chassis type"
-    return 1
-  fi
-
-  if [[ "$chassis" =~ (laptop|notebook) ]]; then
-    return 0
-  fi
-
-  return 1
-}
-
 # Keeps sudo session alive in background.
 #
 # Starts background process that refreshes sudo every 60 seconds.
