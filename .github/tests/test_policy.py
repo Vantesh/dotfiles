@@ -9,7 +9,7 @@ from helpers import CHEZMOI, ROOT, SCRIPTS
 from test_setup import calls, render_python, run_setup, stub
 from test_setup import env as env
 
-HOOKS = ("run_onchange_before_01_sudo.py.tmpl", "run_onchange_before_03_pacman.py.tmpl")
+HOOKS = ("run_onchange_before_01_sudo.py", "run_onchange_before_03_pacman.py.tmpl")
 
 
 @pytest.fixture
@@ -79,7 +79,7 @@ def policy(env: dict[str, str], tmp_path: Path) -> dict[str, str]:
         "sudo",
         """case "$1" in
     -v) exit "${SUDO_STATUS:-0}" ;;
-    -n) shift; unset CHEZMOI_SOURCE_DIR CHEZMOI_WORKING_TREE PERSONAL DISTRO DISTRO_FAMILY; exec "$@" ;;
+    -n) shift; unset CHEZMOI_SOURCE_DIR CHEZMOI_WORKING_TREE DOTFILES_PERSONAL_ENABLED DOTFILES_DISTRO_FAMILY; exec "$@" ;;
     systemctl) exec "$@" ;;
     *) exit 97 ;;
 esac""",
@@ -133,6 +133,7 @@ def test_policy_direct_apply_isolated_and_idempotent(
         json.dumps(
             {
                 "data": {"personal": personal},
+                "scriptEnv": {"DOTFILES_PERSONAL_ENABLED": "1" if personal else "0"},
                 "interpreters": {"py": {"command": "/usr/bin/python3", "args": ["-B"]}},
             }
         )
@@ -203,9 +204,25 @@ def test_policy_direct_apply_isolated_and_idempotent(
         assert "[INFO]" not in result.stderr
         assert {path: (path.read_bytes(), path.stat().st_mtime_ns) for path in after} == after
     if personal:
-        executable = Path(next(call for call in observed if "--apply-policy" in call)[-2])
+        invocation = next(call for call in observed if "--apply-policy" in call)
+        executable = Path(invocation[invocation.index("--apply-policy") - 1])
+        if hook == HOOKS[0]:
+            assert invocation[-2:] == [str(source), "1"]
         assert executable.parent != source / ".chezmoiscripts/linux" and not executable.exists()
     assert not list(etc.rglob(".chezmoi-*"))
+    if hook == HOOKS[0] and not personal:
+        # Fresh-install profiles are fixed: changing only the environment does
+        # not make a successfully skipped plain run_onchange hook eligible.
+        config.write_text(
+            json.dumps(
+                {"data": {"personal": True}, "scriptEnv": {"DOTFILES_PERSONAL_ENABLED": "1"}}
+            )
+        )
+        observed = calls(policy)
+        result = run_setup(policy, command)
+        assert result.returncode == 0, result.stderr
+        assert calls(policy) == observed
+        assert {path: path.read_bytes() for path in after} == before
 
 
 @pytest.mark.parametrize("invalid", ["candidate", "existing"])

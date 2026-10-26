@@ -25,9 +25,10 @@ This unpublished architectural rewrite requires no compatibility with discarded 
 
 ## Chezmoi Python configuration
 
-- Prefer plain `.py` when rendering is unnecessary. Retain `.py.tmpl` for profile gates, rendered values, configuration-driven execution or declaration hashes; preserve script ordering and Chezmoi run semantics.
+- Prefer plain `.py` when rendering is unnecessary. Runtime personal gating is valid: recognize explicit enabled/disabled values and fail closed on absent or invalid state before logging, secrets or privileged changes. Template exclusion is optional; retain `.py.tmpl` for meaningful rendered settings, declaration hashes and retry triggers. Preserve script ordering and Chezmoi run semantics; profile transitions remain unsupported, so a plain `run_onchange` hook need not rerun on environment changes alone.
 - Concentrate related rendered values in a small typed JSON configuration section near the imports. Encode with `toJson` and `b64enc`, then decode with standard-library `b64decode()` and `json.loads()`; this preserves types and arbitrary string contents without evaluating configuration as Python.
-- Use `scriptEnv` selectively for non-sensitive runtime context that does not need to change `run_onchange` content. Prefer Chezmoi's existing environment variables where sufficient. Keep required paths embedded for privileged self-execution when sudo strips the environment.
+- Use `scriptEnv` selectively for non-sensitive runtime context that does not need to change `run_onchange` content. Prefer Chezmoi's existing environment variables where sufficient. Carry validated profile/source context explicitly across privileged self-execution when sudo strips the environment.
+- Name repository-owned environment variables with intention-revealing `DOTFILES_` names that distinguish booleans, paths and configuration values.
 - Keep ordinary Python syntax easy to edit, lint and type-check. Use one configuration source per value; avoid forwarding wrappers and general configuration loaders.
 
 ## Python conventions and operational safety

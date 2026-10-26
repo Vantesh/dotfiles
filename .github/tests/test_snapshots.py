@@ -378,7 +378,7 @@ def test_rendered_snapper_reexecutes_synchronously_without_source_environment(
         "sudo",
         """case "$1" in
     */python|*/python3)
-        unset CHEZMOI_SOURCE_DIR PERSONAL DISTRO PYTHONPATH
+        unset CHEZMOI_SOURCE_DIR DOTFILES_PERSONAL_ENABLED PYTHONPATH
         exec "$@" ;;
     test)
         [ "$3" = /.snapshots ] || exit 97

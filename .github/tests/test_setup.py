@@ -16,7 +16,7 @@ import pytest
 from helpers import CHEZMOI, ROOT, SCRIPTS
 
 PYTHON = "/usr/bin/python3"
-AUTHENTICATION = "run_before_00_authentication.py.tmpl"
+AUTHENTICATION = "run_before_00_authentication.py"
 PACKAGES = "run_onchange_before_02_packages.py.tmpl"
 LOGGING = ROOT / "home/.chezmoitemplates/lib/provision_logging.py"
 
@@ -89,6 +89,13 @@ def render_python(
     """Render a real workflow for focused subprocess and filesystem tests."""
     assert CHEZMOI is not None
     home = Path(env["HOME"])
+    if name.endswith(".py"):
+        rendered = home / name
+        shutil.copy(source / ".chezmoiscripts/linux" / name, rendered)
+        env.update(
+            DOTFILES_PERSONAL_ENABLED="1" if personal else "0", CHEZMOI_SOURCE_DIR=str(source)
+        )
+        return rendered
     config = home / "python-render.json"
     config.write_text("{}")
     result = run_setup(
@@ -119,6 +126,34 @@ def render_python(
     rendered = home / name.removesuffix(".tmpl")
     rendered.write_text(result.stdout)
     return rendered
+
+
+@pytest.mark.parametrize("hook", [AUTHENTICATION, "run_onchange_before_01_sudo.py"])
+@pytest.mark.parametrize("profile", [None, "true", "0"], ids=["missing", "invalid", "disabled"])
+def test_plain_personal_guards_precede_source_resolution_and_all_side_effects(
+    env: dict[str, str], tmp_path: Path, hook: str, profile: str | None
+) -> None:
+    script = render_python(env, hook)
+    env.pop("CHEZMOI_SOURCE_DIR")
+    env.pop("DOTFILES_PERSONAL_ENABLED")
+    if profile is not None:
+        env["DOTFILES_PERSONAL_ENABLED"] = profile
+    if profile is None:
+        imported = run_setup(
+            env,
+            [PYTHON, "-B", "-c", "import runpy, sys; runpy.run_path(sys.argv[1])", str(script)],
+        )
+        assert imported.returncode == 0, imported.stderr
+        assert imported.stdout == imported.stderr == ""
+    result = run_setup(env, [PYTHON, "-B", str(script)])
+    assert result.returncode == (0 if profile == "0" else 1)
+    assert result.stdout == ""
+    if profile == "0":
+        assert result.stderr == ""
+    else:
+        assert "DOTFILES_PERSONAL_ENABLED must be '0' or '1'" in result.stderr
+    assert not calls(env)
+    assert not (tmp_path / "state").exists()
 
 
 @pytest.mark.parametrize("personal", [False, True], ids=["nonpersonal", "personal"])
@@ -193,9 +228,8 @@ def test_fresh_profile_persists_only_its_personal_choice(
         "args": ["-B"],
     }
     assert config["scriptEnv"] == {
-        "PERSONAL": "1" if personal else "0",
-        "DISTRO": "arch",
-        "DISTRO_FAMILY": "arch",
+        "DOTFILES_PERSONAL_ENABLED": "1" if personal else "0",
+        "DOTFILES_DISTRO_FAMILY": "arch",
     }
     env["NOCONFIRM"] = "1"
     result = run_setup(env, command + ["init"])
@@ -401,7 +435,7 @@ def test_secret_lookup_failure_does_not_publish_settings_or_private_errors(
 def bootstrap(env: dict[str, str], tmp_path: Path) -> list[str]:
     env.update(
         CHEZMOI_SOURCE_DIR=str(ROOT / "home"),
-        PERSONAL="1",
+        DOTFILES_PERSONAL_ENABLED="1",
         RBW_CONFIG=json.dumps({"email": "fixture@example.invalid", "lock_timeout": 10800}),
     )
     config = tmp_path / "config/rbw/config.json"
@@ -434,7 +468,7 @@ def authentication(env: dict[str, str], bootstrap: list[str]) -> list[str]:
 def test_prerequisite_install_failure_stops_setup(
     env: dict[str, str], bootstrap: list[str]
 ) -> None:
-    env["PERSONAL"] = "1"
+    env["DOTFILES_PERSONAL_ENABLED"] = "1"
     stub(env, "pacman", "exit 1")
     stub(env, "sudo", "exit 23", log=True)
     result = run_setup(env, bootstrap)
@@ -447,7 +481,9 @@ def test_prerequisite_install_failure_stops_setup(
 def test_prerequisites_install_in_one_transaction_and_reapply_quietly(
     env: dict[str, str], bootstrap: list[str], tmp_path: Path, personal: bool
 ) -> None:
-    env.update(PERSONAL="1" if personal else "0", INSTALLED=str(tmp_path / "installed"))
+    env.update(
+        DOTFILES_PERSONAL_ENABLED="1" if personal else "0", INSTALLED=str(tmp_path / "installed")
+    )
     packages = ["python", "python-loguru", "git", "base-devel", "mise"]
     if personal:
         packages.extend(("rbw", "pinentry"))
@@ -550,7 +586,7 @@ def test_unreadable_vault_configuration_is_not_reset(
 def test_python_bootstrap_is_quiet_and_logs_are_private_and_bounded(
     env: dict[str, str], tmp_path: Path
 ) -> None:
-    env["PERSONAL"] = "0"
+    env["DOTFILES_PERSONAL_ENABLED"] = "0"
     stub(env, "pacman", "exit 97", log=True)
     quiet = run_setup(env, [PYTHON, "-B", str(render_python(env, AUTHENTICATION, personal=False))])
     assert quiet.returncode == 0, quiet.stderr
@@ -643,7 +679,7 @@ def test_fifo_log_file_does_not_block_or_allow_package_installation(
     logs = tmp_path / "state/chezmoi/logs"
     logs.mkdir(parents=True)
     os.mkfifo(logs / "setup.log", 0o600)
-    env.update(PERSONAL="1", RBW_LOGIN_STATUS="23")
+    env.update(DOTFILES_PERSONAL_ENABLED="1", RBW_LOGIN_STATUS="23")
     result = run_setup(env, authentication)
     assert result.returncode == 1, result.stderr
     assert "Traceback" not in result.stderr

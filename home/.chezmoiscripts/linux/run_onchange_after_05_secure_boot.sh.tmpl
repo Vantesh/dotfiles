@@ -9,7 +9,7 @@
 # Enabling Secure Boot itself remains a manual firmware setting.
 #
 # Globals:
-#   DISTRO_FAMILY - Distribution family from chezmoi scriptEnv
+#   DOTFILES_DISTRO_FAMILY - Distribution family from chezmoi scriptEnv
 #   LAST_ERROR - Error message from the last failed operation
 # Exit codes:
 #   0 (success or skipped), 1 (failure), 127 (missing dependency)
@@ -69,7 +69,7 @@ check_secure_boot_signing_key() {
 
 # Configures optional Secure Boot using existing helpers.
 # Globals:
-#   DISTRO_FAMILY, SECURE_BOOT_ENABLED - Platform and opt-in checks
+#   DOTFILES_DISTRO_FAMILY, SECURE_BOOT_ENABLED - Platform and opt-in checks
 #   LIMINE_DEFAULTS - Limine configuration to update
 #   LAST_ERROR - Error state from shared helpers
 # Outputs:
@@ -77,7 +77,7 @@ check_secure_boot_signing_key() {
 # Returns:
 #   0 on success or skipped environments; exits on setup failures
 main() {
-  if [[ "${DISTRO_FAMILY,,}" != *arch* ]] || [[ ! -x /usr/bin/limine ]] || [[ ! -d /sys/firmware/efi/efivars ]]; then
+  if [[ "${DOTFILES_DISTRO_FAMILY,,}" != *arch* ]] || [[ ! -x /usr/bin/limine ]] || [[ ! -d /sys/firmware/efi/efivars ]]; then
     log SKIP "Limine UEFI setup not available on this system"
     return 0
   fi

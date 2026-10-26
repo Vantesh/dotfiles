@@ -3,7 +3,7 @@
 set -euo pipefail
 
 packages=(python python-loguru git base-devel mise)
-if [[ "${PERSONAL:-0}" == "1" ]]; then
+if [[ "${DOTFILES_PERSONAL_ENABLED:-0}" == "1" ]]; then
   packages+=(rbw pinentry)
 fi
 missing=()

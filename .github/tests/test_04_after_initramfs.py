@@ -114,7 +114,7 @@ class SecureBootTests(ScriptCase):
         self.marker = self.directory / "state/chezmoi/initramfs.pending"
         self.enrolled = self.directory / "enrolled"
         self.env.update(
-            DISTRO_FAMILY="arch",
+            DOTFILES_DISTRO_FAMILY="arch",
             MARKER=str(self.marker),
             ENROLLED=str(self.enrolled),
             BOOT=str(self.boot),

@@ -1,4 +1,3 @@
-{{ if .personal -}}
 #!/usr/bin/python3 -B
 """Private logging and personal authentication after the shell establishes prerequisites."""
 
@@ -12,9 +11,6 @@ from pathlib import Path
 from typing import cast
 
 from loguru import logger
-
-SOURCE_DIR = Path({{ .chezmoi.sourceDir | toJson }})
-sys.path.insert(0, str(SOURCE_DIR / ".chezmoitemplates"))
 
 
 def configure_bitwarden() -> int:
@@ -114,13 +110,25 @@ def configure_bitwarden() -> int:
 
 
 def main() -> int:
+    personal = os.environ.get("DOTFILES_PERSONAL_ENABLED")
+    if personal == "0":
+        return 0
+    if personal != "1":
+        print(
+            "ERROR: DOTFILES_PERSONAL_ENABLED must be '0' or '1'; run through Chezmoi.",
+            file=sys.stderr,
+        )
+        return 1
+    source = os.environ.get("CHEZMOI_SOURCE_DIR")
+    if not source or not Path(source).is_absolute():
+        print("ERROR: Chezmoi must supply an absolute CHEZMOI_SOURCE_DIR.", file=sys.stderr)
+        return 1
+    sys.path.insert(0, str(Path(source) / ".chezmoitemplates"))
     from lib.provision_logging import configure_logging
 
     file_sink = None
     try:
         file_sink = configure_logging()
-        if os.environ.get("PERSONAL") != "1":
-            return 0
         return configure_bitwarden()
     except OSError as error:
         filename = cast("object", error.filename)
@@ -144,4 +152,3 @@ def main() -> int:
 if __name__ == "__main__":
     status = main()
     sys.exit(status if status >= 0 else 128 - status)
-{{ end -}}

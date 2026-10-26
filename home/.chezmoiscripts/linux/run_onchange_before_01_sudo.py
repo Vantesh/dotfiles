@@ -1,4 +1,3 @@
-{{ if .personal -}}
 #!/usr/bin/python3 -B
 """Apply the personal sudo Defaults and faillock policy without replacing unrelated settings."""
 
@@ -15,9 +14,6 @@ from pathlib import Path
 from typing import cast
 
 from loguru import logger
-
-SOURCE_DIR = Path({{ .chezmoi.sourceDir | toJson }})
-sys.path.insert(0, str(SOURCE_DIR / ".chezmoitemplates"))
 
 SUDOERS_DIR = Path("/etc/sudoers.d")
 SUDOERS = Path("/etc/sudoers")
@@ -91,8 +87,30 @@ def terminate(_signum: int, _frame: object) -> None:
 
 
 def main() -> int:
+    privileged = sys.argv[1:2] == ["--apply-policy"]
+    if privileged and len(sys.argv) != 4:
+        print(
+            "ERROR: Privileged policy setup requires its source path and profile.", file=sys.stderr
+        )
+        return 1
+    personal = sys.argv[3] if privileged else os.environ.get("DOTFILES_PERSONAL_ENABLED")
+    if personal == "0":
+        return 0
+    if personal != "1":
+        print(
+            "ERROR: DOTFILES_PERSONAL_ENABLED must be '0' or '1'; run through Chezmoi.",
+            file=sys.stderr,
+        )
+        return 1
+    # Carry validated context as arguments: sudo need not preserve scriptEnv.
+    source = sys.argv[2] if privileged else os.environ.get("CHEZMOI_SOURCE_DIR")
+    if not source or not Path(source).is_absolute():
+        print("ERROR: Chezmoi must supply an absolute CHEZMOI_SOURCE_DIR.", file=sys.stderr)
+        return 1
+    source_dir = Path(source)
+    sys.path.insert(0, str(source_dir / ".chezmoitemplates"))
     _ = signal.signal(signal.SIGTERM, terminate)
-    if sys.argv[1:] == ["--apply-policy"]:
+    if privileged:
         try:
             apply_policy()
             return 0
@@ -119,7 +137,16 @@ def main() -> int:
         # privileged operation. One synchronous process owns its entire update.
         _ = subprocess.run(["sudo", "-v"], check=True)
         result = subprocess.run(
-            ["sudo", "-n", sys.executable, "-B", str(Path(__file__).resolve()), "--apply-policy"],
+            [
+                "sudo",
+                "-n",
+                sys.executable,
+                "-B",
+                str(Path(__file__).resolve()),
+                "--apply-policy",
+                str(source_dir),
+                personal,
+            ],
             check=True,
             capture_output=True,
             text=True,
@@ -154,4 +181,3 @@ def main() -> int:
 if __name__ == "__main__":
     status = main()
     sys.exit(status if status >= 0 else 128 - status)
-{{ end -}}

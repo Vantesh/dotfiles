@@ -49,7 +49,7 @@ Mise files in the repository (`chezmoi cd`):
 - `mise/conf.d/firewall.toml` → firewall rules.
 - `mise/conf.d/pacman-hooks.toml` → package-cache cleanup hooks.
 
-The shell entry point checks `python`, `python-loguru`, `git`, `base-devel` and `mise`, adding `rbw` and `pinentry` only for personal setups. It installs missing packages in one native Pacman transaction before Python starts. The next before-script, `.chezmoiscripts/linux/run_before_00_authentication.py.tmpl`, configures private logging and personal-only Bitwarden authentication; it does not install prerequisites again. Desktop package selection stays in Mise.
+The shell entry point checks `python`, `python-loguru`, `git`, `base-devel` and `mise`, adding `rbw` and `pinentry` only for personal setups. It installs missing packages in one native Pacman transaction before Python starts. The next before-script, `.chezmoiscripts/linux/run_before_00_authentication.py`, configures private logging and personal-only Bitwarden authentication; it does not install prerequisites again. Desktop package selection stays in Mise.
 
 Common services and Fish login-shell setup apply to both profiles. `mise/config.personal.toml` adds the existing WARP and UFW service declarations only in the personal environment; the firewall phase remains personal-only. Fish's interactive configuration stays under Chezmoi.
 
@@ -93,9 +93,13 @@ SF Pro Text still comes from Apple's official DMG and installs under `~/.local/s
 
 The prerequisite installer remains shell because Python may not exist yet. Authentication runs next on every personal apply. The personal sudo/faillock policy runs before packages; personal Pacman policy runs after packages, and Snapper remains a personal-only after-script. Chezmoi explicitly uses `/usr/bin/python3 -B` for Python scripts. Public package/desktop setup stays available to both profiles.
 
-The workflows live directly in `.chezmoiscripts/linux/`; the shared `configure_logging()` implementation lives in `.chezmoitemplates/lib/provision_logging.py`. Each rendered workflow imports from its source directory using a quoted Chezmoi value, independent of the working directory and global `PYTHONPATH`. Ordinary library files cannot live under `.chezmoiscripts/`, where Chezmoi requires scripts.
+The workflows live directly in `.chezmoiscripts/linux/`; the shared `configure_logging()` implementation lives in `.chezmoitemplates/lib/provision_logging.py`. Plain workflows use Chezmoi's `CHEZMOI_SOURCE_DIR`; templates retain embedded source paths where needed. Imports are independent of the working directory and global `PYTHONPATH`. Ordinary library files cannot live under `.chezmoiscripts/`, where Chezmoi requires scripts.
 
 Chezmoi executes temporary rendered files. Snapper locates its retained boot helper in the real source directory and waits for its privileged fstab self-invocation to finish before Chezmoi removes the temporary script. The privileged branch retains its root check and avoids configuring logs in the regular account's private directory.
+
+Chezmoi exports `DOTFILES_PERSONAL_ENABLED` as exactly `"0"` or `"1"` and `DOTFILES_DISTRO_FAMILY` as `"arch"`. The former gates personal bootstrap prerequisites and the plain authentication/sudo workflows; the latter remains consumed by Secure Boot. Chezmoi's own source-directory environment remains unchanged; no duplicate source-path export is needed.
+
+Authentication and sudo/faillock check the profile before logging, imports of provisioning helpers or any personal operation. Disabled mode exits quietly; missing/malformed state fails with a diagnostic. The privileged sudo child receives the source path and validated profile as explicit arguments and still requires root. Sudo's plain `run_onchange` hook tracks source edits, not environment-only profile changes; profile transitions remain unsupported, so use manual cleanup or a fresh install. Reapplying a fixed profile remains idempotent.
 
 Run-script contents and existing configuration inputs control reapplication. Package declarations and profile/distro selection retain their meaningful triggers; shared logging changes do not automatically rerun package or filesystem provisioning. Deliberate helper-only reruns can use a scoped Chezmoi state reset. No library-wide fingerprint scheme is used.
 

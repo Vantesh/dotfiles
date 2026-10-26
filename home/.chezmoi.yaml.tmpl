@@ -28,9 +28,8 @@ data:
   distroFamily: {{ $distroFamily | quote }}
 
 scriptEnv:
-  PERSONAL: {{ ternary "1" "0" $personal | quote }}
-  DISTRO_FAMILY: {{ $distroFamily | quote }}
-  DISTRO: {{ .chezmoi.osRelease.id | quote }}
+  DOTFILES_PERSONAL_ENABLED: {{ ternary "1" "0" $personal | quote }}
+  DOTFILES_DISTRO_FAMILY: {{ $distroFamily | quote }}
 
 
 interpreters:
