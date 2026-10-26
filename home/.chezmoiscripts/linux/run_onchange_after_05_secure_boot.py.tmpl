@@ -96,11 +96,11 @@ def main() -> int:
                 raise ValueError(
                     "First-time Secure Boot enrollment needs explicit consent; reapply interactively in Setup Mode."
                 )
-            with Path("/dev/tty").open("r+") as terminal:
-                _ = terminal.write(
+            with Path("/dev/tty").open() as terminal, Path("/dev/tty").open("w") as prompt:
+                _ = prompt.write(
                     "Enroll local Secure Boot keys and Microsoft certificates in firmware? This replaces the key databases. [y/N] "
                 )
-                terminal.flush()
+                prompt.flush()
                 if terminal.readline().strip().lower() not in ("y", "yes"):
                     raise ValueError(
                         "Secure Boot enrollment declined; keys were preserved. Reapply when ready."
@@ -130,11 +130,18 @@ def main() -> int:
     except (OSError, ValueError, subprocess.CalledProcessError) as error:
         status = error.returncode if isinstance(error, subprocess.CalledProcessError) else 1
         try:
-            logger.opt(exception=True).error("Boot setup failed (exit {}): {}", status, error)
             if isinstance(error, subprocess.CalledProcessError):
                 diagnostic = cast("str | None", error.stderr)
+                reason = (
+                    diagnostic.strip().splitlines()[-1]
+                    if diagnostic and diagnostic.strip()
+                    else str(error)
+                )
+                logger.error("Boot setup failed (exit {}): {}", status, reason)
                 if diagnostic:
                     logger.debug("System diagnostic:\n{}", diagnostic.rstrip())
+            else:
+                logger.opt(exception=True).error("Boot setup failed (exit {}): {}", status, error)
         except OSError:
             if file_sink is not None:
                 logger.remove(file_sink)

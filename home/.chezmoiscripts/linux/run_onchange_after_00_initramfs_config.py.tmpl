@@ -107,11 +107,18 @@ def main() -> int:
     except (OSError, ValueError, subprocess.CalledProcessError) as error:
         status = error.returncode if isinstance(error, subprocess.CalledProcessError) else 1
         try:
-            logger.opt(exception=True).error("Boot setup failed (exit {}): {}", status, error)
             if isinstance(error, subprocess.CalledProcessError):
                 diagnostic = cast("str | None", error.stderr)
+                reason = (
+                    diagnostic.strip().splitlines()[-1]
+                    if diagnostic and diagnostic.strip()
+                    else str(error)
+                )
+                logger.error("Boot setup failed (exit {}): {}", status, reason)
                 if diagnostic:
                     logger.debug("System diagnostic:\n{}", diagnostic.rstrip())
+            else:
+                logger.opt(exception=True).error("Boot setup failed (exit {}): {}", status, error)
         except OSError:
             if file_sink is not None:
                 logger.remove(file_sink)

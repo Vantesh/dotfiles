@@ -3,99 +3,160 @@
 import hashlib
 import json
 import os
+import pty
+import shlex
 import shutil
 import struct
 import subprocess
 import sys
+from contextlib import suppress
 from pathlib import Path
 from typing import override
 
 import pytest
-from helpers import CHEZMOI, LIB, ROOT, SCRIPTS, ScriptCase
+from helpers import LIB, SCRIPTS, ScriptCase
+from test_setup import calls, run_setup, stub
 from test_setup import env as env
 
 
-class InitramfsTests(ScriptCase):
-    def test_pending_request_is_cleared_only_after_a_verified_rebuild(self) -> None:
-        boot = self.directory / "esp"
-        boot.mkdir()
-        marker = self.directory / "state/chezmoi/initramfs.pending"
-        marker.parent.mkdir(parents=True)
-        self.env.update(BOOT=str(boot), MARKER=str(marker))
-        self.stub("limine", "exit 97")
-        self.stub("limine-install", "exit 0", log=True)
-        self.stub(
-            "limine-mkinitcpio",
-            """
-[ -f "$MARKER" ] || exit 97
-if [ "$FAILURE" = rebuild ]; then echo 'ERROR: generation failed'; fi
-exit 0""",
-            log=True,
+@pytest.fixture
+def rebuild(env: dict[str, str], tmp_path: Path) -> dict[str, str]:
+    source = tmp_path / "boot source/home"
+    scripts = source / ".chezmoiscripts/linux"
+    scripts.mkdir(parents=True)
+    library = source / ".chezmoitemplates/lib"
+    shutil.copytree(LIB, library)
+    hook = scripts / "run_after_13_initramfs.py"
+    hook.write_text(
+        (SCRIPTS / hook.name).read_text().replace("if os.geteuid() != 0 or", "if False or")
+    )
+    etc = tmp_path / "etc"
+    (etc / "default").mkdir(parents=True)
+    boot = tmp_path / "esp"
+    boot.mkdir()
+    for name in ("current.efi", "limine.efi", "limine.conf"):
+        (boot / name).write_text("fixture artifact\n")
+    (etc / "default/limine").write_text(f'ESP_PATH="{boot}"\nENABLE_ENROLL_LIMINE_CONFIG=yes\n')
+    certificate = tmp_path / "db.pem"
+    certificate.write_text("-----BEGIN CERTIFICATE-----\nfixturecert\n-----END CERTIFICATE-----\n")
+    for name in ("limine", "mkinitcpio", "pacman", "lsinitcpio", "limine-enroll-config"):
+        stub(env, name, "exit 97")
+    enroll_hook = tmp_path / "90-limine-enroll-config"
+    enroll_hook.write_bytes((Path(env["PATH"]) / "limine-enroll-config").read_bytes())
+    enroll_hook.chmod(0o755)
+    module = library / "boot_rebuild.py"
+    module.write_text(
+        module.read_text().replace(
+            'Path("/etc/boot/hooks/post.d/90-limine-enroll-config")', f"Path({str(enroll_hook)!r})"
         )
-        self.stub("limine-enroll-config", "exit 97")
-        hook = self.directory / "post.d/90-limine-enroll-config"
-        hook.parent.mkdir()
-        hook.write_bytes((self.bin / "limine-enroll-config").read_bytes())
-        hook.chmod(0o755)
-        self.stub(
-            "jq",
-            """[ "$*" = '-e .installed == true' ] &&
-[ "$(cat)" = '{"installed":true}' ]""",
-        )
-        # Exercise orchestration; the verifier itself runs against real fixtures below.
-        self.stub(
-            "sudo",
-            r"""case "$1" in
-    test|cmp) exec "$@" ;;
-    env) shift; exec env "$@" ;;
-    sbctl) [ "$*" = 'sbctl setup --print-state --json' ] && printf '{"installed":true}\n' ;;
-    python3)
-        case "$6" in
-            inventory) printf '{}\n' ;;
-            verify|enrollment)
-                [ -f "$MARKER" ] || exit 97
-                printf '%s\t\n' "$6" >> "$CALLS"
-                [ "$FAILURE" != "$6" ] ;;
-            *) exit 97 ;;
-        esac ;;
+    )
+    module.write_text(
+        module.read_text().replace("MAX_OUTPUT = 32 * 1024 * 1024", "MAX_OUTPUT = 128")
+    )
+    module = library / "limine_config.py"
+    module.write_text(
+        module.read_text()
+        .replace('Path("/etc")', f"Path({str(etc)!r})")
+        .replace('Path("/usr/share")', f"Path({str(tmp_path / 'share')!r})")
+    )
+    (library / "verify_limine_rebuild.py").write_text(REBUILD_VERIFIER)
+    env.update(
+        CHEZMOI_SOURCE_DIR=str(source),
+        DOTFILES_PERSONAL_ENABLED="1",
+        SUDO_UID=str(os.getuid()),
+        SUDO_GID=str(os.getgid()),
+        BOOT=str(boot),
+    )
+    stub(
+        env,
+        "findmnt",
+        """case "$*" in
+    '-rn -o FSTYPE --mountpoint '*) echo vfat ;;
+    '-rn -o TARGET,SOURCE,FSTYPE,UUID --mountpoint '*)
+        uuid=ABCD-1234
+        if [ "${FAILURE:-}" = identity ] && test -f "$HOME/deployed"; then uuid="BCDE-$(cat "$HOME/deployed")"; fi
+        printf '%s /dev/fixture-esp vfat %s\\n' "$BOOT" "$uuid" ;;
     *) exit 97 ;;
 esac""",
-        )
-        source = self.render(SCRIPTS / "run_after_13_initramfs.sh.tmpl")
-        source = source.replace("/usr/bin/limine", str(self.bin / "limine"))
-        source = source.replace("/etc/boot/hooks/post.d/90-limine-enroll-config", str(hook))
-        source = source.replace(
-            '\nmain "$@"',
-            '''
-command_exists() { return 0; }
-keep_sudo_alive() { return 0; }
-get_limine_boot_directory() { echo "$BOOT"; }
-get_limine_config_value() {
-    if [[ "$1" = ENABLE_ENROLL_LIMINE_CONFIG ]]; then echo "$ENROLL"; else echo no; fi
-}
-main "$@"''',
-        )
-        for failure, enrollment in (
-            ("rebuild", "no"),
-            ("verify", "no"),
-            ("", "no"),
-            ("enrollment", "yes"),
-            ("", "yes"),
-        ):
-            with self.subTest(failure=failure or "success", enrollment=enrollment):
-                self.env.update(FAILURE=failure, ENROLL=enrollment)
-                marker.touch()
-                self.calls.unlink(missing_ok=True)
-                result = self.shell(source)
-                self.assertEqual(result.returncode, 1 if failure else 0, result.stderr)
-                self.assertEqual(marker.exists(), bool(failure))
-                calls = self.logged_calls()
-                self.assertIn(["limine-install", "--no-efi-register"], calls)
-                self.assertIn(["limine-mkinitcpio"], calls)
-                self.assertEqual(["verify"] in calls, failure != "rebuild")
-                self.assertEqual(["enrollment"] in calls, enrollment == "yes")
-                if enrollment == "yes":
-                    self.assertLess(calls.index(["verify"]), calls.index(["enrollment"]))
+    )
+    stub(
+        env,
+        "limine-install",
+        'number=0; if test -f "$HOME/deployed"; then number=$(cat "$HOME/deployed"); fi; printf "%s\\n" "$((number + 1))" > "$HOME/deployed"',
+        log=True,
+    )
+    stub(
+        env,
+        "limine-mkinitcpio",
+        """case "${FAILURE:-}" in
+    native) echo 'native rebuild failure' >&2; exit 23 ;;
+    rebuild) echo 'ERROR: generation failed'; exit 0 ;;
+    overflow) exec /usr/bin/python3 -c 'print("x" * 1024)' ;;
+esac
+echo 'completed fixture rebuild'
+""",
+        log=True,
+    )
+    stub(
+        env,
+        "sbctl",
+        "exec /usr/bin/python3 -B -c " + shlex.quote(REBUILD_SBCTL) + ' "$@"',
+        log=True,
+    )
+    stub(
+        env,
+        "sudo",
+        'case "$1" in -v) exit 0 ;; -n) shift; unset CHEZMOI_SOURCE_DIR CHEZMOI_WORKING_TREE CHEZMOI_OS_RELEASE_ID DOTFILES_PERSONAL_ENABLED; exec "$@" ;; *) exit 97 ;; esac',
+        log=True,
+    )
+    return env
+
+
+def rebuild_command(env: dict[str, str]) -> list[str]:
+    return [
+        "/usr/bin/python3",
+        "-B",
+        str(Path(env["CHEZMOI_SOURCE_DIR"]) / ".chezmoiscripts/linux/run_after_13_initramfs.py"),
+    ]
+
+
+@pytest.mark.parametrize(
+    "failure",
+    [
+        "native",
+        "rebuild",
+        "verify",
+        "enrollment",
+        "signature",
+        "identity",
+        "request-changed",
+        "overflow",
+    ],
+)
+def test_failed_boot_commit_preserves_request_and_retries_unchanged(
+    rebuild: dict[str, str], tmp_path: Path, failure: str
+) -> None:
+    pending = tmp_path / "state/chezmoi/initramfs.pending"
+    pending.parent.mkdir(parents=True, mode=0o700)
+    pending.write_text("same request\n")
+    before = pending.read_bytes()
+    artifacts = {path.name: path.read_bytes() for path in (tmp_path / "esp").iterdir()}
+    rebuild["FAILURE"] = failure
+    command = rebuild_command(rebuild)
+    for _ in range(2):
+        result = run_setup(rebuild, command)
+        assert result.returncode == (23 if failure == "native" else 1), result.stderr
+        assert pending.read_bytes() == before
+        assert {path.name: path.read_bytes() for path in (tmp_path / "esp").iterdir()} == artifacts
+    rebuild.pop("FAILURE")
+    result = run_setup(rebuild, command)
+    assert result.returncode == 0, result.stderr
+    assert not pending.exists()
+    observed = calls(rebuild)
+    result = run_setup(rebuild, command)
+    assert result.returncode == 0, result.stderr
+    assert calls(rebuild) == observed
+    assert observed[-1][0] == "sbctl" and observed[-1][1:3] == ["--json", "verify"]
 
 
 class SecureBootTests(ScriptCase):
@@ -125,7 +186,12 @@ class SecureBootTests(ScriptCase):
             FAILURE="",
             STATE='{"installed":true,"setup_mode":false,"secure_boot":true}',
             POST_STATE='{"installed":true,"setup_mode":false,"secure_boot":false}',
-            KEY_CONFIG=json.dumps({"keys": {"db": {"pubkey": str(self.certificate)}}}),
+            KEY_CONFIG=json.dumps(
+                {
+                    "keydir": str(self.directory / "keys"),
+                    "keys": {"db": {"pubkey": str(self.certificate)}},
+                }
+            ),
             ENROLLED_KEYS='{"DB":[{"Raw":"fixturecert"}]}',
         )
         for command in ("limine", "mkinitcpio", "limine-enroll-config", "limine-update"):
@@ -513,44 +579,21 @@ printf '%s\\n' init usr/lib/modules/fixture-version/kernel/fixture.ko""",
 
 @pytest.mark.parametrize("missing", ["limine", "mkinitcpio"])
 def test_missing_rebuild_prerequisite_fails_without_clearing_request(
-    env: dict[str, str], tmp_path: Path, missing: str
+    rebuild: dict[str, str], tmp_path: Path, missing: str
 ) -> None:
-    from test_setup import run_setup, stub
-
-    marker = tmp_path / "state/chezmoi/initramfs.pending"
-    marker.parent.mkdir(parents=True)
-    for name in ("limine", "mkinitcpio"):
-        if name != missing:
-            stub(env, name, "exit 97")
-    # Rendering uses the existing renderer, independently of the Python helper.
-    config = tmp_path / "chezmoi.json"
-    config.write_text('{"data":{"personal":true}}')
-    rendered = run_setup(
-        env,
-        [
-            str(CHEZMOI),
-            "--config",
-            str(config),
-            "--source",
-            str(ROOT / "home"),
-            "execute-template",
-            (SCRIPTS / "run_after_13_initramfs.sh.tmpl").read_text(),
-        ],
-    )
-    assert rendered.returncode == 0, rendered.stderr
-    script = tmp_path / "rebuild.sh"
-    script.write_text(rendered.stdout.replace("/usr/bin/limine", str(Path(env["PATH"]) / "limine")))
-    command = ["/bin/bash", str(script)]
-    result = run_setup(env, command)
+    (Path(rebuild["PATH"]) / missing).unlink()
+    command = rebuild_command(rebuild)
+    result = run_setup(rebuild, command)
     assert result.returncode == 0, result.stderr
-    marker.write_text("unchanged rebuild request\n")
-    before = marker.stat()
+    pending = tmp_path / "state/chezmoi/initramfs.pending"
+    pending.write_text("unchanged request\n")
     for _ in range(2):
-        result = run_setup(env, command)
+        result = run_setup(rebuild, command)
         assert result.returncode == 127, result.stderr
-        assert missing.lower() in result.stderr.lower()
-        assert marker.read_text() == "unchanged rebuild request\n"
-        assert marker.stat().st_mtime_ns == before.st_mtime_ns
+        assert pending.read_text() == "unchanged request\n"
+    rebuild["DOTFILES_PERSONAL_ENABLED"] = "0"
+    assert run_setup(rebuild, command).returncode == 0
+    assert pending.exists()
 
 
 SECURITY_DRIVER = r"""import os, sys
@@ -607,3 +650,174 @@ esac""",
     assert "explicit consent" in result.stderr
     assert calls(env) == [["sudo", "-v"], ["sudo", "-n", "sbctl", "--json", "status"]]
     assert not (tmp_path / "state/chezmoi/initramfs.pending").exists()
+
+
+REBUILD_VERIFIER = r"""import os
+from pathlib import Path
+
+def record(label):
+    assert 'CHEZMOI_SOURCE_DIR' not in os.environ
+    assert 'DOTFILES_PERSONAL_ENABLED' not in os.environ
+    pending = Path(os.environ['HOME']) / 'state/chezmoi/initramfs.pending'
+    assert pending.is_file()
+    with Path(os.environ['CALLS']).open('a') as stream: stream.write(label + '\t\n')
+    if os.environ.get('FAILURE') == label: raise ValueError('Fixture ' + label + ' failure')
+def inventory(fallback, uki):
+    record('inventory')
+    return {}
+def verify(boot, expected, output, fallback, uki):
+    record('verify')
+    if os.environ.get('FAILURE') == 'request-changed':
+        pending = Path(os.environ['HOME']) / 'state/chezmoi/initramfs.pending'
+        pending.chmod(0o640 if pending.stat().st_mode & 0o777 == 0o600 else 0o600)
+    return [boot / 'current.efi']
+def verify_enrollment(boot):
+    record('enrollment')
+    return boot / 'limine.efi'
+"""
+
+REBUILD_SBCTL = r"""import json, os, sys
+from pathlib import Path
+args = sys.argv[1:]; home = Path.home()
+if args == ['setup','--print-state','--json']: print('{"installed":true}')
+elif args == ['--json','setup','--print-config']: print(json.dumps({'keys':{'db':{'pubkey':str(home / 'db.pem')}}}))
+elif args == ['--json','list-enrolled-keys']: print('{"DB":[{"Raw":"fixturecert"}]}')
+elif args[:2] == ['--json','verify']:
+    print(json.dumps([{'file_name':name,'is_signed':0 if os.environ.get('FAILURE') == 'signature' else 1} for name in args[2:]]))
+else: sys.exit(97)
+"""
+
+
+@pytest.mark.parametrize("answer", [None, "n", "yes"], ids=["unattended", "declined", "confirmed"])
+def test_finalization_reboots_only_after_terminal_confirmation(
+    env: dict[str, str], answer: str | None
+) -> None:
+    from test_setup import render_python
+
+    stub(env, "sbctl", "echo '{\"secure_boot\":false}'")
+    stub(env, "systemctl", "exit 0", log=True)
+    script = render_python(env, "run_onchange_after_99_finalize.py")
+    command = ["/usr/bin/python3", "-B", str(script)]
+    if answer is None:
+        env["NOCONFIRM"] = "1"
+        result = run_setup(env, command)
+    else:
+        setsid = shutil.which("setsid")
+        assert setsid is not None
+        master, slave = pty.openpty()
+        try:
+            _ = os.write(master, (answer + "\n").encode())
+            result = subprocess.run(
+                [setsid, "--ctty", "--wait", *command],
+                stdin=slave,
+                capture_output=True,
+                text=True,
+                env=env,
+                check=False,
+                timeout=15,
+            )
+        finally:
+            os.close(slave)
+            os.close(master)
+    assert result.returncode == 0, result.stderr
+    assert calls(env) == ([["systemctl", "reboot", "--firmware-setup"]] if answer == "yes" else [])
+
+
+def test_interrupted_limine_command_stops_descendants_after_the_leader_exits(
+    tmp_path: Path,
+) -> None:
+    import signal
+    import time
+
+    spawner = tmp_path / "spawn.py"
+    leader_file, child_file = tmp_path / "leader", tmp_path / "child"
+    spawner.write_text(
+        "import os, signal, time\nfrom pathlib import Path\n"
+        + f"Path({str(leader_file)!r}).write_text(str(os.getpid()))\n"
+        + "if os.fork() == 0:\n"
+        + "    signal.signal(signal.SIGTERM, signal.SIG_IGN)\n"
+        + f"    target = Path({str(child_file)!r})\n"
+        + "    stage = target.with_suffix('.ready')\n"
+        + "    stage.write_text(str(os.getpid()))\n"
+        + "    os.replace(stage, target)\n"
+        + "    while True: time.sleep(1)\n"
+        + f"while not Path({str(child_file)!r}).exists(): time.sleep(0.01)\n"
+    )
+    driver = tmp_path / "checked.py"
+    driver.write_text(
+        "import signal, sys\n"
+        + f"sys.path.insert(0, {str(LIB.parent)!r})\n"
+        + "from lib.boot_rebuild import checked_limine_command\n"
+        + "def stop(*args): raise SystemExit(143)\n"
+        + "signal.signal(signal.SIGTERM, stop)\n"
+        + f"checked_limine_command([sys.executable, '-B', {str(spawner)!r}])\n"
+    )
+    process = subprocess.Popen(
+        [sys.executable, "-B", str(driver)], stdout=subprocess.PIPE, stderr=subprocess.PIPE
+    )
+    child = None
+    try:
+        deadline = time.monotonic() + 5
+        while not child_file.exists() and time.monotonic() < deadline:
+            time.sleep(0.01)
+        assert child_file.exists(), "fixture descendant did not start"
+        child = int(child_file.read_text())
+        leader = int(leader_file.read_text())
+        while (
+            Path(f"/proc/{leader}/stat").exists()
+            and Path(f"/proc/{leader}/stat").read_text().split()[2] != "Z"
+            and time.monotonic() < deadline
+        ):
+            time.sleep(0.01)
+        process.terminate()
+        _, diagnostic = process.communicate(timeout=10)
+        assert process.returncode == 143, diagnostic.decode()
+        status = Path(f"/proc/{child}/stat")
+        assert not status.exists() or status.read_text().split()[2] == "Z", (
+            "boot helper descendant survived interruption"
+        )
+    finally:
+        if child is not None:
+            with suppress(ProcessLookupError):
+                os.kill(child, signal.SIGKILL)
+        if process.poll() is None:
+            process.terminate()
+        try:
+            _ = process.communicate(timeout=10)
+        except subprocess.TimeoutExpired:
+            if leader_file.exists() and leader_file.read_text().isdigit():
+                with suppress(ProcessLookupError):
+                    os.killpg(int(leader_file.read_text()), signal.SIGKILL)
+            process.kill()
+            _ = process.communicate(timeout=5)
+
+
+def test_incomplete_signing_material_is_preserved_before_key_creation(
+    env: dict[str, str], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from lib import secure_boot
+
+    directory = tmp_path / "keys"
+    key = directory / "PK/PK.key"
+    key.parent.mkdir(parents=True)
+    key.write_text("existing signing material")
+    configuration = json.dumps({"keydir": str(directory)})
+    stub(
+        env,
+        "sbctl",
+        'case "$*" in\n'
+        + '\'--json status\') echo \'{"installed":false,"setup_mode":true,"secure_boot":false}\' ;;\n'
+        + "'--json setup --print-config') printf '%s\\n' "
+        + shlex.quote(configuration)
+        + " ;;\n*) exit 97 ;;\nesac",
+        log=True,
+    )
+    for command in ("mkinitcpio", "limine-enroll-config", "limine-update"):
+        stub(env, command, "exit 97")
+    monkeypatch.setenv("PATH", env["PATH"])
+    monkeypatch.setattr(secure_boot, "boot_directory", lambda: tmp_path / "esp")
+    with pytest.raises(ValueError, match="Preserved existing or unsafe signing material"):
+        secure_boot.configure_secure_boot(tmp_path / "state", enroll=True)
+    assert key.read_text() == "existing signing material"
+    assert not any(call[1:2] in (["create-keys"], ["enroll-keys"]) for call in calls(env))
+    assert not (tmp_path / "state/initramfs.pending").exists()

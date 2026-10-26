@@ -141,6 +141,8 @@ def render_python(
         "run_onchange_after_04_quiet_boot.py.tmpl",
         "run_onchange_after_05_secure_boot.py.tmpl",
         "run_onchange_after_08_limine_theme.py.tmpl",
+        "run_after_13_initramfs.py",
+        "run_onchange_after_99_finalize.py",
         "run_onchange_after_01_snapshots.py.tmpl",
         "run_onchange_after_03_hibernation.py.tmpl",
     ],

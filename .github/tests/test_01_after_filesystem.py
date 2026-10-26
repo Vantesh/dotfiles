@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import cast, override
 
 import pytest
-from helpers import CHEZMOI, LIB, ROOT, SCRIPTS, ScriptCase
+from helpers import CHEZMOI, ROOT, SCRIPTS, ScriptCase
 from test_setup import calls, render_python, run_setup, stub
 from test_setup import env as env
 
@@ -65,25 +65,19 @@ edit_system_configs edit verify "$ORIGINAL" "$NEW"
         self.assertFalse((self.directory / "new").exists())
 
 
-class DeferredHookInspectionTests(ScriptCase):
-    def test_hook_verification_matches_mkinitcpio_version_order(self) -> None:
-        etc = self.directory / "etc"
-        etc.mkdir()
-        (etc / "mkinitcpio.conf").write_text("HOOKS=(base systemd block filesystems)\n")
-        dropins = etc / "mkinitcpio.conf.d"
-        dropins.mkdir()
-        (dropins / "2-unlock.conf").write_text(
-            "HOOKS=(base systemd block sd-encrypt filesystems)\n"
-        )
-        (dropins / "10-local.conf").write_text("HOOKS=(base systemd block filesystems fsck)\n")
-        self.stub("sudo", 'exec "$@"')
-        self.stub("sort", 'exec /usr/bin/sort "$@"')
-        source = self.function(LIB / "snapboot.sh", "get_mkinitcpio_hooks").replace(
-            "/etc/", f"{etc}/"
-        )
-        result = self.shell(source + "get_mkinitcpio_hooks\n")
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual(result.stdout.strip(), "base systemd block filesystems fsck")
+def test_hook_verification_matches_mkinitcpio_version_order(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from lib import initramfs
+
+    etc = tmp_path / "etc"
+    dropins = etc / "mkinitcpio.conf.d"
+    dropins.mkdir(parents=True)
+    (etc / "mkinitcpio.conf").write_text("HOOKS=(base systemd block filesystems)\n")
+    (dropins / "2-unlock.conf").write_text("HOOKS=(base systemd block sd-encrypt filesystems)\n")
+    (dropins / "10-local.conf").write_text("HOOKS=(base systemd block filesystems fsck)\n")
+    monkeypatch.setattr(initramfs, "ETC", etc)
+    assert initramfs.read_hooks() == ["base", "systemd", "block", "filesystems", "fsck"]
 
 
 @pytest.fixture
@@ -843,33 +837,3 @@ def test_unsafe_swap_ownership_record_preserves_unmanaged_file(
     assert result.returncode == 1, result.stderr
     assert unmanaged.read_text() == "preserve unmanaged data\n"
     assert not (tmp_path / "etc/limine-entry-tool.d/50-hibernation.conf").exists()
-
-
-@pytest.mark.parametrize(
-    ("inspection", "expected"), [("btrfs", 0), ("ext4", 1), ("failure", 2), ("missing", 127)]
-)
-def test_retained_boot_btrfs_detector_keeps_distinct_inspection_statuses(
-    env: dict[str, str], inspection: str, expected: int
-) -> None:
-    if inspection != "missing":
-        stub(env, "findmnt", "exit 23" if inspection == "failure" else f"echo {inspection}")
-    result = run_setup(
-        env,
-        [
-            "/bin/bash",
-            "-c",
-            """source "$1"
-source "$2"
-status=0
-check_btrfs || status="$?"
-printf '%s\\n%s\\n' "$status" "$LAST_ERROR"
-""",
-            "boot-btrfs-detection",
-            str(LIB / "common.sh"),
-            str(LIB / "snapboot.sh"),
-        ],
-    )
-    assert result.returncode == 0, result.stderr
-    status, *diagnostic = result.stdout.splitlines()
-    assert int(status) == expected
-    assert bool("".join(diagnostic)) == (expected != 0)

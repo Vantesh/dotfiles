@@ -3,6 +3,7 @@
 import json
 import re
 import shutil
+import stat
 import subprocess
 from pathlib import Path
 from typing import cast
@@ -76,6 +77,32 @@ def configure_secure_boot(state: Path, *, enroll: bool) -> None:
             "Secure Boot enrollment requires explicit consent in an interactive setup."
         )
     if not status["installed"]:
+        # sbctl 0.18 regenerates all keys when a hierarchy directory is missing.
+        # Never let that replace surviving signing material after interruption.
+        output = subprocess.run(
+            ["sbctl", "--json", "setup", "--print-config"],
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout
+        configuration = cast("dict[str, object]", json.loads(output))
+        configured = configuration.get("keydir")
+        if not isinstance(configured, str) or not Path(configured).is_absolute():
+            raise ValueError(
+                "sbctl did not report an absolute signing key directory; keys were preserved."
+            )
+        directory = Path(configured)
+        if directory.exists() or directory.is_symlink():
+            info = directory.lstat()
+            if (
+                not stat.S_ISDIR(info.st_mode)
+                or info.st_uid != 0
+                or info.st_mode & 0o022
+                or any(directory.iterdir())
+            ):
+                raise ValueError(
+                    "Preserved existing or unsafe signing material; repair the incomplete sbctl setup manually."
+                )
         request_rebuild(state)
         _ = subprocess.run(["sbctl", "create-keys"], check=True)
     if status["setup_mode"]:

@@ -200,7 +200,9 @@ def verify_initramfs(image: Path, version: str) -> None:
     )
 
 
-def verify(boot: Path, expected: KernelInventory, output: str, fallback: str, uki: str) -> None:
+def verify(
+    boot: Path, expected: KernelInventory, output: str, fallback: str, uki: str
+) -> list[Path]:
     require(
         inventory(fallback, uki) == expected,
         "installed kernel inventory or rebuild mode changed during rebuild",
@@ -224,6 +226,7 @@ def verify(boot: Path, expected: KernelInventory, output: str, fallback: str, uk
             require(digest(path) == match[2].lower(), f"artifact checksum mismatch: {path}")
         return path
 
+    signed: list[Path] = []
     for name, (version, source, kernel_hash) in expected["kernels"].items():
         variants = [name]
         if expected["fallback"] in ("yes", name):
@@ -263,6 +266,7 @@ def verify(boot: Path, expected: KernelInventory, output: str, fallback: str, uk
             require(len(paths) == 1, f"ambiguous kernel/EFI path for {variant}")
             payload = resource(paths[0])
             if is_uki:
+                signed.append(payload)
                 sections = uki_sections(payload)
                 require(
                     hashlib.blake2b(sections[b".linux"]).hexdigest() == kernel_hash,
@@ -297,9 +301,10 @@ def verify(boot: Path, expected: KernelInventory, output: str, fallback: str, uk
                     f"no successful build reported for {variant}",
                 )
     print("Verified generated boot entries, kernel payloads, and initramfs archives")
+    return signed
 
 
-def verify_enrollment(boot: Path) -> None:
+def verify_enrollment(boot: Path) -> Path:
     # Match the integration's architecture-based target, never a firmware setting.
     arch = os.uname().machine
     suffix = {
@@ -323,29 +328,31 @@ def verify_enrollment(boot: Path) -> None:
         "deployed EFI checksum does not match the final Limine config",
     )
     print("Verified the final Limine config checksum without modifying the EFI image")
+    return image
 
 
-try:
-    mode, directory = sys.argv[1:3]
-    if mode == "enrollment":
-        verify_enrollment(Path(directory).resolve())
-    else:
-        fallback, uki = sys.argv[3:5]
-        if mode == "inventory":
-            print(json.dumps(inventory(fallback, uki)))
+if __name__ == "__main__":
+    try:
+        mode, directory = sys.argv[1:3]
+        if mode == "enrollment":
+            _ = verify_enrollment(Path(directory).resolve())
         else:
-            require(mode == "verify", "unknown verification mode")
-            verify(
-                Path(directory).resolve(),
-                cast("KernelInventory", json.loads(sys.argv[5])),
-                sys.stdin.read(),
-                fallback,
-                uki,
-            )
-except (OSError, ValueError, subprocess.CalledProcessError) as error:
-    if isinstance(error, subprocess.CalledProcessError):
-        stderr = cast("str | None", error.stderr)
-        if stderr:
-            print(stderr, file=sys.stderr, end="")
-    print(f"Limine rebuild verification failed: {error}", file=sys.stderr)
-    sys.exit(1)
+            fallback, uki = sys.argv[3:5]
+            if mode == "inventory":
+                print(json.dumps(inventory(fallback, uki)))
+            else:
+                require(mode == "verify", "unknown verification mode")
+                _ = verify(
+                    Path(directory).resolve(),
+                    cast("KernelInventory", json.loads(sys.argv[5])),
+                    sys.stdin.read(),
+                    fallback,
+                    uki,
+                )
+    except (OSError, ValueError, subprocess.CalledProcessError) as error:
+        if isinstance(error, subprocess.CalledProcessError):
+            stderr = cast("str | None", error.stderr)
+            if stderr:
+                print(stderr, file=sys.stderr, end="")
+        print(f"Limine rebuild verification failed: {error}", file=sys.stderr)
+        sys.exit(1)
