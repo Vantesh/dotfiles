@@ -11,7 +11,7 @@ from test_setup import env as env
 
 HOOKS = (
     "run_onchange_after_06_theming.py.tmpl",
-    "run_onchange_after_06_nautilus.py.tmpl",
+    "run_onchange_after_06_nautilus.py",
 )
 
 
@@ -322,3 +322,9 @@ def test_nautilus_can_be_applied_without_the_theming_workflow(
     assert result.returncode == 0, result.stderr
     assert (tmp_path / "preferences/show-delete-permanently").read_text() == "true\n"
     assert all(call[0] == "gsettings" for call in calls(desktop))
+    observed = calls(desktop)
+    # Runtime context does not change the content hash of the plain hook.
+    desktop.update(OFFLINE="1", NOCONFIRM="1", RBW_PROFILE="unused")
+    repeated = run_setup(desktop, command)
+    assert repeated.returncode == 0, repeated.stderr
+    assert calls(desktop) == observed

@@ -3,6 +3,7 @@
 # mise/conf.d/packages.toml: {{ include "../mise/conf.d/packages.toml" | sha256sum }}
 """Prepare package prerequisites, then let Mise apply the declared package groups."""
 
+import json
 import os
 import re
 import shutil
@@ -10,12 +11,28 @@ import stat
 import subprocess
 import sys
 import tempfile
+from base64 import b64decode
 from pathlib import Path
-from typing import cast
+from typing import TypedDict, cast
 
 from loguru import logger
 
-SOURCE_DIR = Path({{ .chezmoi.sourceDir | toJson }})
+
+class ScriptConfig(TypedDict):
+    source_dir: str
+    distro: str
+    personal: bool
+
+
+CONFIG = cast(
+    ScriptConfig,
+    json.loads(
+        b64decode(
+            "{{ dict "source_dir" .chezmoi.sourceDir "distro" .chezmoi.osRelease.id "personal" .personal | toJson | b64enc }}"
+        )
+    ),
+)
+SOURCE_DIR = Path(CONFIG["source_dir"])
 sys.path.insert(0, str(SOURCE_DIR / ".chezmoitemplates"))
 
 
@@ -307,8 +324,8 @@ def main() -> int:
         print("ERROR: Run package setup as a regular user.", file=sys.stderr)
         return 1
     root_argument = SOURCE_DIR.parent
-    distro = {{ .chezmoi.osRelease.id | toJson }}
-    personal = {{ if .personal }}True{{ else }}False{{ end }}
+    distro = CONFIG["distro"]
+    personal = CONFIG["personal"]
     file_sink = None
     try:
         file_sink = configure_logging()

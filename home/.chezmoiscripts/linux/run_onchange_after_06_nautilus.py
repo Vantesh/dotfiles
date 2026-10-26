@@ -1,6 +1,7 @@
 #!/usr/bin/python3 -B
 """Apply Nautilus preferences independently of desktop asset installation."""
 
+import os
 import shutil
 import signal
 import subprocess
@@ -9,7 +10,7 @@ from pathlib import Path
 
 from loguru import logger
 
-SOURCE_DIR = Path({{ .chezmoi.sourceDir | toJson }})
+SOURCE_DIR = Path(os.environ["CHEZMOI_SOURCE_DIR"])
 sys.path.insert(0, str(SOURCE_DIR / ".chezmoitemplates"))
 
 

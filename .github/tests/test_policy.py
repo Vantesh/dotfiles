@@ -79,7 +79,7 @@ def policy(env: dict[str, str], tmp_path: Path) -> dict[str, str]:
         "sudo",
         """case "$1" in
     -v) exit "${SUDO_STATUS:-0}" ;;
-    -n) shift; exec "$@" ;;
+    -n) shift; unset CHEZMOI_SOURCE_DIR CHEZMOI_WORKING_TREE PERSONAL DISTRO DISTRO_FAMILY; exec "$@" ;;
     systemctl) exec "$@" ;;
     *) exit 97 ;;
 esac""",

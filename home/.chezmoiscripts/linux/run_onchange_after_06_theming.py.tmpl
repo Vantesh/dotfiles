@@ -4,6 +4,7 @@
 
 import filecmp
 import hashlib
+import json
 import os
 import shutil
 import signal
@@ -11,15 +12,31 @@ import subprocess
 import sys
 import tempfile
 import traceback
+from base64 import b64decode
 from pathlib import Path
-from typing import cast
+from typing import TypedDict, cast
 
 from loguru import logger
 
-SOURCE_DIR = Path({{ .chezmoi.sourceDir | toJson }})
+
+class ScriptConfig(TypedDict):
+    source_dir: str
+    personal: bool
+    font_name: str
+
+
+CONFIG = cast(
+    ScriptConfig,
+    json.loads(
+        b64decode(
+            "{{ dict "source_dir" .chezmoi.sourceDir "personal" .personal "font_name" (cat .font.ui.name .font.ui.size) | toJson | b64enc }}"
+        )
+    ),
+)
+SOURCE_DIR = Path(CONFIG["source_dir"])
 sys.path.insert(0, str(SOURCE_DIR / ".chezmoitemplates"))
-PERSONAL = {{ if .personal }}True{{ else }}False{{ end }}
-FONT_NAME = {{ cat .font.ui.name .font.ui.size | toJson }}
+PERSONAL = CONFIG["personal"]
+FONT_NAME = CONFIG["font_name"]
 ROOT_CONFIG = Path("/root/.config")
 MACTAHOE_REPO = "https://github.com/vinceliuice/MacTahoe-icon-theme.git"
 MACTAHOE_VARIANTS = ("MacTahoe", "MacTahoe-light", "MacTahoe-dark")

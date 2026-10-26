@@ -10,6 +10,7 @@
 # mise/conf.d/login-shell.toml: {{ include "../mise/conf.d/login-shell.toml" | sha256sum }}
 """Let Mise converge workstation services and Fish before their packaged user clients."""
 
+import json
 import os
 import re
 import shutil
@@ -18,15 +19,31 @@ import subprocess
 import sys
 import tempfile
 import traceback
+from base64 import b64decode
 from pathlib import Path
-from typing import cast
+from typing import TypedDict, cast
 
 from loguru import logger
 
-SOURCE_DIR = Path({{ .chezmoi.sourceDir | toJson }})
+
+class ScriptConfig(TypedDict):
+    source_dir: str
+    working_tree: str
+    personal: bool
+
+
+CONFIG = cast(
+    ScriptConfig,
+    json.loads(
+        b64decode(
+            "{{ dict "source_dir" .chezmoi.sourceDir "working_tree" .chezmoi.workingTree "personal" .personal | toJson | b64enc }}"
+        )
+    ),
+)
+SOURCE_DIR = Path(CONFIG["source_dir"])
 sys.path.insert(0, str(SOURCE_DIR / ".chezmoitemplates"))
-WORKING_TREE = Path({{ .chezmoi.workingTree | toJson }})
-PERSONAL = {{ if .personal }}True{{ else }}False{{ end }}
+WORKING_TREE = Path(CONFIG["working_tree"])
+PERSONAL = CONFIG["personal"]
 FISH = Path("/usr/bin/fish")
 UPDATEDB_CONF = Path("/etc/updatedb.conf")
 USER_SERVICES = (
@@ -34,10 +51,7 @@ USER_SERVICES = (
     "gnome-keyring-daemon.service",
     "mpris-proxy",
     "udiskie",
-{{- if .personal }}
-    "ssh-agent.socket",
-{{- end }}
-)
+) + (("ssh-agent.socket",) if PERSONAL else ())
 
 
 def exclude_snapshots_from_locate() -> None:

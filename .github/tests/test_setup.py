@@ -121,6 +121,42 @@ def render_python(
     return rendered
 
 
+@pytest.mark.parametrize("personal", [False, True], ids=["nonpersonal", "personal"])
+def test_rendered_python_configuration_preserves_strings_and_types(
+    env: dict[str, str], tmp_path: Path, personal: bool
+) -> None:
+    source = tmp_path / 'source "quoted" \' \\ newline\nUnicode 雪😀'
+    scripts = source / ".chezmoiscripts/linux"
+    scripts.mkdir(parents=True)
+    name = "run_onchange_after_06_theming.py.tmpl"
+    shutil.copy(SCRIPTS / name, scripts / name)
+    data = source / ".chezmoidata"
+    data.mkdir()
+    font = "Font \"double\" 'single' \\ path\nUnicode 雪😀\u2028separator"
+    (data / "font.json").write_text(json.dumps({"font": {"ui": {"name": font, "size": 11}}}))
+    rendered = render_python(env, name, personal=personal, source=source)
+    # Load definitions only: no desktop settings or privileged operations run.
+    result = run_setup(
+        env,
+        [
+            PYTHON,
+            "-B",
+            "-c",
+            """import json, runpy, sys
+ns = runpy.run_path(sys.argv[1])
+print(json.dumps({"source": str(ns["SOURCE_DIR"]), "personal": ns["PERSONAL"], "font": ns["FONT_NAME"]}))
+""",
+            str(rendered),
+        ],
+    )
+    assert result.returncode == 0, result.stderr
+    values = cast("dict[str, object]", json.loads(result.stdout))
+    assert values["source"] == str(source)
+    assert values["personal"] is personal
+    assert values["font"] == f"{font} 11"
+    assert not calls(env)
+
+
 @pytest.fixture
 def profile_command(tmp_path: Path) -> list[str]:
     assert CHEZMOI is not None, "chezmoi is required for profile validation"
@@ -990,11 +1026,11 @@ def test_direct_python_execution_follows_bootstrap_and_real_source_imports(
         shutil.copy(SCRIPTS / name, scripts / name)
     # Observe only execution context; the authentication workflow itself remains
     # intact. Poison PATH Python so the configured interpreter is essential.
-    probe = scripts / "run_before_00_execution_probe.py.tmpl"
+    probe = scripts / "run_before_00_execution_probe.py"
     probe.write_text("""#!/usr/bin/python3 -B
-import json, sys
+import json, os, sys
 from pathlib import Path
-source = Path({{ .chezmoi.sourceDir | toJson }})
+source = Path(os.environ["CHEZMOI_SOURCE_DIR"])
 sys.path.insert(0, str(source / ".chezmoitemplates"))
 from lib.provision_logging import configure_logging
 assert (Path.home() / "installed").exists()

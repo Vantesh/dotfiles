@@ -17,13 +17,22 @@ import stat
 import subprocess
 import sys
 import tempfile
+from base64 import b64decode
 from pathlib import Path
 from typing import Never, cast
 from uuid import UUID
 
 from loguru import logger
 
-SOURCE_DIR = Path({{ .chezmoi.sourceDir | toJson }})
+CONFIG = cast(
+    "dict[str, str]",
+    json.loads(
+        b64decode(
+            "{{ dict "source_dir" .chezmoi.sourceDir "distro" .chezmoi.osRelease.id | toJson | b64enc }}"
+        )
+    ),
+)
+SOURCE_DIR = Path(CONFIG["source_dir"])
 sys.path.insert(0, str(SOURCE_DIR / ".chezmoitemplates"))
 
 LIMINE = Path("/usr/bin/limine")
@@ -311,7 +320,7 @@ def main() -> int:
             raise ValueError(
                 "Run Snapper setup as the regular account; sudo is used only for system operations."
             )
-        distro = {{ .chezmoi.osRelease.id | toJson }}
+        distro = CONFIG["distro"]
         if (
             distro.lower() in ("cachyos", "garuda")
             or not os.access(LIMINE, os.X_OK)
