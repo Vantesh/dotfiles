@@ -35,7 +35,8 @@
 "aur:nautilus-my-computer" = { env = "packages" }
 "pacman:gvfs-mtp" = { env = "packages" }
 "pacman:libcanberra" = { env = "packages" }
-"pacman:ly" = { env = "packages" }
+"pacman:greetd" = { env = "packages" }
+"pacman:noctalia-greeter" = { env = "packages" }
 "pacman:gparted" = { env = "packages" }
 "pacman:meld" = { env = "packages" }
 "pacman:xorg-xhost" = { env = "packages" }

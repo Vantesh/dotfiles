@@ -1,4 +1,4 @@
-"""Snapshot and guarded atomic publication for personal system configuration."""
+"""Snapshot and guarded atomic publication for system configuration."""
 
 import os
 import shutil

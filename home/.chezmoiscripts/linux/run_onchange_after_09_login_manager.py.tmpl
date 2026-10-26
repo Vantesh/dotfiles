@@ -1,0 +1,296 @@
+#!/usr/bin/python3 -B
+# profile: {{ .personal | toJson }}
+# greetd config: {{ include ".chezmoitemplates/login-manager/config.toml" | sha256sum }}
+# greetd PAM: {{ include ".chezmoitemplates/login-manager/greetd.pam" | sha256sum }}
+# greeter settings: {{ include ".chezmoitemplates/login-manager/greeter.toml" | sha256sum }}
+# personal output: {{ if .personal }}{{ include ".chezmoitemplates/login-manager/greeter-output.toml" | sha256sum }}{{ else }}disabled{{ end }}
+"""Configure Noctalia Greeter and select greetd for the next deliberate reboot."""
+
+import os
+import pwd
+import re
+import signal
+import stat
+import subprocess
+import sys
+import tempfile
+import traceback
+from pathlib import Path
+from typing import cast
+
+from loguru import logger
+
+GREETD_CONFIG = Path("/etc/greetd/config.toml")
+GREETD_PAM = Path("/etc/pam.d/greetd")
+GREETER_DIR = Path("/var/lib/noctalia-greeter")
+PACKAGED_SESSION = Path("/usr/share/wayland-sessions/hyprland-uwsm.desktop")
+SESSION_OVERRIDE = Path("/usr/local/share/wayland-sessions/hyprland-uwsm.desktop")
+DRM = Path("/sys/class/drm")
+COMPETITORS = (
+    "sddm.service",
+    "gdm.service",
+    "gdm3.service",
+    "lightdm.service",
+    "lxdm.service",
+    "emptty.service",
+)
+
+
+def publish_greeter_settings(content: bytes) -> bool:
+    """Publish in greeter-owned state without following links or path-based chown."""
+    greeter = pwd.getpwnam("greeter")
+    if GREETER_DIR.is_symlink():
+        raise ValueError(f"Refusing symlinked greeter state directory: {GREETER_DIR}")
+    existing = GREETER_DIR.stat() if GREETER_DIR.exists() else None
+    if existing is None or (existing.st_uid, existing.st_gid, stat.S_IMODE(existing.st_mode)) != (
+        greeter.pw_uid,
+        greeter.pw_gid,
+        0o750,
+    ):
+        _ = subprocess.run(
+            ["install", "-d", "-o", "greeter", "-g", "greeter", "-m", "0750", str(GREETER_DIR)],
+            check=True,
+        )
+    # This directory is deliberately greeter-writable, unlike root-owned policy
+    # directories. Keep metadata operations on the open staging descriptor.
+    directory = os.open(GREETER_DIR, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    try:
+        try:
+            descriptor = os.open(
+                "greeter.toml", os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=directory
+            )
+        except FileNotFoundError:
+            pass
+        else:
+            with os.fdopen(descriptor, "rb") as current:
+                info = os.fstat(current.fileno())
+                if not stat.S_ISREG(info.st_mode):
+                    raise ValueError("Greeter configuration must be a regular file.")
+                if (current.read(), info.st_uid, info.st_gid, stat.S_IMODE(info.st_mode)) == (
+                    content,
+                    greeter.pw_uid,
+                    greeter.pw_gid,
+                    0o640,
+                ):
+                    return False
+        descriptor, name = tempfile.mkstemp(prefix=".chezmoi-greeter-", dir=GREETER_DIR)
+        try:
+            with os.fdopen(descriptor, "wb") as stage:
+                _ = stage.write(content)
+                stage.flush()
+                os.fsync(stage.fileno())
+                os.fchown(stage.fileno(), greeter.pw_uid, greeter.pw_gid)
+                os.fchmod(stage.fileno(), 0o640)
+            os.replace(Path(name).name, "greeter.toml", src_dir_fd=directory, dst_dir_fd=directory)
+        finally:
+            Path(name).unlink(missing_ok=True)
+    finally:
+        os.close(directory)
+    return True
+
+
+def configure_login(source_dir: Path, personal: str, username: str) -> None:
+    from lib.policy_files import publish_config, rollback_configs, snapshot_config
+
+    if os.geteuid() != 0:
+        raise PermissionError("Login-manager configuration requires root privileges.")
+    if pwd.getpwnam(username).pw_uid == 0:
+        raise ValueError("Appearance synchronization requires a regular account.")
+    _ = subprocess.run(
+        ["pacman", "-Q", "--", "greetd", "noctalia-greeter", "gnome-keyring"],
+        check=True,
+        stdout=subprocess.DEVNULL,
+    )
+    templates = source_dir / ".chezmoitemplates/login-manager"
+    session = PACKAGED_SESSION.read_text()
+    command = "Exec=uwsm start -e -D Hyprland hyprland.desktop"
+    silent = "Exec=env UWSM_SILENT_START=1 uwsm start -e -D Hyprland hyprland.desktop"
+    if session.splitlines().count(command) != 1:
+        raise ValueError(
+            f"Unexpected Hyprland UWSM command in {PACKAGED_SESSION}; review the packaged session."
+        )
+    session = session.replace(command, silent)
+    greeter_content = (templates / "greeter.toml").read_bytes()
+    # Match only the existing personal display, using EDID's model/serial text.
+    # This works before the first Wayland session without invoking a compositor.
+    if personal == "1":
+        for edid in DRM.glob("card*-*/edid"):
+            data = edid.read_bytes()
+            if b"DELL P2425H" in data and b"2RHZH14" in data:
+                greeter_content += b"\n" + (templates / "greeter-output.toml").read_bytes()
+                break
+    SESSION_OVERRIDE.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix="chezmoi-greetd-") as temporary:
+        configs = [
+            snapshot_config(path, Path(temporary) / str(index))
+            for index, path in enumerate((GREETD_CONFIG, GREETD_PAM, SESSION_OVERRIDE))
+        ]
+        try:
+            for config, content in zip(
+                configs,
+                (
+                    (templates / "config.toml").read_bytes(),
+                    (templates / "greetd.pam").read_bytes(),
+                    session.encode(),
+                ),
+                strict=True,
+            ):
+                if publish_config(config, content, mode=0o644):
+                    print(f"Configured {config.path}.")
+        except BaseException:
+            rollback_configs(configs)
+            raise
+    if publish_greeter_settings(greeter_content):
+        print("Configured Noctalia Greeter preferences.")
+    if personal == "1":
+        # Upstream owns the constrained Polkit rule and its idempotent update.
+        _ = subprocess.run(
+            ["noctalia-greeter", "passwordless-sync", "enable", username], check=True
+        )
+    enabled = subprocess.run(
+        [
+            "systemctl",
+            "list-unit-files",
+            "--no-legend",
+            "--no-pager",
+            "--state=enabled,enabled-runtime",
+            *COMPETITORS,
+            "ly@*.service",
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    for line in enabled.stdout.splitlines():
+        name, state, *_ = line.split()
+        if name not in COMPETITORS and re.fullmatch(r"ly@tty[0-9]+\.service", name) is None:
+            raise ValueError(f"Unexpected competing login unit: {name}")
+        # A persistent scope can hide runtime enablement. Re-query after each
+        # disable instead of manipulating systemd's aliases directly.
+        for scope in ("enabled", "enabled-runtime"):
+            if state != scope:
+                continue
+            _ = subprocess.run(
+                [
+                    "systemctl",
+                    *(["--runtime"] if scope == "enabled-runtime" else []),
+                    "disable",
+                    name,
+                ],
+                check=True,
+            )
+            result = subprocess.run(
+                ["systemctl", "is-enabled", name], capture_output=True, text=True, check=False
+            )
+            state = result.stdout.strip()
+            if state == scope:
+                raise ValueError(f"{name} remains {state} after disablement.")
+            if state not in ("disabled", "static", "indirect", "enabled-runtime"):
+                result.check_returncode()
+                raise ValueError(f"Unexpected enablement after disabling {name}: {state}")
+    current = subprocess.run(
+        ["systemctl", "is-enabled", "greetd.service"], capture_output=True, text=True, check=False
+    )
+    if current.stdout.strip() != "enabled":
+        _ = subprocess.run(
+            ["systemctl", "enable", "greetd.service"], check=True, capture_output=True, text=True
+        )
+        _ = subprocess.run(["systemctl", "is-enabled", "--quiet", "greetd.service"], check=True)
+        print(
+            "greetd is enabled for the next boot; running sessions are unchanged. Reboot deliberately when ready."
+        )
+
+
+def terminate(_signum: int, _frame: object) -> None:
+    raise SystemExit(143)
+
+
+def main() -> int:
+    privileged = sys.argv[1:2] == ["--configure"]
+    if privileged and len(sys.argv) != 5:
+        print(
+            "ERROR: Greeter setup requires source directory, profile and account.", file=sys.stderr
+        )
+        return 1
+    personal = sys.argv[3] if privileged else os.environ.get("DOTFILES_PERSONAL_ENABLED")
+    if personal not in ("0", "1"):
+        print(
+            "ERROR: DOTFILES_PERSONAL_ENABLED must be '0' or '1'; run through Chezmoi.",
+            file=sys.stderr,
+        )
+        return 1
+    source_dir = Path(sys.argv[2]) if privileged else Path(os.environ["CHEZMOI_SOURCE_DIR"])
+    if not source_dir.is_absolute():
+        print("ERROR: Chezmoi must supply an absolute source directory.", file=sys.stderr)
+        return 1
+    sys.path.insert(0, str(source_dir / ".chezmoitemplates"))
+    _ = signal.signal(signal.SIGTERM, terminate)
+    if privileged:
+        try:
+            configure_login(source_dir, personal, sys.argv[4])
+            return 0
+        except (OSError, ValueError, KeyError, subprocess.CalledProcessError) as error:
+            traceback.print_exc()
+            if isinstance(error, subprocess.CalledProcessError):
+                diagnostic = cast("str | None", error.stderr)
+                if diagnostic:
+                    print(diagnostic.rstrip(), file=sys.stderr)
+            return error.returncode if isinstance(error, subprocess.CalledProcessError) else 1
+    from lib.provision_logging import configure_logging
+
+    file_sink = None
+    try:
+        file_sink = configure_logging()
+        if sys.argv[1:] or os.geteuid() == 0:
+            raise ValueError("Run greeter setup as the regular account through Chezmoi.")
+        username = pwd.getpwuid(os.getuid()).pw_name
+        _ = subprocess.run(["sudo", "-v"], check=True)
+        result = subprocess.run(
+            [
+                "sudo",
+                "-n",
+                sys.executable,
+                "-B",
+                str(Path(__file__).resolve()),
+                "--configure",
+                str(source_dir),
+                personal,
+                username,
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        for message in result.stdout.splitlines():
+            logger.info(message)
+        return 0
+    except (OSError, ValueError, subprocess.CalledProcessError) as error:
+        status = error.returncode if isinstance(error, subprocess.CalledProcessError) else 1
+        diagnostic = (
+            cast("str | None", error.stderr)
+            if isinstance(error, subprocess.CalledProcessError)
+            else None
+        )
+        reason = (
+            diagnostic.strip().splitlines()[-1] if diagnostic and diagnostic.strip() else str(error)
+        )
+        try:
+            logger.opt(exception=True).error(
+                "Greeter setup failed (exit {}): {}; inspect login configuration before rebooting.",
+                status,
+                reason,
+            )
+            if diagnostic:
+                logger.debug("Greeter diagnostic:\n{}", diagnostic.rstrip())
+        except OSError:
+            if file_sink is not None:
+                logger.remove(file_sink)
+        return status
+    except KeyboardInterrupt:
+        logger.warning("Greeter setup interrupted; reapply before rebooting.")
+        return 130
+
+
+if __name__ == "__main__":
+    status = main()
+    sys.exit(status if status >= 0 else 128 - status)

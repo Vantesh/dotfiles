@@ -147,7 +147,6 @@ def render_python(
         "run_onchange_after_02_laptop_power.py",
         "run_onchange_after_16_fingerprint.py",
         "run_onchange_after_10_atuin.py",
-        "run_onchange_after_09_login_manager.py",
         "run_onchange_after_03_hibernation.py.tmpl",
     ],
 )
@@ -332,6 +331,11 @@ def test_nonpersonal_apply_is_isolated_and_idempotent(env: dict[str, str], tmp_p
         "sudo",
         """case "$*" in
     -v|'-n true'|'pacman -Syu --noconfirm') exit 0 ;;
+esac
+# The common greeter's privileged work is exercised in its isolated tests.
+[ "$#" = 8 ] && [ "$1" = -n ] && [ "$2" = /usr/bin/python3 ] && [ "$3" = -B ] && [ "$5" = --configure ] && [ "$7" = 0 ] || exit 97
+case "$4" in
+    "$TMPDIR/"*.09_login_manager.py) echo configured >> "$HOME/common-greeter" ;;
     *) exit 97 ;;
 esac""",
         log=True,
@@ -441,6 +445,7 @@ esac""",
         ["--accept-tos", "registration", "show"],
     ]
     assert (tmp_path / "registered").exists()
+    assert (tmp_path / "common-greeter").read_text() == "configured\n"
     assert all(
         call[0] in ("sudo", "mise", "systemctl", "gsettings", "warp-cli") for call in observed
     ), observed
