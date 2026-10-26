@@ -5,6 +5,8 @@
 {{- if .personal }}
 
 # distro-family: {{ .distroFamily | quote }}
+# Atuin config: {{ include "dot_config/private_atuin/private_config.toml" | sha256sum }}
+# XDG config home: {{ env "XDG_CONFIG_HOME" | default (joinPath .chezmoi.homeDir ".config") | toJson }}
 
 
 set -euo pipefail
@@ -21,6 +23,15 @@ if [[ -n "${XDG_RUNTIME_DIR:-}" ]]; then
 fi
 
 {{ include ".chezmoitemplates/lib/common.sh" }}
+
+# Chezmoi's dot_config source has a fixed target. Publish the same managed
+# configuration at an explicitly selected XDG root before Atuin creates defaults.
+if [[ "$ATUIN_HOME" != "$HOME/.config/atuin" ]]; then
+  install -d -m 700 -- "$ATUIN_HOME"
+  install -D -C -m 600 -- \
+    "$CHEZMOI_SOURCE_DIR/dot_config/private_atuin/private_config.toml" \
+    "$ATUIN_HOME/config.toml"
+fi
 
 # Logs in with runtime vault credentials and synchronizes history.
 # Captures fields with a sentinel, removing only rbw's final output newline.

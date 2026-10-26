@@ -36,16 +36,61 @@ def test_first_atuin_launch_uses_separate_xdg_paths(
         ATUIN_AUTO_SYNC="false",
         ATUIN_DAEMON__AUTOSTART="false",
     )
-    config.mkdir(parents=True)
-    shutil.copy(ROOT / "home/dot_config/private_atuin/private_config.toml", config / "config.toml")
     # Native settings inspection initializes the real stores without login or a daemon.
     inspect = f"""{shlex.quote(ATUIN)} info > "$HOME/info"
 {shlex.quote(ATUIN)} config get --resolved logs.dir > "$HOME/log-path"
 {shlex.quote(ATUIN)} config get --resolved daemon.socket_path > "$HOME/socket-path"
 {shlex.quote(ATUIN)} config get --resolved daemon.pidfile_path > "$HOME/pid-path"
 """
+    source = tmp_path / "source"
+    scripts = source / ".chezmoiscripts/linux"
+    scripts.mkdir(parents=True)
+    templates = source / ".chezmoitemplates/lib"
+    templates.mkdir(parents=True)
+    shutil.copy(ROOT / "home/.chezmoitemplates/lib/common.sh", templates / "common.sh")
+    shutil.copytree(ROOT / "home/dot_config/private_atuin", source / "dot_config/private_atuin")
+    shutil.copy(ROOT / "home/.chezmoiignore.tmpl", source / ".chezmoiignore.tmpl")
+    shutil.copy(SCRIPTS / "run_onchange_after_10_atuin.sh.tmpl", scripts)
+    install = shutil.which("install")
+    assert install is not None
+    (Path(env["PATH"]) / "install").symlink_to(install)
+    # Keep authentication outside this path test. The setup variant performs
+    # its first real native settings load exactly where the hook invokes Atuin.
+    stub(
+        env, "atuin", '[ "$1" = status ] || exit 97\n' + (inspect if entry == "setup" else "exit 0")
+    )
+    chezmoi_config = tmp_path / "chezmoi.json"
+    chezmoi_config.write_text(json.dumps({"data": {"personal": True, "distroFamily": "arch"}}))
+    command = [
+        CHEZMOI,
+        "--config",
+        str(chezmoi_config),
+        "--source",
+        str(source),
+        "--destination",
+        str(tmp_path),
+        "--no-tty",
+        "apply",
+    ]
+    applied = run_setup(env, command)
+    assert applied.returncode == 0, applied.stderr
+    managed = config / "config.toml"
+    assert (
+        managed.read_text()
+        == (ROOT / "home/dot_config/private_atuin/private_config.toml").read_text()
+    )
+    assert managed.stat().st_mode & 0o777 == 0o600
+    assert config.stat().st_mode & 0o777 == 0o700
+    if custom_xdg:
+        assert not (tmp_path / ".config/atuin").exists()
+    before = managed.stat().st_mtime_ns
+    repeated = run_setup(env, command)
+    assert repeated.returncode == 0, repeated.stderr
+    assert managed.stat().st_mtime_ns == before
     if entry == "fish":
-        (Path(env["PATH"]) / "atuin").symlink_to(ATUIN)
+        native = Path(env["PATH"]) / "atuin"
+        native.unlink()
+        native.symlink_to(ATUIN)
         conf = ROOT / "home/dot_config/private_fish/conf.d/atuin.fish"
         result = run_setup(
             env,
@@ -58,23 +103,7 @@ def test_first_atuin_launch_uses_separate_xdg_paths(
             ],
         )
     else:
-        stub(env, "atuin", '[ "$1" = status ] || exit 97\n' + inspect)
-        rendered = run_setup(
-            env,
-            [
-                CHEZMOI,
-                "--source",
-                str(ROOT / "home"),
-                "--override-data",
-                json.dumps({"personal": True, "distroFamily": "arch"}),
-                "execute-template",
-            ],
-            input=(SCRIPTS / "run_onchange_after_10_atuin.sh.tmpl").read_text(),
-        )
-        assert rendered.returncode == 0, rendered.stderr
-        script = tmp_path / "atuin-setup.sh"
-        script.write_text(rendered.stdout)
-        result = run_setup(env, ["/bin/bash", str(script)])
+        result = applied
     assert result.returncode == 0, result.stderr
     info = (tmp_path / "info").read_text()
     assert f'client config: "{config / "config.toml"}"' in info
