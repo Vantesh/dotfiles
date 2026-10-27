@@ -29,7 +29,7 @@ rotation = 0.0
 type = "login_box"
 
 [lockscreen_widgets.widget."lockscreen-login-box@DP-1".settings]
-background_color = "surface_variant"
+background_color = "surface_container"
 background_opacity = 0.85
 background_radius = 15.0
 center_password_text = false
@@ -56,7 +56,7 @@ rotation = 0.0
 type = "login_box"
 
 [lockscreen_widgets.widget."lockscreen-login-box@eDP-1".settings]
-background_color = "surface_variant"
+background_color = "surface_container"
 background_opacity = 0.85
 background_radius = 12.0
 center_password_text = false
