@@ -35,6 +35,23 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Install validation toolchain
+        env:
+          UV_TOOL_DIR: /opt/ci-tools
+          UV_TOOL_BIN_DIR: /usr/local/bin
+        run: |
+          set -euo pipefail
+          pacman -Syu --noconfirm --needed \
+            bash chezmoi diffutils git git-delta python python-loguru \
+            python-pytest ruff shellcheck sudo util-linux uv atuin fish
+          # 1.40.1/1.40.2 inherit the hidden-directory regression in pyright#11861.
+          uv tool install --python /usr/bin/python3 basedpyright==1.40.0
+
+          # Provisioning tests exercise regular-account guards, not a root login.
+          useradd --create-home --user-group ci
+          chown -R ci:ci "$GITHUB_WORKSPACE"
+          install -d -o ci -g ci "$RUNNER_TEMP/dotfiles-ci/home"
+
       - name: Configure isolated home
         run: |
           set -euo pipefail
@@ -50,6 +67,7 @@ jobs:
             "XDG_STATE_HOME=$CI_HOME/.local/state" >> "$GITHUB_ENV"
 
       - name: Test and lint setup scripts
+        shell: runuser --user ci --preserve-environment -- bash --noprofile --norc -e -o pipefail {0}
         run: |
           set -euo pipefail
           if ! command -v python3 >/dev/null; then
@@ -59,6 +77,7 @@ jobs:
           python3 -B .github/tests/validate.py
 
       - name: Apply and verify dotfiles
+        shell: runuser --user ci --preserve-environment -- bash --noprofile --norc -e -o pipefail {0}
         run: |
           set -euo pipefail
           umask 022

@@ -94,7 +94,7 @@ python3 -B .github/tests/validate.py
 
 This runs lint/format checks, type checking, pytest, rendered-template checks for both profiles, Bash/ShellCheck and Mise TOML syntax validation. It does not provision the host or prove that hardware-specific setup works. [AGENTS.md](../AGENTS.md) describes maintenance and safety conventions.
 
-The existing GitHub Actions job uses `archlinux:latest`, which does not supply the complete validation toolchain. CI requires those prerequisites to be provided externally and can fail until they are available; CI toolchain provisioning is a separate follow-up. Local validation and fresh-install testing remain necessary.
+GitHub Actions uses `archlinux:latest` and installs the validation toolchain explicitly before running the same checks under an unprivileged account with an isolated home. BasedPyright is pinned to a version that analyzes the hidden source/test directories. Local validation and fresh-install testing remain necessary.
 
 ## Credits
 
