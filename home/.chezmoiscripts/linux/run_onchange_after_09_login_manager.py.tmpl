@@ -147,24 +147,26 @@ def configure_login(source_dir: Path, personal: str, username: str) -> None:
         _ = subprocess.run(
             ["noctalia-greeter", "passwordless-sync", "enable", username], check=True
         )
-    enabled = subprocess.run(
+    # Filtering in systemctl returns exit 1 when nothing matches on a fresh install.
+    # Enumerate installed units so discovery errors remain distinct from no conflicts.
+    installed = subprocess.run(
         [
             "systemctl",
             "list-unit-files",
             "--no-legend",
             "--no-pager",
-            "--state=enabled,enabled-runtime",
-            *COMPETITORS,
-            "ly@*.service",
         ],
         check=True,
         capture_output=True,
         text=True,
     )
-    for line in enabled.stdout.splitlines():
+    for line in installed.stdout.splitlines():
         name, state, *_ = line.split()
-        if name not in COMPETITORS and re.fullmatch(r"ly@tty[0-9]+\.service", name) is None:
-            raise ValueError(f"Unexpected competing login unit: {name}")
+        # Aliases (including display-manager.service) are not separate enabled units.
+        if state not in ("enabled", "enabled-runtime"):
+            continue
+        if name not in COMPETITORS and re.fullmatch(r"ly@.+\.service", name) is None:
+            continue
         # A persistent scope can hide runtime enablement. Re-query after each
         # disable instead of manipulating systemd's aliases directly.
         for scope in ("enabled", "enabled-runtime"):

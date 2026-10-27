@@ -95,7 +95,7 @@ printf '%s' "$3" > "$HOME/appearance-account"''',
     )
     command = Path(env["PATH"]) / "systemctl"
     command.write_text("""#!/usr/bin/python3 -B
-import json, os, sys
+import fnmatch, json, os, sys
 from pathlib import Path
 from typing import cast
 home = Path(os.environ["HOME"])
@@ -108,10 +108,20 @@ path = home / "units.json"
 units = json.loads(path.read_text())
 name = args[-1]
 if args[0] == "list-unit-files":
+    if os.environ.get("FAIL_DISCOVERY"):
+        print("Failed to list unit files: Permission denied", file=sys.stderr)
+        sys.exit(23)
+    patterns = [arg for arg in args[1:] if not arg.startswith("--")]
+    states = next((arg.split("=", 1)[1].split(",") for arg in args if arg.startswith("--state=")), None)
+    found = False
     for unit, state in units.items():
-        if unit != "greetd.service" and state.startswith("enabled"):
-            print(unit, state, "disabled")
-    sys.exit(0)
+        if patterns and not any(fnmatch.fnmatchcase(unit, pattern) for pattern in patterns):
+            continue
+        if states is not None and state not in states:
+            continue
+        print(unit, state, "disabled")
+        found = True
+    sys.exit(0 if found else 1)
 if args[0] == "is-enabled":
     state = units.get(name, "disabled")
     if "--quiet" not in args: print(state)
@@ -243,17 +253,66 @@ def test_greeter_configs_profiles_and_next_boot_only_transition(
     )
 
 
-def test_concrete_enable_failure_preserves_exit_and_is_retried(
-    login: dict[str, str], tmp_path: Path
+@pytest.mark.parametrize(
+    "units,disabled",
+    [
+        ({"greetd.service": "disabled"}, []),
+        (
+            {
+                "greetd.service": "enabled",
+                "display-manager.service": "alias",
+                "unrelated.service": "enabled",
+                "ly@.service": "indirect",
+            },
+            [],
+        ),
+        (
+            {
+                "greetd.service": "disabled",
+                "display-manager.service": "alias",
+                "gdm3.service": "alias",
+                "gdm.service": "enabled-runtime",
+                "ly@seat0.service": "enabled",
+            },
+            [
+                ["systemctl", "--runtime", "disable", "gdm.service"],
+                ["systemctl", "disable", "ly@seat0.service"],
+            ],
+        ),
+    ],
+    ids=["fresh-disabled-greetd", "greetd-alias", "enabled-conflicts-with-aliases"],
+)
+def test_installed_units_allow_fresh_setup_and_ignore_aliases(
+    login: dict[str, str], tmp_path: Path, units: dict[str, str], disabled: list[list[str]]
+) -> None:
+    (tmp_path / "units.json").write_text(json.dumps(units))
+    command = chezmoi_command(login, False)
+    result = run_setup(login, command)
+    assert result.returncode == 0, result.stderr
+    assert json.loads((tmp_path / "units.json").read_text())["greetd.service"] == "enabled"
+    assert [
+        call for call in calls(login) if call[0] == "systemctl" and "disable" in call
+    ] == disabled
+
+
+@pytest.mark.parametrize(
+    "failure,diagnostic",
+    [
+        ("FAIL_ENABLE", "display-manager.service already points to unexpected.service"),
+        ("FAIL_DISCOVERY", "Failed to list unit files: Permission denied"),
+    ],
+)
+def test_systemctl_failure_preserves_exit_and_is_retried(
+    login: dict[str, str], tmp_path: Path, failure: str, diagnostic: str
 ) -> None:
     command = chezmoi_command(login, False)
-    login["FAIL_ENABLE"] = "1"
+    login[failure] = "1"
     failed = run_setup(login, command)
     assert failed.returncode != 0
     assert "exit 23" in failed.stderr
-    assert "display-manager.service already points to unexpected.service" in failed.stderr
+    assert diagnostic in failed.stderr
     assert "greetd is enabled" not in failed.stderr
-    login.pop("FAIL_ENABLE")
+    login.pop(failure)
     result = run_setup(login, command)
     assert result.returncode == 0, result.stderr
     assert json.loads((tmp_path / "units.json").read_text())["greetd.service"] == "enabled"
