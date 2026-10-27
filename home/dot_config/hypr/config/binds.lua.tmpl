@@ -222,7 +222,7 @@ hl.bind("XF86RFKill",
 
 hl.bind("SUPER + U", hl.dsp.exec_cmd(ipc .. "plugin vantesh/topgrade-updater:service all update"),
   { description = "Update system" })
-hl.bind("CTRL + ALT + DELETE", hl.dsp.exec_cmd(ipc .. "panel-toggle control-center system"),
-  { description = "Open system monitor panel" })
+hl.bind("CTRL + ALT + DELETE", hl.dsp.exec_cmd(apps.launcher .. " -- missioncenter"),
+  { description = "Open Mission Center" })
 hl.bind("SUPER + F2", hl.dsp.exec_cmd(ipc .. "panel-toggle vantesh/hyprbinds:cheatsheet"),
   { description = "Open keybinds help" })

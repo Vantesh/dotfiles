@@ -51,6 +51,7 @@
 
 # Desktop
 "pacman:hyprland" = { env = "packages" }
+"pacman:mission-center" = { env = "packages" }
 "pacman:xdg-desktop-portal-hyprland" = { env = "packages" }
 "pacman:socat" = { env = "packages" }
 "pacman:cpio" = { env = "packages" }
