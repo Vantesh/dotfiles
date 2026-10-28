@@ -4,6 +4,7 @@ test -n "$atuin_data_home"; or set atuin_data_home "$HOME/.local/share"
 set -l atuin_state_home "$XDG_STATE_HOME"
 test -n "$atuin_state_home"; or set atuin_state_home "$HOME/.local/state"
 # Match the fixed Chezmoi dot_config target, including with a custom XDG_CONFIG_HOME.
+set -gx ATUIN_HOME "$HOME/.config/atuin"
 set -gx ATUIN_CONFIG_DIR "$HOME/.config/atuin"
 set -gx ATUIN_DATA_DIR "$atuin_data_home/atuin"
 set -gx ATUIN_LOGS__DIR "$atuin_state_home/atuin"

@@ -39,6 +39,7 @@ def test_first_atuin_launch_uses_separate_xdg_paths(
     )
     # Native settings inspection initializes the real stores without login or a daemon.
     inspect = f"""{shlex.quote(ATUIN)} info > "$HOME/info"
+{shlex.quote(ATUIN)} config get --resolved key_path > "$HOME/key-path"
 {shlex.quote(ATUIN)} config get --resolved logs.dir > "$HOME/log-path"
 {shlex.quote(ATUIN)} config get --resolved daemon.socket_path > "$HOME/socket-path"
 {shlex.quote(ATUIN)} config get --resolved daemon.pidfile_path > "$HOME/pid-path"
@@ -95,30 +96,30 @@ def test_first_atuin_launch_uses_separate_xdg_paths(
         native.unlink()
         native.symlink_to(ATUIN)
         conf = ROOT / "home/dot_config/private_fish/conf.d/atuin.fish"
-        result = run_setup(
-            env,
-            [
-                FISH,
-                "--no-config",
-                "--interactive",
-                "--command",
-                f"source {shlex.quote(str(conf))}; functions -q _atuin_search; or exit 97; {inspect}",
-            ],
-        )
+        launch = [
+            FISH,
+            "--no-config",
+            "--interactive",
+            "--command",
+            f"source {shlex.quote(str(conf))}; functions -q _atuin_search; or exit 97; {inspect}",
+        ]
     else:
-        result = applied
-    assert result.returncode == 0, result.stderr
-    info = (tmp_path / "info").read_text()
-    assert f'client config: "{config / "config.toml"}"' in info
-    assert f"client db path: {data / 'history.db'}" in info
-    assert (data / "history.db").is_file()
-    assert (data / "records.db").is_file()
-    assert (tmp_path / "log-path").read_text().strip() == str(state)
-    assert (tmp_path / "socket-path").read_text().strip() == str(runtime / "atuin.sock")
-    assert (tmp_path / "pid-path").read_text().strip() == str(runtime / "atuin.pid")
-    assert "ATUIN_HOME = None" in info
-    assert f'ATUIN_CONFIG_DIR = "{config}"' in info
-    assert not (tmp_path / ".atuin").exists()
+        launch = [PYTHON, "-B", str(render_python(env, HOOK, source=source))]
+    for _ in range(2):
+        result = run_setup(env, launch)
+        assert result.returncode == 0, result.stderr
+        info = (tmp_path / "info").read_text()
+        assert f'client config: "{config / "config.toml"}"' in info
+        assert f"client db path: {data / 'history.db'}" in info
+        assert (data / "history.db").is_file()
+        assert (data / "records.db").is_file()
+        assert (tmp_path / "key-path").read_text().strip() == str(data / "key")
+        assert (tmp_path / "log-path").read_text().strip() == str(state)
+        assert (tmp_path / "socket-path").read_text().strip() == str(runtime / "atuin.sock")
+        assert (tmp_path / "pid-path").read_text().strip() == str(runtime / "atuin.pid")
+        assert f'ATUIN_HOME = "{config}"' in info
+        assert f'ATUIN_CONFIG_DIR = "{config}"' in info
+        assert not (tmp_path / ".atuin").exists()
 
 
 @pytest.fixture

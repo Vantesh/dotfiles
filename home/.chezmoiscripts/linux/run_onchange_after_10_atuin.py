@@ -45,6 +45,7 @@ def main() -> int:
             return 1
         env = {
             **os.environ,
+            "ATUIN_HOME": str(config_dir),
             "ATUIN_CONFIG_DIR": str(config_dir),
             "ATUIN_DATA_DIR": str(
                 Path(os.environ.get("XDG_DATA_HOME") or Path.home() / ".local/share") / "atuin"
