@@ -159,6 +159,85 @@ def test_failed_boot_commit_preserves_request_and_retries_unchanged(
     assert observed[-1][0] == "sbctl" and observed[-1][1:3] == ["--json", "verify"]
 
 
+def test_fresh_secure_boot_initializes_before_config_and_preserves_initialized_keys(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from lib import secure_boot
+
+    state = tmp_path / "state"
+    state.mkdir(mode=0o700)
+    certificate = tmp_path / "db.pem"
+    vendor = tmp_path / "vendor"
+    vendor.write_text("Fixture firmware")
+    status = {"installed": False, "setup_mode": True, "secure_boot": False}
+    recorded: list[list[str]] = []
+    fail_config = False
+
+    def run(command: list[str], **_kwargs: object) -> subprocess.CompletedProcess[str]:
+        recorded.append(command)
+        output = ""
+        if command == ["sbctl", "--json", "status"]:
+            output = json.dumps(status)
+        elif command == ["sbctl", "create-keys"]:
+            assert not status["installed"]
+            assert (state / "initramfs.pending").is_file()
+            status["installed"] = True
+            certificate.write_text(
+                "-----BEGIN CERTIFICATE-----\nfixturecert\n-----END CERTIFICATE-----\n"
+            )
+        elif command == ["sbctl", "--json", "setup", "--print-config"]:
+            if not status["installed"] or fail_config:
+                raise subprocess.CalledProcessError(
+                    23, command, stderr="sbctl configuration unavailable"
+                )
+            output = json.dumps({"keys": {"db": {"pubkey": str(certificate)}}})
+        elif command[:2] == ["sbctl", "enroll-keys"]:
+            assert status["setup_mode"] and not status["secure_boot"]
+            assert (state / "initramfs.pending").is_file()
+            status["setup_mode"] = False
+        elif command == ["sbctl", "--json", "list-enrolled-keys"]:
+            assert not status["setup_mode"]
+            output = '{"DB":[{"Raw":"fixturecert"}]}'
+        else:
+            pytest.fail(f"Unexpected Secure Boot command: {command}")
+        return subprocess.CompletedProcess(command, 0, stdout=output, stderr="")
+
+    def configure(settings: dict[str, str], requested: Path) -> None:
+        assert settings == {"ENABLE_VERIFICATION": "yes", "ENABLE_ENROLL_LIMINE_CONFIG": "yes"}
+        assert requested == state
+        assert (state / "initramfs.pending").is_file()
+        recorded.append(["configure-limine-settings"])
+
+    def which(command: str) -> str:
+        return f"/fixture/{command}"
+
+    monkeypatch.setenv("SUDO_UID", str(os.getuid()))
+    monkeypatch.setenv("SUDO_GID", str(os.getgid()))
+    monkeypatch.setattr(shutil, "which", which)
+    monkeypatch.setattr(secure_boot, "boot_directory", lambda: tmp_path / "esp")
+    monkeypatch.setattr(secure_boot, "VENDOR", vendor)
+    monkeypatch.setattr(subprocess, "run", run)
+    monkeypatch.setattr(secure_boot, "configure_limine_settings", configure)
+    secure_boot.configure_secure_boot(state)
+    assert recorded[0] == ["sbctl", "--json", "status"]
+    assert recorded.index(["sbctl", "create-keys"]) < recorded.index(
+        ["sbctl", "--json", "setup", "--print-config"]
+    )
+    enrollment = ["sbctl", "enroll-keys", "--microsoft", "--ignore-immutable", "--firmware-builtin"]
+    assert recorded.index(["sbctl", "--json", "setup", "--print-config"]) < recorded.index(
+        enrollment
+    )
+    before = certificate.read_bytes()
+    secure_boot.configure_secure_boot(state)
+    fail_config = True
+    with pytest.raises(subprocess.CalledProcessError) as failure:
+        secure_boot.configure_secure_boot(state)
+    assert failure.value.returncode == 23
+    assert recorded.count(["sbctl", "create-keys"]) == 1
+    assert recorded.count(enrollment) == 1
+    assert certificate.read_bytes() == before
+
+
 class SecureBootTests(ScriptCase):
     @override
     def setUp(self) -> None:
@@ -188,7 +267,6 @@ class SecureBootTests(ScriptCase):
             POST_STATE='{"installed":true,"setup_mode":false,"secure_boot":false}',
             KEY_CONFIG=json.dumps(
                 {
-                    "keydir": str(self.directory / "keys"),
                     "keys": {"db": {"pubkey": str(self.certificate)}},
                 }
             ),
@@ -228,10 +306,9 @@ exec "$@"''',
 esac""",
             log=True,
         )
-        # Implement only this script's jq queries; unknown queries fail the fixture.
         self.reset()
 
-    def security(self, *, enroll: bool = True) -> subprocess.CompletedProcess[str]:
+    def security(self) -> subprocess.CompletedProcess[str]:
         library = self.directory / "source/.chezmoitemplates/lib"
         library.mkdir(parents=True, exist_ok=True)
         for path in LIB.glob("*.py"):
@@ -242,9 +319,7 @@ esac""",
         )
         self.env.update(SUDO_UID=str(os.getuid()), SUDO_GID=str(os.getgid()))
         driver = self.directory / "secure.py"
-        driver.write_text(
-            SECURITY_DRIVER + f"\nsecure_boot.configure_secure_boot(state, enroll={enroll!r})\n"
-        )
+        driver.write_text(SECURITY_DRIVER + "\nsecure_boot.configure_secure_boot(state)\n")
         return self.run_process(
             [sys.executable, "-B", str(driver)], name="Secure Boot configuration"
         )
@@ -618,12 +693,13 @@ policy_files.replace_config = replace
 """
 
 
-def test_secure_boot_unattended_enrollment_requires_consent(
-    env: dict[str, str], tmp_path: Path
+@pytest.mark.parametrize("personal, failure", [(True, 0), (True, 23), (False, 0)])
+def test_secure_boot_personal_profile_provisions_without_an_enrollment_prompt(
+    env: dict[str, str], tmp_path: Path, personal: bool, failure: int
 ) -> None:
     from test_setup import calls, render_python, run_setup, stub
 
-    env.update(NOCONFIRM="1", DOTFILES_DISTRO_FAMILY="arch")
+    env.update(NOCONFIRM="1", CI="1", DOTFILES_DISTRO_FAMILY="arch", FAILURE=str(failure))
     limine = tmp_path / "limine"
     limine.touch(mode=0o755)
     efivars = tmp_path / "efivars"
@@ -632,23 +708,39 @@ def test_secure_boot_unattended_enrollment_requires_consent(
     stub(
         env,
         "sudo",
-        """case "$*" in
+        """case "$1" in
     -v) exit 0 ;;
-    '-n sbctl --json status') printf '{"installed":false,"setup_mode":true,"secure_boot":false}\n' ;;
+    -n)
+        shift
+        [ "$#" = 7 ] && [ "$2" = -B ] && [ "$4" = --configure ] && [ "$7" = 1 ] || exit 97
+        if [ "$FAILURE" != 0 ]; then echo 'fixture sbctl failure' >&2; exit "$FAILURE"; fi ;;
     *) exit 97 ;;
 esac""",
         log=True,
     )
-    script = render_python(env, "run_onchange_after_05_secure_boot.py.tmpl")
+    script = render_python(env, "run_onchange_after_05_secure_boot.py.tmpl", personal=personal)
     script.write_text(
         script.read_text()
         .replace('Path("/usr/bin/limine")', f"Path({str(limine)!r})")
         .replace('Path("/sys/firmware/efi/efivars")', f"Path({str(efivars)!r})")
     )
     result = run_setup(env, ["/usr/bin/python3", "-B", str(script)])
-    assert result.returncode == 1, result.stderr
-    assert "explicit consent" in result.stderr
-    assert calls(env) == [["sudo", "-v"], ["sudo", "-n", "sbctl", "--json", "status"]]
+    assert result.returncode == failure, result.stderr
+    observed = calls(env)
+    if personal:
+        assert observed[0] == ["sudo", "-v"]
+        assert len(observed) == 2
+        assert observed[1][-4:] == [
+            "--configure",
+            str(tmp_path / "state/chezmoi"),
+            env["CHEZMOI_SOURCE_DIR"],
+            "1",
+        ]
+        if failure:
+            assert "fixture sbctl failure" in result.stderr
+    else:
+        assert not observed
+        assert not (tmp_path / "state").exists()
     assert not (tmp_path / "state/chezmoi/initramfs.pending").exists()
 
 
@@ -790,34 +882,3 @@ def test_interrupted_limine_command_stops_descendants_after_the_leader_exits(
                     os.killpg(int(leader_file.read_text()), signal.SIGKILL)
             process.kill()
             _ = process.communicate(timeout=5)
-
-
-def test_incomplete_signing_material_is_preserved_before_key_creation(
-    env: dict[str, str], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    from lib import secure_boot
-
-    directory = tmp_path / "keys"
-    key = directory / "PK/PK.key"
-    key.parent.mkdir(parents=True)
-    key.write_text("existing signing material")
-    configuration = json.dumps({"keydir": str(directory)})
-    stub(
-        env,
-        "sbctl",
-        'case "$*" in\n'
-        + '\'--json status\') echo \'{"installed":false,"setup_mode":true,"secure_boot":false}\' ;;\n'
-        + "'--json setup --print-config') printf '%s\\n' "
-        + shlex.quote(configuration)
-        + " ;;\n*) exit 97 ;;\nesac",
-        log=True,
-    )
-    for command in ("mkinitcpio", "limine-enroll-config", "limine-update"):
-        stub(env, command, "exit 97")
-    monkeypatch.setenv("PATH", env["PATH"])
-    monkeypatch.setattr(secure_boot, "boot_directory", lambda: tmp_path / "esp")
-    with pytest.raises(ValueError, match="Preserved existing or unsafe signing material"):
-        secure_boot.configure_secure_boot(tmp_path / "state", enroll=True)
-    assert key.read_text() == "existing signing material"
-    assert not any(call[1:2] in (["create-keys"], ["enroll-keys"]) for call in calls(env))
-    assert not (tmp_path / "state/initramfs.pending").exists()

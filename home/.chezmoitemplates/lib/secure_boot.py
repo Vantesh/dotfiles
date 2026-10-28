@@ -1,9 +1,8 @@
-"""sbctl key reuse and explicit firmware enrollment; artifact signing stays in package hooks."""
+"""Personal sbctl provisioning; artifact signing stays in package hooks."""
 
 import json
 import re
 import shutil
-import stat
 import subprocess
 from pathlib import Path
 from typing import cast
@@ -46,8 +45,9 @@ def signing_certificate() -> str:
     return certificate
 
 
-def check_signing_key() -> None:
-    certificate = signing_certificate()
+def check_signing_key(certificate: str | None = None) -> None:
+    if certificate is None:
+        certificate = signing_certificate()
     output = subprocess.run(
         ["sbctl", "--json", "list-enrolled-keys"], check=True, capture_output=True, text=True
     ).stdout
@@ -60,7 +60,7 @@ def check_signing_key() -> None:
         )
 
 
-def configure_secure_boot(state: Path, *, enroll: bool) -> None:
+def configure_secure_boot(state: Path) -> None:
     for command in ("sbctl", "mkinitcpio", "limine-enroll-config", "limine-update"):
         if shutil.which(command) is None:
             raise FileNotFoundError(f"Required Secure Boot command is missing: {command}")
@@ -72,54 +72,25 @@ def configure_secure_boot(state: Path, *, enroll: bool) -> None:
         raise ValueError(
             "Enter UEFI Setup Mode with Secure Boot disabled, then reapply; existing keys were preserved."
         )
-    if status["setup_mode"] and not enroll:
-        raise ValueError(
-            "Secure Boot enrollment requires explicit consent in an interactive setup."
-        )
     if not status["installed"]:
-        # sbctl 0.18 regenerates all keys when a hierarchy directory is missing.
-        # Never let that replace surviving signing material after interruption.
-        output = subprocess.run(
-            ["sbctl", "--json", "setup", "--print-config"],
-            check=True,
-            capture_output=True,
-            text=True,
-        ).stdout
-        configuration = cast("dict[str, object]", json.loads(output))
-        configured = configuration.get("keydir")
-        if not isinstance(configured, str) or not Path(configured).is_absolute():
-            raise ValueError(
-                "sbctl did not report an absolute signing key directory; keys were preserved."
-            )
-        directory = Path(configured)
-        if directory.exists() or directory.is_symlink():
-            info = directory.lstat()
-            if (
-                not stat.S_ISDIR(info.st_mode)
-                or info.st_uid != 0
-                or info.st_mode & 0o022
-                or any(directory.iterdir())
-            ):
-                raise ValueError(
-                    "Preserved existing or unsafe signing material; repair the incomplete sbctl setup manually."
-                )
         request_rebuild(state)
-        _ = subprocess.run(["sbctl", "create-keys"], check=True)
+        _ = subprocess.run(["sbctl", "create-keys"], check=True, stderr=subprocess.PIPE, text=True)
+    certificate = signing_certificate()
     if status["setup_mode"]:
-        # Validate the key configuration before changing the firmware database.
-        _ = signing_certificate()
         vendor = VENDOR.read_text().strip().lower() if VENDOR.is_file() else ""
         flags = ["--microsoft", "--ignore-immutable"]
         if "asus" not in vendor and "gigabyte" not in vendor:
             flags.append("--firmware-builtin")
         request_rebuild(state)
-        _ = subprocess.run(["sbctl", "enroll-keys", *flags], check=True)
+        _ = subprocess.run(
+            ["sbctl", "enroll-keys", *flags], check=True, stderr=subprocess.PIPE, text=True
+        )
         status = secure_boot_status()
         if status["setup_mode"]:
             raise ValueError(
                 "Firmware remains in Setup Mode after enrollment; leave Secure Boot disabled until repaired."
             )
-    check_signing_key()
+    check_signing_key(certificate)
     configure_limine_settings(
         {"ENABLE_VERIFICATION": "yes", "ENABLE_ENROLL_LIMINE_CONFIG": "yes"}, state
     )

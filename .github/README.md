@@ -13,7 +13,7 @@ chezmoi init --apply vantesh
 
 The shell bootstrap installs missing prerequisites in one Pacman transaction before Python provisioning starts. Python 3.14 and Mise **2026.10.20 or newer** are required; the managed shell configuration targets Noctalia **5.4**. Packages come from the configured repositories, so an older packaged Mise must be updated before setup can finish.
 
-**Both profiles enable Chaotic-AUR and its signing trust, perform an initial full system upgrade, and install an AUR helper if needed.** Package installation uses native unattended options; sudo, vault authentication and explicit security confirmations can still require interaction.
+**Both profiles enable Chaotic-AUR and its signing trust, perform an initial full system upgrade, and install an AUR helper if needed.** Package installation uses native unattended options; sudo, vault authentication and optional fingerprint enrollment can still require interaction.
 
 Setup asks **“Is this a personal setup?”**, defaults to No, and saves the answer:
 
@@ -46,7 +46,7 @@ Edit managed templates and Mise declarations in the source repository. Failed ho
 
 Provisioning logs live at `$XDG_STATE_HOME/chezmoi/logs/setup.log`, defaulting to `~/.local/state/chezmoi/logs/setup.log`. Logs are private and rotated; vault contents and credentials are excluded. Package-manager output and interactive prompts remain native.
 
-`OFFLINE=1` skips supported external asset downloads; it does not make package installation offline. `NOCONFIRM=1` suppresses optional setup prompts and first-time fingerprint enrollment, but does not bypass authentication or Secure Boot consent.
+`OFFLINE=1` skips supported external asset downloads; it does not make package installation offline. `NOCONFIRM=1` suppresses optional setup prompts and first-time fingerprint enrollment, but does not bypass authentication. Personal-profile Secure Boot provisioning does not ask for separate enrollment consent.
 
 Greetd is configured for the next boot in **both** profiles. Recognized competing display managers are disabled without stopping the running session or forcing an alias overwrite. Resolve any setup failure before rebooting. Fish takes effect on the next login; first-time WARP registration accepts its terms but leaves the tunnel disconnected. Personal greeter appearance authorization is limited to the selected account.
 
@@ -56,7 +56,7 @@ Atuin is personal-only. Its single managed configuration stays at `~/.config/atu
 
 The dotfiles do not partition disks or create the base installation. Snapper expects a writable Btrfs root mounted from `@`; conflicting snapshot layouts are left for manual inspection. Managed hibernation targets supported single-device Btrfs laptops, plain or directly LUKS-backed, with Limine and mkinitcpio already working. Existing unmanaged swap/resume configuration is preserved rather than adopted. Unsupported hardware may need manual configuration.
 
-First-time Secure Boot enrollment requires **UEFI Setup Mode, Secure Boot disabled, and explicit interactive consent**. Enrollment replaces firmware key databases with the configured local/Microsoft certificates and applicable vendor certificates. Enable Secure Boot in firmware only after setup and boot verification succeed. TPM2 unlock enrollment and PCR policies remain manual; keep a working LUKS password or recovery key.
+First-time Secure Boot enrollment requires **UEFI Setup Mode and Secure Boot disabled**. Personal-profile provisioning automatically initializes local keys when needed and enrolls them in Setup Mode, replacing firmware key databases with the configured local/Microsoft certificates and applicable vendor certificates. Enable Secure Boot in firmware only after setup and boot verification succeed. TPM2 unlock enrollment and PCR policies remain manual; keep a working LUKS password or recovery key.
 
 Quiet boot sets `systemd.tpm2_measured_os=0`, disabling systemd's additional measured-OS services. This affects TPM measurements, not just logging. Laptop auto-cpufreq uses its upstream installer, including upstream power-service and Bluetooth-autostart policy. Fingerprint enrollment is limited to the declared Goodix reader/driver and does not enable fingerprint PAM authentication.
 

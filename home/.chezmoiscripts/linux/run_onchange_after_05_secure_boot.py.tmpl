@@ -6,7 +6,6 @@
 # hibernation_policy.py: {{ if .personal }}{{ include ".chezmoitemplates/lib/hibernation_policy.py" | sha256sum }}{{ else }}disabled{{ end }}
 """Configure sbctl and Limine verification without enabling firmware Secure Boot."""
 
-import json
 import os
 import shutil
 import signal
@@ -28,7 +27,7 @@ def terminate(_signum: int, _frame: object) -> None:
 
 def main() -> int:
     privileged = sys.argv[1:2] == ["--configure"]
-    if privileged and len(sys.argv) != 6:
+    if privileged and len(sys.argv) != 5:
         print(
             "ERROR: Boot setup requires its state directory, source directory and profile.",
             file=sys.stderr,
@@ -58,13 +57,16 @@ def main() -> int:
                 raise ValueError(
                     "Privileged boot setup requires root and an absolute state directory."
                 )
-            if sys.argv[5] not in ("enroll", "reuse"):
-                raise ValueError("Invalid Secure Boot consent argument.")
-            configure_secure_boot(state, enroll=sys.argv[5] == "enroll")
+            configure_secure_boot(state)
             return 0
         except (OSError, ValueError, subprocess.CalledProcessError) as error:
             traceback.print_exc()
-            return error.returncode if isinstance(error, subprocess.CalledProcessError) else 1
+            if isinstance(error, subprocess.CalledProcessError):
+                diagnostic = cast("str | None", error.stderr)
+                if diagnostic:
+                    print(diagnostic, file=sys.stderr, end="")
+                return error.returncode
+            return 1
     from lib.provision_logging import configure_logging
 
     file_sink = None
@@ -79,33 +81,6 @@ def main() -> int:
         if shutil.which("mkinitcpio") is None:
             raise FileNotFoundError("mkinitcpio not found; complete the Limine installation.")
         _ = subprocess.run(["sudo", "-v"], check=True)
-        inspected = subprocess.run(
-            ["sudo", "-n", "sbctl", "--json", "status"], check=True, capture_output=True, text=True
-        )
-        # Read status without giving the regular process access to key material.
-        status = cast("dict[str, object]", json.loads(inspected.stdout))
-        if any(
-            type(status.get(key)) is not bool for key in ("installed", "setup_mode", "secure_boot")
-        ):
-            raise ValueError("Unexpected sbctl status.")
-        consent = "reuse"
-        if status["setup_mode"]:
-            if os.environ.get("NOCONFIRM") == "1" or any(
-                os.environ.get(name) for name in ("CI", "GITHUB_ACTIONS", "GITLAB_CI", "CODESPACES")
-            ):
-                raise ValueError(
-                    "First-time Secure Boot enrollment needs explicit consent; reapply interactively in Setup Mode."
-                )
-            with Path("/dev/tty").open() as terminal, Path("/dev/tty").open("w") as prompt:
-                _ = prompt.write(
-                    "Enroll local Secure Boot keys and Microsoft certificates in firmware? This replaces the key databases. [y/N] "
-                )
-                prompt.flush()
-                if terminal.readline().strip().lower() not in ("y", "yes"):
-                    raise ValueError(
-                        "Secure Boot enrollment declined; keys were preserved. Reapply when ready."
-                    )
-            consent = "enroll"
         state = Path(os.environ.get("XDG_STATE_HOME") or Path.home() / ".local/state") / "chezmoi"
         result = subprocess.run(
             [
@@ -118,10 +93,9 @@ def main() -> int:
                 str(state),
                 str(source_dir),
                 personal,
-                consent,
             ],
             check=True,
-            capture_output=consent != "enroll",
+            capture_output=True,
             text=True,
         )
         for message in (result.stdout or "").splitlines():
