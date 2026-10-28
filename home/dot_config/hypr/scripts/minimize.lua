@@ -25,9 +25,9 @@ end
 local function focus_workspace(selector)
     local target = hl.get_workspace(selector)
     local active = hl.get_active_workspace()
-    -- Named workspaces need config_name, not their negative ID; avoid toggling back.
-    if target and active and target.id == active.id then return end
-    hl.dispatch(hl.dsp.focus({ workspace = target and target.config_name or selector }))
+    -- Compare workspace objects: named workspaces have no numeric ID.
+    if target and target == active then return end
+    hl.dispatch(hl.dsp.focus({ workspace = target or selector }))
 end
 
 local function restore_pins()
@@ -64,12 +64,12 @@ local function fallback_workspace(monitor)
     local previous = hl.get_last_workspace(monitor)
     if previous and previous.monitor == monitor and not previous.special
         and not M.is_desktop_workspace(previous) then
-        return previous.config_name
+        return previous
     end
     for _, workspace in ipairs(hl.get_workspaces() or {}) do
         if workspace.monitor == monitor and not workspace.special
             and not M.is_desktop_workspace(workspace) then
-            return workspace.config_name
+            return workspace
         end
     end
 
@@ -91,7 +91,7 @@ function M.toggle_show_desktop()
         local encoded = workspace.name:sub(#DESKTOP_PREFIX + 1):match("^(.-):%d+$")
         local origin = encoded and hl.get_workspace(decode(encoded))
         local monitor = workspace.monitor or hl.get_active_monitor()
-        local selector = origin and not origin.special and origin.config_name
+        local selector = origin and not origin.special and origin
             or (monitor and fallback_workspace(monitor))
         if selector then focus_workspace(selector) end
         restore_pins()
@@ -104,21 +104,21 @@ function M.toggle_show_desktop()
     local hidden_windows = (hidden and hl.get_workspace_windows(hidden)) or {}
     if #hidden_windows > 0 then
         for _, window in ipairs(hidden_windows) do
-            hl.dispatch(hl.dsp.window.move({ workspace = workspace.config_name, window = window, follow = false }))
+            hl.dispatch(hl.dsp.window.move({ workspace = workspace, window = window, follow = false }))
             hl.dispatch(hl.dsp.window.tag({ tag = "-desktop", window = window }))
         end
         return
     end
 
     local monitor = workspace.monitor
-    if not monitor or workspace.special or not workspace.config_name then return end
+    if not monitor or workspace.special then return end
     local windows = hl.get_workspace_windows(workspace) or {}
     if #windows == 0 then return end
 
     local index = 1
     local selector
     repeat
-        selector = "name:" .. DESKTOP_PREFIX .. encode(workspace.config_name) .. ":" .. index
+        selector = "name:" .. DESKTOP_PREFIX .. encode(workspace.id and tostring(workspace.id) or "name:" .. workspace.addressable_name) .. ":" .. index
         index = index + 1
         local desktop = hl.get_workspace(selector)
     until not desktop or (#(hl.get_workspace_windows(desktop) or {}) == 0 and desktop.monitor == monitor)
@@ -135,11 +135,11 @@ end
 
 function M.toggle_window()
     local workspace = hl.get_active_workspace()
-    if not workspace or workspace.special or not workspace.config_name then return end
+    if not workspace or workspace.special then return end
     local hidden = hl.get_workspace("special:minimized")
     local window = hidden and (hl.get_workspace_windows(hidden) or {})[1]
     if window then
-        hl.dispatch(hl.dsp.window.move({ workspace = workspace.config_name, window = window, follow = false }))
+        hl.dispatch(hl.dsp.window.move({ workspace = workspace, window = window, follow = false }))
         hl.dispatch(hl.dsp.window.tag({ tag = "-minimized", window = window }))
         restore_pins()
         return

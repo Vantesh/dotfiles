@@ -76,19 +76,12 @@ local function update_rules(connected)
   end
 end
 
-local function active_workspace_id()
-  local workspace = hl.get_active_workspace()
-  return workspace and workspace.id
-end
-
-local function focus_workspace(id)
+local function focus_workspace(selector)
+  if not selector then return end
+  local workspace = hl.get_workspace(selector)
   -- Avoid toggling back when workspace_back_and_forth is enabled.
-  if id and active_workspace_id() ~= id then
-    local workspace = hl.get_workspace(tostring(id))
-    hl.dispatch(hl.dsp.focus({
-      workspace = workspace and workspace.config_name or tostring(id),
-    }))
-  end
+  if workspace and workspace == hl.get_active_workspace() then return end
+  hl.dispatch(hl.dsp.focus({ workspace = workspace or selector }))
 end
 
 local function move_workspaces(external_monitor, laptop_monitor)
@@ -135,15 +128,13 @@ local function place_workspaces()
   -- Direct checks let the Lua analyzer narrow both monitor types.
   if not external_monitor or not laptop_monitor then return end
 
-  local previous_workspace = active_workspace_id()
+  local previous_workspace = hl.get_active_workspace()
 
   move_workspaces(external_monitor, laptop_monitor)
   move_spotify()
 
   if not minimize.is_desktop_workspace(laptop_monitor.active_workspace) then
-    laptop_monitor:set_workspace({
-      workspace = tostring(LAPTOP_WORKSPACE),
-    })
+    laptop_monitor:set_workspace(tostring(LAPTOP_WORKSPACE))
   end
 
   focus_workspace(previous_workspace)
