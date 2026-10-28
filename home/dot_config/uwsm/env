@@ -3,6 +3,12 @@ export XDG_MENU_PREFIX=arch-
 export XDG_BIN_HOME="$HOME/.local/bin"
 export UWSM_APP_UNIT_TYPE=service
 
+# Keep the systemd environment.d PATH during login-environment synchronization.
+case " ${UWSM_NEVER_EXPORT_VARNAMES-} " in
+    *" PATH "*) ;;
+    *) export UWSM_NEVER_EXPORT_VARNAMES="${UWSM_NEVER_EXPORT_VARNAMES:+$UWSM_NEVER_EXPORT_VARNAMES }PATH" ;;
+esac
+
 # sdl
 export SDL_VIDEODRIVER=wayland
 
