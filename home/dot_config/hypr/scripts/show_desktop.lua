@@ -3,7 +3,6 @@ local M = {}
 
 local DESKTOP_PREFIX = "__show_desktop:"
 local PINNED_TAG = "show-desktop-pinned"
-local MINIMIZED_PINNED_TAG = "minimized-pinned"
 
 function M.is_desktop_workspace(workspace)
     return workspace ~= nil and type(workspace.name) == "string"
@@ -31,32 +30,30 @@ local function focus_workspace(selector)
 end
 
 local function restore_pins()
-    for _, tag in ipairs({ PINNED_TAG, MINIMIZED_PINNED_TAG }) do
-        for _, window in ipairs(hl.get_windows({ tag = tag }) or {}) do
-            local workspace = window.workspace
-            local monitor = window.monitor
-            local active = monitor and monitor.active_workspace
+    for _, window in ipairs(hl.get_windows({ tag = PINNED_TAG }) or {}) do
+        local workspace = window.workspace
+        local monitor = window.monitor
+        local active = monitor and monitor.active_workspace
+        if window.pinned then
+            hl.dispatch(hl.dsp.window.tag({ tag = "-" .. PINNED_TAG, window = window }))
+        elseif workspace and not workspace.special and active
+            and not M.is_desktop_workspace(active)
+            and window.floating and window.fullscreen == 0 then
+            -- Pinning follows the monitor's active workspace, including after hotplug.
+            pcall(hl.dispatch, hl.dsp.window.pin({ action = "enable", window = window }))
             if window.pinned then
-                hl.dispatch(hl.dsp.window.tag({ tag = "-" .. tag, window = window }))
-            elseif workspace and not workspace.special and active
-                and not M.is_desktop_workspace(active)
-                and window.floating and window.fullscreen == 0 then
-                -- Pinning follows the monitor's active workspace, including after hotplug.
-                pcall(hl.dispatch, hl.dsp.window.pin({ action = "enable", window = window }))
-                if window.pinned then
-                    hl.dispatch(hl.dsp.window.tag({ tag = "-" .. tag, window = window }))
-                end
+                hl.dispatch(hl.dsp.window.tag({ tag = "-" .. PINNED_TAG, window = window }))
             end
         end
     end
 end
 
-local function unpin(window, tag)
+local function unpin(window)
     if not window.pinned then return true end
     if not window.floating or window.fullscreen ~= 0 then return false end
     pcall(hl.dispatch, hl.dsp.window.pin({ action = "disable", window = window }))
     if window.pinned then return false end
-    hl.dispatch(hl.dsp.window.tag({ tag = "+" .. tag, window = window }))
+    hl.dispatch(hl.dsp.window.tag({ tag = "+" .. PINNED_TAG, window = window }))
     return true
 end
 
@@ -83,7 +80,7 @@ local function fallback_workspace(monitor)
     return selector
 end
 
-function M.toggle_show_desktop()
+function M.toggle()
     local workspace = hl.get_active_workspace()
     if not workspace then return end
 
@@ -99,56 +96,28 @@ function M.toggle_show_desktop()
     end
 
     restore_pins()
-    -- Recover windows hidden by the old implementation without clearing styling tags.
-    local hidden = hl.get_workspace("special:desktop")
-    local hidden_windows = (hidden and hl.get_workspace_windows(hidden)) or {}
-    if #hidden_windows > 0 then
-        for _, window in ipairs(hidden_windows) do
-            hl.dispatch(hl.dsp.window.move({ workspace = workspace, window = window, follow = false }))
-            hl.dispatch(hl.dsp.window.tag({ tag = "-desktop", window = window }))
-        end
-        return
-    end
-
     local monitor = workspace.monitor
     if not monitor or workspace.special then return end
-    local windows = hl.get_workspace_windows(workspace) or {}
+    local windows = workspace:get_windows()
     if #windows == 0 then return end
 
+    local origin = workspace.id and tostring(workspace.id) or "name:" .. workspace.addressable_name
     local index = 1
     local selector
     repeat
-        selector = "name:" .. DESKTOP_PREFIX .. encode(workspace.id and tostring(workspace.id) or "name:" .. workspace.addressable_name) .. ":" .. index
+        selector = "name:" .. DESKTOP_PREFIX .. encode(origin) .. ":" .. index
         index = index + 1
         local desktop = hl.get_workspace(selector)
-    until not desktop or (#(hl.get_workspace_windows(desktop) or {}) == 0 and desktop.monitor == monitor)
+    until not desktop or (#desktop:get_windows() == 0 and desktop.monitor == monitor)
 
     hl.workspace_rule({ workspace = selector, monitor = monitor.name })
     for _, window in ipairs(windows) do
-        if not unpin(window, PINNED_TAG) then
+        if not unpin(window) then
             restore_pins()
             return
         end
     end
     focus_workspace(selector)
-end
-
-function M.toggle_window()
-    local workspace = hl.get_active_workspace()
-    if not workspace or workspace.special then return end
-    local hidden = hl.get_workspace("special:minimized")
-    local window = hidden and (hl.get_workspace_windows(hidden) or {})[1]
-    if window then
-        hl.dispatch(hl.dsp.window.move({ workspace = workspace, window = window, follow = false }))
-        hl.dispatch(hl.dsp.window.tag({ tag = "-minimized", window = window }))
-        restore_pins()
-        return
-    end
-
-    window = hl.get_active_window()
-    if not window or not unpin(window, MINIMIZED_PINNED_TAG) then return end
-    hl.dispatch(hl.dsp.window.tag({ tag = "+minimized", window = window }))
-    hl.dispatch(hl.dsp.window.move({ workspace = "special:minimized", window = window, follow = false }))
 end
 
 local recovery_pending = false

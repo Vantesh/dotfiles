@@ -1,7 +1,7 @@
 {{ if .personal -}}
 local apps = require("config.apps")
 local monitors = require("config.monitors")
-local minimize = require("scripts.minimize")
+local show_desktop = require("scripts.show_desktop")
 
 local LAPTOP_WORKSPACE = 10
 local EXTERNAL_WORKSPACE = 1
@@ -86,7 +86,7 @@ end
 
 local function move_workspaces(external_monitor, laptop_monitor)
   for _, workspace in ipairs(hl.get_workspaces() or {}) do
-    if not minimize.is_desktop_workspace(workspace)
+    if not show_desktop.is_desktop_workspace(workspace)
       and type(workspace.id) == "number" and workspace.id > 0 then
       local target = workspace.id == LAPTOP_WORKSPACE
         and laptop_monitor or external_monitor
@@ -107,10 +107,9 @@ local function move_spotify()
       and (window.class:match("^[Ss]potify$")
               or window.class:match("^[Ss]potifast$")
               or window.class:match("^[Ss]poticast$"))
-    local workspace_id = window.workspace and window.workspace.id
+    local workspace = window.workspace
 
-    if is_spotify and workspace_id
-      and workspace_id ~= LAPTOP_WORKSPACE then
+    if is_spotify and workspace and workspace.id ~= LAPTOP_WORKSPACE then
       hl.dispatch(hl.dsp.window.move({
         window = window,
         workspace = tostring(LAPTOP_WORKSPACE),
@@ -133,7 +132,7 @@ local function place_workspaces()
   move_workspaces(external_monitor, laptop_monitor)
   move_spotify()
 
-  if not minimize.is_desktop_workspace(laptop_monitor.active_workspace) then
+  if not show_desktop.is_desktop_workspace(laptop_monitor.active_workspace) then
     laptop_monitor:set_workspace(tostring(LAPTOP_WORKSPACE))
   end
 
@@ -160,7 +159,7 @@ local function defer(callback)
 end
 
 local function schedule_placement(workspace)
-  if minimize.is_desktop_workspace(workspace) then return end
+  if show_desktop.is_desktop_workspace(workspace) then return end
   defer(place_workspaces)
 end
 

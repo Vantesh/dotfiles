@@ -1,4 +1,4 @@
-local minimize     = require("scripts.minimize")
+local show_desktop = require("scripts.show_desktop")
 local toggle_float = require("scripts.toggle_float")
 
 local horizontal_action
@@ -28,9 +28,10 @@ for _, event in ipairs({
 }) do
   hl.on(event, update_horizontal_gesture)
 end
-hl.gesture({ fingers = 4, direction = "down", action = minimize.toggle_show_desktop })
+hl.gesture({ fingers = 4, direction = "down", action = show_desktop.toggle })
 hl.gesture({ fingers = 3, direction = "pinch", mods = "CTRL", action = toggle_float.toggle })
 hl.gesture({ fingers = 3, direction = "swipe", mods = "ALT", action = "resize" })
 hl.gesture({ fingers = 3, direction = "swipe", mods = "CTRL", action = "move" })
-hl.gesture({ fingers = 4, direction = "up", action = function() hl.dispatch(hl.dsp.exec_cmd(
-  "noctalia msg window-switcher")) end })
+hl.gesture({ fingers = 4, direction = "up", action = function()
+  hl.exec_cmd("noctalia msg window-switcher")
+end })
