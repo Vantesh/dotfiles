@@ -9,6 +9,7 @@ from typing import cast
 
 from .hibernation_policy import request_rebuild
 from .limine_config import boot_directory, configure_limine_settings
+from .provision_logging import run_logged
 
 VENDOR = Path("/sys/class/dmi/id/sys_vendor")
 
@@ -72,9 +73,11 @@ def configure_secure_boot(state: Path) -> None:
         raise ValueError(
             "Enter UEFI Setup Mode with Secure Boot disabled, then reapply; existing keys were preserved."
         )
+    changed = not status["installed"] or status["setup_mode"]
     if not status["installed"]:
         request_rebuild(state)
-        _ = subprocess.run(["sbctl", "create-keys"], check=True, stderr=subprocess.PIPE, text=True)
+        run_logged(["sbctl", "create-keys"], "Create Secure Boot signing keys")
+        print("Created Secure Boot signing keys")
     certificate = signing_certificate()
     if status["setup_mode"]:
         vendor = VENDOR.read_text().strip().lower() if VENDOR.is_file() else ""
@@ -82,15 +85,19 @@ def configure_secure_boot(state: Path) -> None:
         if "asus" not in vendor and "gigabyte" not in vendor:
             flags.append("--firmware-builtin")
         request_rebuild(state)
-        _ = subprocess.run(
-            ["sbctl", "enroll-keys", *flags], check=True, stderr=subprocess.PIPE, text=True
-        )
+        run_logged(["sbctl", "enroll-keys", *flags], "Enroll Secure Boot keys")
         status = secure_boot_status()
         if status["setup_mode"]:
             raise ValueError(
                 "Firmware remains in Setup Mode after enrollment; leave Secure Boot disabled until repaired."
             )
+        print(
+            "Enrolled Secure Boot keys and Microsoft certificates"
+            + (" preserving firmware-builtin certificates" if "--firmware-builtin" in flags else "")
+        )
     check_signing_key(certificate)
+    if changed:
+        print("Verified enrolled signing certificate")
     configure_limine_settings(
         {"ENABLE_VERIFICATION": "yes", "ENABLE_ENROLL_LIMINE_CONFIG": "yes"}, state
     )

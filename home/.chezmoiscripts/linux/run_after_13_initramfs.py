@@ -42,6 +42,15 @@ def main() -> int:
     from lib.boot_rebuild import rebuild_boot
 
     if privileged:
+        logger.remove()
+        _ = logger.add(
+            sys.stderr,
+            level="DEBUG",
+            format="{message}",
+            diagnose=False,
+            backtrace=False,
+            catch=False,
+        )
         try:
             state = Path(sys.argv[2])
             if os.geteuid() != 0 or not state.is_absolute():
@@ -74,6 +83,7 @@ def main() -> int:
         if not pending.exists() and not pending.is_symlink():
             return 0
         _ = subprocess.run(["sudo", "-v"], check=True)
+        logger.info("Rebuilding and verifying boot artifacts.")
         result = subprocess.run(
             [
                 "sudo",
@@ -90,6 +100,8 @@ def main() -> int:
             capture_output=True,
             text=True,
         )
+        if result.stderr:
+            logger.debug("System diagnostic:\n{}", result.stderr.rstrip())
         for message in result.stdout.splitlines():
             logger.info(message)
         return 0

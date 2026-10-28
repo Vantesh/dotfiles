@@ -160,7 +160,7 @@ def test_failed_boot_commit_preserves_request_and_retries_unchanged(
 
 
 def test_fresh_secure_boot_initializes_before_config_and_preserves_initialized_keys(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     from lib import secure_boot
 
@@ -227,8 +227,17 @@ def test_fresh_secure_boot_initializes_before_config_and_preserves_initialized_k
     assert recorded.index(["sbctl", "--json", "setup", "--print-config"]) < recorded.index(
         enrollment
     )
+    output = capsys.readouterr().out
+    assert "Created Secure Boot signing keys" in output
+    assert (
+        "Enrolled Secure Boot keys and Microsoft certificates" in output
+        and "preserving firmware-builtin certificates" in output
+    )
+    assert "Verified enrolled signing certificate" in output
+    assert "signed" not in output.lower()
     before = certificate.read_bytes()
     secure_boot.configure_secure_boot(state)
+    assert capsys.readouterr().out == ""
     fail_config = True
     with pytest.raises(subprocess.CalledProcessError) as failure:
         secure_boot.configure_secure_boot(state)

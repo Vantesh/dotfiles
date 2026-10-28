@@ -13,6 +13,8 @@ from contextlib import suppress
 from pathlib import Path
 from typing import BinaryIO, cast
 
+from loguru import logger
+
 from .limine_config import boot_directory, read_limine_value
 from .policy_files import same_state
 from .secure_boot import check_signing_key
@@ -64,6 +66,7 @@ def checked_limine_command(command: list[str]) -> str:
                 _ = signal.pthread_sigmask(signal.SIG_SETMASK, blocked)
             raise
     output = data.decode(errors="replace")
+    logger.debug("{} diagnostic:\n{}", command[0], output.rstrip())
     if status:
         raise subprocess.CalledProcessError(status, command, stderr=output)
     if re.search(

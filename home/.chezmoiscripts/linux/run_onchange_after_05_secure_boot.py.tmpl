@@ -51,6 +51,15 @@ def main() -> int:
     from lib.secure_boot import configure_secure_boot
 
     if privileged:
+        logger.remove()
+        _ = logger.add(
+            sys.stderr,
+            level="DEBUG",
+            format="{message}",
+            diagnose=False,
+            backtrace=False,
+            catch=False,
+        )
         try:
             state = Path(sys.argv[2])
             if os.geteuid() != 0 or not state.is_absolute():
@@ -98,6 +107,8 @@ def main() -> int:
             capture_output=True,
             text=True,
         )
+        if result.stderr:
+            logger.debug("System diagnostic:\n{}", result.stderr.rstrip())
         for message in (result.stdout or "").splitlines():
             logger.info(message)
         return 0

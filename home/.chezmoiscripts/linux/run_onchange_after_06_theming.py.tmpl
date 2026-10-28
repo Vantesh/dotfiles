@@ -136,6 +136,8 @@ def mactahoe_is_complete(icons: Path) -> bool:
 
 
 def install_mactahoe_icons() -> None:
+    from lib.provision_logging import run_logged
+
     icons = Path(os.environ.get("XDG_DATA_HOME") or Path.home() / ".local/share") / "icons"
     completion = (
         Path(os.environ.get("XDG_STATE_HOME") or Path.home() / ".local/state")
@@ -159,6 +161,7 @@ def install_mactahoe_icons() -> None:
         work = Path(directory)
         icons.mkdir(parents=True, exist_ok=True)
         (work / "icons").symlink_to(icons, target_is_directory=True)
+        logger.info("Installing MacTahoe icon themes.")
         _ = subprocess.run(
             [
                 "git",
@@ -174,8 +177,9 @@ def install_mactahoe_icons() -> None:
             ],
             check=True,
         )
-        _ = subprocess.run(
-            ["bash", str(work / "source/install.sh"), "--dest", str(work / "icons")], check=True
+        run_logged(
+            ["bash", str(work / "source/install.sh"), "--dest", str(work / "icons")],
+            "Install MacTahoe icon themes",
         )
         # A failed/partial upstream install must remain eligible for retry.
         if not mactahoe_is_complete(icons):
@@ -221,6 +225,8 @@ def sf_pro_is_complete(fonts: Path, manifest: Path) -> bool:
 
 
 def install_sf_pro_text() -> None:
+    from lib.provision_logging import run_logged
+
     fonts = Path.home() / ".local/share/fonts/SF-Pro-Text"
     manifest = fonts / ".installed.sha256"
     if sf_pro_is_complete(fonts, manifest) or os.environ.get("OFFLINE"):
@@ -231,6 +237,7 @@ def install_sf_pro_text() -> None:
     manifest.unlink(missing_ok=True)
     with tempfile.TemporaryDirectory(prefix="chezmoi-sf-pro-") as directory:
         work = Path(directory)
+        logger.info("Installing SF Pro Text fonts.")
         _ = subprocess.run(
             [
                 "curl",
@@ -251,10 +258,9 @@ def install_sf_pro_text() -> None:
             ],
             check=True,
         )
-        _ = subprocess.run(
+        run_logged(
             ["7z", "e", "-y", f"-o{work}", str(work / "SF-Pro.dmg"), "SFProFonts.pkg"],
-            check=True,
-            stdout=subprocess.DEVNULL,
+            "Extract SF Pro font package",
         )
         with subprocess.Popen(
             ["bsdtar", "-xOf", str(work / "SFProFonts.pkg"), "SFProFontsPackage.pkg/Payload"],
@@ -347,7 +353,17 @@ def main() -> int:
     except (OSError, ValueError, subprocess.CalledProcessError) as error:
         status = error.returncode if isinstance(error, subprocess.CalledProcessError) else 1
         try:
-            logger.error("Desktop theming stopped (exit {}): {}", status, error)
+            diagnostic = (
+                cast("str | None", error.stderr)
+                if isinstance(error, subprocess.CalledProcessError)
+                else None
+            )
+            reason = (
+                diagnostic.strip().splitlines()[-1]
+                if diagnostic and diagnostic.strip()
+                else str(error)
+            )
+            logger.error("Desktop theming stopped (exit {}): {}", status, reason)
             if isinstance(error, subprocess.CalledProcessError):
                 diagnostic = cast("str | None", error.stderr)
                 if diagnostic:

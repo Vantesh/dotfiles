@@ -3,7 +3,9 @@
 import errno
 import os
 import stat
+import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 from loguru import logger
@@ -66,3 +68,25 @@ def configure_logging() -> int:
         backtrace=False,
         catch=False,
     )
+
+
+def run_logged(command: list[str], operation: str) -> None:
+    """Log public, noninteractive command output without streaming it to the terminal.
+
+    Never use for authentication, secrets, or commands that need native progress.
+    Callers supply public context instead of logging arbitrary command arguments.
+    """
+    logger.debug("Running {}", operation)
+    # Disk-backed capture bounds memory even for verbose upstream installers.
+    with tempfile.TemporaryFile(mode="w+t") as output:
+        result = subprocess.run(command, stdout=output, stderr=subprocess.STDOUT, check=False)
+        _ = output.seek(0)
+        tail = ""
+        while chunk := output.read(16384):
+            logger.debug("{} diagnostic:\n{}", operation, chunk.rstrip())
+            tail = (tail + chunk)[-4096:]
+    if result.returncode:
+        reason = tail.strip().splitlines()[-1] if tail.strip() else "No command diagnostic available"
+        raise subprocess.CalledProcessError(
+            result.returncode, command, stderr=f"{operation}: {reason}"
+        )
