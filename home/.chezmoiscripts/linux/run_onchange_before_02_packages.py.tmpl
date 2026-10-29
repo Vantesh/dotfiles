@@ -341,16 +341,14 @@ def main() -> int:
             MISE_TRUSTED_CONFIG_PATHS=str(root / "mise"),
         )
         setup_chaotic_aur()
-        if not (shutil.which("yay") or shutil.which("paru")):
+        if not shutil.which("paru"):
             logger.info("Installing the AUR helper with Mise.")
             _ = subprocess.run(
                 ["mise", "--env", "aur-helper", "bootstrap", "packages", "apply", "--yes"],
                 check=True,
             )
-            if not (shutil.which("yay") or shutil.which("paru")):
-                raise ValueError(
-                    "Mise did not provide an AUR helper; install yay or paru before retrying."
-                )
+            if not shutil.which("paru"):
+                raise ValueError("Mise did not provide Paru; install paru before retrying.")
         groups = ["packages"]
         family: str | None = None
         kernels: list[str] = []

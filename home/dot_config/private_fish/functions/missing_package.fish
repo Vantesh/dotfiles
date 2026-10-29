@@ -5,8 +5,8 @@ function missing_package
             read -l -P "$argv[1] not found. Do you want to install it? [y/N] " confirm
 
             if test "$confirm" = y
-                if type -q yay
-                    yay -S $argv[1]
+                if type -q paru
+                    paru -S $argv[1]
 
                 else if type -q pacman
                     sudo pacman -S $argv[1]

@@ -20,7 +20,9 @@ Setup asks whether this is a personal installation:
 
 Personal setup requires my Bitwarden credentials and makes system-level changes. Choose **No** if you're installing these dotfiles on your own machine.
 
-Both profiles enable Chaotic-AUR, update packages and install an AUR helper when needed.
+Both profiles enable Chaotic-AUR, update packages and install Paru through Mise when needed.
+AUR builds run as the regular user. Existing Yay installations are left untouched;
+Mise's upstream AUR backend still prefers Yay if both helpers are available.
 The setup requires Python 3.14, Mise 2026.10.20 or newer, and a working systemd user session.
 
 ## Configuration
