@@ -1,19 +1,11 @@
-[tool.basedpyright]
-include = ["home/.chezmoiscripts", "home/.chezmoitemplates/lib", ".github/tests"]
-exclude = ["**/__pycache__", "**/.venv", "**/.pytest_cache", "**/.ruff_cache"]
-extraPaths = ["home/.chezmoitemplates", ".github/tests"]
-pythonVersion = "3.14"
-pythonPlatform = "Linux"
-typeCheckingMode = "recommended"
-failOnWarnings = true
-
-# pytest runs the retained unittest lifecycle: setUp initializes fixture fields.
-# These tests assert side effects, not write counts or public subclassing APIs.
-[[tool.basedpyright.executionEnvironments]]
-root = ".github/tests"
-reportUninitializedInstanceVariable = false
-reportUnannotatedClassAttribute = false
-reportUnusedCallResult = false
+[tool.pyrefly]
+preset = "strict"
+python-version = "3.14"
+project-includes = ["home/.chezmoiscripts/**/*.py", "home/.chezmoitemplates/lib/**/*.py", ".github/tests/**/*.py"]
+search-path = [".github/tests", "home/.chezmoitemplates"]
+# Provisioning and tests live in hidden directories; exclude caches explicitly.
+disable-project-excludes-heuristics = true
+project-excludes = ["**/__pycache__/**", "**/.venv/**", "**/.pytest_cache/**", "**/.ruff_cache/**"]
 
 [tool.pytest.ini_options]
 minversion = "9.0"

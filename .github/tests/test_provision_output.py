@@ -3,6 +3,7 @@
 import subprocess
 import sys
 from pathlib import Path
+from typing import cast
 
 import pytest
 from loguru import logger
@@ -23,8 +24,8 @@ def test_command_output_is_logged_without_terminal_noise(
         sys.executable,
         "-B",
         "-c",
-        "import sys; print('routine output ✓'); "
-        "print('fatal: fixture diagnostic', file=sys.stderr); sys.exit(sys.argv[1])",
+        "import sys; print('routine output ✓', flush=True); "
+        + "print('fatal: fixture diagnostic', file=sys.stderr); sys.exit(int(sys.argv[1]))",
         str(status),
     ]
     try:
@@ -32,7 +33,10 @@ def test_command_output_is_logged_without_terminal_noise(
             with pytest.raises(subprocess.CalledProcessError) as failure:
                 run_logged(command, "Clone fixture repository")
             assert failure.value.returncode == status
-            assert "Clone fixture repository: fatal: fixture diagnostic" == failure.value.stderr
+            assert (
+                cast("str | None", failure.value.stderr)
+                == "Clone fixture repository: fatal: fixture diagnostic"
+            )
         else:
             run_logged(command, "Clone fixture repository")
         captured = capsys.readouterr()

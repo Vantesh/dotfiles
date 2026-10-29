@@ -8,25 +8,23 @@ from helpers import ROOT
 
 
 @pytest.mark.parametrize(
-    ("checker_output", "expected"),
+    ("discovery_output", "expected"),
     [
-        (None, "basedpyright"),
-        (
-            '{"version":"affected-release","summary":{"filesAnalyzed":0}}',
-            "analyzed no Python files",
-        ),
+        (None, "pyrefly"),
+        ("", "source coverage is incomplete"),
+        (f"    {ROOT}/.github/tests/helpers.py", "source coverage is incomplete"),
     ],
 )
 def test_validator_rejects_missing_tools_and_empty_discovery(
-    tmp_path: Path, checker_output: str | None, expected: str
+    tmp_path: Path, discovery_output: str | None, expected: str
 ) -> None:
     marker = tmp_path / "pytest-called"
-    for tool in ("ruff", "basedpyright", "pytest", "chezmoi", "bash", "shellcheck"):
-        if tool == "basedpyright" and checker_output is None:
+    for tool in ("ruff", "pyrefly", "pytest", "chezmoi", "bash", "shellcheck"):
+        if tool == "pyrefly" and discovery_output is None:
             continue
         body = "exit 0"
-        if tool == "basedpyright":
-            body = f"printf '%s\\n' '{checker_output}'"
+        if tool == "pyrefly":
+            body = f"printf '%s\\n' '{discovery_output}'"
         elif tool == "pytest":
             body = 'printf called > "$TOOL_CALLS"'
         executable = tmp_path / tool
@@ -42,6 +40,6 @@ def test_validator_rejects_missing_tools_and_empty_discovery(
     )
     assert result.returncode != 0
     assert expected.lower() in result.stderr.lower()
-    if checker_output is None:
+    if discovery_output is None:
         assert "installed separately" in result.stderr
     assert not marker.exists()

@@ -1,18 +1,44 @@
 """Render setup templates and check shell and managed Python syntax."""
 
-import json
 import shutil
 import subprocess
-import sys
 import tomllib
 from pathlib import Path
-from typing import cast
 
 from helpers import LIB, ROOT, SCRIPTS, ScriptCase
 
 
+def check_types(expected: list[Path], *, project: bool = False) -> None:
+    arguments = ["--config", str(ROOT / "pyproject.toml")]
+    if not project:
+        arguments.extend(str(path) for path in expected)
+    discovery = subprocess.run(
+        ["pyrefly", "dump-config", "--max-files", "all", *arguments],
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    covered = {
+        Path(line.strip()).resolve()
+        for line in discovery.stdout.splitlines()
+        if line.startswith("    /") and line.strip().endswith(".py")
+    }
+    missing = set(expected) - covered
+    if not expected or missing:
+        raise SystemExit(
+            "Pyrefly source coverage is incomplete; missing Python files: "
+            + ", ".join(
+                str(path.relative_to(ROOT)) if path.is_relative_to(ROOT) else str(path)
+                for path in sorted(missing)
+            )
+        )
+    subprocess.run(["pyrefly", "check", *arguments], cwd=ROOT, check=True)
+    print(f"Pyrefly: {len(covered)} Python files covered")
+
+
 def main():
-    required = ("ruff", "basedpyright", "pytest", "chezmoi", "bash")
+    required = ("ruff", "pyrefly", "pytest", "chezmoi", "bash")
     missing = [tool for tool in required if shutil.which(tool) is None]
     # ShellCheck also runs inside a fixture whose PATH contains only test utilities.
     shellcheck = shutil.which("shellcheck")
@@ -25,26 +51,15 @@ def main():
         )
     subprocess.run(["ruff", "check", "."], cwd=ROOT, check=True)
     subprocess.run(["ruff", "format", "--check", "."], cwd=ROOT, check=True)
-    checked = subprocess.run(
-        ["basedpyright", "--outputjson"],
-        cwd=ROOT,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if checked.returncode:
-        print(checked.stdout + checked.stderr, file=sys.stderr, end="")
-        raise SystemExit(checked.returncode)
-    report = cast("dict[str, object]", json.loads(checked.stdout))
-    summary = cast("dict[str, object]", report["summary"])
-    if summary["filesAnalyzed"] == 0:
-        raise SystemExit(
-            f"BasedPyright {report['version']} analyzed no Python files. "
-            + "The installed checker must support the explicitly included hidden source directories; "
-            + "see microsoft/pyright#11861. Manage the tool separately."
+    source_paths = [
+        path
+        for directory in (SCRIPTS, LIB, Path(__file__).parent)
+        for path in sorted(directory.rglob("*.py"))
+        if not any(
+            part in ("__pycache__", ".venv", ".pytest_cache", ".ruff_cache") for part in path.parts
         )
-
-    print(f"BasedPyright: {summary['filesAnalyzed']} Python files analyzed")
+    ]
+    check_types(source_paths, project=True)
 
     fixture = ScriptCase()
     fixture.setUp()
@@ -79,7 +94,7 @@ def main():
             compile(path.read_text(), str(path), "exec")
         # Render Python run scripts and settings modifiers before linting/type checking.
         template_count = raw_template_count = 0
-        rendered_python: list[str] = []
+        rendered_python: list[Path] = []
         for path in sorted((ROOT / "home").rglob("*.tmpl")):
             if not (
                 path.name.endswith(".py.tmpl")
@@ -116,16 +131,12 @@ def main():
                 rendered = fixture.directory / "rendered" / variant / relative
                 rendered.parent.mkdir(parents=True, exist_ok=True)
                 _ = rendered.write_text(source)
-                rendered_python.append(str(rendered))
+                rendered_python.append(rendered)
                 if variant == "source":
                     raw_template_count += 1
                 else:
                     template_count += 1
-        subprocess.run(
-            ["basedpyright", "--project", str(ROOT / "pyproject.toml"), *rendered_python],
-            cwd=ROOT,
-            check=True,
-        )
+        check_types(rendered_python)
         mise_paths = sorted((ROOT / "mise").rglob("*.toml"))
         for path in mise_paths:
             tomllib.loads(path.read_text())

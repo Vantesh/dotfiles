@@ -44,8 +44,7 @@ jobs:
           pacman -Syu --noconfirm --needed \
             bash chezmoi diffutils git git-delta python python-loguru \
             python-pytest ruff shellcheck sudo util-linux uv atuin fish
-          # 1.40.1/1.40.2 inherit the hidden-directory regression in pyright#11861.
-          uv tool install --python /usr/bin/python3 basedpyright==1.40.0
+          uv tool install --python /usr/bin/python3 --with pytest --with loguru pyrefly
 
           # Provisioning tests exercise regular-account guards, not a root login.
           useradd --create-home --user-group ci

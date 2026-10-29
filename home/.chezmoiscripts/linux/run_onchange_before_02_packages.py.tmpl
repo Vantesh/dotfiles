@@ -351,7 +351,9 @@ def main() -> int:
                 raise ValueError(
                     "Mise did not provide an AUR helper; install yay or paru before retrying."
                 )
-        groups, family, kernels = ["packages"], None, []
+        groups = ["packages"]
+        family: str | None = None
+        kernels: list[str] = []
         if personal:
             selected, family, kernels = personal_packages(distro.lower())
             groups.extend(selected)

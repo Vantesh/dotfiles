@@ -32,7 +32,7 @@ def configure_bitwarden() -> int:
                 result.returncode,
             )
             return result.returncode
-        config = {}
+        config: dict[str, object] = {}
     else:
         try:
             parsed = cast("object", json.loads(result.stdout))

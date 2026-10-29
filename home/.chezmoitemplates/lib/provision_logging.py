@@ -86,7 +86,9 @@ def run_logged(command: list[str], operation: str) -> None:
             logger.debug("{} diagnostic:\n{}", operation, chunk.rstrip())
             tail = (tail + chunk)[-4096:]
     if result.returncode:
-        reason = tail.strip().splitlines()[-1] if tail.strip() else "No command diagnostic available"
+        reason = (
+            tail.strip().splitlines()[-1] if tail.strip() else "No command diagnostic available"
+        )
         raise subprocess.CalledProcessError(
             result.returncode, command, stderr=f"{operation}: {reason}"
         )
