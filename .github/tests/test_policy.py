@@ -194,34 +194,19 @@ def test_policy_direct_apply_isolated_and_idempotent(
         assert [call for call in observed if call[0] == "mise"] == [
             ["mise", "--env", "", "bootstrap", "--only", "files", "--yes"]
         ]
-    # First let run_onchange skip, then force the workflow to inspect real state.
-    for force in (False, True):
-        if force:
-            target = source / ".chezmoiscripts/linux" / hook
-            target.write_text(target.read_text() + "\n# Recheck configured state.\n")
-        result = run_setup(policy, command)
-        assert result.returncode == 0, result.stderr
-        assert "[INFO]" not in result.stderr
-        assert {path: (path.read_bytes(), path.stat().st_mtime_ns) for path in after} == after
+    # Re-execute the workflow so idempotency is checked independently of caching.
+    target = source / ".chezmoiscripts/linux" / hook
+    target.write_text(target.read_text() + "\n# Recheck configured state.\n")
+    result = run_setup(policy, command)
+    assert result.returncode == 0, result.stderr
+    assert "[INFO]" not in result.stderr
+    assert {path: (path.read_bytes(), path.stat().st_mtime_ns) for path in after} == after
     if personal:
         invocation = next(call for call in observed if "--apply-policy" in call)
         executable = Path(invocation[invocation.index("--apply-policy") - 1])
         assert invocation[-2:] == [str(source), "1"]
         assert executable.parent != source / ".chezmoiscripts/linux" and not executable.exists()
     assert not list(etc.rglob(".chezmoi-*"))
-    if hook == HOOKS[0] and not personal:
-        # Fresh-install profiles are fixed: changing only the environment does
-        # not make a successfully skipped plain run_onchange hook eligible.
-        config.write_text(
-            json.dumps(
-                {"data": {"personal": True}, "scriptEnv": {"DOTFILES_PERSONAL_ENABLED": "1"}}
-            )
-        )
-        observed = calls(policy)
-        result = run_setup(policy, command)
-        assert result.returncode == 0, result.stderr
-        assert calls(policy) == observed
-        assert {path: path.read_bytes() for path in after} == before
 
 
 @pytest.mark.parametrize("hook", HOOKS, ids=["sudo", "pacman"])

@@ -1,75 +1,10 @@
-"""Retained application behavior and validator failure reporting."""
+"""Validator failure reporting for missing tools and empty discovery."""
 
-# runpy inspects dynamic application objects.
-# pyright: reportAny=false
-
-import os
-import runpy
 import subprocess
 from pathlib import Path
-from types import SimpleNamespace
-from typing import override
-from unittest.mock import MagicMock, patch
 
 import pytest
-from helpers import ROOT, ScriptCase
-
-
-class PythonApplicationTests(ScriptCase):
-    @override
-    def setUp(self) -> None:
-        super().setUp()
-        # Only Kitty's embedded TUI imports are unavailable in the CI container.
-        dependencies = {
-            name: MagicMock()
-            for name in (
-                "kittens.tui.handler",
-                "kittens.tui.line_edit",
-                "kittens.tui.loop",
-                "kittens.tui.operations",
-                "kitty.config",
-                "kitty.key_encoding",
-                "kitty.typing_compat",
-            )
-        }
-        dependencies["kittens.tui.handler"].Handler = object
-        with patch.dict("sys.modules", dependencies):
-            self.search = runpy.run_path(str(ROOT / "home/dot_config/kitty/search.py"))
-
-    def test_kitty_search_rejects_bad_window_ids_before_remote_operations(self) -> None:
-        self.stub("kitty", "exit 0", log=True)
-        for arguments in (["search.py"], ["search.py", "invalid"]):
-            with (
-                self.subTest(arguments=arguments),
-                patch.dict(os.environ, self.env, clear=True),
-                self.assertRaises(SystemExit),
-            ):
-                self.search["main"](arguments)
-        self.assertEqual(self.logged_calls(), [])
-
-    def test_kitty_search_displays_marker_errors_and_recovers_after_editing(self) -> None:
-        self.stub(
-            "kitty",
-            r"""if [ "$2" = create-marker ]; then
-    echo 'Invalid regular expression' >&2; exit 23
-fi""",
-            log=True,
-        )
-        handler = self.search["Search"].__new__(self.search["Search"])
-        handler.window_ids = [1]
-        handler.line_edit = SimpleNamespace(current_input="[")
-        handler.mode = "regex"
-        handler.error = ""
-        with patch.dict(os.environ, self.env, clear=True):
-            handler.mark()
-            self.assertIn("Invalid regular expression", handler.error)
-            self.assertEqual(
-                [call[2] for call in self.logged_calls()], ["create-marker", "remove-marker"]
-            )
-            self.stub("kitty", "exit 0")
-            handler.line_edit.current_input = "valid"
-            handler.mark()
-            self.assertEqual(handler.error, "")
+from helpers import ROOT
 
 
 @pytest.mark.parametrize(

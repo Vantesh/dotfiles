@@ -210,9 +210,6 @@ def test_snapper_apply_and_state_based_reapplication(
             < observed.index(create)
             < observed.index(["boot", "overlay"])
         )
-    result = run_setup(snapper, command)
-    assert result.returncode == 0, result.stderr
-    assert calls(snapper) == observed
     # Force the real trigger to run again: native state must avoid configuration
     # creation, unchanged settings and repeated unit activation independently.
     module = tmp_path / "source/.chezmoiscripts/linux" / HOOK

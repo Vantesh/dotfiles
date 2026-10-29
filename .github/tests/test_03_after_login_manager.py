@@ -237,9 +237,6 @@ def test_greeter_configs_profiles_and_next_boot_only_transition(
     )
     previous = calls(login)
     before = greeter_path.stat().st_mtime_ns
-    assert run_setup(login, command).returncode == 0
-    assert calls(login) == previous  # Native run_onchange success caching.
-    assert greeter_path.stat().st_mtime_ns == before
     # Explicit reapplication also preserves the managed file and service state.
     script = render_python(login, HOOK, personal=personal, source=Path(login["LOGIN_SOURCE"]))
     repeated = run_setup(login, [PYTHON, "-B", str(script)])

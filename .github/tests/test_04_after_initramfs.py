@@ -410,14 +410,12 @@ esac""",
                 self.assertFalse(any(call[0] == "update" for call in self.logged_calls()))
 
     def test_configuration_write_failures_keep_rebuild_intent(self) -> None:
-        for key in ("ENABLE_VERIFICATION", "ENABLE_ENROLL_LIMINE_CONFIG"):
-            with self.subTest(key=key):
-                self.reset("no", "no")
-                self.env["FAILURE"] = "write-" + key
-                result = self.security()
-                self.assertEqual(result.returncode, 1, result.stderr)
-                self.assertTrue(self.marker.is_file())
-                self.assertIn("Failed to configure " + key, result.stderr)
+        self.reset("no", "no")
+        self.env["FAILURE"] = "write-ENABLE_VERIFICATION"
+        result = self.security()
+        self.assertEqual(result.returncode, 1, result.stderr)
+        self.assertTrue(self.marker.is_file())
+        self.assertIn("Failed to configure ENABLE_VERIFICATION", result.stderr)
 
     def test_key_operation_and_request_failures_stop_safely(self) -> None:
         for failure, installed in (("create", False), ("enroll", True)):

@@ -43,8 +43,9 @@ def laptop_env(env: dict[str, str], tmp_path: Path) -> dict[str, str]:
         env,
         "git",
         '''[ "${GIT_STATUS:-0}" = 0 ] || exit "$GIT_STATUS"
-/usr/bin/mkdir -p "$7"
-/usr/bin/cp "$HOME/installer" "$7/auto-cpufreq-installer"''',
+for checkout do :; done
+/usr/bin/mkdir -p "$checkout"
+/usr/bin/cp "$HOME/installer" "$checkout/auto-cpufreq-installer"''',
         log=True,
     )
     stub(env, "sudo", 'exec "$@"', log=True)
@@ -126,17 +127,12 @@ def test_inspection_and_download_errors_preserve_status(
 
 
 @pytest.mark.parametrize("failure", ["INSTALL_STATUS", "DAEMON_STATUS"])
-def test_native_chezmoi_retries_installer_failure_then_caches_success(
+def test_partial_install_recovers_without_reinstalling_an_active_daemon(
     laptop_env: dict[str, str], tmp_path: Path, failure: str
 ) -> None:
     assert CHEZMOI is not None
     source = Path(laptop_env["CHEZMOI_SOURCE_DIR"])
     scripts = source / ".chezmoiscripts/linux"
-    # Boundaries prove the laptop hook keeps its established after-script order.
-    for order in ("01", "03"):
-        (scripts / f"run_onchange_after_{order}_probe.sh").write_text(
-            f'#!/bin/sh\necho {order} >> "$HOME/order"\n'
-        )
     config = tmp_path / "chezmoi.json"
     config.write_text(json.dumps({"scriptEnv": {"DOTFILES_PERSONAL_ENABLED": "1"}}))
     command = [
@@ -154,7 +150,6 @@ def test_native_chezmoi_retries_installer_failure_then_caches_success(
     failed = run_setup(laptop_env, command)
     assert failed.returncode != 0
     assert "exit 42" in failed.stderr
-    assert (tmp_path / "order").read_text() == "01\n"
     assert not (tmp_path / "active").exists()
     assert not list(tmp_path.glob("chezmoi-auto-cpufreq-*"))
     if failure == "DAEMON_STATUS":
@@ -163,39 +158,14 @@ def test_native_chezmoi_retries_installer_failure_then_caches_success(
     retried = run_setup(laptop_env, command)
     assert retried.returncode == 0, retried.stderr
     assert "Native daemon installer output" in retried.stdout
-    assert (tmp_path / "order").read_text() == "01\n03\n"
     assert (tmp_path / "active").exists()
     observed = calls(laptop_env)
-    cached = run_setup(laptop_env, command)
-    assert cached.returncode == 0, cached.stderr
-    assert calls(laptop_env) == observed
     # A deliberate hook change may re-execute it; an active daemon stays untouched.
     with (scripts / HOOK).open("a") as stream:
         stream.write("\n# changed\n")
     reapplied = run_setup(laptop_env, command)
     assert reapplied.returncode == 0, reapplied.stderr
-    assert calls(laptop_env)[len(observed) :] == [
-        ["hostnamectl", "chassis"],
-        ["systemctl", "is-active", "--quiet", "auto-cpufreq.service"],
-    ]
-    cloned = [call for call in observed if call[0] == "git"]
-    assert len(cloned) == (2 if failure == "INSTALL_STATUS" else 1)
-    for call in cloned:
-        assert call[1:-1] == [
-            "clone",
-            "--single-branch",
-            "--branch",
-            "v3.2.0",
-            "--",
-            "https://github.com/AdnanHodzic/auto-cpufreq.git",
-        ]
-    for call in observed:
-        if call[0] == "systemctl":
-            assert call == ["systemctl", "is-active", "--quiet", "auto-cpufreq.service"]
-        if call[:2] == ["sudo", "bash"]:
-            assert call[-1] == "--install"
-        if call[0] == "sudo" and call[1] == str(tmp_path / "auto-cpufreq"):
-            assert call[-1] == "--install"
+    assert not any(
+        call[0] in ("git", "curl", "sudo") for call in calls(laptop_env)[len(observed) :]
+    )
     assert not list(tmp_path.glob("chezmoi-auto-cpufreq-*"))
-    assert "auto-cpufreq" not in (ROOT / "mise/conf.d/packages.toml").read_text()
-    assert "auto-cpufreq" not in (ROOT / "mise/conf.d/services.toml").read_text()

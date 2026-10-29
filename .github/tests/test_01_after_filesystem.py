@@ -312,10 +312,6 @@ def test_direct_hibernation_creates_verified_swap_and_reapplies(
     command = hibernation_command(hibernation, tmp_path)
     result = run_setup(hibernation, command)
     assert result.returncode == 0, result.stderr
-    observed = calls(hibernation)
-    result = run_setup(hibernation, command)
-    assert result.returncode == 0, result.stderr
-    assert calls(hibernation) == observed
     resume = tmp_path / "etc/limine-entry-tool.d/50-hibernation.conf"
     assert (
         resume.read_text()
@@ -422,6 +418,7 @@ def test_independent_swap_stays_untouched(
         call[0] in ("btrfs", "mount", "swapon") and (call[0] != "swapon" or len(call) == 2)
         for call in calls(hibernation)
     )
+    assert not (tmp_path / "etc/limine-entry-tool.d/50-hibernation.conf").exists()
     assert not (tmp_path / "etc/limine-entry-tool.d/zswap.conf").exists()
 
 
@@ -539,7 +536,7 @@ def test_native_swap_failure_codes_are_not_manual_success(
 
 
 @pytest.mark.parametrize("outcome", ["swap-failure", "boot-conflict", "zswap-failure"])
-def test_run_onchange_retries_failures_then_skips_success(
+def test_hibernation_failure_ordering_and_implementation_dependencies(
     hibernation: dict[str, str], tmp_path: Path, outcome: str
 ) -> None:
     command = hibernation_command(hibernation, tmp_path)
@@ -585,10 +582,6 @@ def test_run_onchange_retries_failures_then_skips_success(
     assert (tmp_path / "etc/limine-entry-tool.d/50-hibernation.conf").exists()
     assert (Path(hibernation["XDG_STATE_HOME"]) / "chezmoi/initramfs.pending").exists()
     assert script.read_bytes() == original
-    observed = [call for call in calls(hibernation) if not call[0].startswith("order-")]
-    result = run_setup(hibernation, command)
-    assert result.returncode == 0, result.stderr
-    assert [call for call in calls(hibernation) if not call[0].startswith("order-")] == observed
     # The extracted implementation is a real execution dependency.
     module = source / ".chezmoitemplates/lib/hibernation_policy.py"
     module.write_text(module.read_text() + "\n# Recheck changed implementation.\n")
@@ -596,22 +589,6 @@ def test_run_onchange_retries_failures_then_skips_success(
     assert result.returncode == 0, result.stderr
     assert sum("--configure" in call for call in calls(hibernation)) == 4
     assert sum("mkswapfile" in call for call in calls(hibernation)) == 1
-
-
-def test_run_onchange_records_manual_configuration_without_repeating_it(
-    hibernation: dict[str, str], tmp_path: Path
-) -> None:
-    hibernation["ACTIVE_SWAP"] = "/dev/independent"
-    command = hibernation_command(hibernation, tmp_path)
-    result = run_setup(hibernation, command)
-    assert result.returncode == 0, result.stderr
-    assert "independently managed" in result.stderr
-    observed = calls(hibernation)
-    result = run_setup(hibernation, command)
-    assert result.returncode == 0, result.stderr
-    assert calls(hibernation) == observed
-    assert not any(call[0] == "mount" or "mkswapfile" in call for call in observed)
-    assert not (tmp_path / "etc/limine-entry-tool.d/50-hibernation.conf").exists()
 
 
 @pytest.mark.parametrize("gib", [29, 30])

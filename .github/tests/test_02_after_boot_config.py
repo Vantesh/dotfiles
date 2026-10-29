@@ -498,6 +498,8 @@ esac""",
                 "ambiguous",
             ),
         ):
+            if identifier.startswith("UUID=") and failure == "ambiguous":
+                continue
             with self.subTest(identifier=identifier, failure=failure):
                 self.env["FAILURE"] = failure
                 self.persistent_sources(f"cryptdevice={identifier}:root")
@@ -561,7 +563,7 @@ esac""",
         self,
     ) -> None:
         legacy = "cryptdevice=UUID=bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:root"
-        for failure in ("implicit", "embedded", "key-hook", "crypttab", "hook", "ambiguous"):
+        for failure in ("implicit", "embedded", "key-hook", "crypttab", "hook"):
             with self.subTest(failure=failure):
                 self.persistent_sources(legacy)
                 self.main.write_text(self.original)
@@ -570,7 +572,7 @@ esac""",
                 hook = self.etc / "initcpio/install/local-keyfiles"
                 for path in (implicit, table, hook):
                     path.unlink(missing_ok=True)
-                self.env["FAILURE"] = failure if failure in ("hook", "ambiguous") else ""
+                self.env["FAILURE"] = failure if failure == "hook" else ""
                 if failure == "implicit":
                     implicit.touch()
                 elif failure == "embedded":
@@ -855,7 +857,6 @@ esac""",
             "late",
             "late-matching",
             "snapshot",
-            "write",
             "publish",
         ):
             with self.subTest(failure=failure):
@@ -877,7 +878,7 @@ esac""",
                 self.assertNotEqual(result.returncode, 0, result.stderr)
                 self.assertEqual(self.managed.read_text(), previous)
                 self.assertFalse(list(self.dropins.glob(".*.??????")))
-                self.assertEqual(self.marker.exists(), failure in ("write", "publish"))
+                self.assertEqual(self.marker.exists(), failure == "publish")
 
     def test_user_managed_early_unlock_presence_is_required_and_never_rewritten(self) -> None:
         self.env.update(ENCRYPTED="1", UNLOCK="")

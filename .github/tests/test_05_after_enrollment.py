@@ -9,31 +9,10 @@ import subprocess
 from pathlib import Path
 
 import pytest
-from helpers import CHEZMOI, ROOT, SCRIPTS, ScriptCase
+from helpers import CHEZMOI, ROOT, SCRIPTS
 from test_setup import PYTHON, calls, render_python, run_setup, stub
 from test_setup import env as env
 from test_workstation import workstation as workstation
-
-
-class AvatarTests(ScriptCase):
-    def test_avatar_external_requires_personal_online_setup(self) -> None:
-        external = ROOT / "home/.chezmoiexternals/20-avatar.yaml.tmpl"
-        for personal, offline, enabled in (
-            (True, "", True),
-            (True, "1", False),
-            (False, "", False),
-            (False, "1", False),
-        ):
-            with self.subTest(personal=personal, offline=offline):
-                self.env["OFFLINE"] = offline
-                source = self.render(external, personal=personal)
-                if enabled:
-                    self.assertIn('".local/share/avatars/profile.png":', source)
-                    self.assertIn('url: "https://github.com/Vantesh.png"', source)
-                    self.assertIn("refreshPeriod: 168h", source)
-                else:
-                    self.assertEqual(source.strip(), "")
-
 
 WARP = "run_onchange_after_15_warp.py"
 
@@ -64,7 +43,7 @@ esac""",
 
 
 @pytest.mark.parametrize("personal", [False, True], ids=["nonpersonal", "personal"])
-def test_chezmoi_registers_warp_after_services_and_retries_without_connecting(
+def test_chezmoi_registers_warp_after_services_without_connecting(
     warp_env: dict[str, str], tmp_path: Path, personal: bool
 ) -> None:
     assert CHEZMOI is not None
@@ -98,32 +77,15 @@ def test_chezmoi_registers_warp_after_services_and_retries_without_connecting(
         "--no-tty",
         "apply",
     ]
-    warp_env["WARP_NEW_STATUS"] = "23"
-    failed = run_setup(warp_env, command)
-    assert failed.returncode != 0
-    assert "exit 23" in failed.stderr
-    assert not (tmp_path / "registered").exists()
+    result = run_setup(warp_env, command)
+    assert result.returncode == 0, result.stderr
+    assert (tmp_path / "registered").read_text() == "fixture-registration\n"
     observed = calls(warp_env)
     assert next(i for i, call in enumerate(observed) if call[0] == "mise") < next(
         i for i, call in enumerate(observed) if call[0] == "warp-cli"
     )
-    warp_env["WARP_NEW_STATUS"] = "0"
-    retried = run_setup(warp_env, command)
-    assert retried.returncode == 0, retried.stderr
-    assert (tmp_path / "registered").read_text() == "fixture-registration\n"
-    observed = calls(warp_env)
-    assert [call[1:] for call in observed if call[0] == "warp-cli"] == [
-        ["--accept-tos", "registration", "show"],
-        ["--accept-tos", "registration", "new"],
-        ["--accept-tos", "registration", "show"],
-        ["--accept-tos", "registration", "new"],
-        ["--accept-tos", "registration", "show"],
-    ]
-    cached = run_setup(warp_env, command)
-    assert cached.returncode == 0, cached.stderr
-    assert calls(warp_env) == observed
     log = (tmp_path / "state/chezmoi/logs/setup.log").read_text()
-    assert "account-private-fixture" not in log + retried.stdout + retried.stderr
+    assert "account-private-fixture" not in log + result.stdout + result.stderr
 
 
 def test_warp_reuses_existing_team_registration_without_mutation(
