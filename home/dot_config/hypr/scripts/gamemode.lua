@@ -8,7 +8,7 @@ function M.toggle()
 
     if game_mode_on then
         -- restore everything from the config files
-        hl.exec_cmd("hyprctl reload")
+        hl.dispatch(hl.dsp.reload_config())
         hl.exec_cmd("noctalia msg bar-show")
         hl.exec_cmd([[notify-send --app-name="Hyprland" --expire-time=3000 "Gamemode" "Default settings restored"]])
         return
