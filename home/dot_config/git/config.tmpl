@@ -1,3 +1,4 @@
+{{ if .personal -}}
 
 [core]
     pager = delta
@@ -88,3 +89,10 @@
 
 [include]
     path = ~/.config/git/identity
+
+[url "git@github.com:Vantesh/"]
+    insteadOf = https://github.com/Vantesh/
+{{ end -}}
+
+[includeIf "gitdir:~/.local/share/chezmoi/"]
+    path = ~/.config/git/dotfiles.gitconfig
