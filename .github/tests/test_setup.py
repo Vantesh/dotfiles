@@ -233,7 +233,7 @@ def test_nonpersonal_apply_is_isolated(env: dict[str, str], tmp_path: Path) -> N
     env.update(NOCONFIRM="1", OFFLINE="1", CHEZMOI_SOURCE_DIR=str(ROOT / "home"))
     stub(env, "chezmoi", f'exec {shlex.quote(CHEZMOI)} "$@"')
     stub(env, "id", "echo 1000")
-    stub(env, "yay", "exit 97")
+    stub(env, "paru", "exit 97")
     stub(env, "pacman", '[ "$1" = -Q ] || exit 127')
     stub(env, "pacman-conf", '[ "$*" = --repo-list ] || exit 97; echo chaotic-aur')
     stub(
@@ -622,7 +622,7 @@ def package_env(env: dict[str, str]) -> dict[str, str]:
         UPGRADE_STATUS="0",
     )
     stub(env, "id", "echo 1000")
-    stub(env, "yay", "exit 97")
+    stub(env, "paru", "exit 97")
     stub(env, "pacman-conf", "echo chaotic-aur")
     stub(
         env,
@@ -714,7 +714,7 @@ def test_fresh_kvm_baseline_needs_no_vulkan_provider_or_personal_probes(
 def test_chaotic_trust_upgrade_and_helper_recover_then_reapply_without_duplicates(
     package_env: dict[str, str], tmp_path: Path
 ) -> None:
-    (tmp_path / "bin/yay").unlink()
+    (tmp_path / "bin/paru").unlink()
     stub(
         package_env,
         "pacman",
@@ -748,8 +748,8 @@ esac""",
         package_env,
         "mise",
         r"""if [ "$*" = '--env aur-helper bootstrap packages apply --yes' ]; then
-    printf '#!/bin/sh\nexit 97\n' > "$HOME/bin/yay"
-    chmod 755 "$HOME/bin/yay"
+    printf '#!/bin/sh\nexit 97\n' > "$HOME/bin/paru"
+    chmod 755 "$HOME/bin/paru"
 elif [ "$*" != '--env packages bootstrap packages apply --yes' ]; then
     exit 97
 fi""",

@@ -160,6 +160,10 @@ exit "${DRIVER_STATUS:-0}"''',
         "gdbus",
         """case "$*" in
     *Manager.GetDefaultDevice)
+        if [ "${NO_DEVICE:-0}" = 1 ]; then
+            echo 'GDBus.Error:net.reactivated.Fprint.Error.NoSuchDevice: No devices available' >&2
+            exit 1
+        fi
         [ "${MANAGER_STATUS:-0}" = 0 ] || exit "$MANAGER_STATUS"
         echo "(objectpath '/net/reactivated/Fprint/Device/0',)" ;;
     *Properties.Get*)
@@ -191,12 +195,11 @@ touch "$HOME/enrolled"''',
     return env
 
 
-def fingerprint_with_terminal(env: dict[str, str], answer: str) -> subprocess.CompletedProcess[str]:
+def fingerprint_with_terminal(env: dict[str, str]) -> subprocess.CompletedProcess[str]:
     setsid = shutil.which("setsid")
     assert setsid is not None
     master, slave = pty.openpty()
     try:
-        _ = os.write(master, (answer + "\n").encode())
         return subprocess.run(
             [setsid, "--ctty", "--wait", PYTHON, "-B", str(Path(env["HOME"]) / FINGERPRINT)],
             stdin=slave,
@@ -211,14 +214,20 @@ def fingerprint_with_terminal(env: dict[str, str], answer: str) -> subprocess.Co
         os.close(master)
 
 
-@pytest.mark.parametrize("scenario", ["absent", "driver-missing", "other-reader", "enrolled"])
+@pytest.mark.parametrize(
+    "scenario", ["absent", "unsupported", "driver-missing", "no-device", "other-reader", "enrolled"]
+)
 def test_fingerprint_requires_the_supported_reader_and_preserves_existing_prints(
     fingerprint_env: dict[str, str], tmp_path: Path, scenario: str
 ) -> None:
     if scenario == "absent":
         shutil.rmtree(tmp_path / "usb/1-1")
+    elif scenario == "unsupported":
+        (tmp_path / "usb/1-1/idProduct").write_text("0000\n")
     elif scenario == "driver-missing":
         fingerprint_env["DRIVER_STATUS"] = "1"
+    elif scenario == "no-device":
+        fingerprint_env["NO_DEVICE"] = "1"
     elif scenario == "other-reader":
         fingerprint_env["OTHER_READER"] = "1"
     else:
@@ -227,12 +236,16 @@ def test_fingerprint_requires_the_supported_reader_and_preserves_existing_prints
     assert result.returncode == 0, result.stderr
     observed = calls(fingerprint_env)
     assert not any(call[0] in ("sudo", "fprintd-enroll") for call in observed)
-    if scenario == "absent":
+    if scenario in ("absent", "unsupported"):
         assert observed == []
-        assert result.stdout == result.stderr == ""
+        assert "No supported Goodix 27c6:5395 reader detected" in result.stderr
     elif scenario == "driver-missing":
         assert observed == [["pacman", "-Q", "--", "libfprint-goodix53x5-533c-git"]]
         assert "no declared compatible driver" in result.stderr
+    elif scenario == "no-device":
+        assert "fprintd has no available fingerprint reader" in result.stderr
+    elif scenario == "other-reader":
+        assert "not the supported Goodix driver" in result.stderr
     elif scenario == "enrolled":
         assert (tmp_path / "enrolled").read_text() == "existing-print"
 
@@ -252,25 +265,28 @@ def test_fingerprint_unattended_execution_never_enrolls(
     assert result.returncode == 0, result.stderr
     assert not (tmp_path / "enrolled").exists()
     assert not any(call[0] in ("sudo", "fprintd-enroll") for call in calls(fingerprint_env))
+    if flag == "headless":
+        assert "Fingerprint enrollment needs a terminal" in result.stderr
+    else:
+        assert calls(fingerprint_env) == []
+        assert "Fingerprint enrollment skipped unattended" in result.stderr
 
 
-@pytest.mark.parametrize("answer", ["n", "yes"], ids=["declined", "confirmed"])
-def test_fingerprint_enrollment_needs_consent_and_is_verified_before_success(
-    fingerprint_env: dict[str, str], tmp_path: Path, answer: str
+def test_fingerprint_enrollment_starts_without_consent_and_is_verified_before_success(
+    fingerprint_env: dict[str, str], tmp_path: Path
 ) -> None:
-    result = fingerprint_with_terminal(fingerprint_env, answer)
+    result = fingerprint_with_terminal(fingerprint_env)
     assert result.returncode == 0, result.stderr
-    assert (tmp_path / "enrolled").exists() == (answer == "yes")
-    if answer == "yes":
-        repeated = fingerprint_with_terminal(fingerprint_env, "yes")
-        assert repeated.returncode == 0, repeated.stderr
-        user = pwd.getpwuid(os.getuid()).pw_name
-        assert [call for call in calls(fingerprint_env) if call[0] == "fprintd-enroll"] == [
-            ["fprintd-enroll", "-f", "right-index-finger", user]
-        ]
-        assert ["sudo", "fprintd-enroll", "-f", "right-index-finger", user] in calls(
-            fingerprint_env
-        )
+    assert (tmp_path / "enrolled").exists()
+    assert "Starting fingerprint enrollment; touch the reader when prompted" in result.stderr
+    assert "Fingerprint enrollment completed" in result.stderr
+    repeated = fingerprint_with_terminal(fingerprint_env)
+    assert repeated.returncode == 0, repeated.stderr
+    user = pwd.getpwuid(os.getuid()).pw_name
+    assert [call for call in calls(fingerprint_env) if call[0] == "fprintd-enroll"] == [
+        ["fprintd-enroll", "-f", "right-index-finger", user]
+    ]
+    assert ["sudo", "fprintd-enroll", "-f", "right-index-finger", user] in calls(fingerprint_env)
     log = (tmp_path / "state/chezmoi/logs/setup.log").read_text()
     assert "native-biometric-output-fixture" not in log + result.stdout + result.stderr
 
@@ -290,7 +306,7 @@ def test_fingerprint_required_failures_never_claim_success(
     fingerprint_env: dict[str, str], tmp_path: Path, failure: str, status: int
 ) -> None:
     fingerprint_env[failure] = "1" if failure == "NO_SAVED_PRINT" else str(status)
-    result = fingerprint_with_terminal(fingerprint_env, "yes")
+    result = fingerprint_with_terminal(fingerprint_env)
     assert result.returncode == status, result.stderr
     assert f"Fingerprint setup failed (exit {status})" in result.stderr
     assert "Fingerprint enrollment completed" not in result.stderr

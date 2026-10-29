@@ -1,6 +1,7 @@
 #!/usr/bin/python3 -B
 """Install upstream auto-cpufreq on personal laptops; upstream owns its daemon."""
 
+import configparser
 import json
 import os
 import subprocess
@@ -64,6 +65,13 @@ def install_auto_cpufreq() -> None:
             logger.warning("Could not remove auto-cpufreq source directory: {}", directory)
 
 
+def bluetooth_boot_enabled() -> bool:
+    bluetooth = configparser.ConfigParser(interpolation=None)
+    with Path("/etc/bluetooth/main.conf").open() as config:
+        bluetooth.read_file(config)
+    return bluetooth.getboolean("Policy", "AutoEnable", fallback=False)
+
+
 def main() -> int:
     personal = os.environ.get("DOTFILES_PERSONAL_ENABLED")
     if personal == "0":
@@ -104,14 +112,25 @@ def main() -> int:
         daemon = subprocess.run(
             ["systemctl", "is-active", "--quiet", "auto-cpufreq.service"], check=False
         )
-        if daemon.returncode == 0:
-            return 0
-        if daemon.returncode not in (3, 4):
-            daemon.check_returncode()
-        _ = subprocess.run(["sudo", str(AUTO_CPUFREQ_BIN), "--install"], check=True)
-        logger.info("Installed the auto-cpufreq daemon through upstream.")
+        if daemon.returncode != 0:
+            if daemon.returncode not in (3, 4):
+                daemon.check_returncode()
+            _ = subprocess.run(["sudo", str(AUTO_CPUFREQ_BIN), "--install"], check=True)
+            logger.info("Installed the auto-cpufreq daemon through upstream.")
+        if not bluetooth_boot_enabled():
+            _ = subprocess.run(["sudo", str(AUTO_CPUFREQ_BIN), "--bluetooth_boot_on"], check=True)
+            # Upstream can report a write failure without a nonzero exit status.
+            if not bluetooth_boot_enabled():
+                raise ValueError("auto-cpufreq did not enable Bluetooth at boot.")
         return 0
-    except (OSError, ValueError, KeyError, TypeError, subprocess.CalledProcessError) as error:
+    except (
+        OSError,
+        ValueError,
+        KeyError,
+        TypeError,
+        configparser.Error,
+        subprocess.CalledProcessError,
+    ) as error:
         status = error.returncode if isinstance(error, subprocess.CalledProcessError) else 1
         try:
             logger.opt(exception=True).error(

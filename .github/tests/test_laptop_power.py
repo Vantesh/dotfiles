@@ -23,10 +23,12 @@ def laptop_env(env: dict[str, str], tmp_path: Path) -> dict[str, str]:
         (SCRIPTS / HOOK)
         .read_text()
         .replace('Path("/usr/local/bin/auto-cpufreq")', f"Path({str(tmp_path / 'auto-cpufreq')!r})")
+        .replace('Path("/etc/bluetooth/main.conf")', f"Path({str(tmp_path / 'bluetooth.conf')!r})")
     )
     (scripts / HOOK).write_text(script)
     env["CHEZMOI_SOURCE_DIR"] = str(source)
     env["DOTFILES_PERSONAL_ENABLED"] = "1"
+    (tmp_path / "bluetooth.conf").write_text("[Policy]\nAutoEnable=false\n")
     stub(
         env,
         "hostnamectl",
@@ -72,6 +74,10 @@ fi
     daemon = tmp_path / "daemon"
     daemon.write_text(
         """#!/bin/sh
+if [ "$1" = --bluetooth_boot_on ]; then
+    printf '[Policy]\\nAutoEnable=true\\n' > "$HOME/bluetooth.conf"
+    exit 0
+fi
 [ "$1" = --install ] || exit 97
 echo "Native daemon installer output"
 [ "${DAEMON_STATUS:-0}" = 0 ] || exit "$DAEMON_STATUS"
@@ -168,4 +174,5 @@ def test_partial_install_recovers_without_reinstalling_an_active_daemon(
     assert not any(
         call[0] in ("git", "curl", "sudo") for call in calls(laptop_env)[len(observed) :]
     )
+    assert (tmp_path / "bluetooth.conf").read_text() == "[Policy]\nAutoEnable=true\n"
     assert not list(tmp_path.glob("chezmoi-auto-cpufreq-*"))

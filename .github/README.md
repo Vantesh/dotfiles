@@ -16,11 +16,13 @@ chezmoi init --apply vantesh
 Setup asks whether this is a personal installation:
 
 - **Nonpersonal:** Common packages, dotfiles, themes, fonts, Fish, services, Noctalia Greeter and WARP registration (without connecting).
-- **Personal:** Everything above, plus private configuration, hardware drivers, firewall rules, Btrfs/Snapper, hibernation, Secure Boot and optional fingerprint enrollment.
+- **Personal:** Everything above, plus private configuration, hardware drivers, firewall rules, Btrfs/Snapper, hibernation, Secure Boot and automatic fingerprint enrollment on supported hardware.
 
 Personal setup requires my Bitwarden credentials and makes system-level changes. Choose **No** if you're installing these dotfiles on your own machine.
 
-Both profiles enable Chaotic-AUR, update packages and install an AUR helper when needed.
+Both profiles enable Chaotic-AUR, update packages and install Paru through Mise when needed.
+AUR builds run as the regular user. Existing Yay installations are left untouched;
+Mise's upstream AUR backend still prefers Yay if both helpers are available.
 The setup requires Python 3.14, Mise 2026.10.20 or newer, and a working systemd user session.
 
 ## Configuration
@@ -44,6 +46,11 @@ Edit configuration in the Chezmoi source directory (`chezmoi cd`). Failed setup 
 Logs are stored at `~/.local/state/chezmoi/logs/setup.log`, or under `$XDG_STATE_HOME` when set.
 
 `OFFLINE=1` skips supported external downloads, not package installation. `NOCONFIRM=1` skips optional prompts and fingerprint enrollment.
+
+Personal fingerprint setup starts native capture automatically for an unenrolled,
+supported Goodix 27c6:5395 reader. Follow `fprintd-enroll`'s touch/lift instructions;
+there is no separate confirmation. Existing prints are preserved. Unsupported or
+unavailable readers, CI, `NOCONFIRM=1` and sessions without a terminal skip capture.
 
 ## Boot configuration
 
