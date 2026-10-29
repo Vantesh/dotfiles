@@ -1,0 +1,13 @@
+[tool.pyrefly]
+preset = "strict"
+python-version = "3.14"
+project-includes = ["home/.chezmoiscripts/**/*.py", "home/.chezmoitemplates/lib/**/*.py", ".github/tests/**/*.py"]
+search-path = [".github/tests", "home/.chezmoitemplates"]
+# Provisioning and tests live in hidden directories; exclude caches explicitly.
+disable-project-excludes-heuristics = true
+project-excludes = ["**/__pycache__/**", "**/.venv/**", "**/.pytest_cache/**", "**/.ruff_cache/**"]
+
+[tool.pytest.ini_options]
+minversion = "9.0"
+testpaths = [".github/tests"]
+pythonpath = ["home/.chezmoitemplates"]

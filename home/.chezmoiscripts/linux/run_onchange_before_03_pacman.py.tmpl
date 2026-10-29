@@ -1,0 +1,227 @@
+#!/usr/bin/python3 -B
+# profile: {{ .personal | toJson }}
+# source-dir: {{ if .personal }}{{ .chezmoi.sourceDir | toJson }}{{ else }}disabled{{ end }}
+# working-tree: {{ if .personal }}{{ .chezmoi.workingTree | toJson }}{{ else }}disabled{{ end }}
+# mise/config.toml: {{ if .personal }}{{ include "../mise/config.toml" | sha256sum }}{{ else }}disabled{{ end }}
+# mise/conf.d/pacman-hooks.toml: {{ if .personal }}{{ include "../mise/conf.d/pacman-hooks.toml" | sha256sum }}{{ else }}disabled{{ end }}
+# mise/conf.d/reflector.toml: {{ if .personal }}{{ include "../mise/conf.d/reflector.toml" | sha256sum }}{{ else }}disabled{{ end }}
+"""Apply the personal Pacman/cache policy, then let Mise publish its system files."""
+
+import os
+import re
+import shutil
+import signal
+import subprocess
+import sys
+import tempfile
+import traceback
+from pathlib import Path
+from typing import cast
+
+from loguru import logger
+
+PACMAN_CONF = Path("/etc/pacman.conf")
+PACCACHE_CONFIG = Path("/etc/conf.d/pacman-contrib")
+
+
+def configure_pacman(content: str) -> str:
+    lines = content.splitlines(keepends=True)
+    in_options = False
+    options_end = None
+    for index, line in enumerate(lines):
+        if line.lstrip().startswith("["):
+            in_options = line.strip() == "[options]"
+        if not in_options:
+            continue
+        options_end = index + 1
+        lines[index] = re.sub(r"^#[ \t]*(Color|VerbosePkgLists|ParallelDownloads)\b", r"\1", line)
+    if options_end is None:
+        raise ValueError("Cannot locate [options] in pacman.conf.")
+    # Keep the original download count and all unrelated repository settings.
+    if not any(re.match(r"^ILoveCandy\b", line) for line in lines[:options_end]):
+        for index in range(options_end):
+            if re.match(r"^ParallelDownloads\b", lines[index]):
+                lines[index] = lines[index].rstrip("\n") + "\nILoveCandy\n"
+    return "".join(lines)
+
+
+def configure_paccache(content: str) -> str:
+    spaced = re.search(r"^\s*[^#;\s][^=\s]*\s+=\s+", content, re.MULTILINE) is not None
+    assignment = "PACCACHE_ARGS = '-k2'" if spaced else "PACCACHE_ARGS='-k2'"
+    pattern = r"^[ \t]*#?[ \t]*PACCACHE_ARGS[ \t]*=.*$"
+    if re.search(pattern, content, re.MULTILINE):
+        return re.sub(pattern, assignment, content, flags=re.MULTILINE)
+    return content + f"\n{assignment}\n"
+
+
+def apply_policy() -> None:
+    from lib.policy_files import publish_config, rollback_configs, snapshot_config
+
+    if os.geteuid() != 0:
+        raise PermissionError("Policy publication requires root privileges.")
+    with tempfile.TemporaryDirectory(prefix="chezmoi-pacman-") as directory:
+        work = Path(directory)
+        configs = [
+            snapshot_config(path, work / str(index))
+            for index, path in enumerate((PACMAN_CONF, PACCACHE_CONFIG))
+        ]
+        try:
+            pacman, cache = configs
+            candidate = work / "pacman.conf"
+            content = configure_pacman(pacman.backup.read_text())
+            _ = candidate.write_text(content)
+            result = subprocess.run(
+                ["pacman-conf", "--config", str(candidate), "NoExtract"],
+                check=True,
+                stdout=subprocess.PIPE,
+                text=True,
+            )
+            if result.stdout.rstrip("\n").split("\n")[-1] != "etc/pacman.d/mirrorlist":
+                lines = content.splitlines(keepends=True)
+                in_options = False
+                options_end = 0
+                for index, line in enumerate(lines):
+                    if line.lstrip().startswith("["):
+                        in_options = line.strip() == "[options]"
+                    if in_options:
+                        options_end = index + 1
+                if not lines[options_end - 1].endswith("\n"):
+                    lines[options_end - 1] += "\n"
+                lines.insert(options_end, "NoExtract = etc/pacman.d/mirrorlist\n")
+                content = "".join(lines)
+                _ = candidate.write_text(content)
+            # Native parsing validates the candidate, including repository syntax.
+            _ = subprocess.run(
+                ["pacman-conf", "--config", str(candidate)], check=True, stdout=subprocess.DEVNULL
+            )
+            changed: list[str] = []
+            if publish_config(pacman, content.encode()):
+                changed.append("Configured Pacman options and packaged mirrorlist exclusion.")
+            if publish_config(cache, configure_paccache(cache.backup.read_text()).encode()):
+                changed.append("Configured paccache to keep two package versions.")
+        except BaseException:
+            rollback_configs(configs)
+            raise
+        for message in changed:
+            print(message)
+
+
+def terminate(_signum: int, _frame: object) -> None:
+    raise SystemExit(143)
+
+
+def main() -> int:
+    privileged = sys.argv[1:2] == ["--apply-policy"]
+    if privileged and len(sys.argv) != 4:
+        print(
+            "ERROR: Privileged Pacman setup requires its source directory and profile.",
+            file=sys.stderr,
+        )
+        return 1
+    personal = sys.argv[3] if privileged else os.environ.get("DOTFILES_PERSONAL_ENABLED")
+    if personal == "0":
+        return 0
+    if personal != "1":
+        print(
+            "ERROR: DOTFILES_PERSONAL_ENABLED must be '0' or '1'; run through Chezmoi.",
+            file=sys.stderr,
+        )
+        return 1
+    source_dir = Path(sys.argv[2]) if privileged else Path(os.environ["CHEZMOI_SOURCE_DIR"])
+    if not source_dir.is_absolute():
+        print("ERROR: Chezmoi must supply an absolute source directory.", file=sys.stderr)
+        return 1
+    sys.path.insert(0, str(source_dir / ".chezmoitemplates"))
+    _ = signal.signal(signal.SIGTERM, terminate)
+    if privileged:
+        try:
+            apply_policy()
+            return 0
+        except (OSError, ValueError, subprocess.CalledProcessError) as error:
+            traceback.print_exc()
+            return error.returncode if isinstance(error, subprocess.CalledProcessError) else 1
+        except KeyboardInterrupt:
+            return 130
+    from lib.provision_logging import configure_logging
+
+    file_sink = None
+    try:
+        file_sink = configure_logging()
+        if sys.argv[1:]:
+            raise ValueError("Unsupported Pacman policy arguments.")
+        if os.geteuid() == 0:
+            raise ValueError(
+                "Run policy setup as the regular account; sudo publishes system files."
+            )
+        working_tree = Path(os.environ.get("CHEZMOI_WORKING_TREE", ""))
+        if not working_tree.is_absolute():
+            raise ValueError("Chezmoi must supply an absolute CHEZMOI_WORKING_TREE.")
+        for command in ("sudo", "paccache", "pacman-conf", "mise"):
+            if shutil.which(command) is None:
+                raise FileNotFoundError(
+                    f"Required command missing: {command}; the package phase must complete first."
+                )
+        _ = subprocess.run(["sudo", "-v"], check=True)
+        result = subprocess.run(
+            [
+                "sudo",
+                "-n",
+                sys.executable,
+                "-B",
+                str(Path(__file__).resolve()),
+                "--apply-policy",
+                str(source_dir),
+                personal,
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        for message in result.stdout.splitlines():
+            logger.info(message)
+        # Apply only system files; standalone files apply can offer service changes.
+        env = os.environ.copy()
+        for name in ("MISE_CONFIG_FILE", "MISE_GLOBAL_CONFIG_FILE", "MISE_SYSTEM_CONFIG_FILE"):
+            _ = env.pop(name, None)
+        env.update(
+            MISE_CONFIG_DIR="/dev/null",
+            MISE_SYSTEM_CONFIG_DIR="/dev/null",
+            MISE_AUTO_ENV="false",
+            MISE_CEILING_PATHS=str(working_tree.parent),
+            MISE_TRUSTED_CONFIG_PATHS=str(working_tree / "mise"),
+        )
+        _ = subprocess.run(
+            ["mise", "--env", "", "bootstrap", "--only", "files", "--yes"],
+            cwd=working_tree,
+            env=env,
+            check=True,
+        )
+        _ = subprocess.run(["sudo", "systemctl", "daemon-reload"], check=True)
+        return 0
+    except (OSError, ValueError, subprocess.CalledProcessError) as error:
+        status = error.returncode if isinstance(error, subprocess.CalledProcessError) else 1
+        try:
+            if isinstance(error, subprocess.CalledProcessError):
+                diagnostic = cast("str | None", error.stderr)
+                reason = (
+                    diagnostic.strip().splitlines()[-1]
+                    if diagnostic and diagnostic.strip()
+                    else " ".join(cast("list[str]", error.cmd))
+                )
+                logger.error("Pacman policy failed (exit {}): {}", status, reason)
+                if diagnostic:
+                    logger.debug("Policy diagnostic:\n{}", diagnostic.rstrip())
+            else:
+                logger.opt(exception=True).error("Pacman policy stopped: {}", error)
+        except OSError:
+            if file_sink is not None:
+                logger.remove(file_sink)
+        return status
+    except KeyboardInterrupt:
+        logger.warning("Pacman policy interrupted; reapply when ready.")
+        return 130
+
+
+if __name__ == "__main__":
+    status = main()
+    sys.exit(status if status >= 0 else 128 - status)

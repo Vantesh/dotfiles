@@ -1,0 +1,384 @@
+#!/usr/bin/python3 -B
+# source-dir: {{ .chezmoi.sourceDir | toJson }}
+# profile: {{ .personal | toJson }}
+# OFFLINE: {{ env "OFFLINE" | toJson }}
+"""Apply GTK preferences and independently converge the public desktop assets."""
+
+import filecmp
+import hashlib
+import os
+import shutil
+import signal
+import subprocess
+import sys
+import tempfile
+import traceback
+from pathlib import Path
+from typing import cast
+
+from loguru import logger
+
+PERSONAL = os.environ.get("DOTFILES_PERSONAL_ENABLED") == "1"
+# Font data is unavailable during init; keep font-data edits live on each apply.
+FONT_NAME = {{ cat .font.ui.name .font.ui.size | toJson }}
+ROOT_CONFIG = Path("/root/.config")
+MACTAHOE_REPO = "https://github.com/vinceliuice/MacTahoe-icon-theme.git"
+MACTAHOE_VARIANTS = ("MacTahoe", "MacTahoe-light", "MacTahoe-dark")
+SF_PRO_URL = "https://devimages-cdn.apple.com/design/resources/download/SF-Pro.dmg"
+
+
+def mirror_root_gtk(config_home: Path, theme: str, prefer_dark: bool) -> None:
+    from lib.policy_files import PolicyFile, publish_config, rollback_configs, snapshot_config
+
+    if os.geteuid() != 0:
+        raise PermissionError("Root GTK publication requires root privileges.")
+    if ROOT_CONFIG.is_symlink():
+        raise ValueError(f"Refusing symlinked root configuration: {ROOT_CONFIG}")
+    ROOT_CONFIG.mkdir(mode=0o755, parents=True, exist_ok=True)
+    changed = False
+    with tempfile.TemporaryDirectory(prefix="chezmoi-gtk-") as temporary:
+        configs: list[PolicyFile] = []
+        try:
+            for version in (3, 4):
+                target = ROOT_CONFIG / f"gtk-{version}.0"
+                if target.is_symlink():
+                    raise ValueError(f"Refusing symlinked root GTK directory: {target}")
+                target.mkdir(mode=0o755, exist_ok=True)
+                config = snapshot_config(target / "settings.ini", Path(temporary) / str(version))
+                configs.append(config)
+                content = (
+                    f"[Settings]\ngtk-application-prefer-dark-theme={str(prefer_dark).lower()}\n"
+                )
+                if version == 3:
+                    content += f"gtk-theme-name={theme}\n"
+                changed = publish_config(config, content.encode(), mode=0o644) or changed
+                with tempfile.TemporaryDirectory(prefix=".chezmoi-gtk-", dir=target) as staging:
+                    for name in ("gtk.css", "noctalia.css"):
+                        link = target / name
+                        source = str(config_home / f"gtk-{version}.0" / name)
+                        if link.is_symlink() and os.readlink(link) == source:
+                            continue
+                        stage = Path(staging) / name
+                        stage.symlink_to(source)
+                        os.replace(stage, link)
+                        changed = True
+        except BaseException:
+            rollback_configs(configs)
+            raise
+    if changed:
+        print("Updated the personal root GTK mirror.")
+
+
+def configure_gtk(source_dir: Path) -> None:
+    if shutil.which("gsettings") is None:
+        raise FileNotFoundError("gsettings is unavailable; complete desktop package installation.")
+    for schema, key, value in (
+        ("org.gnome.desktop.interface", "font-name", FONT_NAME),
+        ("org.gnome.desktop.wm.preferences", "button-layout", ":"),
+    ):
+        current = subprocess.run(
+            ["gsettings", "get", schema, key], check=True, stdout=subprocess.PIPE, text=True
+        ).stdout.strip()
+        if current != f"'{value}'":
+            _ = subprocess.run(["gsettings", "set", schema, key, value], check=True)
+            logger.info("Configured GTK {}.", key)
+    if not PERSONAL:
+        return
+    theme = (
+        subprocess.run(
+            ["gsettings", "get", "org.gnome.desktop.interface", "gtk-theme"],
+            check=True,
+            stdout=subprocess.PIPE,
+            text=True,
+        )
+        .stdout.strip()
+        .removeprefix("'")
+        .removesuffix("'")
+    )
+    scheme = subprocess.run(
+        ["gsettings", "get", "org.gnome.desktop.interface", "color-scheme"],
+        check=True,
+        stdout=subprocess.PIPE,
+        text=True,
+    ).stdout.strip()
+    config_home = Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config")
+    _ = subprocess.run(["sudo", "-v"], check=True)
+    result = subprocess.run(
+        [
+            "sudo",
+            "-n",
+            sys.executable,
+            "-B",
+            str(Path(__file__).resolve()),
+            "--mirror-gtk",
+            str(config_home),
+            theme,
+            str(scheme == "'prefer-dark'").lower(),
+            "1",
+            str(source_dir),
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    for message in result.stdout.splitlines():
+        logger.info(message)
+
+
+def mactahoe_is_complete(icons: Path) -> bool:
+    return all(
+        (icons / name / "index.theme").is_file()
+        and (icons / name / "icon-theme.cache").is_file()
+        and (icons / name / "apps").is_dir()
+        and (icons / name / "cursors").is_dir()
+        for name in MACTAHOE_VARIANTS
+    )
+
+
+def install_mactahoe_icons() -> None:
+    from lib.provision_logging import run_logged
+
+    icons = Path(os.environ.get("XDG_DATA_HOME") or Path.home() / ".local/share") / "icons"
+    completion = (
+        Path(os.environ.get("XDG_STATE_HOME") or Path.home() / ".local/state")
+        / "chezmoi/mactahoe-installed"
+    )
+    if os.environ.get("OFFLINE"):
+        return
+    if (
+        completion.is_file()
+        and completion.read_text() == MACTAHOE_REPO + "\n"
+        and mactahoe_is_complete(icons)
+    ):
+        return
+    for command in ("git", "gtk-update-icon-cache", "bash"):
+        if shutil.which(command) is None:
+            raise FileNotFoundError(f"Required MacTahoe command missing: {command}")
+    completion.unlink(missing_ok=True)
+    # Upstream contains unquoted paths. Both clone and destination alias must
+    # remain space-free, even with a custom TMPDIR or XDG data directory.
+    with tempfile.TemporaryDirectory(prefix="chezmoi-mactahoe-", dir="/tmp") as directory:
+        work = Path(directory)
+        icons.mkdir(parents=True, exist_ok=True)
+        (work / "icons").symlink_to(icons, target_is_directory=True)
+        logger.info("Installing MacTahoe icon themes.")
+        _ = subprocess.run(
+            [
+                "git",
+                "-c",
+                "core.symlinks=true",
+                "clone",
+                "--depth",
+                "1",
+                "--single-branch",
+                "--",
+                MACTAHOE_REPO,
+                str(work / "source"),
+            ],
+            check=True,
+        )
+        run_logged(
+            ["bash", str(work / "source/install.sh"), "--dest", str(work / "icons")],
+            "Install MacTahoe icon themes",
+        )
+        # A failed/partial upstream install must remain eligible for retry.
+        if not mactahoe_is_complete(icons):
+            raise ValueError(
+                f"MacTahoe installation is incomplete; verify default/light/dark themes in {icons}"
+            )
+        completion.parent.mkdir(parents=True, exist_ok=True)
+        with tempfile.NamedTemporaryFile(mode="w", dir=completion.parent, delete=False) as stage:
+            stage_path = Path(stage.name)
+            try:
+                _ = stage.write(MACTAHOE_REPO + "\n")
+                stage.flush()
+                os.replace(stage_path, completion)
+            finally:
+                stage_path.unlink(missing_ok=True)
+    logger.info("Installed the default MacTahoe themes in {}.", icons)
+
+
+def sf_pro_is_complete(fonts: Path, manifest: Path) -> bool:
+    if not manifest.is_file():
+        return False
+    records = manifest.read_text().splitlines()
+    if not records:
+        return False
+    for record in records:
+        digest, separator, name = record.partition("  ")
+        if (
+            not separator
+            or len(digest) != 64
+            or not all(character in "0123456789abcdef" for character in digest)
+            or Path(name).name != name
+            or not name.startswith("SF-Pro-Text-")
+            or not name.endswith(".otf")
+        ):
+            return False
+        font = fonts / name
+        if not font.is_file():
+            return False
+        with font.open("rb") as stream:
+            if hashlib.file_digest(stream, "sha256").hexdigest() != digest:
+                return False
+    return True
+
+
+def install_sf_pro_text() -> None:
+    from lib.provision_logging import run_logged
+
+    fonts = Path.home() / ".local/share/fonts/SF-Pro-Text"
+    manifest = fonts / ".installed.sha256"
+    if sf_pro_is_complete(fonts, manifest) or os.environ.get("OFFLINE"):
+        return
+    for command in ("7z", "fc-cache", "curl", "bsdtar", "install"):
+        if shutil.which(command) is None:
+            raise FileNotFoundError(f"Required SF Pro command missing: {command}")
+    manifest.unlink(missing_ok=True)
+    with tempfile.TemporaryDirectory(prefix="chezmoi-sf-pro-") as directory:
+        work = Path(directory)
+        logger.info("Installing SF Pro Text fonts.")
+        _ = subprocess.run(
+            [
+                "curl",
+                "--fail",
+                "--location",
+                "--show-error",
+                "--proto",
+                "=https",
+                "--proto-redir",
+                "=https",
+                "--connect-timeout",
+                "20",
+                "--max-time",
+                "300",
+                "--output",
+                str(work / "SF-Pro.dmg"),
+                SF_PRO_URL,
+            ],
+            check=True,
+        )
+        run_logged(
+            ["7z", "e", "-y", f"-o{work}", str(work / "SF-Pro.dmg"), "SFProFonts.pkg"],
+            "Extract SF Pro font package",
+        )
+        with subprocess.Popen(
+            ["bsdtar", "-xOf", str(work / "SFProFonts.pkg"), "SFProFontsPackage.pkg/Payload"],
+            stdout=subprocess.PIPE,
+        ) as payload:
+            try:
+                extracted = subprocess.run(
+                    ["bsdtar", "-xf", "-", "-C", str(work), "./Library/Fonts/SF-Pro-Text-*.otf"],
+                    stdin=payload.stdout,
+                    check=False,
+                )
+            finally:
+                if payload.stdout is not None:
+                    payload.stdout.close()
+            _ = payload.wait()
+            extracted.check_returncode()
+            if payload.returncode:
+                raise subprocess.CalledProcessError(payload.returncode, payload.args)
+        extracted_fonts = sorted((work / "Library/Fonts").glob("SF-Pro-Text-*.otf"))
+        if not extracted_fonts or any(not font.is_file() for font in extracted_fonts):
+            raise ValueError("No regular SF Pro Text fonts found in the extracted package.")
+        fonts.mkdir(parents=True, exist_ok=True)
+        for font in extracted_fonts:
+            destination = fonts / font.name
+            if not destination.is_file() or not filecmp.cmp(font, destination, shallow=False):
+                _ = subprocess.run(
+                    ["install", "-m", "644", "-T", str(font), str(destination)], check=True
+                )
+        _ = subprocess.run(["fc-cache", str(fonts)], check=True)
+        with tempfile.NamedTemporaryFile(
+            mode="w", dir=fonts, prefix=".installed.sha256.", delete=False
+        ) as stage:
+            stage_path = Path(stage.name)
+            try:
+                for font in extracted_fonts:
+                    with (fonts / font.name).open("rb") as stream:
+                        _ = stage.write(
+                            f"{hashlib.file_digest(stream, 'sha256').hexdigest()}  {font.name}\n"
+                        )
+                stage.flush()
+                os.replace(stage_path, manifest)
+            finally:
+                stage_path.unlink(missing_ok=True)
+    logger.info("Installed {} SF Pro Text fonts in {}.", len(extracted_fonts), fonts)
+
+
+def terminate(_signum: int, _frame: object) -> None:
+    raise SystemExit(143)
+
+
+def main() -> int:
+    privileged = sys.argv[1:2] == ["--mirror-gtk"]
+    if privileged and len(sys.argv) != 7:
+        print("ERROR: Root GTK setup requires its source directory.", file=sys.stderr)
+        return 1
+    if not privileged and os.environ.get("DOTFILES_PERSONAL_ENABLED") not in ("0", "1"):
+        print(
+            "ERROR: DOTFILES_PERSONAL_ENABLED must be '0' or '1'; run through Chezmoi.",
+            file=sys.stderr,
+        )
+        return 1
+    source_dir = Path(sys.argv[6]) if privileged else Path(os.environ["CHEZMOI_SOURCE_DIR"])
+    if not source_dir.is_absolute():
+        print("ERROR: Chezmoi must supply an absolute source directory.", file=sys.stderr)
+        return 1
+    sys.path.insert(0, str(source_dir / ".chezmoitemplates"))
+    _ = signal.signal(signal.SIGTERM, terminate)
+    if privileged:
+        try:
+            if sys.argv[5] != "1" or sys.argv[4] not in ("true", "false"):
+                raise ValueError("Invalid root GTK invocation.")
+            mirror_root_gtk(Path(sys.argv[2]), sys.argv[3], sys.argv[4] == "true")
+            return 0
+        except (OSError, ValueError, subprocess.CalledProcessError) as error:
+            traceback.print_exc()
+            return error.returncode if isinstance(error, subprocess.CalledProcessError) else 1
+    from lib.provision_logging import configure_logging
+
+    file_sink = None
+    try:
+        file_sink = configure_logging()
+        if sys.argv[1:]:
+            raise ValueError("Unsupported theming arguments.")
+        if os.geteuid() == 0:
+            raise ValueError("Run desktop provisioning as the regular account.")
+        configure_gtk(source_dir)
+        install_mactahoe_icons()
+        install_sf_pro_text()
+        return 0
+    except (OSError, ValueError, subprocess.CalledProcessError) as error:
+        status = error.returncode if isinstance(error, subprocess.CalledProcessError) else 1
+        try:
+            diagnostic = (
+                cast("str | None", error.stderr)
+                if isinstance(error, subprocess.CalledProcessError)
+                else None
+            )
+            reason = (
+                diagnostic.strip().splitlines()[-1]
+                if diagnostic and diagnostic.strip()
+                else str(error)
+            )
+            logger.error("Desktop theming stopped (exit {}): {}", status, reason)
+            if isinstance(error, subprocess.CalledProcessError):
+                diagnostic = cast("str | None", error.stderr)
+                if diagnostic:
+                    logger.debug("Root GTK diagnostic:\n{}", diagnostic.rstrip())
+            else:
+                logger.opt(exception=True).debug("Desktop diagnostic")
+        except OSError:
+            if file_sink is not None:
+                logger.remove(file_sink)
+        return status
+    except KeyboardInterrupt:
+        logger.warning("Desktop theming interrupted; reapply when ready.")
+        return 130
+
+
+if __name__ == "__main__":
+    status = main()
+    sys.exit(status if status >= 0 else 128 - status)

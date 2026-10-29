@@ -5,7 +5,6 @@ import json
 import re
 import subprocess
 from gettext import gettext as _
-from subprocess import PIPE, run
 
 from kittens.tui.handler import Handler
 from kittens.tui.line_edit import LineEdit
@@ -33,12 +32,17 @@ ALPHANUM_PATTERN = re.compile(r"[\w\d]+")
 
 
 def call_remote_control(args: list[str]) -> None:
-    subprocess.run(["kitty", "@", *args], capture_output=True)
+    subprocess.run(
+        ["kitty", "@", *args],
+        check=True,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.PIPE,
+        text=True,
+        timeout=5,
+    )
 
 
-def reindex(
-    text: str, pattern: re.Pattern[str], right: bool = False
-) -> tuple[int, int]:
+def reindex(text: str, pattern: re.Pattern[str], right: bool = False) -> tuple[int, int]:
     if not right:
         m = pattern.search(text)
     else:
@@ -90,12 +94,12 @@ class Search(Handler):
         if self.error:
             with cursor(self.write):
                 self.print("")
-                for l in self.error.split("\n"):
-                    self.print(l)
+                for line in self.error.split("\n"):
+                    self.print(line)
 
     def refresh(self) -> None:
-        self.draw_screen()
         self.mark()
+        self.draw_screen()
 
     def switch_mode(self) -> None:
         if self.mode == "regex":
@@ -277,17 +281,18 @@ class Search(Handler):
     def mark(self) -> None:
         if not self.window_ids:
             return
+        self.error = ""
         text = self.line_edit.current_input
         if text:
             match_case = "i" if text.islower() else ""
             match_type = match_case + self.mode
             for match_arg in self.match_args():
                 try:
-                    call_remote_control(
-                        ["create-marker", match_arg, match_type, "1", text]
-                    )
-                except SystemExit:
+                    call_remote_control(["create-marker", match_arg, match_type, "1", text])
+                except subprocess.CalledProcessError as error:
                     self.remove_mark()
+                    self.error = error.stderr.strip() or "Cannot create search marker."
+                    return
         else:
             self.remove_mark()
 
@@ -305,19 +310,22 @@ class Search(Handler):
 
 
 def main(args: list[str]) -> None:
-    call_remote_control(
-        ["resize-window", "--self", "--axis=vertical", "--increment", "-100"]
-    )
+    if len(args) < 2 or not re.fullmatch(r"[0-9]+", args[1]):
+        raise SystemExit("Error: Window id must be provided as the first argument.")
+    window_id = int(args[1])
+    call_remote_control(["resize-window", "--self", "--axis=vertical", "--increment", "-100"])
 
     error = ""
-    if len(args) < 2 or not args[1].isdigit():
-        error = "Error: Window id must be provided as the first argument."
-
-    window_id = int(args[1])
     window_ids = [window_id]
     if len(args) > 2 and args[2] == "--all-windows":
-        ls_output = run(["kitty", "@", "ls"], stdout=PIPE)
-        ls_json = json.loads(ls_output.stdout.decode())
+        ls_output = subprocess.run(
+            ["kitty", "@", "ls"],
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        ls_json = json.loads(ls_output.stdout)
         current_tab = None
         for os_window in ls_json:
             for tab in os_window["tabs"]:
@@ -325,11 +333,10 @@ def main(args: list[str]) -> None:
                     if kitty_window["id"] == window_id:
                         current_tab = tab
         if current_tab:
-            window_ids = [
-                w["id"] for w in current_tab["windows"] if not w["is_focused"]
-            ]
+            window_ids = [w["id"] for w in current_tab["windows"] if not w["is_focused"]]
         else:
             error = "Error: Could not find the window id provided."
+            window_ids = []
 
     loop = Loop()
     with cached_values_for("search") as cached_values:

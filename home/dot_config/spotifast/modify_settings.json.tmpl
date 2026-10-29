@@ -4,7 +4,7 @@
 import json
 import subprocess
 import sys
-
+from typing import cast
 
 MANAGED_SETTINGS = {
     "custom_theme": "noctalia.json",
@@ -16,18 +16,23 @@ MANAGED_SETTINGS = {
 }
 
 
-def main():
+def main() -> int:
     original = sys.stdin.read()
     try:
-        current = json.loads(original) if original.strip() else {}
-        if not isinstance(current, dict):
+        parsed = cast("object", json.loads(original if original.strip() else "{}"))
+        if not isinstance(parsed, dict):
             raise ValueError("settings must be a JSON object")
+        current = cast("dict[str, object]", parsed)
         managed_settings = MANAGED_SETTINGS.copy()
 {{- if .personal }}
         if not current.get("web_client_id"):
-            client_id = subprocess.check_output(
-                ["rbw", "get", "--field", "client_id", "spotify"], text=True
-            ).strip()
+            client_id = subprocess.run(
+                ["rbw", "get", "--field", "client_id", "spotify"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.DEVNULL,
+                text=True,
+                check=True,
+            ).stdout.strip()
             if not client_id:
                 raise ValueError("Spotify client_id from rbw is empty")
             managed_settings["web_client_id"] = client_id
@@ -39,9 +44,9 @@ def main():
         return 1
 
     if changed:
-        sys.stdout.write(json.dumps(current, indent=2, ensure_ascii=False) + "\n")
+        _ = sys.stdout.write(json.dumps(current, indent=2, ensure_ascii=False) + "\n")
     else:
-        sys.stdout.write(original)
+        _ = sys.stdout.write(original)
     return 0
 
 

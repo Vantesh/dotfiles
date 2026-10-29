@@ -17,7 +17,7 @@ Use the Conventional Commits format:
 - Optional but preferred.
 - Use the area changed, e.g. `hypr`, `fish`, `zsh`, `nvim`, `kitty`, `chezmoi`, `scripts`, `packages`.
 - Ignore chezmoi naming prefixes and suffixes (`dot_`, `private_`, `executable_`, `run_`, `onchange_`, `once_`, `before_`, `after_`, numeric ordering like `01_`, and `.tmpl`). Use only the short, meaningful name.
-  - `run_onchange_before_01_snapper.sh.tmpl` → scope `snapper`
+  - `run_onchange_after_01_snapshots.py.tmpl` → scope `snapshots`
   - `dot_config/hypr/hyprland.conf` → scope `hypr`
   - `dot_zshrc.tmpl` → scope `zsh`
 

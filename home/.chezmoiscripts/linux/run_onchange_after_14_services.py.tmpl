@@ -1,0 +1,206 @@
+#!/usr/bin/python3 -B
+# source-dir: {{ .chezmoi.sourceDir | toJson }}
+# profile: {{ .personal | toJson }}
+# working-tree: {{ .chezmoi.workingTree | toJson }}
+# data: distroFamily={{ .distroFamily | toJson }}
+# mise/config.toml: {{ include "../mise/config.toml" | sha256sum }}
+# mise/conf.d/services.toml: {{ include "../mise/conf.d/services.toml" | sha256sum }}
+# mise/config.personal.toml: {{ if .personal }}{{ include "../mise/config.personal.toml" | sha256sum }}{{ else }}disabled{{ end }}
+# mise/conf.d/firewall.toml: {{ if .personal }}{{ include "../mise/conf.d/firewall.toml" | sha256sum }}{{ else }}disabled{{ end }}
+# OFFLINE: {{ if .personal }}{{ if env "OFFLINE" }}1{{ else }}0{{ end }}{{ else }}disabled{{ end }}
+# mise/conf.d/login-shell.toml: {{ include "../mise/conf.d/login-shell.toml" | sha256sum }}
+"""Let Mise converge system/user services and Fish for the selected profile."""
+
+import os
+import re
+import shutil
+import signal
+import subprocess
+import sys
+import tempfile
+import traceback
+from pathlib import Path
+from typing import cast
+
+from loguru import logger
+
+PERSONAL = os.environ.get("DOTFILES_PERSONAL_ENABLED") == "1"
+FISH = Path("/usr/bin/fish")
+UPDATEDB_CONF = Path("/etc/updatedb.conf")
+
+
+def exclude_snapshots_from_locate() -> None:
+    from lib.policy_files import publish_config, rollback_configs, snapshot_config
+
+    if os.geteuid() != 0:
+        raise PermissionError("Locate configuration publication requires root privileges.")
+    with tempfile.TemporaryDirectory(prefix="chezmoi-updatedb-") as temporary:
+        config = snapshot_config(UPDATEDB_CONF, Path(temporary) / "before")
+        content = config.backup.read_text()
+        match = re.search(r'^[ \t]*PRUNENAMES[ \t]*=[ \t]*"([^"]*)"', content, re.MULTILINE)
+        names = match[1] if match else ""
+        if ".snapshots" in names.split():
+            return
+        value = f'PRUNENAMES="{names + " " if names else ""}.snapshots"'
+        pattern = r"^[ \t]*#?[ \t]*PRUNENAMES[ \t]*=.*$"
+        updated = (
+            re.sub(pattern, value, content, flags=re.MULTILINE)
+            if re.search(pattern, content, re.MULTILINE)
+            else content + f"\n{value}\n"
+        )
+        try:
+            if publish_config(config, updated.encode()):
+                print("Excluded .snapshots directories from the locate database.")
+        except BaseException:
+            rollback_configs([config])
+            raise
+
+
+def terminate(_signum: int, _frame: object) -> None:
+    raise SystemExit(143)
+
+
+def main() -> int:
+    privileged = sys.argv[1:2] == ["--configure-locate"]
+    if privileged and len(sys.argv) != 4:
+        print("ERROR: Locate setup requires its source directory.", file=sys.stderr)
+        return 1
+    if not privileged and os.environ.get("DOTFILES_PERSONAL_ENABLED") not in ("0", "1"):
+        print(
+            "ERROR: DOTFILES_PERSONAL_ENABLED must be '0' or '1'; run through Chezmoi.",
+            file=sys.stderr,
+        )
+        return 1
+    source_dir = Path(sys.argv[3]) if privileged else Path(os.environ["CHEZMOI_SOURCE_DIR"])
+    if not source_dir.is_absolute():
+        print("ERROR: Chezmoi must supply an absolute source directory.", file=sys.stderr)
+        return 1
+    sys.path.insert(0, str(source_dir / ".chezmoitemplates"))
+    _ = signal.signal(signal.SIGTERM, terminate)
+    if privileged:
+        try:
+            if sys.argv[2] != "1":
+                raise ValueError("Locate customization is personal-only.")
+            exclude_snapshots_from_locate()
+            return 0
+        except (OSError, ValueError, subprocess.CalledProcessError) as error:
+            traceback.print_exc()
+            return error.returncode if isinstance(error, subprocess.CalledProcessError) else 1
+    from lib.provision_logging import configure_logging
+
+    file_sink = None
+    try:
+        file_sink = configure_logging()
+        if sys.argv[1:]:
+            raise ValueError("Unsupported workstation arguments.")
+        if os.getuid() == 0:
+            raise ValueError("Run workstation setup as the regular account.")
+        if not FISH.is_file() or not os.access(FISH, os.X_OK):
+            raise ValueError(
+                "Fish is not executable at /usr/bin/fish; complete package installation first."
+            )
+        if shutil.which("chsh") is None:
+            raise FileNotFoundError(
+                "chsh is unavailable; install util-linux before configuring Fish."
+            )
+        working_tree = Path(os.environ.get("CHEZMOI_WORKING_TREE", ""))
+        if not working_tree.is_absolute():
+            raise ValueError("Chezmoi must supply an absolute CHEZMOI_WORKING_TREE.")
+        if PERSONAL:
+            if shutil.which("updatedb") is None:
+                raise FileNotFoundError(
+                    "updatedb is unavailable; install the declared plocate package."
+                )
+            _ = subprocess.run(["sudo", "-v"], check=True)
+            result = subprocess.run(
+                [
+                    "sudo",
+                    "-n",
+                    sys.executable,
+                    "-B",
+                    str(Path(__file__).resolve()),
+                    "--configure-locate",
+                    "1",
+                    str(source_dir),
+                ],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            for message in result.stdout.splitlines():
+                logger.info(message)
+            _ = subprocess.run(["sudo", "systemctl", "start", "plocate-updatedb.timer"], check=True)
+        env = os.environ.copy()
+        for name in (
+            "MISE_CONFIG_FILE",
+            "MISE_GLOBAL_CONFIG_FILE",
+            "MISE_SYSTEM_CONFIG_FILE",
+            "MISE_ENV",
+            "MISE_OVERRIDE_CONFIG_FILENAMES",
+        ):
+            _ = env.pop(name, None)
+        env.update(
+            MISE_CONFIG_DIR="/dev/null",
+            MISE_SYSTEM_CONFIG_DIR="/dev/null",
+            MISE_AUTO_ENV="false",
+            MISE_CEILING_PATHS=str(working_tree.parent),
+            MISE_TRUSTED_CONFIG_PATHS=str(working_tree / "mise"),
+        )
+        _ = subprocess.run(
+            [
+                "mise",
+                *([] if PERSONAL else ["--quiet"]),
+                "--env",
+                "personal" if PERSONAL else "",
+                "bootstrap",
+                "--only",
+                "services,firewall,user" if PERSONAL else "services,user",
+                "--yes",
+            ],
+            cwd=working_tree,
+            env=env,
+            check=True,
+        )
+        if PERSONAL:
+            avatar = Path.home() / ".local/share/avatars/profile.png"
+            if avatar.is_file() and os.access(avatar, os.R_OK) and avatar.stat().st_size:
+                _ = subprocess.run(
+                    [
+                        "busctl",
+                        "call",
+                        "org.freedesktop.Accounts",
+                        f"/org/freedesktop/Accounts/User{os.getuid()}",
+                        "org.freedesktop.Accounts.User",
+                        "SetIconFile",
+                        "s",
+                        str(avatar),
+                    ],
+                    check=True,
+                )
+            elif not os.environ.get("OFFLINE"):
+                raise ValueError(
+                    f"Profile icon is missing, empty, or unreadable: {avatar}; refresh the avatar external and rerun setup."
+                )
+        return 0
+    except (OSError, ValueError, subprocess.CalledProcessError) as error:
+        status = error.returncode if isinstance(error, subprocess.CalledProcessError) else 1
+        try:
+            logger.opt(exception=True).error(
+                "Workstation setup failed (exit {}): {}", status, error
+            )
+            if isinstance(error, subprocess.CalledProcessError):
+                diagnostic = cast("str | None", error.stderr)
+                if diagnostic:
+                    logger.debug("Locate diagnostic:\n{}", diagnostic.rstrip())
+        except OSError:
+            if file_sink is not None:
+                logger.remove(file_sink)
+        return status
+    except KeyboardInterrupt:
+        logger.warning("Workstation setup interrupted; reapply when ready.")
+        return 130
+
+
+if __name__ == "__main__":
+    status = main()
+    sys.exit(status if status >= 0 else 128 - status)

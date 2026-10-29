@@ -1,0 +1,10 @@
+# Native firewall activation does not enable/start the systemd unit.
+[bootstrap.services."ufw.service"]
+state = "running"
+enabled = true
+
+[bootstrap.services."ssh-agent.socket"]
+scope = "user"
+state = "running"
+enabled = true
+masked = false

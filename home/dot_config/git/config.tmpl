@@ -1,0 +1,98 @@
+{{ if .personal -}}
+
+[core]
+    pager = delta
+    untrackedCache = true
+
+[interactive]
+    diffFilter = delta --color-only
+
+[delta]
+    true-color = always
+    navigate = true
+    side-by-side = true
+    line-numbers-left-format = ""
+    line-numbers-right-format = "│ "
+
+[diff]
+    algorithm = histogram
+    colorMoved = plain
+    renames = copies
+    interHunkContext = 10
+    mnemonicPrefix = true
+
+[push]
+    autoSetupRemote = true
+    default = current
+
+[fetch]
+    prune = true
+
+[pull]
+    rebase = true
+
+[rebase]
+    autoSquash = true
+    missingCommitsCheck = warn
+    updateRefs = true
+
+[rerere]
+    enabled = true
+
+[commit]
+    verbose = true
+    gpgsign = true
+
+[log]
+    abbrevCommit = true
+    graphColor = blue,yellow,cyan,magenta,green,red
+
+[merge]
+    conflictStyle = zdiff3
+
+[branch]
+    sort = -committerdate
+
+[tag]
+    sort = version:refname
+
+[color "decorate"]
+    HEAD = red
+    branch = blue
+    tag = yellow
+    remoteBranch = magenta
+
+[color "branch"]
+    current = magenta
+    local = default
+    remote = yellow
+    upstream = green
+    plain = blue
+
+[help]
+    autocorrect = prompt
+
+[column]
+    ui = auto
+
+[status]
+    showStash = true
+
+[stash]
+    showPatch = true
+
+[transfer]
+    fsckObjects = true
+
+[init]
+    defaultBranch = main
+
+[include]
+    path = ~/.config/git/identity
+
+[url "git@github.com:Vantesh/"]
+    insteadOf = https://github.com/Vantesh/
+{{ end -}}
+
+[includeIf "gitdir:~/.local/share/chezmoi/"]
+    path = ~/.config/git/dotfiles.gitconfig

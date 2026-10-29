@@ -1,0 +1,496 @@
+"""Native Btrfs identity checks and safe ownership of the managed hibernation swapfile."""
+
+import math
+import os
+import re
+import signal
+import stat
+import subprocess
+import tempfile
+from dataclasses import dataclass
+from enum import StrEnum
+from pathlib import Path
+from typing import cast
+
+ETC = Path("/etc")
+DEV = Path("/dev")
+SYS = Path("/sys")
+PROC = Path("/proc")
+SWAP_MOUNT = Path("/swap")
+SWAP_FILE = SWAP_MOUNT / "swapfile"
+
+
+class ManualSetup(ValueError):
+    """A verified unsupported layout must remain independently managed."""
+
+
+class SetupResult(StrEnum):
+    CONFIGURED = "configured"
+    MANUAL = "manual"
+
+
+@dataclass(frozen=True)
+class BtrfsDevice:
+    device: Path
+    uuid: str
+    device_id: str
+    luks_uuid: str = ""
+
+
+def inspect_btrfs_device(target: Path) -> BtrfsDevice:
+    result = subprocess.run(
+        [
+            "findmnt",
+            "--nofsroot",
+            "-rn",
+            "-o",
+            "TARGET,SOURCE,FSTYPE,UUID",
+            "--target",
+            str(target),
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.splitlines()
+    if len(result) != 1 or len(fields := result[0].split()) != 4:
+        raise ValueError(f"Cannot inspect an unambiguous filesystem at {target}.")
+    mount, source, filesystem, uuid = fields
+    if not mount.startswith("/") or (target == Path("/") and mount != "/"):
+        raise ValueError("Incorrect root mount identity; refusing swap provisioning.")
+    if filesystem != "btrfs" or not re.fullmatch(
+        r"[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}", uuid
+    ):
+        raise ValueError(f"Invalid Btrfs filesystem identity at {target}.")
+    device = Path(source).resolve(strict=True)
+    block = subprocess.run(
+        ["lsblk", "-dnro", "FSTYPE,UUID,MAJ:MIN", str(device)],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.split()
+    if (
+        len(block) != 3
+        or block[:2] != ["btrfs", uuid]
+        or not re.fullmatch(r"[0-9]+:[0-9]+", block[2])
+    ):
+        raise ValueError(f"Filesystem and backing block-device identity differ at {target}.")
+    device_id = block[2]
+    resolved = (DEV / "disk/by-uuid" / uuid).resolve(strict=True)
+    if (
+        subprocess.run(
+            ["lsblk", "-dnro", "MAJ:MIN", str(resolved)], check=True, capture_output=True, text=True
+        ).stdout.strip()
+        != device_id
+    ):
+        raise ValueError("Filesystem UUID resolves to a different block device.")
+    members = subprocess.run(
+        ["btrfs", "filesystem", "show", "--raw", mount], check=True, capture_output=True, text=True
+    ).stdout
+    count = re.findall(r"Total devices\s+(\d+)", members)
+    paths = cast("list[str]", re.findall(r"(?m)^\s*devid\s+\d+.*?\s+path\s+(.+)$", members))
+    if count != ["1"] or len(paths) != 1:
+        raise ManualSetup("Hibernation requires exactly one verified Btrfs device.")
+    member = Path(paths[0]).resolve(strict=True)
+    if (
+        subprocess.run(
+            ["lsblk", "-dnro", "MAJ:MIN", str(member)], check=True, capture_output=True, text=True
+        ).stdout.strip()
+        != device_id
+    ):
+        raise ValueError("Btrfs member differs from the backing block device.")
+    topology = subprocess.run(
+        ["lsblk", "-srn", "-o", "TYPE", str(device)], check=True, capture_output=True, text=True
+    ).stdout.splitlines()
+    if topology in (["disk"], ["part", "disk"]):
+        return BtrfsDevice(device, uuid, device_id)
+    if topology not in (["crypt", "disk"], ["crypt", "part", "disk"]):
+        raise ManualSetup("Unsupported block-device topology; configure hibernation manually.")
+    slaves = list((SYS / "dev/block" / device_id / "slaves").glob("*"))
+    if len(slaves) != 1:
+        raise ValueError("LUKS mapping requires one direct backing device.")
+    parent_id = (slaves[0] / "dev").read_text().strip()
+    if not re.fullmatch(r"[0-9]+:[0-9]+", parent_id) or parent_id == device_id:
+        raise ValueError("Invalid LUKS backing-device identity.")
+    parent = (DEV / "block" / parent_id).resolve(strict=True)
+    if (
+        subprocess.run(
+            ["lsblk", "-dnro", "MAJ:MIN", str(parent)], check=True, capture_output=True, text=True
+        ).stdout.strip()
+        != parent_id
+    ):
+        raise ValueError("LUKS backing-device alias differs.")
+    kind = subprocess.run(
+        ["blkid", "-p", "-s", "TYPE", "-o", "value", str(parent)],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    status = subprocess.run(
+        ["env", "LC_ALL=C", "cryptsetup", "status", str(device)],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
+    types = re.findall(r"(?m)^\s*type:\s*(\S+)\s*$", status)
+    backing = cast("list[str]", re.findall(r"(?m)^\s*device:\s*(.+)$", status))
+    if kind != "crypto_LUKS" or types not in (["LUKS1"], ["LUKS2"]) or len(backing) != 1:
+        raise ValueError("Cannot verify the active LUKS mapping.")
+    mapped_backing = Path(backing[0]).resolve(strict=True)
+    if (
+        subprocess.run(
+            ["lsblk", "-dnro", "MAJ:MIN", str(mapped_backing)],
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.strip()
+        != parent_id
+    ):
+        raise ValueError("Active LUKS mapping uses a different backing device.")
+    luks_uuid = subprocess.run(
+        ["blkid", "-p", "-s", "UUID", "-o", "value", str(parent)],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    if (
+        not re.fullmatch(r"[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}", luks_uuid)
+        or luks_uuid == uuid
+    ):
+        raise ValueError("Invalid LUKS container UUID.")
+    mapping = (SYS / "dev/block" / device_id / "dm/name").read_text().strip()
+    alias = (DEV / "mapper" / mapping).resolve(strict=True)
+    if (
+        not mapping
+        or subprocess.run(
+            ["lsblk", "-dnro", "MAJ:MIN", str(alias)], check=True, capture_output=True, text=True
+        ).stdout.strip()
+        != device_id
+    ):
+        raise ValueError("Cannot verify the active LUKS mapper alias.")
+    return BtrfsDevice(device, uuid, device_id, luks_uuid)
+
+
+def fstab_entries() -> list[tuple[str, str, str, str]]:
+    path = ETC / "fstab"
+    result = subprocess.run(
+        [
+            "findmnt",
+            "--fstab",
+            "--tab-file",
+            str(path),
+            "-rn",
+            "-o",
+            "SOURCE,TARGET,FSTYPE,OPTIONS",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode and not (
+        result.returncode == 1
+        and not result.stdout
+        and not result.stderr
+        and not any(
+            line.strip() and not line.lstrip().startswith("#")
+            for line in path.read_text().splitlines()
+        )
+    ):
+        result.check_returncode()
+    if result.stderr:
+        raise ValueError(f"Cannot parse fstab: {result.stderr.strip()}")
+    entries: list[tuple[str, str, str, str]] = []
+    for line in result.stdout.splitlines():
+        if not line.strip():
+            continue
+        fields = line.split()
+        if len(fields) != 4:
+            raise ValueError("Malformed fstab entry; preserve it and resolve the conflict.")
+        entries.append((fields[0], fields[1], fields[2], fields[3]))
+    return entries
+
+
+def swap_units(*, include_services: bool = False) -> list[tuple[str, str]]:
+    result = subprocess.run(
+        [
+            "systemctl",
+            "list-unit-files",
+            "--type=swap,service" if include_services else "--type=swap",
+            "--no-legend",
+            "--no-pager",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode and not (
+        result.returncode == 1 and not result.stdout and not result.stderr
+    ):
+        result.check_returncode()
+    if result.stderr:
+        raise ValueError(f"Cannot inspect swap units: {result.stderr.strip()}")
+    units: list[tuple[str, str]] = []
+    for line in result.stdout.splitlines():
+        if not line.strip():
+            continue
+        fields = line.split()
+        if len(fields) < 2:
+            raise ValueError("Incomplete swap-unit inventory.")
+        units.append((fields[0], fields[1]))
+    return units
+
+
+def independently_managed_swap(entries: list[tuple[str, str, str, str]]) -> bool:
+    active = subprocess.run(
+        ["swapon", "--show=NAME", "--noheadings", "--raw"],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.splitlines()
+    active.extend(source for source, _, kind, _ in entries if kind == "swap")
+    for unit, _ in swap_units():
+        path = subprocess.run(
+            ["systemctl", "show", "--property=What", "--value", unit],
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.strip()
+        if not path:
+            raise ValueError(f"Cannot inspect the swap device for {unit}.")
+        active.append(path)
+    for path in active:
+        if path and path != str(SWAP_FILE) and not re.fullmatch(r"/dev/zram[0-9]+", path):
+            print(
+                f"Existing independently managed swap ({path}); configure hibernation manually, left untouched."
+            )
+            return True
+    return False
+
+
+def memory_kib() -> int:
+    match = re.search(r"(?m)^MemTotal:\s+(\d+)\s+kB$", (PROC / "meminfo").read_text())
+    if match is None or int(match[1]) <= 0:
+        raise ValueError("Cannot read physical RAM size.")
+    return int(match[1])
+
+
+def validate_swap_mount(device: BtrfsDevice) -> None:
+    identity = subprocess.run(
+        ["findmnt", "-rn", "-o", "TARGET,FSTYPE,UUID,FSROOT", "--mountpoint", str(SWAP_MOUNT)],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    if identity != f"{SWAP_MOUNT} btrfs {device.uuid} /@swap":
+        raise ValueError("Swap mount must be the root filesystem's exact /@swap subvolume.")
+    target = SWAP_FILE if SWAP_FILE.exists() or SWAP_FILE.is_symlink() else SWAP_MOUNT
+    mount = subprocess.run(
+        ["findmnt", "-rn", "-o", "TARGET", "--target", str(target)],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    if mount != str(SWAP_MOUNT):
+        raise ValueError("Swapfile is on a nested or unverifiable mount.")
+    if SWAP_FILE.exists() or SWAP_FILE.is_symlink():
+        info = SWAP_FILE.lstat()
+        if not stat.S_ISREG(info.st_mode) or info.st_nlink != 1:
+            raise ValueError("Swapfile must be a regular non-symlink file with one link.")
+
+
+def check_swap_fstab(
+    entries: list[tuple[str, str, str, str]], device: BtrfsDevice, subvolume_id: str
+) -> tuple[bool, bool]:
+    mounted = swapped = False
+    for source, target, kind, options in entries:
+        target = str(Path(target).resolve()) if target.startswith("/") else target
+        source = (
+            str(Path(source).resolve())
+            if source.startswith("/") and not Path(source).is_relative_to(DEV)
+            else source
+        )
+        if target == str(SWAP_MOUNT):
+            uuid = (
+                source.removeprefix("UUID=")
+                if source.startswith("UUID=")
+                else subprocess.run(
+                    ["lsblk", "-dnro", "UUID", source], check=True, capture_output=True, text=True
+                ).stdout.strip()
+                if Path(source).is_relative_to(DEV)
+                else ""
+            )
+            tokens = options.split(",")
+            subvols = [token for token in tokens if token.startswith(("subvol=", "subvolid="))]
+            if (
+                kind != "btrfs"
+                or uuid.lower() != device.uuid.lower()
+                or not subvols
+                or any(
+                    token
+                    not in (
+                        "subvol=@swap",
+                        "subvol=/@swap",
+                        f"subvolid={subvolume_id}" if subvolume_id else "",
+                    )
+                    for token in subvols
+                )
+                or set(tokens) & {"ro", "noauto", "bind", "rbind"}
+            ):
+                raise ValueError(
+                    "Conflicting fstab swap mount; preserve it and configure /@swap manually."
+                )
+            mounted = True
+        if source == str(SWAP_FILE) or target == str(SWAP_FILE):
+            if (
+                source != str(SWAP_FILE)
+                or kind != "swap"
+                or target not in ("none", "swap")
+                or "noauto" in options.split(",")
+            ):
+                raise ValueError("Conflicting fstab swapfile entry.")
+            swapped = True
+    return mounted, swapped
+
+
+def require_unchanged_fstab(expected: os.stat_result) -> None:
+    from lib.policy_files import inspect_file, same_state
+
+    if not same_state(expected, inspect_file(ETC / "fstab")):
+        raise ValueError(
+            "fstab changed after inspection; preserve it and retry before changing swap."
+        )
+
+
+def configure_btrfs_swap(
+    device: BtrfsDevice,
+    entries: list[tuple[str, str, str, str]],
+    state: Path,
+    fstab_state: os.stat_result,
+) -> tuple[SetupResult, str]:
+    subvolumes = subprocess.run(
+        ["btrfs", "subvolume", "list", "/"], check=True, capture_output=True, text=True
+    ).stdout
+    ids = re.findall(r"(?m)^ID (\d+) gen \d+ top level 5 path @swap$", subvolumes)
+    if len(ids) > 1:
+        raise ValueError("Cannot identify a unique top-level @swap subvolume.")
+    subvolume_id = ids[0] if ids else ""
+    if SWAP_MOUNT.is_symlink() or (SWAP_MOUNT.exists() and not SWAP_MOUNT.is_dir()):
+        raise ValueError("Swap mount must be a non-symlink directory.")
+    mounted = False
+    if SWAP_MOUNT.exists():
+        result = subprocess.run(["mountpoint", "-q", str(SWAP_MOUNT)], check=False)
+        if result.returncode == 0:
+            mounted = True
+            if not subvolume_id:
+                raise ValueError("Swap is mounted without an identified top-level @swap subvolume.")
+            validate_swap_mount(device)
+        elif result.returncode != 32:
+            result.check_returncode()
+        elif SWAP_MOUNT.stat().st_ino == 256 or any(SWAP_MOUNT.iterdir()):
+            raise ValueError("Unmounted swap path must be an empty ordinary directory.")
+    mount_present, swap_present = check_swap_fstab(entries, device, subvolume_id)
+    require_unchanged_fstab(fstab_state)
+    if not subvolume_id:
+        top = Path(tempfile.mkdtemp(prefix="chezmoi-btrfs-top-"))
+        mount_attempted = False
+        try:
+            mount_attempted = True
+            _ = subprocess.run(
+                ["mount", "-o", "subvolid=5", str(device.device), str(top)], check=True
+            )
+            identity = subprocess.run(
+                ["findmnt", "-rn", "-o", "TARGET,FSTYPE,UUID,FSROOT", "--mountpoint", str(top)],
+                check=True,
+                capture_output=True,
+                text=True,
+            ).stdout.strip()
+            if (
+                identity != f"{top} btrfs {device.uuid} /"
+                or (top / "@swap").exists()
+                or (top / "@swap").is_symlink()
+            ):
+                raise ValueError("Cannot verify an empty top-level @swap location.")
+            _ = subprocess.run(["btrfs", "subvolume", "create", str(top / "@swap")], check=True)
+        finally:
+            # A mount can succeed immediately before an interrupt is delivered.
+            # Inspect actual state rather than relying on subprocess completion.
+            blocked = signal.pthread_sigmask(signal.SIG_BLOCK, {signal.SIGINT, signal.SIGTERM})
+            try:
+                if mount_attempted:
+                    top_status = subprocess.run(["mountpoint", "-q", str(top)], check=False)
+                    if top_status.returncode == 0:
+                        _ = subprocess.run(["umount", str(top)], check=True)
+                    elif top_status.returncode != 32:
+                        top_status.check_returncode()
+                top.rmdir()
+            finally:
+                _ = signal.pthread_sigmask(signal.SIG_SETMASK, blocked)
+    if not mounted:
+        SWAP_MOUNT.mkdir(exist_ok=True)
+        _ = subprocess.run(
+            ["mount", "-o", "subvol=@swap", str(device.device), str(SWAP_MOUNT)], check=True
+        )
+    validate_swap_mount(device)
+    require_unchanged_fstab(fstab_state)
+    owner = state / "hibernation.swapfile"
+    if SWAP_FILE.exists():
+        expected = f"{device.uuid} {SWAP_FILE} {SWAP_FILE.stat().st_ino}\n"
+        if owner.is_symlink() or not owner.is_file() or owner.read_text() != expected:
+            print(
+                "Existing swapfile has no matching ownership record; configure hibernation manually, left untouched."
+            )
+            return SetupResult.MANUAL, ""
+    else:
+        ram = math.ceil(memory_kib() / 1024**2)
+        size = max(2, ram + round(math.sqrt(ram)))
+        _ = subprocess.run(
+            [
+                "btrfs",
+                "filesystem",
+                "mkswapfile",
+                "--size",
+                f"{size}G",
+                "--uuid",
+                "clear",
+                str(SWAP_FILE),
+            ],
+            check=True,
+        )
+        validate_swap_mount(device)
+        descriptor = os.open(owner, os.O_WRONLY | os.O_CREAT | os.O_NOFOLLOW | os.O_NONBLOCK, 0o600)
+        with os.fdopen(descriptor, "w") as stream:
+            info = os.fstat(stream.fileno())
+            if (
+                not stat.S_ISREG(info.st_mode)
+                or info.st_nlink != 1
+                or info.st_uid not in (0, int(os.environ["SUDO_UID"]))
+            ):
+                raise ValueError("Managed swap ownership record requires a safe regular file.")
+            os.fchown(stream.fileno(), int(os.environ["SUDO_UID"]), int(os.environ["SUDO_GID"]))
+            os.fchmod(stream.fileno(), 0o600)
+            _ = stream.truncate(0)
+            _ = stream.write(f"{device.uuid} {SWAP_FILE} {SWAP_FILE.stat().st_ino}\n")
+        print(f"Created Btrfs swapfile ({size}G).")
+    validate_swap_mount(device)
+    offset = subprocess.run(
+        ["btrfs", "inspect-internal", "map-swapfile", "-r", str(SWAP_FILE)],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    if not re.fullmatch(r"[0-9]+", offset):
+        raise ValueError("Btrfs map-swapfile did not return a valid resume offset.")
+    active = subprocess.run(
+        ["swapon", "--show=NAME", "--noheadings", "--raw"],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.splitlines()
+    require_unchanged_fstab(fstab_state)
+    if str(SWAP_FILE) not in active:
+        _ = subprocess.run(["swapon", str(SWAP_FILE)], check=True)
+    additions: list[str] = []
+    if not mount_present:
+        additions.append(
+            f"UUID={device.uuid} {SWAP_MOUNT} btrfs defaults,noatime,nodatacow,subvol=@swap 0 0"
+        )
+    if not swap_present:
+        additions.append(f"{SWAP_FILE} none swap defaults 0 0")
+    return SetupResult.CONFIGURED, "".join(f"\n{entry}\n" for entry in additions)

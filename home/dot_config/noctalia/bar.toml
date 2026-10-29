@@ -18,11 +18,11 @@ compositor_blur = true
 
 # Give bar widgets a shared DMS-like capsule style.
 capsule = true
-capsule_fill = "surface_variant"
+capsule_fill = "surface_container"
 capsule_opacity = 0.85
 capsule_padding = 6
 capsule_thickness = 0.85
-capsule_border = "outline"
+capsule_border = "outline_variant"
 widget_spacing = 6
 
 # Wallpaper and Clipboard are intentionally omitted.
@@ -41,8 +41,8 @@ end = [
 [[bar.default.capsule_group]]
 id = "g1"
 members = ["network", "bluetooth", "warp", "brightness", "volume"]
-fill = "surface_variant"
-border = "outline"
+fill = "surface_container"
+border = "outline_variant"
 border_width = 1.0
 padding = 6.0
 opacity = 0.85
@@ -54,10 +54,10 @@ accordion_direction = "start"
 id = "g2"
 accordion = false
 accordion_direction = "end"
-border = "outline"
+border = "outline_variant"
 border_width = 1.0
 enabled = true
-fill = "surface_variant"
+fill = "surface_container"
 members = ["weather", "clock", "date"]
 opacity = 0.85
 padding = 6.0

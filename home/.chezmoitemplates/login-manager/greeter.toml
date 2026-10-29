@@ -1,0 +1,11 @@
+[session]
+default = "Hyprland (uwsm-managed)"
+
+[appearance]
+hide_logo = true
+scheme = "Synced"
+password_style = "random"
+scheme_selector_position = "hidden"
+
+[idle]
+timeout = 600

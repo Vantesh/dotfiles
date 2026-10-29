@@ -45,7 +45,7 @@ active_pill_size = 2.5
 inactive_pill_size = 1.5
 focused_output_only = true
 hide_when_empty = true
-occupied_color = "outline"
+occupied_color = "outline_variant"
 
 [widget.weather]
 show_condition = false

@@ -1,284 +1,304 @@
 """Enrollment preserves existing accounts and requires a usable fingerprint reader."""
 
+import json
 import os
+import pty
+import pwd
+import shutil
+import subprocess
+from pathlib import Path
 
-from helpers import ROOT, SCRIPTS, ScriptCase
+import pytest
+from helpers import CHEZMOI, ROOT, SCRIPTS
+from test_setup import PYTHON, calls, render_python, run_setup, stub
+from test_setup import env as env
+from test_workstation import workstation as workstation
 
-
-class AvatarTests(ScriptCase):
-    def test_avatar_external_requires_personal_online_setup(self):
-        external = ROOT / "home/.chezmoiexternals/20-avatar.yaml.tmpl"
-        for personal, offline, enabled in ((True, "", True), (True, "1", False),
-                                           (False, "", False), (False, "1", False)):
-            with self.subTest(personal=personal, offline=offline):
-                self.env["OFFLINE"] = offline
-                source = self.render(external, personal=personal)
-                if enabled:
-                    self.assertIn('".local/share/avatars/profile.png":', source)
-                    self.assertIn('url: "https://github.com/Vantesh.png"', source)
-                    self.assertIn("refreshPeriod: 168h", source)
-                else:
-                    self.assertEqual(source.strip(), "")
-
-    def test_avatar_assignment_skips_unusable_offline_files_and_preserves_errors(self):
-        avatar = self.directory / ".local/share/avatars/profile.png"
-        avatar.parent.mkdir(parents=True)
-        self.stub("figlet", "exit 0")
-        self.stub("id", "echo 1000")
-        self.stub("mise", "exit 0")
-        self.stub("busctl", 'exit "${ASSIGN_STATUS:-0}"', log=True)
-        for offline, kind, status, success in (
-            ("1", "missing", "0", True), ("1", "empty", "0", True),
-            ("1", "directory", "0", True), ("1", "unreadable", "0", True),
-            ("1", "usable", "0", True), ("", "usable", "0", True),
-            ("", "missing", "0", False), ("", "empty", "0", False),
-            ("1", "usable", "23", False), ("", "usable", "23", False),
-        ):
-            with self.subTest(offline=offline, kind=kind, status=status):
-                if kind == "unreadable" and os.geteuid() == 0:
-                    self.skipTest("Root can read files regardless of mode bits")
-                self.calls.unlink(missing_ok=True)
-                if avatar.is_dir():
-                    avatar.rmdir()
-                elif avatar.exists():
-                    avatar.chmod(0o600)
-                    avatar.unlink()
-                if kind == "directory":
-                    avatar.mkdir()
-                elif kind != "missing":
-                    avatar.write_bytes(b"" if kind == "empty" else b"fixture image")
-                    if kind == "unreadable":
-                        avatar.chmod(0)
-                self.env.update(OFFLINE=offline, ASSIGN_STATUS=status)
-                rendered = self.directory / "services.sh"
-                rendered.write_text(self.render(SCRIPTS / "run_onchange_after_14_services.sh.tmpl",
-                                                personal=True))
-                source = ("set -euo pipefail\n" + self.libraries("common.sh")
-                          + "converge_packaged_user_services() { :; }\n"
-                          + "configure_locate_database() { :; }\n"
-                          + self.function(rendered, "main") + "main\n")
-                result = self.shell(source)
-                self.assertEqual(result.returncode == 0, success, result.stderr)
-                calls = self.logged_calls()
-                expected = [["busctl", "call", "org.freedesktop.Accounts",
-                             "/org/freedesktop/Accounts/User1000", "org.freedesktop.Accounts.User",
-                             "SetIconFile", "s", str(avatar)]] if kind == "usable" else []
-                self.assertEqual(calls, expected)
-                if not success:
-                    self.assertIn("ERROR:", result.stderr)
-
-    def test_offline_transition_invalidates_only_personal_services(self):
-        script = SCRIPTS / "run_onchange_after_14_services.sh.tmpl"
-        for personal in (False, True):
-            with self.subTest(personal=personal):
-                self.env.pop("OFFLINE", None)
-                online = self.render(script, personal=personal)
-                self.env["OFFLINE"] = "1"
-                offline = self.render(script, personal=personal)
-                self.assertEqual(online != offline, personal)
-                self.env["OFFLINE"] = "yes"
-                self.assertEqual(offline, self.render(script, personal=personal))
-                self.env["OFFLINE"] = ""
-                self.assertEqual(online, self.render(script, personal=personal))
+WARP = "run_onchange_after_15_warp.py"
 
 
-class EnrollmentTests(ScriptCase):
-    def setUp(self):
-        super().setUp()
-        self.source = self.render(SCRIPTS / "run_onchange_after_15_enrollment.sh.tmpl")
-        self.stub("figlet", "exit 0")
-
-    def test_warp_registration_is_created_once_without_connecting(self):
-        registration = self.directory / "registration"
-        self.env["REGISTRATION"] = str(registration)
-        self.stub("warp-cli", """
-case "$*" in
+@pytest.fixture
+def warp_env(workstation: dict[str, str]) -> dict[str, str]:
+    stub(
+        workstation,
+        "warp-cli",
+        """case "$*" in
     '--accept-tos registration show')
-        if [ -e "$REGISTRATION" ]; then echo 'Account type: Free'; else
+        [ "${WARP_UNAVAILABLE:-0}" = 0 ] || exit "$WARP_UNAVAILABLE"
+        if [ -f "$HOME/registered" ]; then
+            [ "${WARP_VERIFY_STATUS:-0}" = 0 ] || exit "$WARP_VERIFY_STATUS"
+            echo 'Account type: Team; account-private-fixture'
+        else
             echo 'Error: Missing registration. Try running: "warp-cli registration new"' >&2
             exit 1
         fi ;;
-    '--accept-tos registration new') echo 'fixture-account' > "$REGISTRATION" ;;
+    '--accept-tos registration new')
+        [ "${WARP_NEW_STATUS:-0}" = 0 ] || exit "$WARP_NEW_STATUS"
+        echo 'fixture-registration' > "$HOME/registered" ;;
     *) exit 97 ;;
-esac
-""", log=True)
-        for attempt in ("initial", "repeated"):
-            with self.subTest(attempt=attempt):
-                result = self.shell(self.source)
-                self.assertEqual(result.returncode, 0, result.stderr)
-                self.assertTrue(registration.is_file(), result.stderr)
-                self.assertEqual(registration.read_text(), "fixture-account\n")
-        self.assertEqual(self.logged_calls(), [
-            ["warp-cli", "--accept-tos", "registration", "show"],
-            ["warp-cli", "--accept-tos", "registration", "new"],
-            ["warp-cli", "--accept-tos", "registration", "show"],
-        ])
+esac""",
+        log=True,
+    )
+    return workstation
 
-    def test_warp_preserves_existing_registration_and_reports_unavailable_setup(self):
-        self.stub("warp-cli", """
-case "$*" in
-    '--accept-tos registration show')
-        case "$WARP_CASE" in
-            existing) echo 'Account type: Team'; exit 0 ;;
-            unavailable) echo 'Unable to connect to CloudflareWARP daemon' >&2 ;;
-            failed) echo 'Error: Missing registration.' >&2 ;;
-        esac
-        exit 1 ;;
-    '--accept-tos registration new') exit 23 ;;
-    *) exit 97 ;;
-esac
-""", log=True)
-        for scenario in ("existing", "unavailable", "failed", "ci"):
-            with self.subTest(scenario=scenario):
-                self.calls.unlink(missing_ok=True)
-                self.env.update(WARP_CASE=scenario, CI="1" if scenario == "ci" else "")
-                result = self.shell(self.source)
-                self.assertEqual(result.returncode, 0, result.stderr)
-                expected = [] if scenario == "ci" else [
-                    ["warp-cli", "--accept-tos", "registration", "show"],
-                ]
-                if scenario == "failed":
-                    expected.append(["warp-cli", "--accept-tos", "registration", "new"])
-                self.assertEqual(self.logged_calls(), expected)
-                if scenario in ("unavailable", "failed"):
-                    self.assertIn("WARN:", result.stderr)
 
-    def test_fingerprint_enrollment_requires_a_reader_without_prints_and_interactive_consent(self):
-        terminal = self.directory / "terminal"
-        enrolled = self.directory / "enrolled"
-        self.env["ENROLLED"] = str(enrolled)
-        self.env["SUDO_USER"] = "fixture-user"
-        source = self.source.replace("/dev/tty", str(terminal))
-        enrollment = ["fprintd-enroll", "-f", "right-index-finger", "fixture-user"]
-        self.stub("id", """
-case "$*" in
-    -u) case "$FPRINT_CASE" in root-*) echo 0 ;; *) echo 1000 ;; esac ;;
-    -un) echo fixture-user ;;
-    '-u -- fixture-user') echo 1000 ;;
-    '-u -- root') echo 0 ;;
-    *) exit 97 ;;
-esac
-""")
-        self.stub("ps", """
-case "$FPRINT_CASE" in
-    tty|tty-failed|root-tty) echo ' tty2' ;;
-    terminal-unavailable) exit 1 ;;
-    *) echo pts/3 ;;
-esac
-""")
-        self.stub("sudo", """
-if [ "$1" = -u ]; then
-    [ "$2" = fixture-user ] || exit 97
-    shift 2
-    exec "$@"
+@pytest.mark.parametrize("personal", [False, True], ids=["nonpersonal", "personal"])
+def test_chezmoi_registers_warp_after_services_without_connecting(
+    warp_env: dict[str, str], tmp_path: Path, personal: bool
+) -> None:
+    assert CHEZMOI is not None
+    repository = tmp_path / "source"
+    source = repository / "home"
+    scripts = source / ".chezmoiscripts/linux"
+    scripts.mkdir(parents=True)
+    shutil.copytree(ROOT / "mise", repository / "mise")
+    shutil.copytree(ROOT / "home/.chezmoitemplates/lib", source / ".chezmoitemplates/lib")
+    for name in ("run_onchange_after_14_services.py.tmpl", WARP):
+        shutil.copy(SCRIPTS / name, scripts / name)
+    config = tmp_path / "chezmoi.json"
+    config.write_text(
+        json.dumps(
+            {
+                "data": {"personal": personal, "distroFamily": "arch"},
+                "scriptEnv": {"DOTFILES_PERSONAL_ENABLED": "1" if personal else "0"},
+            }
+        )
+    )
+    command = [
+        CHEZMOI,
+        "--config",
+        str(config),
+        "--source",
+        str(source),
+        "--working-tree",
+        str(repository),
+        "--destination",
+        str(tmp_path / "target"),
+        "--no-tty",
+        "apply",
+    ]
+    result = run_setup(warp_env, command)
+    assert result.returncode == 0, result.stderr
+    assert (tmp_path / "registered").read_text() == "fixture-registration\n"
+    observed = calls(warp_env)
+    assert next(i for i, call in enumerate(observed) if call[0] == "mise") < next(
+        i for i, call in enumerate(observed) if call[0] == "warp-cli"
+    )
+    log = (tmp_path / "state/chezmoi/logs/setup.log").read_text()
+    assert "account-private-fixture" not in log + result.stdout + result.stderr
+
+
+def test_warp_reuses_existing_team_registration_without_mutation(
+    warp_env: dict[str, str], tmp_path: Path
+) -> None:
+    existing = tmp_path / "registered"
+    existing.write_text("existing-Team-registration")
+    before = existing.stat().st_mtime_ns
+    script = render_python(warp_env, WARP, personal=False)
+    for _ in range(2):
+        result = run_setup(warp_env, [PYTHON, "-B", str(script)])
+        assert result.returncode == 0, result.stderr
+        assert result.stdout == result.stderr == ""
+    assert existing.read_text() == "existing-Team-registration"
+    assert existing.stat().st_mtime_ns == before
+    assert calls(warp_env) == [["warp-cli", "--accept-tos", "registration", "show"]] * 2
+
+
+@pytest.mark.parametrize(
+    "failure,status",
+    [
+        ("WARP_UNAVAILABLE", 24),
+        ("WARP_NEW_STATUS", 23),
+        ("WARP_VERIFY_STATUS", 27),
+    ],
+)
+def test_warp_failure_is_required_and_preserves_exit_status(
+    warp_env: dict[str, str], tmp_path: Path, failure: str, status: int
+) -> None:
+    warp_env[failure] = str(status)
+    script = render_python(warp_env, WARP, personal=False)
+    result = run_setup(warp_env, [PYTHON, "-B", str(script)])
+    assert result.returncode == status, result.stderr
+    assert f"WARP registration failed (exit {status})" in result.stderr
+    assert "check warp-svc and reapply" in result.stderr
+    assert "Traceback" not in result.stderr
+    log = (tmp_path / "state/chezmoi/logs/setup.log").read_text()
+    assert "CalledProcessError" in log
+    assert "account-private-fixture" not in log + result.stdout + result.stderr
+
+
+FINGERPRINT = "run_onchange_after_16_fingerprint.py"
+
+
+@pytest.fixture
+def fingerprint_env(env: dict[str, str], tmp_path: Path) -> dict[str, str]:
+    reader = tmp_path / "usb/1-1"
+    reader.mkdir(parents=True)
+    (reader / "idVendor").write_text("27c6\n")
+    (reader / "idProduct").write_text("5395\n")
+    script = render_python(env, FINGERPRINT)
+    script.write_text(
+        script.read_text().replace('Path("/sys/bus/usb/devices")', f"Path({str(reader.parent)!r})")
+    )
+    stub(
+        env,
+        "pacman",
+        '''if [ "${DRIVER_DATABASE_ERROR:-0}" = 1 ]; then
+    echo 'error: could not open package database' >&2; exit 1
 fi
-[ "$*" = 'fprintd-enroll -f right-index-finger fixture-user' ] || exit 97
-PRIVILEGED=1 exec "$@"
-""", log=True)
-        package_check = ["pacman", "-Q", "--", "libfprint-goodix53x5-533c-git"]
-        self.stub("pacman", """
-[ "$*" = '-Q -- libfprint-goodix53x5-533c-git' ] || exit 97
-case "$FPRINT_CASE" in
-    packages-unused|packages-incomplete) exit 1 ;;
-    package-query-failed) exit 23 ;;
-    *) exit 0 ;;
-esac
-""", log=True)
-        manager = ["gdbus", "call", "--system", "--dest", "net.reactivated.Fprint",
-                   "--object-path", "/net/reactivated/Fprint/Manager",
-                   "--method", "net.reactivated.Fprint.Manager.GetDefaultDevice"]
-        listing = ["gdbus", "call", "--system", "--dest", "net.reactivated.Fprint",
-                   "--object-path", "/net/reactivated/Fprint/Device/0",
-                   "--method", "net.reactivated.Fprint.Device.ListEnrolledFingers", "fixture-user"]
-        self.stub("gdbus", """
-case "$*" in
-    'call --system --dest net.reactivated.Fprint --object-path /net/reactivated/Fprint/Manager --method net.reactivated.Fprint.Manager.GetDefaultDevice')
-        if [ "$FPRINT_CASE" = absent ]; then
-            echo 'Error: GDBus.Error:net.reactivated.Fprint.Error.NoSuchDevice: No devices available' >&2
-            exit 1
-        fi
+if [ "${DRIVER_STATUS:-0}" = 1 ]; then
+    echo "error: package 'libfprint-goodix53x5-533c-git' was not found" >&2
+elif [ "${DRIVER_STATUS:-0}" != 0 ]; then
+    echo 'error: could not read package database' >&2
+fi
+exit "${DRIVER_STATUS:-0}"''',
+        log=True,
+    )
+    stub(env, "sudo", 'exec "$@"', log=True)
+    stub(
+        env,
+        "gdbus",
+        """case "$*" in
+    *Manager.GetDefaultDevice)
+        [ "${MANAGER_STATUS:-0}" = 0 ] || exit "$MANAGER_STATUS"
         echo "(objectpath '/net/reactivated/Fprint/Device/0',)" ;;
-    'call --system --dest net.reactivated.Fprint --object-path /net/reactivated/Fprint/Device/0 --method net.reactivated.Fprint.Device.ListEnrolledFingers fixture-user')
-        if [ -e "$ENROLLED" ] || [ "$FPRINT_CASE" = existing ]; then
-            echo "(['right-index-finger'],)"; exit 0
+    *Properties.Get*)
+        if [ "${OTHER_READER:-0}" = 1 ]; then echo "(<'Other fingerprint reader'>,)"
+        else echo "(<'Goodix HTK32 Fingerprint Sensor'>,)"; fi ;;
+    *ListEnrolledFingers*)
+        if [ "${LIST_STATUS:-0}" != 0 ]; then
+            echo 'GDBus.Error:net.reactivated.Fprint.Error.PermissionDenied: Not authorized' >&2
+            exit "$LIST_STATUS"
         fi
-        if [ "$FPRINT_CASE" = denied ]; then
-            echo 'Error: GDBus.Error:net.reactivated.Fprint.Error.PermissionDenied: Not authorized' >&2
-        elif [ "$FPRINT_CASE" = empty ]; then
-            echo '(@as [],)'; exit 0
+        if [ -f "$HOME/enrolled" ]; then echo "(['right-index-finger'],)"
         else
-            echo 'Error: GDBus.Error:net.reactivated.Fprint.Error.NoEnrolledPrints: No prints enrolled' >&2
-        fi
-        exit 1 ;;
-    *) exit 97 ;;
-esac
-""", log=True)
-        self.stub("fprintd-enroll", """
-[ "$*" = '-f right-index-finger fixture-user' ] || exit 97
-case "$FPRINT_CASE" in
-    tty|root-tty|authorization)
-        if [ "${PRIVILEGED:-0}" != 1 ]; then
-            echo 'EnrollStart failed: GDBus.Error:net.reactivated.Fprint.Error.PermissionDenied: Not Authorized: net.reactivated.fprint.device.enroll'
+            echo 'GDBus.Error:net.reactivated.Fprint.Error.NoEnrolledPrints: No prints enrolled' >&2
             exit 1
         fi ;;
-    failed|tty-failed) echo 'Enroll result: enroll-failed'; exit 23 ;;
-    unsupported) echo 'EnrollStart failed: net.reactivated.Fprint.Error.EnrollNotSupported'; exit 1 ;;
-    communication) echo 'EnrollStart failed: net.reactivated.Fprint.Error.Internal: communication failed'; exit 1 ;;
-esac
-echo 'right-index-finger' > "$ENROLLED"
-""", log=True)
-        for scenario in ("tooling-unavailable", "packages-unused", "packages-incomplete", "package-query-failed",
-                         "absent", "existing", "denied", "declined", "headless",
-                         "unattended", "ci", "failed", "unsupported", "communication",
-                         "authorization", "tty", "tty-failed", "root-tty", "root-desktop",
-                         "terminal-unavailable", "root-unknown", "root-user", "empty", "fresh"):
-            with self.subTest(scenario=scenario):
-                self.calls.unlink(missing_ok=True)
-                enrolled.unlink(missing_ok=True)
-                terminal.unlink(missing_ok=True)
-                enroller = self.bin / "fprintd-enroll"
-                if scenario == "tooling-unavailable":
-                    enroller.rename(enroller.with_suffix(".disabled"))
-                if scenario != "headless":
-                    terminal.write_text("n\n" if scenario == "declined" else "y\n")
-                self.env.update(FPRINT_CASE=scenario, CI="1" if scenario == "ci" else "",
-                                NOCONFIRM="1" if scenario == "unattended" else "0",
-                                SUDO_USER="" if scenario == "root-unknown" else
-                                "root" if scenario == "root-user" else "fixture-user")
-                result = self.shell(source)
-                if scenario == "tooling-unavailable":
-                    enroller.with_suffix(".disabled").rename(enroller)
-                self.assertEqual(result.returncode, 0, result.stderr)
-                calls = self.logged_calls()
-                self.assertEqual(enrolled.exists(), scenario in
-                                 ("empty", "fresh", "tty", "root-tty", "root-desktop"))
-                if scenario in ("ci", "tooling-unavailable"):
-                    self.assertEqual(calls, [])
-                elif scenario in ("packages-unused", "packages-incomplete", "package-query-failed",
-                                  "root-unknown", "root-user"):
-                    self.assertEqual(calls, [package_check])
-                else:
-                    self.assertIn(package_check, calls)
-                    self.assertIn(manager, calls)
-                    if scenario != "absent":
-                        self.assertIn(listing, calls)
-                    self.assertEqual(enrollment in calls, scenario in
-                                     ("failed", "unsupported", "communication", "empty", "fresh",
-                                      "authorization", "tty", "tty-failed", "root-tty", "root-desktop"))
-                    self.assertLessEqual(calls.count(enrollment), 1)
-                privileged = ["sudo", *enrollment]
-                self.assertEqual(privileged in calls, scenario in
-                                 ("tty", "tty-failed", "root-tty"))
-                if scenario in ("tty", "root-tty"):
-                    self.assertLess(calls.index(privileged), calls.index(enrollment))
-                if scenario == "root-desktop":
-                    self.assertIn(["sudo", "-u", "fixture-user", *enrollment], calls)
-                if scenario in ("denied", "failed", "unsupported", "communication", "authorization",
-                                "tty-failed", "terminal-unavailable"):
-                    self.assertIn("WARN:", result.stderr)
-                if scenario in ("empty", "fresh"):
-                    self.calls.unlink()
-                    repeated = self.shell(source)
-                    self.assertEqual(repeated.returncode, 0, repeated.stderr)
-                    self.assertNotIn(enrollment, self.logged_calls())
-                    self.assertEqual(enrolled.read_text(), "right-index-finger\n")
+    *) exit 97 ;;
+esac""",
+        log=True,
+    )
+    stub(
+        env,
+        "fprintd-enroll",
+        '''echo 'native-biometric-output-fixture'
+[ "${ENROLL_STATUS:-0}" = 0 ] || exit "$ENROLL_STATUS"
+[ "${NO_SAVED_PRINT:-0}" = 0 ] || exit 0
+touch "$HOME/enrolled"''',
+        log=True,
+    )
+    return env
+
+
+def fingerprint_with_terminal(env: dict[str, str], answer: str) -> subprocess.CompletedProcess[str]:
+    setsid = shutil.which("setsid")
+    assert setsid is not None
+    master, slave = pty.openpty()
+    try:
+        _ = os.write(master, (answer + "\n").encode())
+        return subprocess.run(
+            [setsid, "--ctty", "--wait", PYTHON, "-B", str(Path(env["HOME"]) / FINGERPRINT)],
+            stdin=slave,
+            capture_output=True,
+            text=True,
+            env=env,
+            check=False,
+            timeout=15,
+        )
+    finally:
+        os.close(slave)
+        os.close(master)
+
+
+@pytest.mark.parametrize("scenario", ["absent", "driver-missing", "other-reader", "enrolled"])
+def test_fingerprint_requires_the_supported_reader_and_preserves_existing_prints(
+    fingerprint_env: dict[str, str], tmp_path: Path, scenario: str
+) -> None:
+    if scenario == "absent":
+        shutil.rmtree(tmp_path / "usb/1-1")
+    elif scenario == "driver-missing":
+        fingerprint_env["DRIVER_STATUS"] = "1"
+    elif scenario == "other-reader":
+        fingerprint_env["OTHER_READER"] = "1"
+    else:
+        (tmp_path / "enrolled").write_text("existing-print")
+    result = run_setup(fingerprint_env, [PYTHON, "-B", str(tmp_path / FINGERPRINT)])
+    assert result.returncode == 0, result.stderr
+    observed = calls(fingerprint_env)
+    assert not any(call[0] in ("sudo", "fprintd-enroll") for call in observed)
+    if scenario == "absent":
+        assert observed == []
+        assert result.stdout == result.stderr == ""
+    elif scenario == "driver-missing":
+        assert observed == [["pacman", "-Q", "--", "libfprint-goodix53x5-533c-git"]]
+        assert "no declared compatible driver" in result.stderr
+    elif scenario == "enrolled":
+        assert (tmp_path / "enrolled").read_text() == "existing-print"
+
+
+@pytest.mark.parametrize("flag", ["CI", "NOCONFIRM", "headless"])
+def test_fingerprint_unattended_execution_never_enrolls(
+    fingerprint_env: dict[str, str], tmp_path: Path, flag: str
+) -> None:
+    command = [PYTHON, "-B", str(tmp_path / FINGERPRINT)]
+    if flag == "headless":
+        setsid = shutil.which("setsid")
+        assert setsid is not None
+        command = [setsid, "--wait", *command]
+    else:
+        fingerprint_env[flag] = "1"
+    result = run_setup(fingerprint_env, command)
+    assert result.returncode == 0, result.stderr
+    assert not (tmp_path / "enrolled").exists()
+    assert not any(call[0] in ("sudo", "fprintd-enroll") for call in calls(fingerprint_env))
+
+
+@pytest.mark.parametrize("answer", ["n", "yes"], ids=["declined", "confirmed"])
+def test_fingerprint_enrollment_needs_consent_and_is_verified_before_success(
+    fingerprint_env: dict[str, str], tmp_path: Path, answer: str
+) -> None:
+    result = fingerprint_with_terminal(fingerprint_env, answer)
+    assert result.returncode == 0, result.stderr
+    assert (tmp_path / "enrolled").exists() == (answer == "yes")
+    if answer == "yes":
+        repeated = fingerprint_with_terminal(fingerprint_env, "yes")
+        assert repeated.returncode == 0, repeated.stderr
+        user = pwd.getpwuid(os.getuid()).pw_name
+        assert [call for call in calls(fingerprint_env) if call[0] == "fprintd-enroll"] == [
+            ["fprintd-enroll", "-f", "right-index-finger", user]
+        ]
+        assert ["sudo", "fprintd-enroll", "-f", "right-index-finger", user] in calls(
+            fingerprint_env
+        )
+    log = (tmp_path / "state/chezmoi/logs/setup.log").read_text()
+    assert "native-biometric-output-fixture" not in log + result.stdout + result.stderr
+
+
+@pytest.mark.parametrize(
+    "failure,status",
+    [
+        ("DRIVER_STATUS", 23),
+        ("DRIVER_DATABASE_ERROR", 1),
+        ("MANAGER_STATUS", 24),
+        ("LIST_STATUS", 25),
+        ("ENROLL_STATUS", 26),
+        ("NO_SAVED_PRINT", 1),
+    ],
+)
+def test_fingerprint_required_failures_never_claim_success(
+    fingerprint_env: dict[str, str], tmp_path: Path, failure: str, status: int
+) -> None:
+    fingerprint_env[failure] = "1" if failure == "NO_SAVED_PRINT" else str(status)
+    result = fingerprint_with_terminal(fingerprint_env, "yes")
+    assert result.returncode == status, result.stderr
+    assert f"Fingerprint setup failed (exit {status})" in result.stderr
+    assert "Fingerprint enrollment completed" not in result.stderr
+    assert not (tmp_path / "enrolled").exists()
+    assert "Traceback" not in result.stderr
+    if failure == "NO_SAVED_PRINT":
+        assert "no enrolled prints" in result.stderr
+    if failure.startswith("DRIVER_"):
+        assert "package database" in result.stderr
+    if failure in ("DRIVER_STATUS", "DRIVER_DATABASE_ERROR", "MANAGER_STATUS", "LIST_STATUS"):
+        assert not any(call[0] == "fprintd-enroll" for call in calls(fingerprint_env))

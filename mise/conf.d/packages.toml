@@ -1,4 +1,7 @@
 [bootstrap.packages]
+# Establish the AUR helper before selecting any aur: declarations.
+"pacman:yay" = { env = "aur-helper" }
+
 # Core
 "pacman:fish" = { env = "packages" }
 "pacman:uwsm" = { env = "packages" }
@@ -32,7 +35,8 @@
 "aur:nautilus-my-computer" = { env = "packages" }
 "pacman:gvfs-mtp" = { env = "packages" }
 "pacman:libcanberra" = { env = "packages" }
-"pacman:ly" = { env = "packages" }
+"pacman:greetd" = { env = "packages" }
+"pacman:noctalia-greeter" = { env = "packages" }
 "pacman:gparted" = { env = "packages" }
 "pacman:meld" = { env = "packages" }
 "pacman:xorg-xhost" = { env = "packages" }
@@ -47,6 +51,7 @@
 
 # Desktop
 "pacman:hyprland" = { env = "packages" }
+"pacman:mission-center" = { env = "packages" }
 "pacman:xdg-desktop-portal-hyprland" = { env = "packages" }
 "pacman:socat" = { env = "packages" }
 "pacman:cpio" = { env = "packages" }
@@ -119,7 +124,8 @@
 "pacman:rust" = { env = "packages" }
 "pacman:go" = { env = "packages" }
 "pacman:cava" = { env = "packages" }
-"pacman:zed" = { env = "packages" }
+# Zed requires a Vulkan driver; keep it out of hardware-independent baseline installs.
+"pacman:zed" = { env = "personal" }
 "pacman:obsidian" = { env = "packages" }
 "pacman:qbittorrent" = { env = "packages" }
 "pacman:brave-bin" = { env = "packages" }
@@ -127,7 +133,7 @@
 "pacman:localsend" = { env = "packages" }
 "pacman:vesktop" = { env = "packages" }
 
-# Optional groups selected by the package phase; never part of the baseline.
+# Personal hardware groups selected by the package phase; never part of the baseline.
 # Driver utilities
 "pacman:mesa-utils" = { env = "driver-utils" }
 "pacman:libva-utils" = { env = "driver-utils" }
@@ -167,7 +173,7 @@
 "pacman:limine-mkinitcpio-hook" = { env = "limine-mkinitcpio" }
 "pacman:sbctl" = { env = "limine-mkinitcpio" }
 
-# Opt-in Snapper integration on supported Limine/mkinitcpio installations
+# Personal Snapper integration on supported Limine/mkinitcpio installations
 "pacman:snapper" = { env = "snapper" }
 "pacman:btrfs-assistant" = { env = "snapper" }
 "pacman:btrfs-progs" = { env = "snapper" }

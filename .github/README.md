@@ -1,220 +1,88 @@
-<img width="1280" height="720" alt="Hyprland desktop" src="https://github.com/user-attachments/assets/5edaf197-b81f-4d5f-be7c-5acab8b7764e" />
+# Dotfiles
 
-<h1 align="center">Dotfiles</h1>
+My Arch-based workstation with Hyprland, Noctalia, Fish and Kitty, managed using Chezmoi, Mise and Python.
 
-<p align="center">
-  My desktop setup: Hyprland, Noctalia, Fish, and Kitty. Managed with <a href="https://www.chezmoi.io/quick-start/">chezmoi</a>.
-</p>
+Built for my own machines, not as a general-purpose installer.
 
-<p align="center">
-  <a href="#fresh-install"><img height="36" alt="Install" src="https://img.shields.io/badge/Install-1e1e2e?style=flat" /></a>
-  <a href="#customizing-the-setup"><img height="36" alt="Customize" src="https://img.shields.io/badge/Customize-1e1e2e?style=flat" /></a>
-  <a href="#btrfs-layout"><img height="36" alt="Layout" src="https://img.shields.io/badge/Layout-1e1e2e?style=flat" /></a>
-  <a href="#boot-configuration"><img height="36" alt="Boot" src="https://img.shields.io/badge/Boot-1e1e2e?style=flat" /></a>
-  <a href="#chroot-recovery"><img height="36" alt="Recovery" src="https://img.shields.io/badge/Recovery-1e1e2e?style=flat" /></a>
-</p>
+## Installation
 
-## Fresh install
-
-Start from an installed Arch system with network access and a regular user with sudo access. Back up existing configuration first.
-
-Support is best effort; I only test this setup on machines I own.
-
-> [!WARNING]
-> **Package setup enables Chaotic-AUR by default**, adding its third-party repository and signing keys to pacman.
+Start with a fresh Arch-based installation, network access and a regular user with sudo access.
 
 ```bash
-sudo pacman -S --needed chezmoi
+sudo pacman -Syu --needed chezmoi
 chezmoi init --apply vantesh
 ```
 
-Setup installs its remaining prerequisites and prompts for Snapper, hibernation, Secure Boot, and drivers.
+Setup asks whether this is a personal installation:
 
-> [!WARNING]
-> **If you are not me, answer No to “Is this a personal setup”.** This option is for me only. It expects my private Bitwarden entries and their exact fields; missing or incorrect entries will make setup fail.
->
-> If you answered Yes by mistake, run `chezmoi init --prompt` and choose No before retrying.
+- **Nonpersonal:** Common packages, dotfiles, themes, fonts, Fish, services, Noctalia Greeter and WARP registration (without connecting).
+- **Personal:** Everything above, plus private configuration, hardware drivers, firewall rules, Btrfs/Snapper, hibernation, Secure Boot and optional fingerprint enrollment.
 
-## Customizing the setup
+Personal setup requires my Bitwarden credentials and makes system-level changes. Choose **No** if you're installing these dotfiles on your own machine.
 
-Mise files in the repository (`chezmoi cd`):
+Both profiles enable Chaotic-AUR, update packages and install an AUR helper when needed.
+The setup requires Python 3.14, Mise 2026.10.20 or newer, and a working systemd user session.
 
-- `mise/config.toml` → required mise version.
-- `mise/conf.d/packages.toml` → packages and optional groups.
-- `mise/conf.d/services.toml` → system services and timers.
-- `mise/conf.d/login-shell.toml` → sets Fish as the default login shell (`/usr/bin/fish`).
-- `mise/conf.d/firewall.toml` → firewall rules.
-- `mise/conf.d/pacman-hooks.toml` → package-cache cleanup hooks.
+## Configuration
 
-## Btrfs layout
+Each tool has its own role:
 
-This is the Btrfs layout I use; these dotfiles do not create it. Optional hibernation can add `@swap`, and Snapper manages `/.snapshots`.
+- **Chezmoi:** Managed files, templates and setup scripts in [home/](../home/).
+- **Mise:** Packages, services and tasks in [mise/](../mise/).
+- **Python:** System provisioning in [home/.chezmoiscripts/linux/](../home/.chezmoiscripts/linux/).
 
-```text
-Btrfs volume
-├── @                 → /
-│   └── .snapshots    → /.snapshots
-├── @home             → /home
-├── @root             → /root
-├── @srv              → /srv
-├── @cache            → /var/cache
-├── @machines         → /var/lib/machines
-├── @portables        → /var/lib/portables
-├── @log              → /var/log
-├── @tmp              → /var/tmp
-└── @swap             → /swap
+To review or apply changes:
 
-/boot                  EFI System Partition
+```bash
+chezmoi diff
+chezmoi apply --dry-run --verbose
+chezmoi apply
 ```
+
+Edit configuration in the Chezmoi source directory (`chezmoi cd`). Failed setup scripts can be retried with `chezmoi apply`.
+
+Logs are stored at `~/.local/state/chezmoi/logs/setup.log`, or under `$XDG_STATE_HOME` when set.
+
+`OFFLINE=1` skips supported external downloads, not package installation. `NOCONFIRM=1` skips optional prompts and fingerprint enrollment.
 
 ## Boot configuration
 
-- **Limine** with systemd-based mkinitcpio on supported Btrfs installations, independently of hibernation.
-- **LUKS roots:** `sd-encrypt` is included for verified, directly LUKS-backed Btrfs roots; plain roots omit it.
-- **Optional:** Plymouth, Secure Boot, Snapper snapshots, and laptop hibernation. Snapper is independent of hibernation.
+Personal setup supports Btrfs with the `@` root subvolume, Snapper and hibernation on supported laptops. Existing unmanaged swap and resume settings are left alone.
 
-This setup intentionally uses `systemd.tpm2_measured_os=0` to disable systemd's additional measured-OS/NvPCR services and avoid their errors on newer systemd versions. This changes TPM measurements; it is more than a logging option. See the [Arch Linux discussion](https://bbs.archlinux.org/viewtopic.php?id=314939&p=2).
+Secure Boot setup requires UEFI Setup Mode with Secure Boot disabled. The installer creates and enrolls keys automatically when needed, including Microsoft and supported firmware certificates.
 
-> [!IMPORTANT]
-> If selecting Secure Boot for first-time key enrollment, put UEFI in **Setup Mode** with **Secure Boot disabled** before applying. Enable Secure Boot in firmware only after setup and the boot rebuild succeed.
+**Enable Secure Boot in firmware only after setup finishes and the boot files are verified.**
 
-Limine defaults live in `/etc/limine-entry-tool.d/01-default.conf`. After editing, rebuild with `sudo limine-update` or `sudo limine-mkinitcpio`; do not run mkinitcpio directly.
+The EFI partition is normally mounted at `/boot`, outside Btrfs snapshots. Restoring a snapshot doesn't restore the matching kernel or initramfs.
 
-### Device names and LUKS UUID
-
-Find your devices with:
+Rebuild boot files with:
 
 ```bash
-lsblk -o NAME,PATH,FSTYPE,UUID,MOUNTPOINTS
+sudo limine-update
 ```
 
-Replace the placeholders below with your own values, without the angle brackets:
+## Development
 
-- `<luks-partition>` → the `crypto_LUKS` partition backing your root, such as `nvme0n1p2`.
-- `<root-mapper>` → its unlocked name under `/dev/mapper/`, such as `root` or `luks-…`.
-- `<efi-partition>` → your EFI System Partition, usually `vfat` and mounted at `/boot`.
-- `<LUKS-UUID>` → the encrypted partition's UUID, **not** the mapped Btrfs filesystem UUID. Print it with:
+The setup installs its runtime dependencies. For development and testing, install the additional tools:
 
 ```bash
-sudo cryptsetup luksUUID /dev/<luks-partition>
+sudo pacman -S --needed python-pytest ruff shellcheck uv
+uv tool install --python /usr/bin/python3 --with pytest --with loguru pyrefly
 ```
 
-### TPM2 automatic LUKS unlocking
+Keep uv's tool executable directory (normally `~/.local/bin`) on `PATH`. Pyrefly uses the strict Python 3.14 configuration in `pyproject.toml`; its tool environment includes pytest and Loguru for import resolution.
 
-For LUKS2 with a TPM2, enrollment and boot configuration are separate. Use the encrypted partition identified above:
+Run `pyrefly check` for source type checks, or `pyrefly dump-config --max-files all` to inspect source coverage. The full validator also checks the rendered Python templates for both profiles and rejects missing source coverage.
+
+Run validation from the repository root:
 
 ```bash
-sudo systemd-cryptenroll \
-  --tpm2-device=auto \
-  --tpm2-pcrs=7 \
-  /dev/<luks-partition>
-```
-
-PCR 7 binds unlocking to the Secure Boot policy. Choose this policy deliberately: changes to Secure Boot mode or keys can affect unlocking. Keep a working LUKS password or recovery key. See [systemd-cryptenroll](https://www.freedesktop.org/software/systemd/man/latest/systemd-cryptenroll.html) for policy details.
-
-Add this option to the existing kernel arguments in `/etc/limine-entry-tool.d/01-default.conf`:
-
-```text
-rd.luks.options=<LUKS-UUID>=tpm2-device=auto
-```
-
-Merge with existing options for that UUID; preserve `rd.luks.name=`, `root=`, and other custom arguments. Review any existing early crypttab policy too. Run `sudo limine-update` and verify the generated command line before rebooting. The setup scripts do not enroll TPM2 or choose authentication policies.
-
-## Chroot recovery
-
-### From a live USB
-
-Boot an Arch Linux live USB and use its root shell. Identify the partitions using [the device names above](#device-names-and-luks-uuid).
-
-Unlock LUKS, mount the real `@` root and EFI System Partition, then enter the installation:
-
-```bash
-sudo cryptsetup open /dev/<luks-partition> root
-sudo mount -o subvol=@ /dev/mapper/root /mnt
-sudo mount --mkdir /dev/<efi-partition> /mnt/boot
-sudo arch-chroot /mnt
-```
-
-Use the installation's actual ESP mount point if it differs from `/boot`. [arch-chroot](https://man.archlinux.org/man/arch-chroot.8.en) comes from `arch-install-scripts` and is included in the standard Arch installation environment.
-
-Inside the chroot, inspect persistent settings and correct them before rebuilding:
-
-```bash
-cat /etc/limine-entry-tool.d/01-default.conf
-cat /etc/kernel/cmdline
-limine-update
-```
-
-Use `limine-update` or `limine-mkinitcpio` for rebuilds so the installed Limine hooks run. Check the output before leaving.
-
-```bash
-exit
-umount -R /mnt
-reboot
-```
-
-### From a Snapper snapshot
-
-With Snapper enabled, reboot and **press any key as Limine starts**. Tap an arrow key repeatedly to catch the **0.5-second timeout** and reveal the boot menu. Open **Snapshots**, select a snapshot, and boot it.
-
-To repair the installed root from a booted Snapper overlay, mount the real `@` subvolume. The LUKS container is already unlocked; replace `<root-mapper>` and `<efi-partition>` with their actual names. This requires `arch-install-scripts` in the booted environment.
-
-```bash
-sudo mount -o subvol=@ /dev/mapper/<root-mapper> /mnt
-sudo mount --mkdir /dev/<efi-partition> /mnt/boot
-sudo arch-chroot /mnt
-```
-
-Use the repair steps above inside the chroot. When finished:
-
-```bash
-exit
-sudo umount -R /mnt
-sudo reboot
-```
-
-## Usual commands
-
-```bash
-chezmoi diff                    # Review changes
-chezmoi apply -nv                # Dry run with verbose output
-chezmoi apply                    # Apply files and eligible setup scripts
-chezmoi apply --exclude=scripts  # Apply files only
-chezmoi update                   # Pull and apply
-chezmoi cd                       # Open a shell in the source repo
-```
-
-For file edits:
-
-```bash
-chezmoi edit ~/.bashrc           # Edit the managed source
-chezmoi add ~/.bashrc            # Track a file or import live edits
-chezmoi apply ~/.bashrc          # Apply only this file
-chezmoi forget ~/.bashrc         # Stop tracking; keep the live file
-```
-
-Edit `.tmpl` files directly in the source repo. Use `chezmoi add` to import deliberate edits to live files.
-
-## Script tests
-
-Setup-script tests require Python 3.11+, Bash, and chezmoi; static checks also require ShellCheck.
-
-```bash
-python3 -B -m unittest discover -s .github/tests -v
 python3 -B .github/tests/validate.py
 ```
 
-## Reminders
-
-- **Super + F2:** keybinding cheat sheet.
-- **Super + W:** wallpaper picker; wallpapers live in `~/Pictures/Wallpapers`.
-- **Super + U:** system update.
-- **Super + B:** browser.
-- **Bash history:** move `~/.bash_history` to `~/.local/state/bash/history` if needed, preserving existing history.
-- **Fingerprint:** setup offers enrollment only with its fingerprint packages installed and a detected reader without enrolled prints. Touch the reader when prompted, or run `fprintd-enroll` later.
-- **WARP:** setup registers it once without connecting. Connect manually when wanted.
+This checks Python formatting and linting, types, tests, Chezmoi templates, shell scripts and Mise configuration. It does not change the running system.
 
 ## Credits
 
-- [Noctalia](https://github.com/noctalia-dev/noctalia) → bar, desktop shell, and theming.
-- [Matt-FTW's dotfiles](https://github.com/Matt-FTW/dotfiles) → some application configurations.
+- [Noctalia](https://github.com/noctalia-dev/noctalia) provides the desktop shell and theming.
+- [Matt-FTW's dotfiles](https://github.com/Matt-FTW/dotfiles) for some desktop configs

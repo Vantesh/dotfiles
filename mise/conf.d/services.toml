@@ -2,20 +2,11 @@
 state = "running"
 enabled = true
 
-[bootstrap.services."warp-svc.service"]
-state = "running"
-enabled = true
-
 [bootstrap.services."bluetooth.service"]
 state = "running"
 enabled = true
 
 [bootstrap.services."fstrim.timer"]
-state = "running"
-enabled = true
-
-# Native firewall activation does not enable/start the systemd unit.
-[bootstrap.services."ufw.service"]
 state = "running"
 enabled = true
 
@@ -39,3 +30,32 @@ enabled = true
 state = "stopped"
 enabled = false
 masked = true
+
+# Device registration is common; setup never connects the tunnel.
+[bootstrap.services."warp-svc.service"]
+state = "running"
+enabled = true
+
+[bootstrap.services."gnome-keyring-daemon.socket"]
+scope = "user"
+state = "running"
+enabled = true
+masked = false
+
+[bootstrap.services."gnome-keyring-daemon.service"]
+scope = "user"
+state = "running"
+enabled = true
+masked = false
+
+[bootstrap.services."mpris-proxy.service"]
+scope = "user"
+state = "running"
+enabled = true
+masked = false
+
+[bootstrap.services."udiskie.service"]
+scope = "user"
+state = "running"
+enabled = true
+masked = false

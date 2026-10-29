@@ -85,8 +85,7 @@ def source_fingerprint(source):
                 digest.update(b"missing\0")
             else:
                 digest.update(
-                    f"{target.st_size}:{target.st_mtime_ns}:"
-                    f"{target.st_ctime_ns}\0".encode()
+                    f"{target.st_size}:{target.st_mtime_ns}:{target.st_ctime_ns}\0".encode()
                 )
 
     def scan(directory, prefix):
@@ -115,9 +114,7 @@ def accent_colors(color):
             min(1, max(0, base + offset)),
             saturation,
         )
-        palette[accent] = "#" + "".join(
-            f"{round(channel * 255):02x}" for channel in shade
-        )
+        palette[accent] = "#" + "".join(f"{round(channel * 255):02x}" for channel in shade)
 
     return palette
 
@@ -413,9 +410,7 @@ def main():
 
     color, mode = sys.argv[1].lower(), sys.argv[2]
 
-    icons = (
-        Path(os.environ.get("XDG_DATA_HOME") or Path.home() / ".local/share") / "icons"
-    )
+    icons = Path(os.environ.get("XDG_DATA_HOME") or Path.home() / ".local/share") / "icons"
     config_dir = Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config")
 
     variant = mode
@@ -430,9 +425,7 @@ def main():
     )
 
     if source is None:
-        raise FileNotFoundError(
-            f"Install MacTahoe-{variant} (or MacTahoe-blue-{variant}) first"
-        )
+        raise FileNotFoundError(f"Install MacTahoe-{variant} (or MacTahoe-blue-{variant}) first")
 
     target = icons / THEME
 
@@ -447,10 +440,8 @@ def main():
         }
 
         try:
-            previous_state = json.loads(
-                (target / STATE_FILE).read_text(encoding="utf-8")
-            )
-        except (OSError, ValueError):
+            previous_state = json.loads((target / STATE_FILE).read_text(encoding="utf-8"))
+        except OSError, ValueError:
             previous_state = None
 
         regenerated = (
