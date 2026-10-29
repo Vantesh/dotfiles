@@ -793,9 +793,20 @@ def test_finalization_reboots_only_after_terminal_confirmation(
 ) -> None:
     from test_setup import render_python
 
-    stub(env, "sbctl", "echo '{\"secure_boot\":false}'")
+    stub(env, "sbctl", 'echo \'{"installed":true,"setup_mode":false,"secure_boot":false}\'')
     stub(env, "systemctl", "exit 0", log=True)
     script = render_python(env, "run_onchange_after_99_finalize.py")
+    home = Path(env["HOME"])
+    limine = home / "limine"
+    limine.touch(mode=0o755)
+    efivars = home / "efivars"
+    efivars.mkdir()
+    env["DOTFILES_DISTRO_FAMILY"] = "arch"
+    script.write_text(
+        script.read_text()
+        .replace('Path("/usr/bin/limine")', f"Path({str(limine)!r})")
+        .replace('Path("/sys/firmware/efi/efivars")', f"Path({str(efivars)!r})")
+    )
     command = ["/usr/bin/python3", "-B", str(script)]
     if answer is None:
         env["NOCONFIRM"] = "1"
@@ -820,6 +831,40 @@ def test_finalization_reboots_only_after_terminal_confirmation(
             os.close(master)
     assert result.returncode == 0, result.stderr
     assert calls(env) == ([["systemctl", "reboot", "--firmware-setup"]] if answer == "yes" else [])
+
+
+@pytest.mark.parametrize("limine_available", [False, True], ids=["skipped", "uninitialized"])
+def test_finalization_never_recommends_secure_boot_without_initialized_signing(
+    env: dict[str, str], tmp_path: Path, limine_available: bool
+) -> None:
+    from test_setup import render_python
+
+    stub(
+        env,
+        "sbctl",
+        'echo \'{"installed":false,"setup_mode":true,"secure_boot":false}\'',
+        log=True,
+    )
+    stub(env, "systemctl", "exit 97", log=True)
+    limine = tmp_path / "limine"
+    if limine_available:
+        limine.touch(mode=0o755)
+    efivars = tmp_path / "efivars"
+    efivars.mkdir()
+    env.update(NOCONFIRM="1", DOTFILES_DISTRO_FAMILY="arch")
+    script = render_python(env, "run_onchange_after_99_finalize.py")
+    script.write_text(
+        script.read_text()
+        .replace('Path("/usr/bin/limine")', f"Path({str(limine)!r})")
+        .replace('Path("/sys/firmware/efi/efivars")', f"Path({str(efivars)!r})")
+    )
+    result = run_setup(env, ["/usr/bin/python3", "-B", str(script)])
+    assert result.returncode == 0, result.stderr
+    assert "Setup complete." in result.stderr
+    assert "Reboot manually later" in result.stderr
+    assert "enable Secure Boot" not in result.stderr
+    assert "--firmware-setup" not in result.stderr
+    assert calls(env) == ([["sbctl", "--json", "status"]] if limine_available else [])
 
 
 def test_interrupted_limine_command_stops_descendants_after_the_leader_exits(

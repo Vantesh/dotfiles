@@ -1,14 +1,15 @@
 #!/usr/bin/python3 -B
 """Offer reboot guidance after verified boot setup, without unattended reboots."""
 
-import json
 import os
 import subprocess
 import sys
 from pathlib import Path
-from typing import cast
 
 from loguru import logger
+
+LIMINE = Path("/usr/bin/limine")
+EFIVARS = Path("/sys/firmware/efi/efivars")
 
 
 def main() -> int:
@@ -35,25 +36,33 @@ def main() -> int:
             raise ValueError("Unsupported finalization arguments.")
         logger.info("Setup complete.")
         firmware = False
-        try:
-            result = subprocess.run(
-                ["sbctl", "--json", "status"], check=True, capture_output=True, text=True
-            )
-            status = cast("dict[str, object]", json.loads(result.stdout))
-            if type(status.get("secure_boot")) is not bool:
-                raise ValueError("Unexpected Secure Boot status.")
-            firmware = status["secure_boot"] is False
-            if firmware:
-                logger.info(
-                    "Enable Secure Boot manually in UEFI firmware settings after successful setup."
+        if (
+            os.access(LIMINE, os.X_OK)
+            and "arch" in os.environ.get("DOTFILES_DISTRO_FAMILY", "").lower()
+            and EFIVARS.is_dir()
+        ):
+            from lib.secure_boot import secure_boot_status
+
+            try:
+                status = secure_boot_status()
+                if status["secure_boot"]:
+                    logger.info("Secure Boot is enabled in firmware.")
+                elif status["installed"] and not status["setup_mode"]:
+                    pending = (
+                        Path(os.environ.get("XDG_STATE_HOME") or Path.home() / ".local/state")
+                        / "chezmoi/initramfs.pending"
+                    )
+                    # The earlier rebuild verifies artifacts before clearing this request.
+                    firmware = not (pending.exists() or pending.is_symlink())
+                    if firmware:
+                        logger.info(
+                            "Enable Secure Boot manually in UEFI firmware settings after successful setup."
+                        )
+            except OSError, ValueError, subprocess.CalledProcessError:
+                # This is reboot guidance, not another provisioning or signing pass.
+                logger.warning(
+                    "Cannot inspect firmware Secure Boot status; run sudo sbctl status before changing firmware settings."
                 )
-            else:
-                logger.info("Secure Boot is enabled in firmware.")
-        except OSError, ValueError, subprocess.CalledProcessError:
-            # This is reboot guidance, not another provisioning or signing pass.
-            logger.warning(
-                "Cannot inspect firmware Secure Boot status; run sudo sbctl status before changing firmware settings."
-            )
         hint = (
             "Run systemctl reboot --firmware-setup later to enable Secure Boot."
             if firmware
