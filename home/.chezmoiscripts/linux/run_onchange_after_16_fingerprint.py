@@ -1,5 +1,5 @@
 #!/usr/bin/python3 -B
-"""Offer native enrollment only for the verified personal Goodix 5395 setup."""
+"""Start native enrollment only for the verified personal Goodix 5395 setup."""
 
 import os
 import pwd
@@ -82,6 +82,7 @@ def main() -> int:
             ):
                 break
         else:
+            logger.info("No supported Goodix 27c6:5395 reader detected; skipping enrollment.")
             return 0
         driver = "libfprint-goodix53x5-533c-git"
         package = subprocess.run(
@@ -122,8 +123,12 @@ def main() -> int:
             env=env,
             capture_output=True,
             text=True,
-            check=True,
+            check=False,
         )
+        if result.returncode and "net.reactivated.Fprint.Error.NoSuchDevice:" in result.stderr:
+            logger.warning("fprintd has no available fingerprint reader; skipping enrollment.")
+            return 0
+        result.check_returncode()
         match = re.fullmatch(
             r"\(objectpath '(/net/reactivated/Fprint/Device/[0-9]+)',\)", result.stdout.strip()
         )
@@ -159,11 +164,7 @@ def main() -> int:
             return 0
         try:
             with Path("/dev/tty").open() as terminal, Path("/dev/tty").open("w") as prompt:
-                _ = prompt.write("Enroll a fingerprint now? Touch the reader when prompted. [y/N] ")
-                prompt.flush()
-                if terminal.readline().strip().lower() not in ("y", "yes"):
-                    logger.info("Fingerprint enrollment declined; existing prints are unchanged.")
-                    return 0
+                logger.info("Starting fingerprint enrollment; touch the reader when prompted.")
                 # Explicit account argument keeps native sudo enrollment usable on a
                 # console without requiring a graphical authorization agent.
                 _ = subprocess.run(
