@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+# Validate the subject only; Git handles the body and comment cleanup.
+set -euo pipefail
+export LC_ALL=C
+
+message=$(git stripspace --strip-comments < "$1")
+subject=${message%%$'\n'*}
+
+case "$subject" in
+  'fixup! '?*|'squash! '?*|'amend! '?*)
+    # Temporary subjects consumed by rebase --autosquash.
+    exit 0
+    ;;
+  Merge\ ?*)
+    # Automatic merges may run this hook before MERGE_HEAD is written.
+    if [[ -f $(git rev-parse --git-path MERGE_HEAD) ||
+          $1 -ef $(git rev-parse --git-path MERGE_MSG) ]]; then
+      exit 0
+    fi
+    ;;
+  Revert\ \"?*\")
+    # Default reverts include the original object ID, also when reverting a merge.
+    revert_line='^This reverts commit ([0-9a-f]{40}|[0-9a-f]{64})(\.|, reversing)$'
+    while IFS= read -r line; do
+      if [[ $line =~ $revert_line ]]; then exit 0; fi
+    done <<< "$message"
+    ;;
+esac
+
+conventional='^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)\([a-z0-9._/-]+\)!?: [^[:space:]].*$'
+if [[ $subject =~ $conventional ]]; then exit 0; fi
+
+printf '%s\n' \
+  'Invalid commit subject.' \
+  'Expected: type(scope)!: description  (! is optional)' \
+  'Example: refactor(install)!: simplify setup' \
+  'Types: feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert' \
+  'Scope: nonempty, using only a-z, 0-9, dots, underscores, hyphens and slashes.' \
+  'Description: nonempty text after ": ".' >&2
+exit 1
