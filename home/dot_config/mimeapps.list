@@ -460,7 +460,6 @@ x-scheme-handler/magnet=org.qbittorrent.qBittorrent.desktop
 
 x-scheme-handler/spotify=spotifast.desktop
 
-x-scheme-handler/discord=vesktop.desktop
 application/x-wine-extension-ini=nvim.desktop
 text/x-ini=nvim.desktop
 text/x-config=nvim.desktop

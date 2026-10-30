@@ -50,7 +50,7 @@ hl.window_rule({ name = "fx-idle-browser", match = { tag = "idle-browser" }, idl
 -- === Screen-sharing privacy ===
 hl.window_rule({
   name = "tag-private",
-  match = { class = "^(discord|vesktop|org\\.telegram\\.desktop|[Ss]ignal|[Ww]hats[Aa]pp|[Bb]itwarden)$" },
+  match = { class = "^(discord|io\\.github\\.yapfast\\.Yapfast|zapfast|org\\.telegram\\.desktop|[Ss]ignal|[Ww]hats[Aa]pp|[Bb]itwarden)$" },
   tag = "+private",
 })
 hl.window_rule({ name = "fx-private", match = { tag = "private" }, no_screen_share = true })

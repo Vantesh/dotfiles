@@ -6,7 +6,7 @@ wallpaper_scheme = "m3-content"
 
 [theme.templates]
 builtin_ids = ["btop", "cava", "gtk3", "gtk4", "hyprland", "kitty", "kcolorscheme", "starship"]
-community_ids = ["fastfetch", "bat", "lazygit", "yazi", "spotifast", "obsidian"]
+community_ids = ["fastfetch", "bat", "lazygit", "yazi", "spotifast", "obsidian", "yapfast", "zapfast"]
 
 [wallpaper]
 transition = ["wipe"]
