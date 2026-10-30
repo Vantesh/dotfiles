@@ -254,7 +254,9 @@ esac""",
         env,
         "mise",
         """case "$*" in
-'--env packages bootstrap packages apply --yes'|'--quiet --env  bootstrap --only services,user --yes') exit 0 ;;
+'--env packages bootstrap packages status --json')
+    echo '{"pacman":{"available":true,"packages":[{"state":"missing"}]}}' ;;
+'--env packages bootstrap packages apply --yes --quiet'|'--quiet --env  bootstrap --only services,user --yes') exit 0 ;;
 *) exit 97 ;;
 esac""",
         log=True,
@@ -328,7 +330,8 @@ esac""",
     assert verified.returncode == 0, verified.stderr
     observed = calls(env)
     assert [call for call in observed if call[0] == "mise"] == [
-        ["mise", "--env", "packages", "bootstrap", "packages", "apply", "--yes"],
+        ["mise", "--env", "packages", "bootstrap", "packages", "status", "--json"],
+        ["mise", "--env", "packages", "bootstrap", "packages", "apply", "--yes", "--quiet"],
         ["mise", "--quiet", "--env", "", "bootstrap", "--only", "services,user", "--yes"],
     ]
     assert [call[1:] for call in observed if call[0] == "warp-cli"] == [
@@ -619,6 +622,9 @@ def package_env(env: dict[str, str]) -> dict[str, str]:
         GPU="Intel Corporation [8086:1234]",
         DRIVER_VERSION="615.78.08",
         MISE_STATUS="0",
+        PACKAGE_STATE="missing",
+        LEGACY_PACKAGE_STATE="missing",
+        PACKAGE_STATUS="0",
         UPGRADE_STATUS="0",
     )
     stub(env, "id", "echo 1000")
@@ -660,7 +666,16 @@ esac""",
     stub(
         env,
         "mise",
-        '''/usr/bin/python3 -B - <<'CHECK'
+        '''if [ "$5" = status ]; then
+    if [ "$2" = nvidia-legacy-utils ]; then
+        state="$LEGACY_PACKAGE_STATE"
+    else
+        state="$PACKAGE_STATE"
+    fi
+    printf '{"pacman":{"available":true,"packages":[{"state":"%s"}]}}\\n' "$state"
+    exit "$PACKAGE_STATUS"
+fi
+/usr/bin/python3 -B - <<'CHECK'
 import json, os
 from pathlib import Path
 Path(os.environ['HOME'], 'observed.json').write_text(json.dumps({
@@ -692,7 +707,8 @@ def test_fresh_kvm_baseline_needs_no_vulkan_provider_or_personal_probes(
     assert "Installing baseline packages with Mise." in result.stderr
     recorded = calls(package_env)
     assert [call for call in recorded if call[0] == "mise"] == [
-        ["mise", "--env", "packages", "bootstrap", "packages", "apply", "--yes"]
+        ["mise", "--env", "packages", "bootstrap", "packages", "status", "--json"],
+        ["mise", "--env", "packages", "bootstrap", "packages", "apply", "--yes", "--quiet"],
     ]
     assert all(call[0] in ("sudo", "mise") for call in recorded)
     observed = cast("dict[str, str | None]", json.loads((tmp_path / "observed.json").read_text()))
@@ -750,7 +766,9 @@ esac""",
         r"""if [ "$*" = '--env aur-helper bootstrap packages apply --yes' ]; then
     printf '#!/bin/sh\nexit 97\n' > "$HOME/bin/paru"
     chmod 755 "$HOME/bin/paru"
-elif [ "$*" != '--env packages bootstrap packages apply --yes' ]; then
+elif [ "$*" = '--env packages bootstrap packages status --json' ]; then
+    echo '{"pacman":{"available":true,"packages":[{"state":"missing"}]}}'
+elif [ "$*" != '--env packages bootstrap packages apply --yes --quiet' ]; then
     exit 97
 fi""",
         log=True,
@@ -769,7 +787,7 @@ fi""",
         result = apply_packages(package_env)
         assert result.returncode == 0, result.stderr
     recorded = calls(package_env)
-    assert [call[2] for call in recorded if call[0] == "mise"] == [
+    assert [call[2] for call in recorded if call[0] == "mise" and "apply" in call] == [
         "aur-helper",
         "packages",
         "packages",
@@ -797,7 +815,7 @@ def test_personal_package_groups_preserve_driver_order(
     package_env.update(GPU=gpu, DRIVER_VERSION=version)
     result = apply_packages(package_env, personal=True)
     assert result.returncode == 0, result.stderr
-    recorded = [call for call in calls(package_env) if call[0] == "mise"]
+    recorded = [call for call in calls(package_env) if call[0] == "mise" and "apply" in call]
     groups = recorded[-1][2].split(",")
     assert {
         "packages",
@@ -809,8 +827,46 @@ def test_personal_package_groups_preserve_driver_order(
         family,
         module,
     } <= set(groups)
+    assert "Installing baseline and personal packages with Mise." in result.stderr
+    assert all(call[-1] == "--quiet" for call in recorded)
     if family == "nvidia-legacy":
+        assert "Installing legacy NVIDIA utilities before driver packages." in result.stderr
         assert recorded[0][1:3] == ["--env", "nvidia-legacy-utils"]
+
+
+@pytest.mark.parametrize("baseline", ["installed", "missing"])
+@pytest.mark.parametrize("legacy", ["installed", "missing"])
+def test_package_announcements_only_for_phases_with_pending_work(
+    package_env: dict[str, str], baseline: str, legacy: str
+) -> None:
+    package_env.update(
+        PACKAGE_STATE=baseline,
+        LEGACY_PACKAGE_STATE=legacy,
+        GPU="NVIDIA Corporation GP106 [10de:1234]",
+        DRIVER_VERSION="580.119.02",
+    )
+    result = apply_packages(package_env, personal=True)
+    assert result.returncode == 0, result.stderr
+    assert ("Installing baseline and personal packages with Mise." in result.stderr) == (
+        baseline == "missing"
+    )
+    assert ("Installing legacy NVIDIA utilities before driver packages." in result.stderr) == (
+        legacy == "missing"
+    )
+    applied = [call[2] for call in calls(package_env) if call[0] == "mise" and "apply" in call]
+    assert ("nvidia-legacy-utils" in applied) == (legacy == "missing")
+    assert any("packages" in group.split(",") for group in applied) == (baseline == "missing")
+
+
+def test_package_status_failure_stops_without_announcing_installation(
+    package_env: dict[str, str],
+) -> None:
+    package_env["PACKAGE_STATUS"] = "23"
+    result = apply_packages(package_env)
+    assert result.returncode == 23, result.stderr
+    assert "Installing baseline" not in result.stderr
+    assert "status --json failed (exit 23)" in result.stderr
+    assert not any(call[0] == "mise" and "apply" in call for call in calls(package_env))
 
 
 @pytest.mark.parametrize("distro", ["cachyos", "garuda"])
@@ -933,7 +989,9 @@ def test_package_changes_track_only_declared_dependencies(
                 stream.write("\n# changed\n")
         result = run_setup(package_env, command)
         assert result.returncode == 0, result.stderr
-        assert sum(call[0] == "mise" for call in calls(package_env)) == expected, target
+        assert (
+            sum(call[0] == "mise" and "apply" in call for call in calls(package_env)) == expected
+        ), target
 
 
 @pytest.mark.parametrize("personal", [False, True], ids=["nonpersonal", "personal"])
