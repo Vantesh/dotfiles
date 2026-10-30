@@ -6,6 +6,7 @@
 # mise/conf.d/packages.toml: {{ include "../mise/conf.d/packages.toml" | sha256sum }}
 """Prepare package prerequisites, then let Mise apply the declared package groups."""
 
+import json
 import os
 import re
 import shutil
@@ -355,19 +356,30 @@ def main() -> int:
         if personal:
             selected, family, kernels = personal_packages(distro.lower())
             groups.extend(selected)
+        environments = [",".join(groups)]
         if family == "legacy":
-            logger.info("Installing legacy NVIDIA utilities before driver packages.")
-            _ = subprocess.run(
-                ["mise", "--env", "nvidia-legacy-utils", "bootstrap", "packages", "apply", "--yes"],
-                check=True,
+            environments.insert(0, "nvidia-legacy-utils")
+        for environment in environments:
+            command = ["mise", "--env", environment, "bootstrap", "packages"]
+            result = subprocess.run(
+                [*command, "status", "--json"], check=True, stdout=subprocess.PIPE, text=True
             )
-        logger.info(
-            "Installing baseline{} packages with Mise.", " and personal" if personal else ""
-        )
-        _ = subprocess.run(
-            ["mise", "--env", ",".join(groups), "bootstrap", "packages", "apply", "--yes"],
-            check=True,
-        )
+            status = cast("dict[str, dict[str, object]]", json.loads(result.stdout))
+            packages = (
+                package
+                for manager in status.values()
+                if manager["available"]
+                for package in cast("list[dict[str, str]]", manager["packages"])
+            )
+            if all(package["state"] == "installed" for package in packages):
+                continue
+            if environment == "nvidia-legacy-utils":
+                logger.info("Installing legacy NVIDIA utilities before driver packages.")
+            else:
+                logger.info(
+                    "Installing baseline{} packages with Mise.", " and personal" if personal else ""
+                )
+            _ = subprocess.run([*command, "apply", "--yes", "--quiet"], check=True)
         if family and kernels:
             verify_nvidia(family, kernels)
         return 0
