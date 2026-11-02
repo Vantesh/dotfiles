@@ -1,6 +1,5 @@
 [shell]
 external_ip_enabled = true
-font_family = {{ .font.ui.name | quote }}
 launch_apps_as_systemd_services = true
 password_style = "random"
 polkit_agent = true
@@ -28,7 +27,6 @@ variant = "default"
 
 [[shell.session.actions]]
 action = "logout"
-command = "~/.config/hypr/scripts/logout.sh"
 countdown_seconds = 0.0
 enabled = true
 shortcut = "2"

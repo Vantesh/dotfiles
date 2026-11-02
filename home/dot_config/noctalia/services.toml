@@ -4,6 +4,9 @@ enable_ddcutil = true
 [calendar]
 enabled = true
 
+[bluetooth]
+connect_when_enabled = true
+
 [idle]
 pre_action_fade_seconds = 5
 
