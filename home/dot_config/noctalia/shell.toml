@@ -1,9 +1,10 @@
 [shell]
-external_ip_enabled = true
 launch_apps_as_systemd_services = true
 password_style = "random"
 polkit_agent = true
 clipboard_history_max_entries = 300
+screen_time_enabled = true
+settings_window_translucent = true
 
 [shell.screenshot]
 directory = "~/Pictures/Screenshots"
@@ -58,6 +59,7 @@ action = "command"
 command = "systemctl hibernate"
 countdown_seconds = 3.0
 enabled = true
+glyph = "hibernate"
 label = "Hibernate"
 shortcut = "6"
 variant = "default"
