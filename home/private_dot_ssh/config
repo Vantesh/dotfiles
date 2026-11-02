@@ -6,12 +6,14 @@ Host *
     Compression yes
     ConnectionAttempts 5
     ServerAliveInterval 60
-    # IdentitiesOnly yes
 
 Host github.com
     HostName github.com
+    User git
+
+Host gitlab.com
+    HostName gitlab.com
+    User git
 
 Host gist.github.com
   HostName gist.github.com
-
-

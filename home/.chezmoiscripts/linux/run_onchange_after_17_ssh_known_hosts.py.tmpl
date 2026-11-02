@@ -1,0 +1,165 @@
+#!/usr/bin/python3 -B
+# profile: {{ .personal | toJson }}
+"""Verify GitHub and GitLab SSH host keys."""
+
+import os
+import stat
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+
+from loguru import logger
+
+HOST_FINGERPRINTS = {
+    # https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/githubs-ssh-key-fingerprints
+    "github.com": "SHA256:+DiY3wvvV6TuJJhbpZisF/zLDA0zPMSvHdkr4UvCOqU",
+    # https://docs.gitlab.com/user/gitlab_com/#ssh-host-keys-fingerprints
+    "gitlab.com": "SHA256:eUXGGm1YGsMAS7vkcx6JOJdOGHPem5gQp4taiCfCLB8",
+}
+
+
+def configure_known_hosts(directory: Path) -> None:
+    if directory.is_symlink():
+        raise ValueError(f"Refusing symlinked SSH directory: {directory}")
+    directory.mkdir(mode=0o700, exist_ok=True)
+    info = directory.lstat()
+    if not stat.S_ISDIR(info.st_mode) or info.st_uid != os.getuid():
+        raise ValueError(f"SSH directory must belong to the current user: {directory}")
+    directory.chmod(0o700)
+    known_hosts = directory / "known_hosts"
+    if known_hosts.is_symlink():
+        raise ValueError(f"Refusing symlinked known_hosts: {known_hosts}")
+    original = b""
+    if known_hosts.exists():
+        info = known_hosts.lstat()
+        if not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid() or info.st_nlink != 1:
+            raise ValueError(
+                f"known_hosts must be a user-owned, unlinked regular file: {known_hosts}"
+            )
+        original = known_hosts.read_bytes()
+        known_hosts.chmod(0o600)
+
+    additions: list[str] = []
+    for host, expected in HOST_FINGERPRINTS.items():
+        matches = ""
+        if known_hosts.exists():
+            result = subprocess.run(
+                ["ssh-keygen", "-F", host, "-f", str(known_hosts)],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            if result.returncode not in (0, 1):
+                result.check_returncode()
+            matches = result.stdout
+        keys: set[str] = set()
+        for line in matches.splitlines():
+            fields = line.split()
+            if not fields or fields[0].startswith("#"):
+                continue
+            if fields[0].startswith("@"):
+                raise ValueError(
+                    f"Existing marked SSH key for {host}; review known_hosts manually."
+                )
+            if len(fields) >= 3 and fields[1] == "ssh-ed25519":
+                keys.add(" ".join(fields[:3]))
+        existing = bool(keys)
+        if not existing:
+            result = subprocess.run(
+                ["ssh-keyscan", "-T", "10", "-t", "ed25519", host],
+                check=True,
+                capture_output=True,
+                text=True,
+                timeout=15,
+            )
+            keys = {
+                line.strip()
+                for line in result.stdout.splitlines()
+                if line.strip() and not line.startswith("#")
+            }
+            if not keys:
+                raise ValueError(f"No Ed25519 SSH host key received from {host}.")
+        for key in keys:
+            fields = key.split()
+            if (
+                len(fields) != 3
+                or fields[1] != "ssh-ed25519"
+                or (not existing and fields[0] != host)
+            ):
+                raise ValueError(f"Unexpected SSH host key response for {host}.")
+            result = subprocess.run(
+                ["ssh-keygen", "-l", "-f", "/dev/stdin", "-E", "sha256"],
+                input=key + "\n",
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            actual = result.stdout.split()[1]
+            if actual != expected:
+                raise ValueError(
+                    f"SSH host key fingerprint mismatch for {host}: expected {expected}, got {actual}; "
+                    "known_hosts was not updated. Review the official fingerprint before retrying."
+                )
+            if not existing:
+                entry = f"{host} ssh-ed25519 {fields[2]}\n"
+                if entry not in additions:
+                    additions.append(entry)
+
+    if additions:
+        content = original + (b"\n" if original and not original.endswith(b"\n") else b"")
+        content += "".join(additions).encode()
+        with tempfile.TemporaryDirectory(prefix=".known-hosts-", dir=directory) as temporary:
+            candidate = Path(temporary) / "known_hosts"
+            _ = candidate.write_bytes(content)
+            candidate.chmod(0o600)
+            if (
+                known_hosts.is_symlink()
+                or (known_hosts.read_bytes() if known_hosts.exists() else b"") != original
+            ):
+                raise ValueError("known_hosts changed during verification; rerun setup.")
+            candidate.replace(known_hosts)
+        logger.info("Added verified GitHub and GitLab SSH host keys where missing.")
+
+
+def main() -> int:
+    personal = os.environ.get("DOTFILES_PERSONAL_ENABLED")
+    if personal == "0":
+        return 0
+    if personal != "1":
+        print(
+            "ERROR: DOTFILES_PERSONAL_ENABLED must be '0' or '1'; run through Chezmoi.",
+            file=sys.stderr,
+        )
+        return 1
+    source = os.environ.get("CHEZMOI_SOURCE_DIR", "")
+    if not Path(source).is_absolute():
+        print("ERROR: Chezmoi must supply an absolute CHEZMOI_SOURCE_DIR.", file=sys.stderr)
+        return 1
+    sys.path.insert(0, str(Path(source) / ".chezmoitemplates"))
+    from lib.provision_logging import configure_logging
+
+    file_sink = None
+    try:
+        file_sink = configure_logging()
+        if os.geteuid() == 0:
+            raise ValueError("Run SSH host verification as the regular user.")
+        configure_known_hosts(Path.home() / ".ssh")
+        return 0
+    except (OSError, ValueError, subprocess.SubprocessError) as error:
+        try:
+            logger.opt(exception=True).error("SSH host verification failed: {}", error)
+            if isinstance(error, subprocess.CalledProcessError) and error.stderr:
+                logger.error("{}", error.stderr.strip())
+        except OSError:
+            if file_sink is not None:
+                logger.remove(file_sink)
+        return error.returncode if isinstance(error, subprocess.CalledProcessError) else 1
+    except KeyboardInterrupt:
+        logger.warning("SSH host verification interrupted; rerun chezmoi apply when ready.")
+        return 130
+
+
+if __name__ == "__main__":
+    status = main()
+    sys.exit(status if status >= 0 else 128 - status)
