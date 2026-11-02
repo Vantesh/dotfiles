@@ -2,6 +2,7 @@
 blur_intensity = 0.75
 tint_intensity = 0.60
 transition = [ "disc" ]
+grace_period_seconds = 5
 
 [lockscreen_widgets]
 enabled = true
