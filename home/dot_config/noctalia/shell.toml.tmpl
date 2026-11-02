@@ -1,5 +1,5 @@
 [shell]
-external_ip_enabled = true
+screen_time_enabled = true
 font_family = {{ .font.ui.name | quote }}
 launch_apps_as_systemd_services = true
 password_style = "random"
@@ -63,3 +63,9 @@ enabled = true
 label = "Hibernate"
 shortcut = "6"
 variant = "default"
+
+[shell.greeter_sync]
+auto_sync = true
+
+[shell.launcher.providers.session]
+global = true
