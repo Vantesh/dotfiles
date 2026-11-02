@@ -1,6 +1,5 @@
 [shell]
-screen_time_enabled = true
-font_family = {{ .font.ui.name | quote }}
+external_ip_enabled = true
 launch_apps_as_systemd_services = true
 password_style = "random"
 polkit_agent = true
@@ -28,7 +27,6 @@ variant = "default"
 
 [[shell.session.actions]]
 action = "logout"
-command = "~/.config/hypr/scripts/logout.sh"
 countdown_seconds = 0.0
 enabled = true
 shortcut = "2"
@@ -63,9 +61,3 @@ enabled = true
 label = "Hibernate"
 shortcut = "6"
 variant = "default"
-
-[shell.greeter_sync]
-auto_sync = true
-
-[shell.launcher.providers.session]
-global = true
