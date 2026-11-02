@@ -154,7 +154,7 @@ hl.bind("SUPER + CTRL + ALT + Left", hl.dsp.window.move({ workspace = "r-1" }),
 
 -- === System & Session ===
 hl.bind("SUPER + L", hl.dsp.exec_cmd(apps.launcher .. " -- loginctl lock-session $XDG_SESSION_ID"), { description = "Lock screen" })
-hl.bind("SUPER + ALT + DELETE", hl.dsp.exec_cmd(apps.launcher .. " -- ~/.config/hypr/scripts/logout.sh"), { description = "Logout" })
+hl.bind("SUPER + ALT + DELETE", hl.dsp.exec_cmd(ipc .. "session logout"), { description = "Logout" })
 hl.bind("XF86PowerOff", hl.dsp.exec_cmd(ipc .. "panel-toggle session"), { description = "Open power menu" })
 hl.bind("SUPER + Escape", hl.dsp.exec_cmd(ipc .. "panel-toggle session"), { description = "Open session menu" })
 
