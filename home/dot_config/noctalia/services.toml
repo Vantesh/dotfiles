@@ -9,7 +9,6 @@ connect_when_enabled = true
 
 [idle]
 pre_action_fade_seconds = 5
-
 behavior_order = ["lock", "screen-off", "lock-and-suspend"]
 
 [idle.behavior.lock]
