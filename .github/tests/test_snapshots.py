@@ -14,7 +14,7 @@ from helpers import CHEZMOI, ROOT, SCRIPTS
 from test_setup import calls, render_python, run_setup, stub
 from test_setup import env as env
 
-HOOK = "run_onchange_after_01_snapshots.py.tmpl"
+HOOK = "run_onchange_before_05_snapshots.py.tmpl"
 SETTINGS = {
     "NUMBER_CLEANUP": "yes",
     "NUMBER_LIMIT": "10",
@@ -406,5 +406,5 @@ esac""",
     executable = Path(reexec[reexec.index("--optimize-fstab") - 1])
     assert reexec[-2:] == [str(tmp_path / "source"), "1"]
     assert executable.parent != hook.parent and not executable.exists()
-    assert executable.name.endswith(".01_snapshots.py")
+    assert executable.name.endswith(".05_snapshots.py")
     assert (tmp_path / "snapper.json").is_file()

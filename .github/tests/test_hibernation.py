@@ -12,7 +12,7 @@ from helpers import CHEZMOI, ROOT, SCRIPTS
 from test_setup import calls, render_python, run_setup, stub
 from test_setup import env as env
 
-HOOK = "run_onchange_after_03_hibernation.py.tmpl"
+HOOK = "run_onchange_before_07_hibernation.py.tmpl"
 UUID = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
 LUKS_UUID = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"
 
@@ -543,12 +543,20 @@ def test_hibernation_failure_ordering_and_implementation_dependencies(
     source = Path(hibernation["HIBERNATION_SOURCE"])
     script = source / ".chezmoiscripts/linux" / HOOK
     original = script.read_bytes()
-    for number, label in (("02", "order-before"), ("04", "order-after")):
-        probe = script.parent / f"run_after_{number}_probe.py"
-        probe.write_text(
-            "#!/usr/bin/python3 -B\nimport os\nfrom pathlib import Path\n"
-            + f'with Path(os.environ["CALLS"]).open("a") as stream: stream.write("{label}\\t\\n")\n'
-        )
+
+    def probe_attempt(attempt: str) -> None:
+        # Probe content changes per attempt so chezmoi rerun tracking treats
+        # each apply as changed; probes that already succeeded would otherwise
+        # never run again, unlike the failing hook it brackets.
+        for number, label in (("06", "order-before"), ("08", "order-after")):
+            probe = script.parent / f"run_onchange_before_{number}_probe.py"
+            probe.write_text(
+                "#!/usr/bin/python3 -B\nimport os\nfrom pathlib import Path\n"
+                + f"# attempt {attempt}\n"
+                + f'with Path(os.environ["CALLS"]).open("a") as stream: stream.write("{label}\\t\\n")\n'
+            )
+
+    probe_attempt("1")
     late = tmp_path / "etc/default/limine"
     if outcome == "swap-failure":
         hibernation["FAILURE"] = "activate-swap"
@@ -571,6 +579,7 @@ def test_hibernation_failure_ordering_and_implementation_dependencies(
         if outcome == "zswap-failure":
             assert (tmp_path / "etc/limine-entry-tool.d/50-hibernation.conf").exists()
             assert (Path(hibernation["XDG_STATE_HOME"]) / "chezmoi/initramfs.pending").exists()
+        probe_attempt(str(attempt + 1))
     # Resolve only the native failure / independent Limine conflict.
     if outcome != "boot-conflict":
         hibernation.pop("FAILURE")

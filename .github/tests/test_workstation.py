@@ -9,7 +9,7 @@ from helpers import CHEZMOI, ROOT, SCRIPTS
 from test_setup import calls, render_python, run_setup, stub
 from test_setup import env as env
 
-HOOK = "run_onchange_after_14_services.py.tmpl"
+HOOK = "run_onchange_after_04_services.py.tmpl"
 
 
 def render_services(

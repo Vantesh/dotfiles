@@ -26,7 +26,7 @@ def rebuild(env: dict[str, str], tmp_path: Path) -> dict[str, str]:
     scripts.mkdir(parents=True)
     library = source / ".chezmoitemplates/lib"
     shutil.copytree(LIB, library)
-    hook = scripts / "run_after_13_initramfs.py"
+    hook = scripts / "run_after_03_initramfs.py"
     hook.write_text(
         (SCRIPTS / hook.name).read_text().replace("if os.geteuid() != 0 or", "if False or")
     )
@@ -116,7 +116,7 @@ def rebuild_command(env: dict[str, str]) -> list[str]:
     return [
         "/usr/bin/python3",
         "-B",
-        str(Path(env["CHEZMOI_SOURCE_DIR"]) / ".chezmoiscripts/linux/run_after_13_initramfs.py"),
+        str(Path(env["CHEZMOI_SOURCE_DIR"]) / ".chezmoiscripts/linux/run_after_03_initramfs.py"),
     ]
 
 
@@ -725,7 +725,7 @@ def test_secure_boot_personal_profile_provisions_without_an_enrollment_prompt(
 esac""",
         log=True,
     )
-    script = render_python(env, "run_onchange_after_05_secure_boot.py.tmpl", personal=personal)
+    script = render_python(env, "run_onchange_before_09_secure_boot.py.tmpl", personal=personal)
     script.write_text(
         script.read_text()
         .replace('Path("/usr/bin/limine")', f"Path({str(limine)!r})")

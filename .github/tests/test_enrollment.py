@@ -14,7 +14,7 @@ from test_setup import PYTHON, calls, render_python, run_setup, stub
 from test_setup import env as env
 from test_workstation import workstation as workstation
 
-WARP = "run_onchange_after_15_warp.py"
+WARP = "run_onchange_after_05_warp.py"
 
 
 @pytest.fixture
@@ -53,7 +53,7 @@ def test_chezmoi_registers_warp_after_services_without_connecting(
     scripts.mkdir(parents=True)
     shutil.copytree(ROOT / "mise", repository / "mise")
     shutil.copytree(ROOT / "home/.chezmoitemplates/lib", source / ".chezmoitemplates/lib")
-    for name in ("run_onchange_after_14_services.py.tmpl", WARP):
+    for name in ("run_onchange_after_04_services.py.tmpl", WARP):
         shutil.copy(SCRIPTS / name, scripts / name)
     config = tmp_path / "chezmoi.json"
     config.write_text(
@@ -127,7 +127,7 @@ def test_warp_failure_is_required_and_preserves_exit_status(
     assert "account-private-fixture" not in log + result.stdout + result.stderr
 
 
-FINGERPRINT = "run_onchange_after_16_fingerprint.py"
+FINGERPRINT = "run_onchange_before_12_fingerprint.py"
 
 
 @pytest.fixture

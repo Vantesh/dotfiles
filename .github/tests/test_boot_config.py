@@ -1105,14 +1105,24 @@ def test_boot_order_retries_and_stripped_privileged_environment(
             + "    if (Path.home() / 'fail').exists(): raise subprocess.CalledProcessError(23, 'fixture')\n"
         )
     selected: list[str] = []
+    tags = {
+        "04_initramfs_config": "00",
+        "05_snapshots": "01",
+        "07_hibernation": "03",
+        "08_quiet_boot": "04",
+        "09_secure_boot": "05",
+        "10_limine_theme": "08",
+        "03_initramfs": "13",  # event tag stays distinct from the before-phase
+        "99_finalize": "99",
+    }
     for path in SCRIPTS.iterdir():
         match = re.search(
-            r"_(00_initramfs_config|01_snapshots|03_hibernation|04_quiet_boot|05_secure_boot|08_(?:theming|limine_theme)|13_initramfs|99_finalize)\.",
+            r"_(" + "|".join(tags) + r")\.",
             path.name,
         )
         if not match:
             continue
-        tag = match[1][:2]
+        tag = tags[match[1]]
         selected.append(tag)
         if tag in ("00", "04"):
             text = path.read_text().replace(
@@ -1166,7 +1176,7 @@ def test_boot_order_retries_and_stripped_privileged_environment(
     result = run_setup(env, command)
     assert result.returncode == 0, result.stderr
     if personal:
-        assert events.read_text().splitlines() == sorted(selected)
+        assert events.read_text().splitlines() == ["00", "01", "03", "04", "05", "08", "13", "99"]
         events.unlink()
     result = run_setup(env, command)
     assert result.returncode == 0, result.stderr

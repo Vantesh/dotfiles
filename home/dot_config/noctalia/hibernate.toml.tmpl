@@ -1,0 +1,45 @@
+{{- /* Idle service configuration. The Hibernate step is laptop-only and requires
+provisioned hibernation: run_onchange_before_07_hibernation checks the chassis
+and only owns the resume swapfile, leaving ~/.local/state/chezmoi/
+hibernation.swapfile as its ownership record. Desktops keep suspend at
+lock-and-suspend instead. */ -}}
+{{- $state := env "XDG_STATE_HOME" -}}
+{{- if not $state -}}{{- $state = joinPath .chezmoi.homeDir ".local/state" -}}{{- end -}}
+{{- $hibernation := false -}}
+{{- if .personal -}}
+{{-   $owner := stat (joinPath $state "chezmoi/hibernation.swapfile") -}}
+{{-   if $owner }}{{- $hibernation = true -}}{{- end -}}
+{{- end -}}
+
+[idle]
+pre_action_fade_seconds = 5
+behavior_order = [{{ if $hibernation }}"lock", "screen-off", "lock-and-suspend", "Hibernate"{{ else }}"lock", "screen-off", "lock-and-suspend"{{ end }}]
+
+[idle.behavior.lock]
+action = "lock"
+enabled = true
+timeout = 1200.0
+
+[idle.behavior.screen-off]
+action = "screen_off"
+enabled = true
+locked_timeout = 60.0
+timeout = 1500.0
+
+[idle.behavior.lock-and-suspend]
+action = "lock_and_suspend"
+{{- if $hibernation }}
+enabled = false
+{{- else }}
+enabled = true
+{{- end }}
+timeout = 1800.0
+
+{{- if $hibernation }}
+
+[idle.behavior.Hibernate]
+action = "command"
+command = "systemctl suspend-then-hibernate"
+enabled = true
+timeout = 1900.0
+{{- end }}
