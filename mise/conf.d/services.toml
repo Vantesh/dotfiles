@@ -59,3 +59,9 @@ scope = "user"
 state = "running"
 enabled = true
 masked = false
+
+[bootstrap.services."spotifast-suspend-inhibit.service"]
+scope = "user"
+state = "running"
+enabled = true
+masked = false

@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+
+set -u
+
+MPRIS_DEST="org.mpris.MediaPlayer2.spotifast"
+MPRIS_PATH="/org/mpris/MediaPlayer2"
+POLL_INTERVAL=5
+
+inhibitor_pid=""
+
+player_playing() {
+    local status
+
+    status=$(busctl --user get-property \
+        "$MPRIS_DEST" \
+        "$MPRIS_PATH" \
+        org.mpris.MediaPlayer2.Player \
+        PlaybackStatus 2>/dev/null) || return 1
+
+    [[ "$status" == 's "Playing"' ]]
+}
+
+release_inhibitor() {
+    [[ -n "$inhibitor_pid" ]] || return 0
+
+    kill "$inhibitor_pid" 2>/dev/null || true
+    wait "$inhibitor_pid" 2>/dev/null || true
+    inhibitor_pid=""
+}
+
+cleanup() {
+    release_inhibitor
+}
+
+trap cleanup EXIT
+trap 'exit 0' INT TERM
+
+while :; do
+    if player_playing; then
+        if [[ -z "$inhibitor_pid" ]] ||
+            ! kill -0 "$inhibitor_pid" 2>/dev/null; then
+
+            inhibitor_pid=""
+
+            systemd-inhibit \
+                --what=sleep \
+                --mode=block \
+                --who="Spotifast playback" \
+                --why="Prevent suspend while music is playing" \
+                sleep infinity &
+
+            inhibitor_pid=$!
+        fi
+    else
+        release_inhibitor
+    fi
+
+    sleep "$POLL_INTERVAL"
+done
