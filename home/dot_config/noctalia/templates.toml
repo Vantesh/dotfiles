@@ -1,6 +1,6 @@
 [theme.templates]
-builtin_ids = ["btop", "cava", "gtk3", "gtk4", "hyprland", "kitty", "kcolorscheme", "starship"]
-community_ids = ["fastfetch", "bat", "lazygit", "yazi", "spotifast", "obsidian", "yapfast", "zapfast"]
+builtin_ids = ["btop", "cava", "gtk3", "gtk4", "hyprland", "kitty", "kcolorscheme"]
+community_ids = ["fastfetch", "bat", "lazygit", "yazi", "spotifast", "obsidian", "yapfast", "zapfast", "starship"]
 
 [theme.templates.user.cursors]
 input_path = "$XDG_CONFIG_HOME/noctalia/templates/cursors.sh"
