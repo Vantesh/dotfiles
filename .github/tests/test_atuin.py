@@ -12,7 +12,7 @@ from test_setup import env as env
 
 ATUIN = shutil.which("atuin")
 FISH = shutil.which("fish")
-HOOK = "run_onchange_after_10_atuin.py"
+HOOK = "run_onchange_after_02_atuin.py"
 
 
 @pytest.mark.parametrize(

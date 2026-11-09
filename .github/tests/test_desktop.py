@@ -9,7 +9,7 @@ from helpers import CHEZMOI, ROOT, SCRIPTS
 from test_setup import calls, render_python, run_setup, stub
 from test_setup import env as env
 
-HOOK = "run_onchange_after_06_theming.py.tmpl"
+HOOK = "run_onchange_after_01_theming.py.tmpl"
 
 
 @pytest.fixture

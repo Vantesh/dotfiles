@@ -13,7 +13,7 @@ from helpers import CHEZMOI, ROOT, SCRIPTS
 from test_setup import PYTHON, calls, render_python, run_setup, stub
 from test_setup import env as env
 
-HOOK = "run_onchange_after_09_login_manager.py.tmpl"
+HOOK = "run_onchange_before_11_login_manager.py.tmpl"
 
 
 @pytest.fixture

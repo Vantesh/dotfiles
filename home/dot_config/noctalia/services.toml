@@ -7,26 +7,6 @@ enabled = true
 [bluetooth]
 connect_when_enabled = true
 
-[idle]
-pre_action_fade_seconds = 5
-behavior_order = ["lock", "screen-off", "lock-and-suspend"]
-
-[idle.behavior.lock]
-action = "lock"
-enabled = true
-timeout = 1200.0
-
-[idle.behavior.screen-off]
-action = "screen_off"
-enabled = true
-locked_timeout = 60.0
-timeout = 1500.0
-
-[idle.behavior.lock-and-suspend]
-action = "lock_and_suspend"
-enabled = true
-timeout = 1800.0
-
 [location]
 auto_locate = true
 

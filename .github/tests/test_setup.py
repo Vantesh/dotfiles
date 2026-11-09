@@ -135,17 +135,17 @@ def render_python(
         AUTHENTICATION,
         "run_onchange_before_01_sudo.py",
         "run_onchange_before_03_pacman.py.tmpl",
-        "run_onchange_after_00_initramfs_config.py.tmpl",
-        "run_onchange_after_04_quiet_boot.py.tmpl",
-        "run_onchange_after_05_secure_boot.py.tmpl",
-        "run_onchange_after_08_limine_theme.py.tmpl",
-        "run_after_13_initramfs.py",
+        "run_onchange_before_04_initramfs_config.py.tmpl",
+        "run_onchange_before_08_quiet_boot.py.tmpl",
+        "run_onchange_before_09_secure_boot.py.tmpl",
+        "run_onchange_before_10_limine_theme.py.tmpl",
+        "run_after_03_initramfs.py",
         "run_onchange_after_99_finalize.py",
-        "run_onchange_after_01_snapshots.py.tmpl",
-        "run_onchange_after_02_laptop_power.py",
-        "run_onchange_after_16_fingerprint.py",
-        "run_onchange_after_10_atuin.py",
-        "run_onchange_after_03_hibernation.py.tmpl",
+        "run_onchange_before_05_snapshots.py.tmpl",
+        "run_onchange_before_06_laptop_power.py",
+        "run_onchange_before_12_fingerprint.py",
+        "run_onchange_after_02_atuin.py",
+        "run_onchange_before_07_hibernation.py.tmpl",
     ],
 )
 @pytest.mark.parametrize("profile", [None, "true", "0"], ids=["missing", "invalid", "disabled"])
@@ -170,7 +170,7 @@ def test_plain_personal_guards_precede_source_resolution_and_all_side_effects(
 
 @pytest.mark.parametrize(
     "hook",
-    [PACKAGES, "run_onchange_after_06_theming.py.tmpl", "run_onchange_after_14_services.py.tmpl"],
+    [PACKAGES, "run_onchange_after_01_theming.py.tmpl", "run_onchange_after_04_services.py.tmpl"],
 )
 def test_environment_driven_workflows_reject_invalid_profiles_before_logging(
     env: dict[str, str], tmp_path: Path, hook: str
@@ -245,7 +245,7 @@ esac
 # The common greeter's privileged work is exercised in its isolated tests.
 [ "$#" = 8 ] && [ "$1" = -n ] && [ "$2" = /usr/bin/python3 ] && [ "$3" = -B ] && [ "$5" = --configure ] && [ "$7" = 0 ] || exit 97
 case "$4" in
-    "$TMPDIR/"*.09_login_manager.py) echo configured >> "$HOME/common-greeter" ;;
+    "$TMPDIR/"*.11_login_manager.py) echo configured >> "$HOME/common-greeter" ;;
     *) exit 97 ;;
 esac""",
         log=True,
