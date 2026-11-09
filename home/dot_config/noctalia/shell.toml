@@ -54,12 +54,6 @@ enabled = true
 shortcut = "5"
 variant = "destructive"
 
-[[shell.session.actions]]
-action = "command"
-command = "systemctl hibernate"
-countdown_seconds = 3.0
-enabled = true
-glyph = "hibernate"
-label = "Hibernate"
-shortcut = "6"
-variant = "default"
+
+[shell.greeter_sync]
+auto_sync = true

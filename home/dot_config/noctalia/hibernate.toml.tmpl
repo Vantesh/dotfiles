@@ -42,4 +42,15 @@ action = "command"
 command = "systemctl suspend-then-hibernate"
 enabled = true
 timeout = 1900.0
+
+[[shell.session.actions]]
+action = "command"
+command = "systemctl hibernate"
+countdown_seconds = 3.0
+enabled = true
+glyph = "hibernate"
+label = "Hibernate"
+shortcut = "6"
+variant = "default"
+
 {{- end }}
