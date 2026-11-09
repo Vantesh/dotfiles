@@ -131,7 +131,6 @@
 "pacman:brave-bin" = { env = "packages" }
 "aur:spotifast-bin" = { env = "packages" }
 "pacman:localsend" = { env = "packages" }
-"aur:yapfast" = { env = "packages" }
 "aur:zapfast-bin" = { env = "packages" }
 
 # Personal hardware groups selected by the package phase; never part of the baseline.
