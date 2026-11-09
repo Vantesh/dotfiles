@@ -13,6 +13,9 @@ directory = "~/Pictures/Screenshots"
 categories = false
 layout = "simple"
 
+[shell.launcher.providers.session]
+global = true
+
 [shell.session]
 grid = true
 
