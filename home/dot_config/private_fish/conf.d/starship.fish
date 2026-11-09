@@ -1,4 +1,5 @@
-set -xg STARSHIP_CONFIG $HOME/.config/starship/starship.toml
+# Remove the fish greeting
+set -U fish_greeting
 
 function starship_transient_prompt_func
     starship module character
