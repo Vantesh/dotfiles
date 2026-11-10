@@ -113,11 +113,11 @@ enter_accept = true
 
 [search]
 filters = [
+  "global",
   "workspace",
   "directory",
   "session",
-  "host",
-  "global"
+  "host"
 ]
 
 recency_score_multiplier = 2.0
