@@ -142,7 +142,13 @@ def ensure_limine_defaults(parser: Path, state: Path) -> None:
     default = directory / "01-default.conf"
     feature_files = {
         directory / name
-        for name in ("01-default.conf", "20-quiet-boot.conf", "50-hibernation.conf", "zswap.conf")
+        for name in (
+            "01-default.conf",
+            "20-quiet-boot.conf",
+            "30-tpm2-unlock.conf",
+            "50-hibernation.conf",
+            "zswap.conf",
+        )
     }
     baseline = False
     for path in config_files():
@@ -175,7 +181,7 @@ def ensure_limine_defaults(parser: Path, state: Path) -> None:
 
 
 def publish_limine_fragment(parser: Path, state: Path, name: str, params: str) -> None:
-    if name not in ("20-quiet-boot.conf", "50-hibernation.conf"):
+    if name not in ("20-quiet-boot.conf", "30-tpm2-unlock.conf", "50-hibernation.conf"):
         raise ValueError("Unsupported managed Limine feature fragment.")
     path = ETC / "limine-entry-tool.d" / name
     path.parent.mkdir(parents=True, exist_ok=True)

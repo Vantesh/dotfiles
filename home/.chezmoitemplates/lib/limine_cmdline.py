@@ -39,6 +39,7 @@ def main(argv: list[str]) -> None:
         default,
         managed,
         "/etc/limine-entry-tool.d/20-quiet-boot.conf",
+        "/etc/limine-entry-tool.d/30-tpm2-unlock.conf",
         "/etc/limine-entry-tool.d/zswap.conf",
     }
     files = (
