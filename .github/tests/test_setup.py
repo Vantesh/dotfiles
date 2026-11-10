@@ -274,12 +274,18 @@ esac""",
     stub(
         env,
         "gsettings",
-        """[ "$1" = get ] || exit 97
-case "$3" in
-    font-name) echo "'SF Pro Text 12'" ;;
-    button-layout) echo "':'" ;;
-    default-zoom-level) echo "'small-plus'" ;;
-    show-delete-permanently) echo true ;;
+        """case "$1" in
+    get)
+        case "$3" in
+            font-name) echo "'SF Pro Text 12'" ;;
+            button-layout) echo "':'" ;;
+            gtk-theme) echo "'Adwaita'" ;;
+            color-scheme) echo "'default'" ;;
+            default-zoom-level) echo "'small-plus'" ;;
+            show-delete-permanently) echo true ;;
+            *) exit 97 ;;
+        esac ;;
+    set) exit 0 ;;
     *) exit 97 ;;
 esac""",
         log=True,
@@ -339,6 +345,20 @@ esac""",
         ["--accept-tos", "registration", "new"],
         ["--accept-tos", "registration", "show"],
     ]
+    assert [
+        "gsettings",
+        "set",
+        "org.gnome.desktop.interface",
+        "gtk-theme",
+        "adw-gtk3-dark",
+    ] in observed
+    assert [
+        "gsettings",
+        "set",
+        "org.gnome.desktop.interface",
+        "color-scheme",
+        "prefer-dark",
+    ] in observed
     assert (tmp_path / "registered").exists()
     assert (tmp_path / "common-greeter").read_text() == "configured\n"
     assert all(call[0] in ("sudo", "mise", "gsettings", "warp-cli") for call in observed), observed

@@ -22,6 +22,8 @@ PERSONAL = os.environ.get("DOTFILES_PERSONAL_ENABLED") == "1"
 # Font data is unavailable during init; keep font-data edits live on each apply.
 FONT_NAME = {{ cat .font.ui.name .font.ui.size | toJson }}
 ROOT_CONFIG = Path("/root/.config")
+GTK_THEME = "adw-gtk3-dark"
+GTK_COLOR_SCHEME = "prefer-dark"
 MACTAHOE_REPO = "https://github.com/vinceliuice/MacTahoe-icon-theme.git"
 MACTAHOE_VARIANTS = ("MacTahoe", "MacTahoe-light", "MacTahoe-dark")
 SF_PRO_URL = "https://devimages-cdn.apple.com/design/resources/download/SF-Pro.dmg"
@@ -74,6 +76,8 @@ def configure_gtk(source_dir: Path) -> None:
         raise FileNotFoundError("gsettings is unavailable; complete desktop package installation.")
     for schema, key, value in (
         ("org.gnome.desktop.interface", "font-name", FONT_NAME),
+        ("org.gnome.desktop.interface", "gtk-theme", GTK_THEME),
+        ("org.gnome.desktop.interface", "color-scheme", GTK_COLOR_SCHEME),
         ("org.gnome.desktop.wm.preferences", "button-layout", ":"),
     ):
         current = subprocess.run(
@@ -84,23 +88,6 @@ def configure_gtk(source_dir: Path) -> None:
             logger.info("Configured GTK {}.", key)
     if not PERSONAL:
         return
-    theme = (
-        subprocess.run(
-            ["gsettings", "get", "org.gnome.desktop.interface", "gtk-theme"],
-            check=True,
-            stdout=subprocess.PIPE,
-            text=True,
-        )
-        .stdout.strip()
-        .removeprefix("'")
-        .removesuffix("'")
-    )
-    scheme = subprocess.run(
-        ["gsettings", "get", "org.gnome.desktop.interface", "color-scheme"],
-        check=True,
-        stdout=subprocess.PIPE,
-        text=True,
-    ).stdout.strip()
     config_home = Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config")
     _ = subprocess.run(["sudo", "--validate"], check=True)
     result = subprocess.run(
@@ -112,8 +99,8 @@ def configure_gtk(source_dir: Path) -> None:
             str(Path(__file__).resolve()),
             "--mirror-gtk",
             str(config_home),
-            theme,
-            str(scheme == "'prefer-dark'").lower(),
+            GTK_THEME,
+            str(GTK_COLOR_SCHEME == "prefer-dark").lower(),
             "1",
             str(source_dir),
         ],

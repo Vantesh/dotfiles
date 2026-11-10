@@ -33,8 +33,8 @@ def desktop(env: dict[str, str], tmp_path: Path) -> dict[str, str]:
         """case "$1" in
     get)
         if test -f "$HOME/preferences/$3"; then cat "$HOME/preferences/$3"
-        elif test "$3" = color-scheme; then echo "'prefer-dark'"
-        elif test "$3" = gtk-theme; then echo "'adw-gtk3-dark'"
+        elif test "$3" = color-scheme; then echo "'default'"
+        elif test "$3" = gtk-theme; then echo "'Adwaita'"
         else echo "'old'"; fi ;;
     set)
         printf "'%s'\\n" "$4" > "$HOME/preferences/$3" ;;
@@ -143,11 +143,17 @@ def test_root_gtk_mirror_is_personal_and_safe_to_reapply(
     observed = calls(desktop)
     assert all(call[0] != "rbw" for call in observed)
     assert any(call[0] == "sudo" for call in observed) == personal
+    assert (tmp_path / "preferences/gtk-theme").read_text() == "'adw-gtk3-dark'\n"
+    assert (tmp_path / "preferences/color-scheme").read_text() == "'prefer-dark'\n"
     root_settings = [tmp_path / f"root-config/gtk-{version}.0/settings.ini" for version in (3, 4)]
     for path in root_settings:
         assert path.exists() == personal
         if personal:
             assert path.stat().st_mode & 0o777 == 0o644
+            content = path.read_text()
+            assert "gtk-application-prefer-dark-theme=true\n" in content
+            if path.parent.name == "gtk-3.0":
+                assert "gtk-theme-name=adw-gtk3-dark\n" in content
             assert (path.parent / "gtk.css").readlink() == Path(
                 desktop["XDG_CONFIG_HOME"]
             ) / path.parent.name / "gtk.css"
