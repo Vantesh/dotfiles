@@ -15,6 +15,6 @@ require("eza-preview"):setup({
 	all = true,
 })
 require("full-border"):setup {
-	-- Available values: ui.Border.PLAIN, ui.Border.ROUNDED
-	type = ui.Border.ROUNDED,
+	-- Available values: "plain", "rounded"
+	set = "rounded",
 }
