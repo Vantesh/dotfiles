@@ -50,7 +50,10 @@ def inventory(fallback: str, uki: str) -> KernelInventory:
     for builtin in sorted(Path("/usr/lib/modules").glob("*/modules.builtin")):
         source = builtin.parent / "vmlinuz"
         owner = subprocess.run(
-            ["pacman", "-Qqo", str(builtin)], capture_output=True, text=True, check=True
+            ["pacman", "--query", "--quiet", "--owns", str(builtin)],
+            capture_output=True,
+            text=True,
+            check=True,
         ).stdout.strip()
         require(re.fullmatch(r"[A-Za-z0-9@._+-]+", owner), f"ambiguous kernel owner: {builtin}")
         require(owner not in kernels, f"multiple installed versions of {owner}; unsupported layout")

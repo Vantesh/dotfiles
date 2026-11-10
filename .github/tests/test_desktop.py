@@ -46,8 +46,8 @@ esac""",
         env,
         "sudo",
         """case "$1" in
-    -v) exit 0 ;;
-    -n) shift; unset CHEZMOI_SOURCE_DIR CHEZMOI_WORKING_TREE DOTFILES_PERSONAL_ENABLED; exec "$@" ;;
+    --validate) exit 0 ;;
+    --non-interactive) shift; unset CHEZMOI_SOURCE_DIR CHEZMOI_WORKING_TREE DOTFILES_PERSONAL_ENABLED; exec "$@" ;;
     *) exit 97 ;;
 esac""",
         log=True,
@@ -81,12 +81,12 @@ done""",
     stub(
         env,
         "bsdtar",
-        """case "$1" in
-    -xOf) printf 'fixture payload' ;;
-    -xf)
+        """case "$1 $2" in
+    '--extract --to-stdout') printf 'fixture payload' ;;
+    '--extract --file')
         cat >/dev/null
-        mkdir -p "$4/Library/Fonts"
-        printf 'fixture font\\n' > "$4/Library/Fonts/SF-Pro-Text-Regular.otf" ;;
+        mkdir -p "$5/Library/Fonts"
+        printf 'fixture font\\n' > "$5/Library/Fonts/SF-Pro-Text-Regular.otf" ;;
     *) exit 97 ;;
 esac""",
     )
@@ -190,7 +190,7 @@ def test_asset_failures_preserve_status_and_never_publish_font_completion(
     if failure == "download":
         stub(desktop, "curl", "exit 23", log=True)
     else:
-        stub(desktop, "bsdtar", '[ "$1" != -xOf ] || exit 23; cat >/dev/null', log=True)
+        stub(desktop, "bsdtar", '[ "$2" != --to-stdout ] || exit 23; cat >/dev/null', log=True)
     script = render_python(desktop, HOOK, personal=False, source=tmp_path / "source with spaces")
     result = run_setup(desktop, ["/usr/bin/python3", "-B", str(script)])
     assert result.returncode == 23, result.stderr

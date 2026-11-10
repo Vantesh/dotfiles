@@ -161,11 +161,11 @@ def main() -> int:
                 raise FileNotFoundError(
                     f"Required command missing: {command}; the package phase must complete first."
                 )
-        _ = subprocess.run(["sudo", "-v"], check=True)
+        _ = subprocess.run(["sudo", "--validate"], check=True)
         result = subprocess.run(
             [
                 "sudo",
-                "-n",
+                "--non-interactive",
                 sys.executable,
                 "-B",
                 str(Path(__file__).resolve()),

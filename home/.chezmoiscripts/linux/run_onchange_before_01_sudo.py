@@ -60,10 +60,12 @@ def apply_policy() -> None:
                 _ = candidate.write_text(content)
                 candidate.chmod(0o440)
                 _ = subprocess.run(
-                    ["visudo", "-c", "-f", str(candidate)], check=True, stdout=subprocess.DEVNULL
+                    ["visudo", "--check", "--file", str(candidate)],
+                    check=True,
+                    stdout=subprocess.DEVNULL,
                 )
             _ = subprocess.run(
-                ["visudo", "-c", "-f", str(SUDOERS)], check=True, stdout=subprocess.DEVNULL
+                ["visudo", "--check", "--file", str(SUDOERS)], check=True, stdout=subprocess.DEVNULL
             )
             changed: list[str] = []
             for config, content in zip(configs[:-1], FRAGMENTS.values(), strict=True):
@@ -73,7 +75,7 @@ def apply_policy() -> None:
             if publish_config(faillock, configure_faillock(faillock.backup.read_text()).encode()):
                 changed.append("Configured faillock: deny=20, unlock_time=120, fail_interval=900.")
             _ = subprocess.run(
-                ["visudo", "-c", "-f", str(SUDOERS)], check=True, stdout=subprocess.DEVNULL
+                ["visudo", "--check", "--file", str(SUDOERS)], check=True, stdout=subprocess.DEVNULL
             )
         except BaseException:
             rollback_configs(configs)
@@ -138,11 +140,11 @@ def main() -> int:
                 raise FileNotFoundError(f"Required command missing: {command}")
         # Authenticate with native terminal I/O before capturing the unattended
         # privileged operation. One synchronous process owns its entire update.
-        _ = subprocess.run(["sudo", "-v"], check=True)
+        _ = subprocess.run(["sudo", "--validate"], check=True)
         result = subprocess.run(
             [
                 "sudo",
-                "-n",
+                "--non-interactive",
                 sys.executable,
                 "-B",
                 str(Path(__file__).resolve()),

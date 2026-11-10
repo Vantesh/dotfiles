@@ -19,8 +19,11 @@ def install_auto_cpufreq() -> None:
     result = subprocess.run(
         [
             "curl",
-            "-fsSL",
-            "-m",
+            "--fail",
+            "--location",
+            "--silent",
+            "--show-error",
+            "--max-time",
             "60",
             "https://api.github.com/repos/AdnanHodzic/auto-cpufreq/releases/latest",
         ],
@@ -58,7 +61,9 @@ def install_auto_cpufreq() -> None:
         failed = sys.exception() is not None
         try:
             # The root-run build can leave root-owned files in this private checkout.
-            _ = subprocess.run(["sudo", "rm", "-rf", "--", str(directory)], check=True)
+            _ = subprocess.run(
+                ["sudo", "rm", "--recursive", "--force", "--", str(directory)], check=True
+            )
         except OSError, subprocess.CalledProcessError:
             if not failed:
                 raise

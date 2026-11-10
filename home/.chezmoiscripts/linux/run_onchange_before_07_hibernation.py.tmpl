@@ -158,7 +158,10 @@ def main() -> int:
                 "Run hibernation provisioning as the regular account without arguments."
             )
         filesystem = subprocess.run(
-            ["findmnt", "-n", "-o", "FSTYPE", "/"], check=True, capture_output=True, text=True
+            ["findmnt", "--noheadings", "--output", "FSTYPE", "/"],
+            check=True,
+            capture_output=True,
+            text=True,
         ).stdout.strip()
         if not filesystem or "\n" in filesystem:
             raise ValueError("Cannot inspect one root filesystem type.")
@@ -176,11 +179,11 @@ def main() -> int:
         if shutil.which("mkinitcpio") is None:
             raise FileNotFoundError("mkinitcpio is unavailable; install it, then reapply.")
 
-        _ = subprocess.run(["sudo", "-v"], check=True)
+        _ = subprocess.run(["sudo", "--validate"], check=True)
         result = subprocess.run(
             [
                 "sudo",
-                "-n",
+                "--non-interactive",
                 sys.executable,
                 "-B",
                 str(Path(__file__).resolve()),

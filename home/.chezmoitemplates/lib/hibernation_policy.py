@@ -96,7 +96,7 @@ def configure_resume(device: BtrfsDevice, state: Path, work: Path, parser: Path)
             request_rebuild(state)
             _ = publish_config(config, candidate.read_bytes())
     offset = subprocess.run(
-        ["btrfs", "inspect-internal", "map-swapfile", "-r", str(SWAP_FILE)],
+        ["btrfs", "inspect-internal", "map-swapfile", "--resume-offset", str(SWAP_FILE)],
         check=True,
         capture_output=True,
         text=True,

@@ -50,7 +50,7 @@ def boot_directory() -> Path:
     )
     for path in paths:
         result = subprocess.run(
-            ["findmnt", "-rn", "-o", "FSTYPE", "--mountpoint", str(path)],
+            ["findmnt", "--noheadings", "--raw", "--output", "FSTYPE", "--mountpoint", str(path)],
             check=False,
             capture_output=True,
             text=True,

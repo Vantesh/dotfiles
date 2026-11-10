@@ -86,7 +86,7 @@ def main() -> int:
             return 0
         driver = "libfprint-goodix53x5-533c-git"
         package = subprocess.run(
-            ["pacman", "-Q", "--", driver],
+            ["pacman", "--query", "--", driver],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.PIPE,
             env={**os.environ, "LC_ALL": "C"},
@@ -168,7 +168,13 @@ def main() -> int:
                 # Explicit account argument keeps native sudo enrollment usable on a
                 # console without requiring a graphical authorization agent.
                 _ = subprocess.run(
-                    ["sudo", "fprintd-enroll", "-f", "right-index-finger", target_user],
+                    [
+                        "sudo",
+                        "fprintd-enroll",
+                        "--finger",
+                        "right-index-finger",
+                        target_user,
+                    ],
                     env=env,
                     stdin=terminal,
                     stdout=prompt,

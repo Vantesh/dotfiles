@@ -157,7 +157,7 @@ def inspect_layout() -> tuple[bool, dict[str, str] | None]:
 def configure_snapper(current: dict[str, str] | None) -> None:
     if current is None:
         _ = subprocess.run(
-            ["sudo", "snapper", "-c", "root", "create-config", "/"],
+            ["sudo", "snapper", "--config", "root", "create-config", "/"],
             check=True,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.PIPE,
@@ -172,7 +172,7 @@ def configure_snapper(current: dict[str, str] | None) -> None:
     changes = [f"{key}={value}" for key, value in SETTINGS.items() if current.get(key) != value]
     if changes:
         _ = subprocess.run(
-            ["sudo", "snapper", "-c", "root", "set-config", *changes],
+            ["sudo", "snapper", "--config", "root", "set-config", *changes],
             check=True,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.PIPE,
@@ -278,11 +278,11 @@ def enable_services() -> None:
 
 
 def configure_snapshot_boot(stage: str, state: Path, source_dir: Path, personal: str) -> None:
-    _ = subprocess.run(["sudo", "-v"], check=True)
+    _ = subprocess.run(["sudo", "--validate"], check=True)
     result = subprocess.run(
         [
             "sudo",
-            "-n",
+            "--non-interactive",
             sys.executable,
             "-B",
             str(Path(__file__).resolve()),

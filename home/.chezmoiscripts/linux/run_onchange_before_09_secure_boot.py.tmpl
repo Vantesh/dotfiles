@@ -89,12 +89,12 @@ def main() -> int:
             return 0
         if shutil.which("mkinitcpio") is None:
             raise FileNotFoundError("mkinitcpio not found; complete the Limine installation.")
-        _ = subprocess.run(["sudo", "-v"], check=True)
+        _ = subprocess.run(["sudo", "--validate"], check=True)
         state = Path(os.environ.get("XDG_STATE_HOME") or Path.home() / ".local/state") / "chezmoi"
         result = subprocess.run(
             [
                 "sudo",
-                "-n",
+                "--non-interactive",
                 sys.executable,
                 "-B",
                 str(Path(__file__).resolve()),

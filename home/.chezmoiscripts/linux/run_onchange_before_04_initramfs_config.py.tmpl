@@ -75,7 +75,10 @@ def main() -> int:
         if not os.access(LIMINE, os.X_OK):
             return 0
         filesystem = subprocess.run(
-            ["findmnt", "-n", "-o", "FSTYPE", "/"], check=True, capture_output=True, text=True
+            ["findmnt", "--noheadings", "--output", "FSTYPE", "/"],
+            check=True,
+            capture_output=True,
+            text=True,
         ).stdout.strip()
         if not filesystem or "\n" in filesystem:
             raise ValueError("Cannot inspect one root filesystem type.")
@@ -84,11 +87,11 @@ def main() -> int:
         if shutil.which("mkinitcpio") is None:
             raise FileNotFoundError("mkinitcpio not found; complete the Limine installation.")
         state = Path(os.environ.get("XDG_STATE_HOME") or Path.home() / ".local/state") / "chezmoi"
-        _ = subprocess.run(["sudo", "-v"], check=True)
+        _ = subprocess.run(["sudo", "--validate"], check=True)
         result = subprocess.run(
             [
                 "sudo",
-                "-n",
+                "--non-interactive",
                 sys.executable,
                 "-B",
                 str(Path(__file__).resolve()),

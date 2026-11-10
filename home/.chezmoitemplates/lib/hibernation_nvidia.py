@@ -97,7 +97,7 @@ def configure_nvidia_sleep(source_dir: Path, entrypoint: Path) -> None:
         result = subprocess.run(
             [
                 "sudo",
-                "-n",
+                "--non-interactive",
                 sys.executable,
                 "-B",
                 str(entrypoint),

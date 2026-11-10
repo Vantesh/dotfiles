@@ -234,16 +234,16 @@ def test_nonpersonal_apply_is_isolated(env: dict[str, str], tmp_path: Path) -> N
     stub(env, "chezmoi", f'exec {shlex.quote(CHEZMOI)} "$@"')
     stub(env, "id", "echo 1000")
     stub(env, "paru", "exit 97")
-    stub(env, "pacman", '[ "$1" = -Q ] || exit 127')
+    stub(env, "pacman", '[ "$1" = --query ] || exit 127')
     stub(env, "pacman-conf", '[ "$*" = --repo-list ] || exit 97; echo chaotic-aur')
     stub(
         env,
         "sudo",
         """case "$*" in
-    -v|'-n true'|'pacman -Syu --noconfirm') exit 0 ;;
+    --validate|'--non-interactive true'|'pacman --sync --refresh --sysupgrade --noconfirm') exit 0 ;;
 esac
 # The common greeter's privileged work is exercised in its isolated tests.
-[ "$#" = 8 ] && [ "$1" = -n ] && [ "$2" = /usr/bin/python3 ] && [ "$3" = -B ] && [ "$5" = --configure ] && [ "$7" = 0 ] || exit 97
+[ "$#" = 8 ] && [ "$1" = --non-interactive ] && [ "$2" = /usr/bin/python3 ] && [ "$3" = -B ] && [ "$5" = --configure ] && [ "$7" = 0 ] || exit 97
 case "$4" in
     "$TMPDIR/"*.11_login_manager.py) echo configured >> "$HOME/common-greeter" ;;
     *) exit 97 ;;
@@ -447,7 +447,7 @@ def test_prerequisite_install_failure_stops_setup(
     result = run_setup(env, bootstrap)
     assert result.returncode == 23, result.stderr
     assert len(calls(env)) == 1
-    assert calls(env)[0][:3] == ["sudo", "pacman", "-S"]
+    assert calls(env)[0][:3] == ["sudo", "pacman", "--sync"]
 
 
 @pytest.mark.parametrize("personal", [False, True], ids=["nonpersonal", "personal"])
@@ -460,8 +460,8 @@ def test_prerequisites_install_in_one_transaction_and_reapply_quietly(
     packages = ["python", "python-loguru", "git", "base-devel", "mise"]
     if personal:
         packages.extend(("rbw", "pinentry"))
-    stub(env, "pacman", '[ "$1" = -Q ] && test -f "$INSTALLED"')
-    install = ["pacman", "-S", "--needed", "--noconfirm", "--", *packages]
+    stub(env, "pacman", '[ "$1" = --query ] && test -f "$INSTALLED"')
+    install = ["pacman", "--sync", "--needed", "--noconfirm", "--", *packages]
     stub(
         env,
         "sudo",
@@ -634,19 +634,19 @@ def package_env(env: dict[str, str]) -> dict[str, str]:
         env,
         "pacman",
         r"""case "$*" in
-    '-Q chaotic-keyring chaotic-mirrorlist'|-Dk) exit 0 ;;
+    '--query chaotic-keyring chaotic-mirrorlist'|'--database --check') exit 0 ;;
     '-T vulkan-driver') exit 127 ;;
-    -Q) printf '%s\n' "$PACKAGES" ;;
-    '-Q nvidia-utils') echo "nvidia-utils $DRIVER_VERSION-1" ;;
-    '-Q nvidia-580xx-utils') echo "nvidia-580xx-utils $DRIVER_VERSION-1" ;;
-    '-Qql linux') echo /usr/lib/modules/6.18-fixture/pkgbase ;;
+    --query) printf '%s\n' "$PACKAGES" ;;
+    '--query nvidia-utils') echo "nvidia-utils $DRIVER_VERSION-1" ;;
+    '--query nvidia-580xx-utils') echo "nvidia-580xx-utils $DRIVER_VERSION-1" ;;
+    '--query --quiet --list linux') echo /usr/lib/modules/6.18-fixture/pkgbase ;;
     *) exit 97 ;;
 esac""",
     )
     stub(
         env,
         "sudo",
-        '''[ "$*" = 'pacman -Syu --noconfirm' ] || exit 97
+        '''[ "$*" = 'pacman --sync --refresh --sysupgrade --noconfirm' ] || exit 97
 exit "$UPGRADE_STATUS"''',
         log=True,
     )
@@ -658,8 +658,8 @@ exit "$UPGRADE_STATUS"''',
         env,
         "modinfo",
         """case "$*" in
-    '-k 6.18-fixture -F vermagic nvidia') echo '6.18-fixture SMP' ;;
-    '-k 6.18-fixture -F version nvidia') echo "$DRIVER_VERSION" ;;
+    '--set-version 6.18-fixture --field vermagic nvidia') echo '6.18-fixture SMP' ;;
+    '--set-version 6.18-fixture --field version nvidia') echo "$DRIVER_VERSION" ;;
     *) exit 97 ;;
 esac""",
     )
@@ -751,9 +751,9 @@ esac""",
 case "$*" in
     'pacman-key --list-keys 3056513887B78AEB') exit 1 ;;
     'pacman-key --recv-key 3056513887B78AEB --keyserver keyserver.ubuntu.com'|'pacman-key --lsign-key 3056513887B78AEB') exit 0 ;;
-    'pacman -U --needed --noconfirm '*) touch "$HOME/trust-installed" ;;
-    'tee -a /etc/pacman.conf') cat >> "$HOME/pacman.conf"; touch "$HOME/repo-enabled" ;;
-    'pacman -Syu --noconfirm')
+    'pacman --upgrade --needed --noconfirm '*) touch "$HOME/trust-installed" ;;
+    'tee --append /etc/pacman.conf') cat >> "$HOME/pacman.conf"; touch "$HOME/repo-enabled" ;;
+    'pacman --sync --refresh --sysupgrade --noconfirm')
         test -f "$HOME/trust-installed" && test -f "$HOME/repo-enabled" || exit 98
         exit "$UPGRADE_STATUS" ;;
     *) exit 97 ;;
@@ -777,7 +777,7 @@ fi""",
     package_env["UPGRADE_STATUS"] = "23"
     failed = apply_packages(package_env)
     assert failed.returncode == 23, failed.stderr
-    assert "sudo pacman -Syu --noconfirm failed (exit 23)" in failed.stderr
+    assert "sudo pacman --sync --refresh --sysupgrade --noconfirm failed (exit 23)" in failed.stderr
     assert failed.stderr.count("[ERROR]") == 1
     assert "Traceback" not in failed.stderr
     assert not marker.exists()
@@ -926,7 +926,12 @@ def test_xdg_reapplication_preserves_custom_paths_and_maven_settings(
     assert settings.stat().st_mtime_ns == before
     assert "existing-private-settings" not in result.stderr
     assert Path(package_env["GNUPGHOME"]).stat().st_mode & 0o777 == 0o700
-    assert calls(package_env).count(["sudo", "pacman", "-Syu", "--noconfirm"]) == 1
+    assert (
+        calls(package_env).count(
+            ["sudo", "pacman", "--sync", "--refresh", "--sysupgrade", "--noconfirm"]
+        )
+        == 1
+    )
     # A mistaken custom GnuPG path must preserve the file and explain the Python failure.
     package_env["GNUPGHOME"] = str(settings)
     recorded = calls(package_env)
@@ -1023,7 +1028,7 @@ with (Path.home() / "execution.jsonl").open("a") as stream:
     stream.write(json.dumps({"file": __file__, "cwd": str(Path.cwd()), "source": str(source), "working_tree": os.environ["CHEZMOI_WORKING_TREE"], "distro": os.environ["CHEZMOI_OS_RELEASE_ID"], "interpreter": sys.executable, "bytecode": sys.dont_write_bytecode, "logging": configure_logging.__module__}) + "\\n")
 """)
     stub(env, "python3", "exit 97", log=True)
-    stub(env, "pacman", '[ "$1" = -Q ] && test -f "$HOME/installed"')
+    stub(env, "pacman", '[ "$1" = --query ] && test -f "$HOME/installed"')
     stub(
         env,
         "sudo",

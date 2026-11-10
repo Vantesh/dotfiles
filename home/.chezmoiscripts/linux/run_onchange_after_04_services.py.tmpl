@@ -111,11 +111,11 @@ def main() -> int:
                 raise FileNotFoundError(
                     "updatedb is unavailable; install the declared plocate package."
                 )
-            _ = subprocess.run(["sudo", "-v"], check=True)
+            _ = subprocess.run(["sudo", "--validate"], check=True)
             result = subprocess.run(
                 [
                     "sudo",
-                    "-n",
+                    "--non-interactive",
                     sys.executable,
                     "-B",
                     str(Path(__file__).resolve()),

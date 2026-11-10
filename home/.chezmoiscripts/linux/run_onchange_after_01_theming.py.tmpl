@@ -102,11 +102,11 @@ def configure_gtk(source_dir: Path) -> None:
         text=True,
     ).stdout.strip()
     config_home = Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config")
-    _ = subprocess.run(["sudo", "-v"], check=True)
+    _ = subprocess.run(["sudo", "--validate"], check=True)
     result = subprocess.run(
         [
             "sudo",
-            "-n",
+            "--non-interactive",
             sys.executable,
             "-B",
             str(Path(__file__).resolve()),
@@ -263,12 +263,27 @@ def install_sf_pro_text() -> None:
             "Extract SF Pro font package",
         )
         with subprocess.Popen(
-            ["bsdtar", "-xOf", str(work / "SFProFonts.pkg"), "SFProFontsPackage.pkg/Payload"],
+            [
+                "bsdtar",
+                "--extract",
+                "--to-stdout",
+                "--file",
+                str(work / "SFProFonts.pkg"),
+                "SFProFontsPackage.pkg/Payload",
+            ],
             stdout=subprocess.PIPE,
         ) as payload:
             try:
                 extracted = subprocess.run(
-                    ["bsdtar", "-xf", "-", "-C", str(work), "./Library/Fonts/SF-Pro-Text-*.otf"],
+                    [
+                        "bsdtar",
+                        "--extract",
+                        "--file",
+                        "-",
+                        "--directory",
+                        str(work),
+                        "./Library/Fonts/SF-Pro-Text-*.otf",
+                    ],
                     stdin=payload.stdout,
                     check=False,
                 )
@@ -287,7 +302,15 @@ def install_sf_pro_text() -> None:
             destination = fonts / font.name
             if not destination.is_file() or not filecmp.cmp(font, destination, shallow=False):
                 _ = subprocess.run(
-                    ["install", "-m", "644", "-T", str(font), str(destination)], check=True
+                    [
+                        "install",
+                        "--mode",
+                        "644",
+                        "--no-target-directory",
+                        str(font),
+                        str(destination),
+                    ],
+                    check=True,
                 )
         _ = subprocess.run(["fc-cache", str(fonts)], check=True)
         with tempfile.NamedTemporaryFile(
