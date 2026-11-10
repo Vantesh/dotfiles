@@ -120,7 +120,7 @@ def hibernation(env: dict[str, str], tmp_path: Path) -> dict[str, str]:
     stub(
         env,
         "sudo",
-        'case "$1" in -v) exit "${SUDO_STATUS:-0}" ;; -n) shift; unset CHEZMOI_SOURCE_DIR CHEZMOI_WORKING_TREE CHEZMOI_OS_RELEASE_ID DOTFILES_PERSONAL_ENABLED; exec "$@" ;; *) exit 97 ;; esac',
+        'case "$1" in --validate) exit "${SUDO_STATUS:-0}" ;; --non-interactive) shift; unset CHEZMOI_SOURCE_DIR CHEZMOI_WORKING_TREE CHEZMOI_OS_RELEASE_ID DOTFILES_PERSONAL_ENABLED; exec "$@" ;; *) exit 97 ;; esac',
         log=True,
     )
     # Native filesystem tools are never invoked on the development host.
@@ -136,7 +136,7 @@ failure = os.environ.get('FAILURE', '')
 def fail(code=23): sys.exit(code)
 def output(text): print(text); sys.exit(0)
 if name == 'findmnt':
-    if args[:3] == ['-n', '-o', 'FSTYPE']:
+    if args[:3] == ['--noheadings', '--output', 'FSTYPE']:
         if failure == 'filesystem-inspection': fail()
         output(os.environ.get('ROOT_FS', 'btrfs'))
     if args[0] == '--fstab':
@@ -148,17 +148,17 @@ if name == 'findmnt':
         if failure == 'identity': fail()
         target = ('/unexpected' if failure == 'root-target' else '/') if args[-1] == '/' else str(swap)
         output(f'{target} {dev}/disk/by-id/root btrfs {uuid}')
-    if args[2] == 'TARGET,FSTYPE,UUID,FSROOT':
+    if args[3] == 'TARGET,FSTYPE,UUID,FSROOT':
         target = args[-1]
         fsroot = '/@swap' if target == str(swap) else '/'
         if failure == 'wrong-mount': fsroot = '/unexpected'
         output(f'{target} btrfs {uuid} {fsroot}')
-    if args[2] == 'TARGET': output(str(swap / 'nested') if failure == 'nested-mount' else str(swap))
+    if args[3] == 'TARGET': output(str(swap / 'nested') if failure == 'nested-mount' else str(swap))
 elif name == 'hostnamectl':
     if failure == 'chassis-inspection': fail()
     output(os.environ.get('CHASSIS', 'laptop'))
 elif name == 'lsblk':
-    field, path = (args[2] if '-o' in args else args[1]), Path(args[-1]); identity = '240:5' if os.environ.get('ENCRYPTED') else '8:1'
+    field, path = args[args.index('--output') + 1], Path(args[-1]); identity = '240:5' if os.environ.get('ENCRYPTED') else '8:1'
     if field == 'FSTYPE,UUID,MAJ:MIN': output(f'btrfs {uuid} {identity}')
     if field == 'MAJ:MIN': output('8:17' if path.name == 'container' else '8:18' if path.name == 'other' else identity)
     if field == 'UUID': output(uuid)

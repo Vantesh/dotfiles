@@ -72,8 +72,8 @@ def login(env: dict[str, str], tmp_path: Path) -> dict[str, str]:
         env,
         "sudo",
         """case "$1" in
-    -v) exit 0 ;;
-    -n) shift; unset CHEZMOI_SOURCE_DIR DOTFILES_PERSONAL_ENABLED; exec "$@" ;;
+    --validate) exit 0 ;;
+    --non-interactive) shift; unset CHEZMOI_SOURCE_DIR DOTFILES_PERSONAL_ENABLED; exec "$@" ;;
     *) exit 97 ;;
 esac""",
         log=True,

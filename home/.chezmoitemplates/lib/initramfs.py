@@ -23,7 +23,7 @@ def read_hooks(mode: str = "current", candidate: str = "") -> list[str]:
     paths = set((ETC / "mkinitcpio.conf.d").glob("*.conf")) | {managed}
     ordered = (
         subprocess.run(
-            ["sort", "-zVu"],
+            ["sort", "--zero-terminated", "--version-sort", "--unique"],
             input=b"\0".join(str(path).encode() for path in paths) + b"\0",
             check=True,
             capture_output=True,

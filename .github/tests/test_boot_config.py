@@ -51,16 +51,16 @@ class SystemdInitramfsTests(ScriptCase):
         self.stub(
             "blkid",
             r"""case "$*" in
-    '-c /dev/null -t UUID=bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb -o device'|\
-    '-c /dev/null -t PARTUUID=fd8ce3d8-1e48-4b0e-91a8-24cdb2f14ce1 -o device')
+    '--cache-file /dev/null --match-token UUID=bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb --output device'|\
+    '--cache-file /dev/null --match-token PARTUUID=fd8ce3d8-1e48-4b0e-91a8-24cdb2f14ce1 --output device')
         [ "$FAILURE" != source-missing ] || exit 2
         if [ "$FAILURE" = source-device ]; then echo /dev/other-container; else echo /dev/fixture-container; fi
         if [ "$FAILURE" = source-ambiguous ] || [ "$FAILURE:$4" = ambiguous:UUID=bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb ]; then
             echo /dev/duplicate-container
         fi ;;
-    '-p -s TYPE -o value /dev/fixture-container')
+    '--probe --match-tag TYPE --output value /dev/fixture-container')
         if [ "$FAILURE" = not-luks ]; then echo ext4; else echo crypto_LUKS; fi ;;
-    '-p -s UUID -o value /dev/fixture-container')
+    '--probe --match-tag UUID --output value /dev/fixture-container')
         if [ "$FAILURE" = source-uuid ]; then echo dddddddd-dddd-dddd-dddd-dddddddddddd;
         else echo bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb; fi ;;
     *) exit 97 ;;
@@ -70,10 +70,10 @@ esac""",
         self.stub(
             "lsblk",
             r"""case "$*" in
-    '-dnro MAJ:MIN /dev/fixture-container')
+    '--nodeps --noheadings --raw --output MAJ:MIN /dev/fixture-container')
         [ "$FAILURE" != not-block ] || exit 23
         echo 8:2 ;;
-    '-dnro MAJ:MIN /dev/other-container') echo 8:3 ;;
+    '--nodeps --noheadings --raw --output MAJ:MIN /dev/other-container') echo 8:3 ;;
     *) exit 97 ;;
 esac""",
             log=True,
@@ -1142,7 +1142,7 @@ def test_boot_order_retries_and_stripped_privileged_environment(
     stub(
         env,
         "sudo",
-        'case "$1" in -v) exit 0 ;; -n) shift; unset CHEZMOI_SOURCE_DIR DOTFILES_PERSONAL_ENABLED; exec "$@" ;; *) exit 97 ;; esac',
+        'case "$1" in --validate) exit 0 ;; --non-interactive) shift; unset CHEZMOI_SOURCE_DIR DOTFILES_PERSONAL_ENABLED; exec "$@" ;; *) exit 97 ;; esac',
     )
     config = tmp_path / "chezmoi.json"
     config.write_text(
@@ -1214,7 +1214,11 @@ def test_boot_partition_requires_a_mounted_fat32_filesystem(
     monkeypatch.setattr(limine_config, "ETC", etc)
     monkeypatch.setattr(limine_config, "SHARE", tmp_path / "share")
     monkeypatch.setenv("PATH", env["PATH"])
-    stub(env, "findmnt", '[ "$*" = "-rn -o FSTYPE --mountpoint /boot" ] || exit 97; echo vfat')
+    stub(
+        env,
+        "findmnt",
+        '[ "$*" = "--noheadings --raw --output FSTYPE --mountpoint /boot" ] || exit 97; echo vfat',
+    )
     assert limine_config.boot_directory() == Path("/boot")
     stub(env, "findmnt", "echo ext4")
     with pytest.raises(ValueError, match="FAT32"):

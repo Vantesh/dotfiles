@@ -48,7 +48,17 @@ def publish_greeter_settings(content: bytes) -> bool:
         0o750,
     ):
         _ = subprocess.run(
-            ["install", "-d", "-o", "greeter", "-g", "greeter", "-m", "0750", str(GREETER_DIR)],
+            [
+                "install",
+                "--directory",
+                "--owner",
+                "greeter",
+                "--group",
+                "greeter",
+                "--mode",
+                "0750",
+                str(GREETER_DIR),
+            ],
             check=True,
         )
     # This directory is deliberately greeter-writable, unlike root-owned policy
@@ -97,7 +107,7 @@ def configure_login(source_dir: Path, personal: str, username: str) -> None:
     if pwd.getpwnam(username).pw_uid == 0:
         raise ValueError("Appearance synchronization requires a regular account.")
     _ = subprocess.run(
-        ["pacman", "-Q", "--", "greetd", "noctalia-greeter", "gnome-keyring"],
+        ["pacman", "--query", "--", "greetd", "noctalia-greeter", "gnome-keyring"],
         check=True,
         stdout=subprocess.DEVNULL,
     )
@@ -246,11 +256,11 @@ def main() -> int:
         if sys.argv[1:] or os.geteuid() == 0:
             raise ValueError("Run greeter setup as the regular account through Chezmoi.")
         username = pwd.getpwuid(os.getuid()).pw_name
-        _ = subprocess.run(["sudo", "-v"], check=True)
+        _ = subprocess.run(["sudo", "--validate"], check=True)
         result = subprocess.run(
             [
                 "sudo",
-                "-n",
+                "--non-interactive",
                 sys.executable,
                 "-B",
                 str(Path(__file__).resolve()),

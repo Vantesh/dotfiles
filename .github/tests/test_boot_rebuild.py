@@ -71,8 +71,8 @@ def rebuild(env: dict[str, str], tmp_path: Path) -> dict[str, str]:
         env,
         "findmnt",
         """case "$*" in
-    '-rn -o FSTYPE --mountpoint '*) echo vfat ;;
-    '-rn -o TARGET,SOURCE,FSTYPE,UUID --mountpoint '*)
+    '--noheadings --raw --output FSTYPE --mountpoint '*) echo vfat ;;
+    '--noheadings --raw --output TARGET,SOURCE,FSTYPE,UUID --mountpoint '*)
         uuid=ABCD-1234
         if [ "${FAILURE:-}" = identity ] && test -f "$HOME/deployed"; then uuid="BCDE-$(cat "$HOME/deployed")"; fi
         printf '%s /dev/fixture-esp vfat %s\\n' "$BOOT" "$uuid" ;;
@@ -106,7 +106,7 @@ echo 'completed fixture rebuild'
     stub(
         env,
         "sudo",
-        'case "$1" in -v) exit 0 ;; -n) shift; unset CHEZMOI_SOURCE_DIR CHEZMOI_WORKING_TREE CHEZMOI_OS_RELEASE_ID DOTFILES_PERSONAL_ENABLED; exec "$@" ;; *) exit 97 ;; esac',
+        'case "$1" in --validate) exit 0 ;; --non-interactive) shift; unset CHEZMOI_SOURCE_DIR CHEZMOI_WORKING_TREE CHEZMOI_OS_RELEASE_ID DOTFILES_PERSONAL_ENABLED; exec "$@" ;; *) exit 97 ;; esac',
         log=True,
     )
     return env
@@ -284,7 +284,10 @@ class SecureBootTests(ScriptCase):
         for command in ("limine", "mkinitcpio", "limine-enroll-config", "limine-update"):
             self.stub(command, "exit 97")
         self.stub("sed", 'exec /usr/bin/sed "$@"')
-        self.stub("findmnt", '[ "$*" = "-rn -o FSTYPE --mountpoint $BOOT" ] || exit 97; echo vfat')
+        self.stub(
+            "findmnt",
+            '[ "$*" = "--noheadings --raw --output FSTYPE --mountpoint $BOOT" ] || exit 97; echo vfat',
+        )
         self.stub(
             "sudo",
             r'''case "$1" in
@@ -716,8 +719,8 @@ def test_secure_boot_personal_profile_provisions_without_an_enrollment_prompt(
         env,
         "sudo",
         """case "$1" in
-    -v) exit 0 ;;
-    -n)
+    --validate) exit 0 ;;
+    --non-interactive)
         shift
         [ "$#" = 7 ] && [ "$2" = -B ] && [ "$4" = --configure ] && [ "$7" = 1 ] || exit 97
         if [ "$FAILURE" != 0 ]; then echo 'fixture sbctl failure' >&2; exit "$FAILURE"; fi ;;
@@ -735,7 +738,7 @@ esac""",
     assert result.returncode == failure, result.stderr
     observed = calls(env)
     if personal:
-        assert observed[0] == ["sudo", "-v"]
+        assert observed[0] == ["sudo", "--validate"]
         assert len(observed) == 2
         assert observed[1][-4:] == [
             "--configure",
