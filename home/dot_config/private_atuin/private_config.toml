@@ -169,31 +169,22 @@ ignored_commands = [
   "printf"
 ]
 
-
 [keys]
 scroll_exits = false
-
 
 [daemon]
 enabled = true
 autostart = true
 
-
-[tmux]
-enabled = true
-
-
 [ui]
-
 
 [ai]
 enabled = true
 model = "balanced"
 
-
 [logs]
 enabled = true
-level = "info"
+level = "warn"
 retention = "2d"
 
 [theme]
