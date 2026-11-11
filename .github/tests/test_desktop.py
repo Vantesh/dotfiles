@@ -134,7 +134,7 @@ def desktop_command(tmp_path: Path, personal: bool) -> list[str]:
 
 
 @pytest.mark.parametrize("personal", [False, True], ids=["nonpersonal", "personal"])
-def test_root_gtk_mirror_is_personal_and_safe_to_reapply(
+def test_root_gtk_mirror_applies_to_every_profile_and_is_safe_to_reapply(
     desktop: dict[str, str], tmp_path: Path, personal: bool
 ) -> None:
     command = desktop_command(tmp_path, personal)
@@ -142,22 +142,21 @@ def test_root_gtk_mirror_is_personal_and_safe_to_reapply(
     assert first.returncode == 0, first.stderr
     observed = calls(desktop)
     assert all(call[0] != "rbw" for call in observed)
-    assert any(call[0] == "sudo" for call in observed) == personal
+    assert any("--mirror-gtk" in call for call in observed)
     assert (tmp_path / "preferences/gtk-theme").read_text() == "'adw-gtk3-dark'\n"
     assert (tmp_path / "preferences/color-scheme").read_text() == "'prefer-dark'\n"
     root_settings = [tmp_path / f"root-config/gtk-{version}.0/settings.ini" for version in (3, 4)]
     for path in root_settings:
-        assert path.exists() == personal
-        if personal:
-            assert path.stat().st_mode & 0o777 == 0o644
-            content = path.read_text()
-            assert "gtk-application-prefer-dark-theme=true\n" in content
-            if path.parent.name == "gtk-3.0":
-                assert "gtk-theme-name=adw-gtk3-dark\n" in content
-            assert (path.parent / "gtk.css").readlink() == Path(
-                desktop["XDG_CONFIG_HOME"]
-            ) / path.parent.name / "gtk.css"
-    root_times = {path: path.stat().st_mtime_ns for path in root_settings if personal}
+        assert path.exists()
+        assert path.stat().st_mode & 0o777 == 0o644
+        content = path.read_text()
+        assert "gtk-application-prefer-dark-theme=true\n" in content
+        if path.parent.name == "gtk-3.0":
+            assert "gtk-theme-name=adw-gtk3-dark\n" in content
+        assert (path.parent / "gtk.css").readlink() == Path(
+            desktop["XDG_CONFIG_HOME"]
+        ) / path.parent.name / "gtk.css"
+    root_times = {path: path.stat().st_mtime_ns for path in root_settings}
     # Force re-execution to inspect state rather than only Chezmoi's cache.
     target = tmp_path / "source with spaces/.chezmoiscripts/linux" / HOOK
     target.write_text(target.read_text() + "\n# Recheck configured state.\n")

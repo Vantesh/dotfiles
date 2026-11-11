@@ -242,6 +242,8 @@ def test_nonpersonal_apply_is_isolated(env: dict[str, str], tmp_path: Path) -> N
         """case "$*" in
     --validate|'--non-interactive true'|'pacman --sync --refresh --sysupgrade --noconfirm') exit 0 ;;
 esac
+# Desktop theming mirrors root GTK for every profile.
+[ "$#" -ge 5 ] && [ "$1" = --non-interactive ] && [ "$5" = --mirror-gtk ] && exit 0
 # The common greeter's privileged work is exercised in its isolated tests.
 [ "$#" = 8 ] && [ "$1" = --non-interactive ] && [ "$2" = /usr/bin/python3 ] && [ "$3" = -B ] && [ "$5" = --configure ] && [ "$7" = 0 ] || exit 97
 case "$4" in
@@ -345,6 +347,7 @@ esac""",
         ["--accept-tos", "registration", "new"],
         ["--accept-tos", "registration", "show"],
     ]
+    assert any("--mirror-gtk" in call for call in observed)
     assert [
         "gsettings",
         "set",
