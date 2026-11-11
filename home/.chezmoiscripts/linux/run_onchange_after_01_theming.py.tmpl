@@ -2,7 +2,7 @@
 # source-dir: {{ .chezmoi.sourceDir | toJson }}
 # profile: {{ .personal | toJson }}
 # OFFLINE: {{ env "OFFLINE" | toJson }}
-"""Apply GTK preferences and independently converge the public desktop assets."""
+"""Apply GTK preferences, mirror them to root, and converge the public desktop assets."""
 
 import filecmp
 import hashlib
@@ -18,10 +18,11 @@ from typing import cast
 
 from loguru import logger
 
-PERSONAL = os.environ.get("DOTFILES_PERSONAL_ENABLED") == "1"
 # Font data is unavailable during init; keep font-data edits live on each apply.
 FONT_NAME = {{ cat .font.ui.name .font.ui.size | toJson }}
 ROOT_CONFIG = Path("/root/.config")
+GTK_THEME = "adw-gtk3-dark"
+GTK_COLOR_SCHEME = "prefer-dark"
 MACTAHOE_REPO = "https://github.com/vinceliuice/MacTahoe-icon-theme.git"
 MACTAHOE_VARIANTS = ("MacTahoe", "MacTahoe-light", "MacTahoe-dark")
 SF_PRO_URL = "https://devimages-cdn.apple.com/design/resources/download/SF-Pro.dmg"
@@ -66,7 +67,7 @@ def mirror_root_gtk(config_home: Path, theme: str, prefer_dark: bool) -> None:
             rollback_configs(configs)
             raise
     if changed:
-        print("Updated the personal root GTK mirror.")
+        print("Updated the root GTK mirror.")
 
 
 def configure_gtk(source_dir: Path) -> None:
@@ -74,6 +75,8 @@ def configure_gtk(source_dir: Path) -> None:
         raise FileNotFoundError("gsettings is unavailable; complete desktop package installation.")
     for schema, key, value in (
         ("org.gnome.desktop.interface", "font-name", FONT_NAME),
+        ("org.gnome.desktop.interface", "gtk-theme", GTK_THEME),
+        ("org.gnome.desktop.interface", "color-scheme", GTK_COLOR_SCHEME),
         ("org.gnome.desktop.wm.preferences", "button-layout", ":"),
     ):
         current = subprocess.run(
@@ -82,25 +85,6 @@ def configure_gtk(source_dir: Path) -> None:
         if current != f"'{value}'":
             _ = subprocess.run(["gsettings", "set", schema, key, value], check=True)
             logger.info("Configured GTK {}.", key)
-    if not PERSONAL:
-        return
-    theme = (
-        subprocess.run(
-            ["gsettings", "get", "org.gnome.desktop.interface", "gtk-theme"],
-            check=True,
-            stdout=subprocess.PIPE,
-            text=True,
-        )
-        .stdout.strip()
-        .removeprefix("'")
-        .removesuffix("'")
-    )
-    scheme = subprocess.run(
-        ["gsettings", "get", "org.gnome.desktop.interface", "color-scheme"],
-        check=True,
-        stdout=subprocess.PIPE,
-        text=True,
-    ).stdout.strip()
     config_home = Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config")
     _ = subprocess.run(["sudo", "--validate"], check=True)
     result = subprocess.run(
@@ -112,9 +96,8 @@ def configure_gtk(source_dir: Path) -> None:
             str(Path(__file__).resolve()),
             "--mirror-gtk",
             str(config_home),
-            theme,
-            str(scheme == "'prefer-dark'").lower(),
-            "1",
+            GTK_THEME,
+            str(GTK_COLOR_SCHEME == "prefer-dark").lower(),
             str(source_dir),
         ],
         check=True,
@@ -336,7 +319,7 @@ def terminate(_signum: int, _frame: object) -> None:
 
 def main() -> int:
     privileged = sys.argv[1:2] == ["--mirror-gtk"]
-    if privileged and len(sys.argv) != 7:
+    if privileged and len(sys.argv) != 6:
         print("ERROR: Root GTK setup requires its source directory.", file=sys.stderr)
         return 1
     if not privileged and os.environ.get("DOTFILES_PERSONAL_ENABLED") not in ("0", "1"):
@@ -345,7 +328,7 @@ def main() -> int:
             file=sys.stderr,
         )
         return 1
-    source_dir = Path(sys.argv[6]) if privileged else Path(os.environ["CHEZMOI_SOURCE_DIR"])
+    source_dir = Path(sys.argv[5]) if privileged else Path(os.environ["CHEZMOI_SOURCE_DIR"])
     if not source_dir.is_absolute():
         print("ERROR: Chezmoi must supply an absolute source directory.", file=sys.stderr)
         return 1
@@ -353,7 +336,7 @@ def main() -> int:
     _ = signal.signal(signal.SIGTERM, terminate)
     if privileged:
         try:
-            if sys.argv[5] != "1" or sys.argv[4] not in ("true", "false"):
+            if sys.argv[4] not in ("true", "false"):
                 raise ValueError("Invalid root GTK invocation.")
             mirror_root_gtk(Path(sys.argv[2]), sys.argv[3], sys.argv[4] == "true")
             return 0
