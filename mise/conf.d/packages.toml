@@ -94,6 +94,9 @@
 # Personal shell history sync
 "pacman:atuin" = { env = "personal" }
 
+# Personal TPM2 automatic root unlock
+"pacman:tpm2-tss" = { env = "personal" }
+
 # Theming
 "pacman:nwg-look" = { env = "packages" }
 "pacman:adw-gtk-theme" = { env = "packages" }

@@ -180,6 +180,67 @@ esac""",
                 self.assertEqual(path.read_bytes(), expected)
                 self.assertFalse(self.marker.exists())
 
+    def test_tpm2_unlock_is_pinless_and_enrolls_once(self) -> None:
+        tpm = self.directory / "sys/class/tpm/tpm0"
+        tpm.mkdir(parents=True)
+        (tpm / "tpm_version_major").write_text("2\n")
+        container = self.directory / "dev/block/8:2"
+        container.parent.mkdir(parents=True)
+        container.touch()
+        self.stub(
+            "cryptsetup",
+            r"""case "$1 $2" in
+    'isLuks --type') [ "$3" = luks2 ] || exit 97 ;;
+    'luksDump --dump-json-metadata')
+        if [ -f "$HOME/tpm-enrolled" ]; then
+            printf '{"tokens":{"0":{"type":"systemd-tpm2"}}}\n'
+        else
+            printf '{"tokens":{}}\n'
+        fi ;;
+    *) exit 97 ;;
+esac""",
+            log=True,
+        )
+        self.stub(
+            "systemd-cryptenroll",
+            r"""[ "$1" = --tpm2-device=auto ] || exit 97
+[ "$2" = --tpm2-pcrs=7 ] || exit 97
+[ "$3" = --tpm2-with-pin=no ] || exit 97
+[ "$4" = "$HOME/dev/block/8:2" ] || exit 97
+touch "$HOME"/tpm-enrolled""",
+            log=True,
+        )
+        self.env["ENCRYPTED"] = "1"
+        result = self.configure()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        fragment = self.defaults.with_name("30-tpm2-unlock.conf")
+        self.assertEqual(
+            fragment.read_text(),
+            'KERNEL_CMDLINE[default]+= "rd.luks.options='
+            'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb=tpm2-device=auto"\n',
+        )
+        enrollments = [call for call in self.logged_calls() if call[0] == "systemd-cryptenroll"]
+        self.assertEqual(
+            enrollments,
+            [
+                [
+                    "systemd-cryptenroll",
+                    "--tpm2-device=auto",
+                    "--tpm2-pcrs=7",
+                    "--tpm2-with-pin=no",
+                    str(container),
+                ]
+            ],
+        )
+        self.marker.unlink(missing_ok=True)
+        result = self.configure()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(
+            [call for call in self.logged_calls() if call[0] == "systemd-cryptenroll"],
+            enrollments,
+        )
+        self.assertFalse(self.marker.exists())
+
     def test_unsafe_or_failed_feature_updates_preserve_existing_configuration(self) -> None:
         path = self.defaults.with_name("20-quiet-boot.conf")
         for original, failure in (
@@ -1041,6 +1102,7 @@ home = Path(os.environ['HOME']); etc = home / 'etc'; state = home / 'state/chezm
 parser = Path(os.environ['CHEZMOI_SOURCE_DIR']) / '.chezmoitemplates/lib/limine_cmdline.py'
 initramfs.ETC = limine_config.ETC = etc
 initramfs.SYS = home / 'sys'
+initramfs.DEV = home / 'dev'
 initramfs.LIB = home / 'usr/lib'
 initramfs.KEYFILE = home / 'crypto_keyfile.bin'
 limine_config.SHARE = home / 'share'
