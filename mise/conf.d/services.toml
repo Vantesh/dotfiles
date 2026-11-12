@@ -54,6 +54,12 @@ state = "running"
 enabled = true
 masked = false
 
+[bootstrap.services."noctalia.service"]
+scope = "user"
+state = "running"
+enabled = true
+masked = false
+
 [bootstrap.services."udiskie.service"]
 scope = "user"
 state = "running"

@@ -1,0 +1,14 @@
+[Unit]
+Description=Noctalia Wayland shell
+Documentation=https://github.com/noctalia-dev/noctalia
+PartOf=graphical-session.target
+Before=graphical-session.target
+After=wayland-session-waitenv.service
+
+[Service]
+Type=notify
+ExecStart=/usr/bin/noctalia
+Restart=on-failure
+
+[Install]
+WantedBy=wayland-session@hyprland.desktop.target
