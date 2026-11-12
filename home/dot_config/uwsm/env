@@ -3,6 +3,10 @@ export XDG_MENU_PREFIX=arch-
 export XDG_BIN_HOME="$HOME/.local/bin"
 export UWSM_APP_UNIT_TYPE=service
 
+# Export the logind session id so user services that run outside session-N.scope
+# (Noctalia) can resolve their session for lock and idle integration.
+export UWSM_FINALIZE_VARNAMES="${UWSM_FINALIZE_VARNAMES}${UWSM_FINALIZE_VARNAMES:+ }XDG_SESSION_ID"
+
 # Keep the systemd environment.d PATH during login-environment synchronization.
 case " ${UWSM_NEVER_EXPORT_VARNAMES-} " in
     *" PATH "*) ;;
