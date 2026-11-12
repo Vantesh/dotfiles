@@ -1,13 +1,22 @@
 """Systemd mkinitcpio hooks and verified conversion of installer root unlocking."""
 
+import json
 import re
+import shutil
 import subprocess
 import tempfile
 from pathlib import Path
+from typing import cast
 
 from .hibernation_policy import request_rebuild
 from .hibernation_swap import BtrfsDevice, inspect_btrfs_device
-from .limine_config import ETC, parser_command, validate_mkinitcpio_options, write_dropin
+from .limine_config import (
+    ETC,
+    parser_command,
+    publish_limine_fragment,
+    validate_mkinitcpio_options,
+    write_dropin,
+)
 from .policy_files import PolicyFile, publish_config, rollback_configs, snapshot_config
 
 SYS = Path("/sys")
@@ -23,7 +32,7 @@ def read_hooks(mode: str = "current", candidate: str = "") -> list[str]:
     paths = set((ETC / "mkinitcpio.conf.d").glob("*.conf")) | {managed}
     ordered = (
         subprocess.run(
-            ["sort", "-zVu"],
+            ["sort", "--zero-terminated", "--version-sort", "--unique"],
             input=b"\0".join(str(path).encode() for path in paths) + b"\0",
             check=True,
             capture_output=True,
@@ -163,8 +172,59 @@ def verify_unlock(cmdline: str, uuid: str, mapping: str) -> None:
                 return
     if not named and not (selected and mapping == f"luks-{uuid}"):
         raise ValueError(
-            f"No usable user-managed systemd early unlock for {mapping}; configure rd.luks.name={uuid}={mapping} or an included crypttab entry. TPM2 and credentials remain user-managed."
+            f"No usable user-managed systemd early unlock for {mapping}; configure rd.luks.name={uuid}={mapping} or an included crypttab entry. Credentials remain user-managed."
         )
+
+
+def configure_tpm2_unlock(container: Path, uuid: str, parser: Path, state: Path) -> None:
+    """Enroll a PIN-less TPM2 key for the verified root LUKS2 container."""
+    version = SYS / "class/tpm/tpm0/tpm_version_major"
+    if not version.is_file() or version.read_text().strip() != "2":
+        return
+    if shutil.which("systemd-cryptenroll") is None:
+        raise FileNotFoundError(
+            "systemd-cryptenroll is unavailable; install systemd before TPM2 unlocking."
+        )
+    if (
+        subprocess.run(
+            ["cryptsetup", "isLuks", "--type", "luks2", str(container)],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        ).returncode
+        != 0
+    ):
+        print("Root LUKS container is not LUKS2; TPM2 automatic unlock was not configured.")
+        return
+    published = subprocess.run(
+        ["cryptsetup", "luksDump", "--dump-json-metadata", str(container)],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
+    value = cast("object", json.loads(published))
+    if not isinstance(value, dict):
+        raise ValueError("Unexpected LUKS metadata while checking TPM2 enrollment.")
+    tokens = cast("dict[str, object]", value).get("tokens")
+    enrolled = isinstance(tokens, dict) and any(
+        isinstance(token, dict) and cast("dict[str, object]", token).get("type") == "systemd-tpm2"
+        for token in tokens.values()
+    )
+    publish_limine_fragment(
+        parser, state, "30-tpm2-unlock.conf", f"rd.luks.options={uuid}=tpm2-device=auto"
+    )
+    if enrolled:
+        return
+    _ = subprocess.run(
+        [
+            "systemd-cryptenroll",
+            "--tpm2-device=auto",
+            "--tpm2-pcrs=7",
+            "--tpm2-with-pin=no",
+            str(container),
+        ],
+        check=True,
+    )
+    print("Enrolled PIN-less TPM2 automatic unlocking for the root LUKS container.")
 
 
 def desired_hooks(previous: list[str], encrypted: bool) -> list[str]:
@@ -225,6 +285,7 @@ def configure_systemd_initramfs(parser: Path, state: Path) -> None:
         _ = read_hooks("unlock-check")
     if device.luks_uuid:
         verify_unlock(cmdline, device.luks_uuid, mapping)
+        configure_tpm2_unlock(DEV / "block" / backing, device.luks_uuid, parser, state)
     previous = read_hooks("base")
     hooks = desired_hooks(previous, bool(device.luks_uuid))
     content = HEADER + "HOOKS=(" + " ".join(hooks) + ")"

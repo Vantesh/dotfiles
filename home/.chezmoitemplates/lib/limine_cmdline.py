@@ -39,6 +39,7 @@ def main(argv: list[str]) -> None:
         default,
         managed,
         "/etc/limine-entry-tool.d/20-quiet-boot.conf",
+        "/etc/limine-entry-tool.d/30-tpm2-unlock.conf",
         "/etc/limine-entry-tool.d/zswap.conf",
     }
     files = (
@@ -223,14 +224,25 @@ def main(argv: list[str]) -> None:
             # Scan without cached results and reject duplicate identifiers, even if
             # a /dev/disk/by-* symlink happens to select the active root device.
             devices = block_output(
-                "blkid", "-c", "/dev/null", "-t", identifier, "-o", "device"
+                "blkid",
+                "--cache-file",
+                "/dev/null",
+                "--match-token",
+                identifier,
+                "--output",
+                "device",
             ).splitlines()
             if len(devices) != 1:
                 raise SystemExit(
                     f"Installer {identifier} in {sources} is missing or ambiguous; configuration was not changed"
                 )
             device = devices[0]
-            if block_output("lsblk", "-dnro", "MAJ:MIN", device) != luks_device_id:
+            if (
+                block_output(
+                    "lsblk", "--nodeps", "--noheadings", "--raw", "--output", "MAJ:MIN", device
+                )
+                != luks_device_id
+            ):
                 raise SystemExit(
                     f"Installer {identifier} in {sources} does not resolve to the active LUKS backing device; configuration was not changed"
                 )
@@ -239,8 +251,10 @@ def main(argv: list[str]) -> None:
         identifier = source[1]
         device = resolve_identifier(identifier)
         if (
-            block_output("blkid", "-p", "-s", "TYPE", "-o", "value", device) != "crypto_LUKS"
-            or block_output("blkid", "-p", "-s", "UUID", "-o", "value", device) != luks_uuid
+            block_output("blkid", "--probe", "--match-tag", "TYPE", "--output", "value", device)
+            != "crypto_LUKS"
+            or block_output("blkid", "--probe", "--match-tag", "UUID", "--output", "value", device)
+            != luks_uuid
         ):
             raise SystemExit(
                 f"Installer device in {sources} is not the verified root LUKS container; configuration was not changed"

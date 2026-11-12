@@ -82,12 +82,12 @@ def main() -> int:
         pending = state / "initramfs.pending"
         if not pending.exists() and not pending.is_symlink():
             return 0
-        _ = subprocess.run(["sudo", "-v"], check=True)
+        _ = subprocess.run(["sudo", "--validate"], check=True)
         logger.info("Rebuilding and verifying boot artifacts.")
         result = subprocess.run(
             [
                 "sudo",
-                "-n",
+                "--non-interactive",
                 sys.executable,
                 "-B",
                 str(Path(__file__).resolve()),

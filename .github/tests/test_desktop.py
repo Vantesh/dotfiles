@@ -33,8 +33,8 @@ def desktop(env: dict[str, str], tmp_path: Path) -> dict[str, str]:
         """case "$1" in
     get)
         if test -f "$HOME/preferences/$3"; then cat "$HOME/preferences/$3"
-        elif test "$3" = color-scheme; then echo "'prefer-dark'"
-        elif test "$3" = gtk-theme; then echo "'adw-gtk3-dark'"
+        elif test "$3" = color-scheme; then echo "'default'"
+        elif test "$3" = gtk-theme; then echo "'Adwaita'"
         else echo "'old'"; fi ;;
     set)
         printf "'%s'\\n" "$4" > "$HOME/preferences/$3" ;;
@@ -46,8 +46,8 @@ esac""",
         env,
         "sudo",
         """case "$1" in
-    -v) exit 0 ;;
-    -n) shift; unset CHEZMOI_SOURCE_DIR CHEZMOI_WORKING_TREE DOTFILES_PERSONAL_ENABLED; exec "$@" ;;
+    --validate) exit 0 ;;
+    --non-interactive) shift; unset CHEZMOI_SOURCE_DIR CHEZMOI_WORKING_TREE DOTFILES_PERSONAL_ENABLED; exec "$@" ;;
     *) exit 97 ;;
 esac""",
         log=True,
@@ -81,12 +81,12 @@ done""",
     stub(
         env,
         "bsdtar",
-        """case "$1" in
-    -xOf) printf 'fixture payload' ;;
-    -xf)
+        """case "$1 $2" in
+    '--extract --to-stdout') printf 'fixture payload' ;;
+    '--extract --file')
         cat >/dev/null
-        mkdir -p "$4/Library/Fonts"
-        printf 'fixture font\\n' > "$4/Library/Fonts/SF-Pro-Text-Regular.otf" ;;
+        mkdir -p "$5/Library/Fonts"
+        printf 'fixture font\\n' > "$5/Library/Fonts/SF-Pro-Text-Regular.otf" ;;
     *) exit 97 ;;
 esac""",
     )
@@ -134,7 +134,7 @@ def desktop_command(tmp_path: Path, personal: bool) -> list[str]:
 
 
 @pytest.mark.parametrize("personal", [False, True], ids=["nonpersonal", "personal"])
-def test_root_gtk_mirror_is_personal_and_safe_to_reapply(
+def test_root_gtk_mirror_applies_to_every_profile_and_is_safe_to_reapply(
     desktop: dict[str, str], tmp_path: Path, personal: bool
 ) -> None:
     command = desktop_command(tmp_path, personal)
@@ -142,16 +142,21 @@ def test_root_gtk_mirror_is_personal_and_safe_to_reapply(
     assert first.returncode == 0, first.stderr
     observed = calls(desktop)
     assert all(call[0] != "rbw" for call in observed)
-    assert any(call[0] == "sudo" for call in observed) == personal
+    assert any("--mirror-gtk" in call for call in observed)
+    assert (tmp_path / "preferences/gtk-theme").read_text() == "'adw-gtk3-dark'\n"
+    assert (tmp_path / "preferences/color-scheme").read_text() == "'prefer-dark'\n"
     root_settings = [tmp_path / f"root-config/gtk-{version}.0/settings.ini" for version in (3, 4)]
     for path in root_settings:
-        assert path.exists() == personal
-        if personal:
-            assert path.stat().st_mode & 0o777 == 0o644
-            assert (path.parent / "gtk.css").readlink() == Path(
-                desktop["XDG_CONFIG_HOME"]
-            ) / path.parent.name / "gtk.css"
-    root_times = {path: path.stat().st_mtime_ns for path in root_settings if personal}
+        assert path.exists()
+        assert path.stat().st_mode & 0o777 == 0o644
+        content = path.read_text()
+        assert "gtk-application-prefer-dark-theme=true\n" in content
+        if path.parent.name == "gtk-3.0":
+            assert "gtk-theme-name=adw-gtk3-dark\n" in content
+        assert (path.parent / "gtk.css").readlink() == Path(
+            desktop["XDG_CONFIG_HOME"]
+        ) / path.parent.name / "gtk.css"
+    root_times = {path: path.stat().st_mtime_ns for path in root_settings}
     # Force re-execution to inspect state rather than only Chezmoi's cache.
     target = tmp_path / "source with spaces/.chezmoiscripts/linux" / HOOK
     target.write_text(target.read_text() + "\n# Recheck configured state.\n")
@@ -190,7 +195,7 @@ def test_asset_failures_preserve_status_and_never_publish_font_completion(
     if failure == "download":
         stub(desktop, "curl", "exit 23", log=True)
     else:
-        stub(desktop, "bsdtar", '[ "$1" != -xOf ] || exit 23; cat >/dev/null', log=True)
+        stub(desktop, "bsdtar", '[ "$2" != --to-stdout ] || exit 23; cat >/dev/null', log=True)
     script = render_python(desktop, HOOK, personal=False, source=tmp_path / "source with spaces")
     result = run_setup(desktop, ["/usr/bin/python3", "-B", str(script)])
     assert result.returncode == 23, result.stderr

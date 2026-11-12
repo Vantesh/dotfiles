@@ -75,11 +75,11 @@ def main() -> int:
                 "limine-entry-tool not found; complete the Limine installation."
             )
         state = Path(os.environ.get("XDG_STATE_HOME") or Path.home() / ".local/state") / "chezmoi"
-        _ = subprocess.run(["sudo", "-v"], check=True)
+        _ = subprocess.run(["sudo", "--validate"], check=True)
         result = subprocess.run(
             [
                 "sudo",
-                "-n",
+                "--non-interactive",
                 sys.executable,
                 "-B",
                 str(Path(__file__).resolve()),

@@ -48,8 +48,8 @@ exit "${MISE_STATUS:-0}"''',
         env,
         "sudo",
         """case "$1" in
-    -v) exit 0 ;;
-    -n) case "$*" in *--configure-locate*) exit 0 ;; *) exit 97 ;; esac ;;
+    --validate) exit 0 ;;
+    --non-interactive) case "$*" in *--configure-locate*) exit 0 ;; *) exit 97 ;; esac ;;
     systemctl) [ "$*" = 'systemctl start plocate-updatedb.timer' ] ;;
     *) exit 97 ;;
 esac""",
@@ -148,8 +148,8 @@ def test_locate_remains_personal_and_preserves_unrelated_settings(
         workstation,
         "sudo",
         """case "$1" in
-    -v) exit 0 ;;
-    -n) shift; unset CHEZMOI_SOURCE_DIR CHEZMOI_WORKING_TREE DOTFILES_PERSONAL_ENABLED; exec "$@" ;;
+    --validate) exit 0 ;;
+    --non-interactive) shift; unset CHEZMOI_SOURCE_DIR CHEZMOI_WORKING_TREE DOTFILES_PERSONAL_ENABLED; exec "$@" ;;
     systemctl) exit "${TIMER_STATUS:-0}" ;;
     *) exit 97 ;;
 esac""",

@@ -51,16 +51,16 @@ class SystemdInitramfsTests(ScriptCase):
         self.stub(
             "blkid",
             r"""case "$*" in
-    '-c /dev/null -t UUID=bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb -o device'|\
-    '-c /dev/null -t PARTUUID=fd8ce3d8-1e48-4b0e-91a8-24cdb2f14ce1 -o device')
+    '--cache-file /dev/null --match-token UUID=bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb --output device'|\
+    '--cache-file /dev/null --match-token PARTUUID=fd8ce3d8-1e48-4b0e-91a8-24cdb2f14ce1 --output device')
         [ "$FAILURE" != source-missing ] || exit 2
         if [ "$FAILURE" = source-device ]; then echo /dev/other-container; else echo /dev/fixture-container; fi
         if [ "$FAILURE" = source-ambiguous ] || [ "$FAILURE:$4" = ambiguous:UUID=bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb ]; then
             echo /dev/duplicate-container
         fi ;;
-    '-p -s TYPE -o value /dev/fixture-container')
+    '--probe --match-tag TYPE --output value /dev/fixture-container')
         if [ "$FAILURE" = not-luks ]; then echo ext4; else echo crypto_LUKS; fi ;;
-    '-p -s UUID -o value /dev/fixture-container')
+    '--probe --match-tag UUID --output value /dev/fixture-container')
         if [ "$FAILURE" = source-uuid ]; then echo dddddddd-dddd-dddd-dddd-dddddddddddd;
         else echo bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb; fi ;;
     *) exit 97 ;;
@@ -70,10 +70,10 @@ esac""",
         self.stub(
             "lsblk",
             r"""case "$*" in
-    '-dnro MAJ:MIN /dev/fixture-container')
+    '--nodeps --noheadings --raw --output MAJ:MIN /dev/fixture-container')
         [ "$FAILURE" != not-block ] || exit 23
         echo 8:2 ;;
-    '-dnro MAJ:MIN /dev/other-container') echo 8:3 ;;
+    '--nodeps --noheadings --raw --output MAJ:MIN /dev/other-container') echo 8:3 ;;
     *) exit 97 ;;
 esac""",
             log=True,
@@ -179,6 +179,67 @@ esac""",
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertEqual(path.read_bytes(), expected)
                 self.assertFalse(self.marker.exists())
+
+    def test_tpm2_unlock_is_pinless_and_enrolls_once(self) -> None:
+        tpm = self.directory / "sys/class/tpm/tpm0"
+        tpm.mkdir(parents=True)
+        (tpm / "tpm_version_major").write_text("2\n")
+        container = self.directory / "dev/block/8:2"
+        container.parent.mkdir(parents=True)
+        container.touch()
+        self.stub(
+            "cryptsetup",
+            r"""case "$1 $2" in
+    'isLuks --type') [ "$3" = luks2 ] || exit 97 ;;
+    'luksDump --dump-json-metadata')
+        if [ -f "$HOME/tpm-enrolled" ]; then
+            printf '{"tokens":{"0":{"type":"systemd-tpm2"}}}\n'
+        else
+            printf '{"tokens":{}}\n'
+        fi ;;
+    *) exit 97 ;;
+esac""",
+            log=True,
+        )
+        self.stub(
+            "systemd-cryptenroll",
+            r"""[ "$1" = --tpm2-device=auto ] || exit 97
+[ "$2" = --tpm2-pcrs=7 ] || exit 97
+[ "$3" = --tpm2-with-pin=no ] || exit 97
+[ "$4" = "$HOME/dev/block/8:2" ] || exit 97
+touch "$HOME"/tpm-enrolled""",
+            log=True,
+        )
+        self.env["ENCRYPTED"] = "1"
+        result = self.configure()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        fragment = self.defaults.with_name("30-tpm2-unlock.conf")
+        self.assertEqual(
+            fragment.read_text(),
+            'KERNEL_CMDLINE[default]+= "rd.luks.options='
+            'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb=tpm2-device=auto"\n',
+        )
+        enrollments = [call for call in self.logged_calls() if call[0] == "systemd-cryptenroll"]
+        self.assertEqual(
+            enrollments,
+            [
+                [
+                    "systemd-cryptenroll",
+                    "--tpm2-device=auto",
+                    "--tpm2-pcrs=7",
+                    "--tpm2-with-pin=no",
+                    str(container),
+                ]
+            ],
+        )
+        self.marker.unlink(missing_ok=True)
+        result = self.configure()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(
+            [call for call in self.logged_calls() if call[0] == "systemd-cryptenroll"],
+            enrollments,
+        )
+        self.assertFalse(self.marker.exists())
 
     def test_unsafe_or_failed_feature_updates_preserve_existing_configuration(self) -> None:
         path = self.defaults.with_name("20-quiet-boot.conf")
@@ -1041,6 +1102,7 @@ home = Path(os.environ['HOME']); etc = home / 'etc'; state = home / 'state/chezm
 parser = Path(os.environ['CHEZMOI_SOURCE_DIR']) / '.chezmoitemplates/lib/limine_cmdline.py'
 initramfs.ETC = limine_config.ETC = etc
 initramfs.SYS = home / 'sys'
+initramfs.DEV = home / 'dev'
 initramfs.LIB = home / 'usr/lib'
 initramfs.KEYFILE = home / 'crypto_keyfile.bin'
 limine_config.SHARE = home / 'share'
@@ -1142,7 +1204,7 @@ def test_boot_order_retries_and_stripped_privileged_environment(
     stub(
         env,
         "sudo",
-        'case "$1" in -v) exit 0 ;; -n) shift; unset CHEZMOI_SOURCE_DIR DOTFILES_PERSONAL_ENABLED; exec "$@" ;; *) exit 97 ;; esac',
+        'case "$1" in --validate) exit 0 ;; --non-interactive) shift; unset CHEZMOI_SOURCE_DIR DOTFILES_PERSONAL_ENABLED; exec "$@" ;; *) exit 97 ;; esac',
     )
     config = tmp_path / "chezmoi.json"
     config.write_text(
@@ -1214,7 +1276,11 @@ def test_boot_partition_requires_a_mounted_fat32_filesystem(
     monkeypatch.setattr(limine_config, "ETC", etc)
     monkeypatch.setattr(limine_config, "SHARE", tmp_path / "share")
     monkeypatch.setenv("PATH", env["PATH"])
-    stub(env, "findmnt", '[ "$*" = "-rn -o FSTYPE --mountpoint /boot" ] || exit 97; echo vfat')
+    stub(
+        env,
+        "findmnt",
+        '[ "$*" = "--noheadings --raw --output FSTYPE --mountpoint /boot" ] || exit 97; echo vfat',
+    )
     assert limine_config.boot_directory() == Path("/boot")
     stub(env, "findmnt", "echo ext4")
     with pytest.raises(ValueError, match="FAT32"):

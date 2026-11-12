@@ -80,7 +80,15 @@ def checked_limine_command(command: list[str]) -> str:
 
 def boot_identity(boot: Path) -> tuple[str, ...]:
     fields = subprocess.run(
-        ["findmnt", "-rn", "-o", "TARGET,SOURCE,FSTYPE,UUID", "--mountpoint", str(boot)],
+        [
+            "findmnt",
+            "--noheadings",
+            "--raw",
+            "--output",
+            "TARGET,SOURCE,FSTYPE,UUID",
+            "--mountpoint",
+            str(boot),
+        ],
         check=True,
         capture_output=True,
         text=True,

@@ -240,7 +240,7 @@ def test_fingerprint_requires_the_supported_reader_and_preserves_existing_prints
         assert observed == []
         assert "No supported Goodix 27c6:5395 reader detected" in result.stderr
     elif scenario == "driver-missing":
-        assert observed == [["pacman", "-Q", "--", "libfprint-goodix53x5-533c-git"]]
+        assert observed == [["pacman", "--query", "--", "libfprint-goodix53x5-533c-git"]]
         assert "no declared compatible driver" in result.stderr
     elif scenario == "no-device":
         assert "fprintd has no available fingerprint reader" in result.stderr
@@ -284,9 +284,11 @@ def test_fingerprint_enrollment_starts_without_consent_and_is_verified_before_su
     assert repeated.returncode == 0, repeated.stderr
     user = pwd.getpwuid(os.getuid()).pw_name
     assert [call for call in calls(fingerprint_env) if call[0] == "fprintd-enroll"] == [
-        ["fprintd-enroll", "-f", "right-index-finger", user]
+        ["fprintd-enroll", "--finger", "right-index-finger", user]
     ]
-    assert ["sudo", "fprintd-enroll", "-f", "right-index-finger", user] in calls(fingerprint_env)
+    assert ["sudo", "fprintd-enroll", "--finger", "right-index-finger", user] in calls(
+        fingerprint_env
+    )
     log = (tmp_path / "state/chezmoi/logs/setup.log").read_text()
     assert "native-biometric-output-fixture" not in log + result.stdout + result.stderr
 

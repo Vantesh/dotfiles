@@ -42,8 +42,9 @@ def inspect_btrfs_device(target: Path) -> BtrfsDevice:
         [
             "findmnt",
             "--nofsroot",
-            "-rn",
-            "-o",
+            "--noheadings",
+            "--raw",
+            "--output",
             "TARGET,SOURCE,FSTYPE,UUID",
             "--target",
             str(target),
@@ -63,7 +64,15 @@ def inspect_btrfs_device(target: Path) -> BtrfsDevice:
         raise ValueError(f"Invalid Btrfs filesystem identity at {target}.")
     device = Path(source).resolve(strict=True)
     block = subprocess.run(
-        ["lsblk", "-dnro", "FSTYPE,UUID,MAJ:MIN", str(device)],
+        [
+            "lsblk",
+            "--nodeps",
+            "--noheadings",
+            "--raw",
+            "--output",
+            "FSTYPE,UUID,MAJ:MIN",
+            str(device),
+        ],
         check=True,
         capture_output=True,
         text=True,
@@ -78,7 +87,10 @@ def inspect_btrfs_device(target: Path) -> BtrfsDevice:
     resolved = (DEV / "disk/by-uuid" / uuid).resolve(strict=True)
     if (
         subprocess.run(
-            ["lsblk", "-dnro", "MAJ:MIN", str(resolved)], check=True, capture_output=True, text=True
+            ["lsblk", "--nodeps", "--noheadings", "--raw", "--output", "MAJ:MIN", str(resolved)],
+            check=True,
+            capture_output=True,
+            text=True,
         ).stdout.strip()
         != device_id
     ):
@@ -93,13 +105,19 @@ def inspect_btrfs_device(target: Path) -> BtrfsDevice:
     member = Path(paths[0]).resolve(strict=True)
     if (
         subprocess.run(
-            ["lsblk", "-dnro", "MAJ:MIN", str(member)], check=True, capture_output=True, text=True
+            ["lsblk", "--nodeps", "--noheadings", "--raw", "--output", "MAJ:MIN", str(member)],
+            check=True,
+            capture_output=True,
+            text=True,
         ).stdout.strip()
         != device_id
     ):
         raise ValueError("Btrfs member differs from the backing block device.")
     topology = subprocess.run(
-        ["lsblk", "-srn", "-o", "TYPE", str(device)], check=True, capture_output=True, text=True
+        ["lsblk", "--inverse", "--raw", "--noheadings", "--output", "TYPE", str(device)],
+        check=True,
+        capture_output=True,
+        text=True,
     ).stdout.splitlines()
     if topology in (["disk"], ["part", "disk"]):
         return BtrfsDevice(device, uuid, device_id)
@@ -114,13 +132,16 @@ def inspect_btrfs_device(target: Path) -> BtrfsDevice:
     parent = (DEV / "block" / parent_id).resolve(strict=True)
     if (
         subprocess.run(
-            ["lsblk", "-dnro", "MAJ:MIN", str(parent)], check=True, capture_output=True, text=True
+            ["lsblk", "--nodeps", "--noheadings", "--raw", "--output", "MAJ:MIN", str(parent)],
+            check=True,
+            capture_output=True,
+            text=True,
         ).stdout.strip()
         != parent_id
     ):
         raise ValueError("LUKS backing-device alias differs.")
     kind = subprocess.run(
-        ["blkid", "-p", "-s", "TYPE", "-o", "value", str(parent)],
+        ["blkid", "--probe", "--match-tag", "TYPE", "--output", "value", str(parent)],
         check=True,
         capture_output=True,
         text=True,
@@ -138,7 +159,15 @@ def inspect_btrfs_device(target: Path) -> BtrfsDevice:
     mapped_backing = Path(backing[0]).resolve(strict=True)
     if (
         subprocess.run(
-            ["lsblk", "-dnro", "MAJ:MIN", str(mapped_backing)],
+            [
+                "lsblk",
+                "--nodeps",
+                "--noheadings",
+                "--raw",
+                "--output",
+                "MAJ:MIN",
+                str(mapped_backing),
+            ],
             check=True,
             capture_output=True,
             text=True,
@@ -147,7 +176,7 @@ def inspect_btrfs_device(target: Path) -> BtrfsDevice:
     ):
         raise ValueError("Active LUKS mapping uses a different backing device.")
     luks_uuid = subprocess.run(
-        ["blkid", "-p", "-s", "UUID", "-o", "value", str(parent)],
+        ["blkid", "--probe", "--match-tag", "UUID", "--output", "value", str(parent)],
         check=True,
         capture_output=True,
         text=True,
@@ -162,7 +191,10 @@ def inspect_btrfs_device(target: Path) -> BtrfsDevice:
     if (
         not mapping
         or subprocess.run(
-            ["lsblk", "-dnro", "MAJ:MIN", str(alias)], check=True, capture_output=True, text=True
+            ["lsblk", "--nodeps", "--noheadings", "--raw", "--output", "MAJ:MIN", str(alias)],
+            check=True,
+            capture_output=True,
+            text=True,
         ).stdout.strip()
         != device_id
     ):
@@ -178,8 +210,9 @@ def fstab_entries() -> list[tuple[str, str, str, str]]:
             "--fstab",
             "--tab-file",
             str(path),
-            "-rn",
-            "-o",
+            "--noheadings",
+            "--raw",
+            "--output",
             "SOURCE,TARGET,FSTYPE,OPTIONS",
         ],
         capture_output=True,
@@ -273,7 +306,15 @@ def memory_kib() -> int:
 
 def validate_swap_mount(device: BtrfsDevice) -> None:
     identity = subprocess.run(
-        ["findmnt", "-rn", "-o", "TARGET,FSTYPE,UUID,FSROOT", "--mountpoint", str(SWAP_MOUNT)],
+        [
+            "findmnt",
+            "--noheadings",
+            "--raw",
+            "--output",
+            "TARGET,FSTYPE,UUID,FSROOT",
+            "--mountpoint",
+            str(SWAP_MOUNT),
+        ],
         check=True,
         capture_output=True,
         text=True,
@@ -282,7 +323,7 @@ def validate_swap_mount(device: BtrfsDevice) -> None:
         raise ValueError("Swap mount must be the root filesystem's exact /@swap subvolume.")
     target = SWAP_FILE if SWAP_FILE.exists() or SWAP_FILE.is_symlink() else SWAP_MOUNT
     mount = subprocess.run(
-        ["findmnt", "-rn", "-o", "TARGET", "--target", str(target)],
+        ["findmnt", "--noheadings", "--raw", "--output", "TARGET", "--target", str(target)],
         check=True,
         capture_output=True,
         text=True,
@@ -311,7 +352,10 @@ def check_swap_fstab(
                 source.removeprefix("UUID=")
                 if source.startswith("UUID=")
                 else subprocess.run(
-                    ["lsblk", "-dnro", "UUID", source], check=True, capture_output=True, text=True
+                    ["lsblk", "--nodeps", "--noheadings", "--raw", "--output", "UUID", source],
+                    check=True,
+                    capture_output=True,
+                    text=True,
                 ).stdout.strip()
                 if Path(source).is_relative_to(DEV)
                 else ""
@@ -375,7 +419,7 @@ def configure_btrfs_swap(
         raise ValueError("Swap mount must be a non-symlink directory.")
     mounted = False
     if SWAP_MOUNT.exists():
-        result = subprocess.run(["mountpoint", "-q", str(SWAP_MOUNT)], check=False)
+        result = subprocess.run(["mountpoint", "--quiet", str(SWAP_MOUNT)], check=False)
         if result.returncode == 0:
             mounted = True
             if not subvolume_id:
@@ -393,10 +437,18 @@ def configure_btrfs_swap(
         try:
             mount_attempted = True
             _ = subprocess.run(
-                ["mount", "-o", "subvolid=5", str(device.device), str(top)], check=True
+                ["mount", "--options", "subvolid=5", str(device.device), str(top)], check=True
             )
             identity = subprocess.run(
-                ["findmnt", "-rn", "-o", "TARGET,FSTYPE,UUID,FSROOT", "--mountpoint", str(top)],
+                [
+                    "findmnt",
+                    "--noheadings",
+                    "--raw",
+                    "--output",
+                    "TARGET,FSTYPE,UUID,FSROOT",
+                    "--mountpoint",
+                    str(top),
+                ],
                 check=True,
                 capture_output=True,
                 text=True,
@@ -414,7 +466,7 @@ def configure_btrfs_swap(
             blocked = signal.pthread_sigmask(signal.SIG_BLOCK, {signal.SIGINT, signal.SIGTERM})
             try:
                 if mount_attempted:
-                    top_status = subprocess.run(["mountpoint", "-q", str(top)], check=False)
+                    top_status = subprocess.run(["mountpoint", "--quiet", str(top)], check=False)
                     if top_status.returncode == 0:
                         _ = subprocess.run(["umount", str(top)], check=True)
                     elif top_status.returncode != 32:
@@ -425,7 +477,7 @@ def configure_btrfs_swap(
     if not mounted:
         SWAP_MOUNT.mkdir(exist_ok=True)
         _ = subprocess.run(
-            ["mount", "-o", "subvol=@swap", str(device.device), str(SWAP_MOUNT)], check=True
+            ["mount", "--options", "subvol=@swap", str(device.device), str(SWAP_MOUNT)], check=True
         )
     validate_swap_mount(device)
     require_unchanged_fstab(fstab_state)
@@ -470,7 +522,7 @@ def configure_btrfs_swap(
         print(f"Created Btrfs swapfile ({size}G).")
     validate_swap_mount(device)
     offset = subprocess.run(
-        ["btrfs", "inspect-internal", "map-swapfile", "-r", str(SWAP_FILE)],
+        ["btrfs", "inspect-internal", "map-swapfile", "--resume-offset", str(SWAP_FILE)],
         check=True,
         capture_output=True,
         text=True,
