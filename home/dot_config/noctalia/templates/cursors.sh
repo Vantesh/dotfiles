@@ -4,12 +4,12 @@ set -eu
 mode="{{ mode }}"
 case "$mode" in
   dark)
-    hyprcursor_theme=macOS-hypr
-    xcursor_theme=macOS-White
+    hyprcursor_theme=MacTahoe-dark-hyprcursor
+    xcursor_theme=MacTahoe-dark
     ;;
   light)
-    hyprcursor_theme=macOS-hypr-dark
-    xcursor_theme=macOS
+    hyprcursor_theme=MacTahoe-hyprcursor
+    xcursor_theme=MacTahoe-light
     ;;
   *) exit 1 ;;
 esac

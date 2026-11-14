@@ -2,24 +2,17 @@
 {{- if eq .chezmoi.os "linux" }}
 
 {{- $refresh := "744h" }}
-{{- $hypr := "driedpampas/macOS-hyprcursor" }}
+{{- $hypr := "Vantesh/mactahoe-hyprcursor" }}
 
-# Nested Hyprcursor targets rely on apple_cursor not shipping macOS-hypr*.
-".local/share/icons":
-  url: {{ gitHubLatestReleaseAssetURL "ful1e5/apple_cursor" "macOS.tar.xz" | quote }}
-  type: archive
-  refreshPeriod: {{ $refresh | quote }}
-  exclude:
-    - "**/LICENSE*"
-
-".local/share/icons/macOS-hypr":
-  url: {{ gitHubLatestReleaseAssetURL $hypr "macOS.Hyprcursor.SVG.White.tar.gz" | quote }}
+# MacTahoe icon-theme cursors are installed with the icon themes themselves.
+".local/share/icons/MacTahoe-hyprcursor":
+  url: {{ gitHubLatestReleaseAssetURL $hypr "MacTahoe-hyprcursor.tar.gz" | quote }}
   type: archive
   stripComponents: 1
   refreshPeriod: {{ $refresh | quote }}
 
-".local/share/icons/macOS-hypr-dark":
-  url: {{ gitHubLatestReleaseAssetURL $hypr "macOS.Hyprcursor.SVG.tar.gz" | quote }}
+".local/share/icons/MacTahoe-dark-hyprcursor":
+  url: {{ gitHubLatestReleaseAssetURL $hypr "MacTahoe-dark-hyprcursor.tar.gz" | quote }}
   type: archive
   stripComponents: 1
   refreshPeriod: {{ $refresh | quote }}
