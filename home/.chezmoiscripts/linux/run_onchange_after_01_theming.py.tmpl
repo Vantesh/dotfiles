@@ -23,6 +23,8 @@ FONT_NAME = {{ cat .font.ui.name .font.ui.size | toJson }}
 ROOT_CONFIG = Path("/root/.config")
 GTK_THEME = "adw-gtk3-dark"
 GTK_COLOR_SCHEME = "prefer-dark"
+CURSOR_THEME = "MacTahoe-dark" if GTK_COLOR_SCHEME == "prefer-dark" else "MacTahoe-light"
+CURSOR_SIZE = "24"
 MACTAHOE_REPO = "https://github.com/vinceliuice/MacTahoe-icon-theme.git"
 MACTAHOE_VARIANTS = ("MacTahoe", "MacTahoe-light", "MacTahoe-dark")
 SF_PRO_URL = "https://devimages-cdn.apple.com/design/resources/download/SF-Pro.dmg"
@@ -77,12 +79,14 @@ def configure_gtk(source_dir: Path) -> None:
         ("org.gnome.desktop.interface", "font-name", FONT_NAME),
         ("org.gnome.desktop.interface", "gtk-theme", GTK_THEME),
         ("org.gnome.desktop.interface", "color-scheme", GTK_COLOR_SCHEME),
+        ("org.gnome.desktop.interface", "cursor-theme", CURSOR_THEME),
+        ("org.gnome.desktop.interface", "cursor-size", CURSOR_SIZE),
         ("org.gnome.desktop.wm.preferences", "button-layout", ":"),
     ):
         current = subprocess.run(
             ["gsettings", "get", schema, key], check=True, stdout=subprocess.PIPE, text=True
         ).stdout.strip()
-        if current != f"'{value}'":
+        if current not in (value, f"'{value}'"):
             _ = subprocess.run(["gsettings", "set", schema, key, value], check=True)
             logger.info("Configured GTK {}.", key)
     config_home = Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config")

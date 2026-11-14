@@ -283,6 +283,8 @@ esac""",
             button-layout) echo "':'" ;;
             gtk-theme) echo "'Adwaita'" ;;
             color-scheme) echo "'default'" ;;
+            cursor-theme) echo "'old'" ;;
+            cursor-size) echo 24 ;;
             default-zoom-level) echo "'small-plus'" ;;
             show-delete-permanently) echo true ;;
             *) exit 97 ;;
