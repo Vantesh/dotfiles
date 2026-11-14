@@ -23,6 +23,17 @@ FONT_SETTINGS: dict[str, object] = {
         {{- end }}
     },
 }
+{{ if .personal -}}
+PERSONAL_SETTINGS: dict[str, object] = {
+    "languages": {
+        "Python": {
+            "language_servers": ["pyrefly", "!basedpyright", "..."],
+        },
+    },
+}
+{{- else -}}
+PERSONAL_SETTINGS: dict[str, object] = {}
+{{- end }}
 
 
 def parse_jsonc(text: str) -> dict[str, object]:
@@ -55,6 +66,7 @@ def main() -> int:
     try:
         baseline = parse_jsonc(BASELINE)
         apply_baseline(baseline, FONT_SETTINGS)
+        apply_baseline(baseline, PERSONAL_SETTINGS)
         current = parse_jsonc(original) if original.strip() else {}
         before = json.dumps(current, sort_keys=True)
         apply_baseline(current, baseline)
