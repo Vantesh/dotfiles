@@ -286,6 +286,9 @@ def configure_systemd_initramfs(parser: Path, state: Path) -> None:
     if device.luks_uuid:
         verify_unlock(cmdline, device.luks_uuid, mapping)
         configure_tpm2_unlock(DEV / "block" / backing, device.luks_uuid, parser, state)
+        if converting:
+            cmdline = parser_command(parser, "convert-unlock", *args, "", "")
+            verify_unlock(cmdline, device.luks_uuid, mapping)
     previous = read_hooks("base")
     hooks = desired_hooks(previous, bool(device.luks_uuid))
     content = HEADER + "HOOKS=(" + " ".join(hooks) + ")"
