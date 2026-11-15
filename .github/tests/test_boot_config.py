@@ -180,7 +180,11 @@ esac""",
                 self.assertEqual(path.read_bytes(), expected)
                 self.assertFalse(self.marker.exists())
 
-    def test_tpm2_unlock_is_pinless_and_enrolls_once(self) -> None:
+    def test_tpm2_unlock_defers_verifies_and_repairs_without_wiping_credentials(self) -> None:
+        self.stub(
+            "sbctl",
+            'printf \'{"installed":true,"setup_mode":false,"secure_boot":%s}\\n\' "$SECURE_BOOT"',
+        )
         tpm = self.directory / "sys/class/tpm/tpm0"
         tpm.mkdir(parents=True)
         (tpm / "tpm_version_major").write_text("2\n")
@@ -193,10 +197,14 @@ esac""",
     'isLuks --type') [ "$3" = luks2 ] || exit 97 ;;
     'luksDump --dump-json-metadata')
         if [ -f "$HOME/tpm-enrolled" ]; then
-            printf '{"tokens":{"0":{"type":"systemd-tpm2"}}}\n'
+            printf '{"tokens":{"0":{"type":"systemd-tpm2","tpm2-pcrs":[7],"tpm2-pin":%s%s}}}\n' "${TPM_PIN:-false}" "$TPM_POLICY"
         else
             printf '{"tokens":{}}\n'
         fi ;;
+    'open --type')
+        [ "$*" = "open --type luks2 --test-passphrase --token-only --token-id=0 --batch-mode $HOME/dev/block/8:2" ] || exit 97
+        [ -z "$TPM_PROBE_FAILURE" ] || exit "$TPM_PROBE_FAILURE"
+        [ ! -f "$HOME/tpm-stale" ] || exit 2 ;;
     *) exit 97 ;;
 esac""",
             log=True,
@@ -207,13 +215,20 @@ esac""",
 [ "$2" = --tpm2-pcrs=7 ] || exit 97
 [ "$3" = --tpm2-with-pin=no ] || exit 97
 [ "$4" = "$HOME/dev/block/8:2" ] || exit 97
-touch "$HOME"/tpm-enrolled""",
+touch "$HOME"/tpm-enrolled
+rm -f "$HOME"/tpm-stale""",
             log=True,
         )
-        self.env["ENCRYPTED"] = "1"
+        self.env.update(ENCRYPTED="1", SECURE_BOOT="false")
+        fragment = self.defaults.with_name("30-tpm2-unlock.conf")
         result = self.configure()
         self.assertEqual(result.returncode, 0, result.stderr)
-        fragment = self.defaults.with_name("30-tpm2-unlock.conf")
+        self.assertIn("Deferred TPM2", result.stdout)
+        self.assertFalse(fragment.exists())
+        self.assertFalse(any(call[0] == "systemd-cryptenroll" for call in self.logged_calls()))
+        self.env["SECURE_BOOT"] = "true"
+        result = self.configure()
+        self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(
             fragment.read_text(),
             'KERNEL_CMDLINE[default]+= "rd.luks.options='
@@ -240,6 +255,35 @@ touch "$HOME"/tpm-enrolled""",
             enrollments,
         )
         self.assertFalse(self.marker.exists())
+        before = fragment.read_bytes()
+        for failure, pin, policy in (
+            ("23", "false", ""),
+            ("", "true", ""),
+            ("", "false", ',"tpm2-pubkey":"custom"'),
+        ):
+            self.env.update(TPM_PROBE_FAILURE=failure, TPM_PIN=pin, TPM_POLICY=policy)
+            result = self.configure()
+            self.assertNotEqual(result.returncode, 0)
+            self.assertEqual(fragment.read_bytes(), before)
+            self.assertEqual(
+                [call for call in self.logged_calls() if call[0] == "systemd-cryptenroll"],
+                enrollments,
+            )
+        self.env.update(TPM_PROBE_FAILURE="", TPM_PIN="false", TPM_POLICY="")
+        (self.directory / "tpm-stale").touch()
+        for _ in range(2):
+            result = self.configure()
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(
+                [call for call in self.logged_calls() if call[0] == "systemd-cryptenroll"],
+                enrollments * 2,
+            )
+        self.env["TPM_PROBE_FAILURE"] = "2"
+        result = self.configure()
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("failed unlock verification", result.stderr)
+        self.assertNotIn("Verified PIN-less", result.stdout)
+        self.assertEqual(fragment.read_bytes(), before)
 
     def test_unsafe_or_failed_feature_updates_preserve_existing_configuration(self) -> None:
         path = self.defaults.with_name("20-quiet-boot.conf")
@@ -1199,6 +1243,9 @@ def test_boot_order_retries_and_stripped_privileged_environment(
             )
         (scripts / path.name).write_text(text)
     assert sorted(selected) == ["00", "01", "03", "04", "05", "08", "13", "99"]
+    boot_id = tmp_path / "boot-id"
+    boot_id.write_text("first-boot\n")
+    stub(env, "cat", 'exec /usr/bin/cat "$HOME/boot-id"')
     stub(env, "findmnt", "echo btrfs")
     stub(env, "mkinitcpio", "exit 97")
     stub(
@@ -1244,6 +1291,14 @@ def test_boot_order_retries_and_stripped_privileged_environment(
     assert result.returncode == 0, result.stderr
     if personal:
         assert events.read_text().splitlines() == ["13"]
+        events.unlink()
+    else:
+        assert not events.exists()
+    boot_id.write_text("second-boot\n")
+    result = run_setup(env, command)
+    assert result.returncode == 0, result.stderr
+    if personal:
+        assert events.read_text().splitlines() == ["00", "13"]
     else:
         assert not events.exists()
 

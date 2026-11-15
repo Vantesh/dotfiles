@@ -1,6 +1,8 @@
 #!/usr/bin/python3 -B
 # profile: {{ .personal | toJson }}
 # source-dir: {{ if .personal }}{{ .chezmoi.sourceDir | toJson }}{{ else }}disabled{{ end }}
+# boot-id: {{ if and .personal (eq .chezmoi.os "linux") }}{{ output "cat" "/proc/sys/kernel/random/boot_id" | trim | toJson }}{{ else }}disabled{{ end }}
+# secure_boot.py: {{ if .personal }}{{ include ".chezmoitemplates/lib/secure_boot.py" | sha256sum }}{{ else }}disabled{{ end }}
 # initramfs.py: {{ if .personal }}{{ include ".chezmoitemplates/lib/initramfs.py" | sha256sum }}{{ else }}disabled{{ end }}
 # limine_config.py: {{ if .personal }}{{ include ".chezmoitemplates/lib/limine_config.py" | sha256sum }}{{ else }}disabled{{ end }}
 # limine_cmdline.py: {{ if .personal }}{{ include ".chezmoitemplates/lib/limine_cmdline.py" | sha256sum }}{{ else }}disabled{{ end }}
@@ -63,7 +65,9 @@ def main() -> int:
             )
             return 0
         except (OSError, ValueError, subprocess.CalledProcessError) as error:
-            traceback.print_exc()
+            traceback.print_exc(file=sys.stdout)
+            if isinstance(error, subprocess.CalledProcessError) and error.stderr:
+                print(cast("str", error.stderr))
             return error.returncode if isinstance(error, subprocess.CalledProcessError) else 1
     from lib.provision_logging import configure_logging
 
@@ -101,7 +105,7 @@ def main() -> int:
                 personal,
             ],
             check=True,
-            capture_output=True,
+            stdout=subprocess.PIPE,
             text=True,
         )
         for message in result.stdout.splitlines():
@@ -111,7 +115,7 @@ def main() -> int:
         status = error.returncode if isinstance(error, subprocess.CalledProcessError) else 1
         try:
             if isinstance(error, subprocess.CalledProcessError):
-                diagnostic = cast("str | None", error.stderr)
+                diagnostic = cast("str | None", error.stdout)
                 reason = (
                     diagnostic.strip().splitlines()[-1]
                     if diagnostic and diagnostic.strip()
