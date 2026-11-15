@@ -13,7 +13,6 @@
 "pacman:cloudflare-warp-bin" = { env = "packages" }
 "pacman:bluez" = { env = "packages" }
 "pacman:bluez-utils" = { env = "packages" }
-"pacman:bluez-tools" = { env = "packages" }
 "pacman:udiskie" = { env = "packages" }
 "pacman:ntfs-3g" = { env = "packages" }
 "pacman:exfatprogs" = { env = "packages" }
@@ -53,8 +52,6 @@
 "pacman:hyprland" = { env = "packages" }
 "pacman:mission-center" = { env = "packages" }
 "pacman:xdg-desktop-portal-hyprland" = { env = "packages" }
-"pacman:socat" = { env = "packages" }
-"pacman:cpio" = { env = "packages" }
 "pacman:kitty" = { env = "packages" }
 
 # CLI tools
@@ -63,17 +60,10 @@
 "pacman:starship" = { env = "packages" }
 "pacman:zoxide" = { env = "packages" }
 "pacman:fd" = { env = "packages" }
-"pacman:duf" = { env = "packages" }
 "pacman:eza" = { env = "packages" }
 "pacman:bat" = { env = "packages" }
 "pacman:ripgrep" = { env = "packages" }
-"pacman:curlie" = { env = "packages" }
-"pacman:shfmt" = { env = "packages" }
-"pacman:imagemagick" = { env = "packages" }
-"pacman:poppler" = { env = "packages" }
 "pacman:resvg" = { env = "packages" }
-"pacman:ffmpeg" = { env = "packages" }
-"pacman:chafa" = { env = "packages" }
 "pacman:topgrade" = { env = "packages" }
 "pacman:yazi" = { env = "packages" }
 "pacman:unzip" = { env = "packages" }
@@ -89,27 +79,17 @@
 "pacman:television" = { env = "packages" }
 "pacman:lazygit" = { env = "packages" }
 "pacman:worktrunk" = { env = "packages" }
+"pacman:github-cli" = { env = "packages" }
 
 
 # Personal shell history sync
 "pacman:atuin" = { env = "personal" }
 
-# Personal TPM2 automatic root unlock
-"pacman:tpm2-tss" = { env = "personal" }
-
 # Theming
 "pacman:nwg-look" = { env = "packages" }
 "pacman:adw-gtk-theme" = { env = "packages" }
-"pacman:frameworkintegration" = { env = "packages" }
 "aur:qtengine" = { env = "packages" }
 "pacman:darkly-qt6-git" = { env = "packages" }
-"pacman:layer-shell-qt" = { env = "packages" }
-"pacman:qt6-multimedia" = { env = "packages" }
-"pacman:qt6-positioning" = { env = "packages" }
-"pacman:qt6-5compat" = { env = "packages" }
-"pacman:qt6-imageformats" = { env = "packages" }
-"pacman:kimageformats" = { env = "packages" } # enable video as wallpaper
-"pacman:python-pillow" = { env = "packages" }
 
 # Fonts
 "pacman:otf-font-awesome" = { env = "packages" }
@@ -125,7 +105,6 @@
 
 # Applications
 "pacman:rust" = { env = "packages" }
-"pacman:go" = { env = "packages" }
 "pacman:cava" = { env = "packages" }
 # Zed requires a Vulkan driver; keep it out of hardware-independent baseline installs.
 "pacman:zed" = { env = "personal" }
@@ -134,17 +113,14 @@
 "pacman:brave-bin" = { env = "packages" }
 "aur:spotifast-bin" = { env = "packages" }
 "pacman:localsend" = { env = "packages" }
-"aur:zapfast-bin" = { env = "packages" }
+"pacman:zapfast" = { env = "packages" }
 
 # Personal hardware groups selected by the package phase; never part of the baseline.
 # Driver utilities
-"pacman:mesa-utils" = { env = "driver-utils" }
-"pacman:libva-utils" = { env = "driver-utils" }
 "pacman:vulkan-tools" = { env = "driver-utils" }
 "pacman:vulkan-headers" = { env = "driver-utils" }
 
 # Intel graphics
-"pacman:libva-intel-driver" = { env = "intel" }
 "pacman:intel-media-driver" = { env = "intel" }
 "pacman:vulkan-intel" = { env = "intel" }
 

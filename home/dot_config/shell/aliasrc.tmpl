@@ -41,11 +41,7 @@ alias ln="ln -i"
     alias more="bat --paging=always"
 }
 
-[ -x "$(command -v duf)" ] && alias df="duf --output mountpoint,size,avail,type,filesystem"
-[ -x "$(command -v dust)" ] && alias du="dust -r"
 [ -x "$(command -v delta)" ] && alias diff="delta"
-
-[ -x "$(command -v curlie)" ] && alias curl="curlie"
 
 [ -x "$(command -v nvim)" ] && {
     alias vim="nvim"
