@@ -4,6 +4,7 @@ import json
 import re
 import shutil
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
 from typing import cast
@@ -18,10 +19,13 @@ from .limine_config import (
     write_dropin,
 )
 from .policy_files import PolicyFile, publish_config, rollback_configs, snapshot_config
+from .secure_boot import secure_boot_status
 
 SYS = Path("/sys")
 DEV = Path("/dev")
 LIB = Path("/usr/lib")
+RUN = Path("/run")
+VAR_LIB = Path("/var/lib")
 KEYFILE = Path("/crypto_keyfile.bin")
 HEADER = "# Managed systemd base; snapshot hooks belong to Snapper.\n"
 OBSOLETE = {"udev", "encrypt", "keymap", "consolefont", "resume", "btrfs-overlayfs"}
@@ -176,10 +180,69 @@ def verify_unlock(cmdline: str, uuid: str, mapping: str) -> None:
         )
 
 
+def tpm2_unlocks(container: Path) -> bool:
+    """Test existing PIN-less PCR7 tokens without opening a mapping or prompting."""
+    published = subprocess.run(
+        ["cryptsetup", "luksDump", "--dump-json-metadata", str(container)],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
+    value = cast("object", json.loads(published))
+    if not isinstance(value, dict):
+        raise ValueError("Unexpected LUKS metadata while checking TPM2 enrollment.")
+    tokens = cast("dict[str, object]", value).get("tokens")
+    if not isinstance(tokens, dict):
+        raise ValueError("Unexpected LUKS tokens while checking TPM2 enrollment.")
+    custom = False
+    for token_id, token in cast("dict[str, object]", tokens).items():
+        if not isinstance(token, dict):
+            raise ValueError("Invalid LUKS token metadata.")
+        fields = cast("dict[str, object]", token)
+        if fields.get("type") != "systemd-tpm2":
+            continue
+        if (
+            fields.get("tpm2-pcrs") != [7]
+            or fields.get("tpm2-pin", False) is not False
+            or any(key.startswith(("tpm2-pubkey", "tpm2_pubkey", "tpm2-pcrlock")) for key in fields)
+        ):
+            custom = True
+            continue
+        result = subprocess.run(
+            [
+                "cryptsetup",
+                "open",
+                "--type",
+                "luks2",
+                "--test-passphrase",
+                "--token-only",
+                f"--token-id={token_id}",
+                "--batch-mode",
+                str(container),
+            ],
+            stdin=subprocess.DEVNULL,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if result.returncode == 0:
+            return True
+        if result.returncode != 2:
+            result.check_returncode()
+    if custom:
+        raise ValueError(
+            "Existing TPM2 policy requires manual reconciliation; credentials preserved."
+        )
+    return False
+
+
 def configure_tpm2_unlock(container: Path, uuid: str, parser: Path, state: Path) -> None:
     """Enroll a PIN-less TPM2 key for the verified root LUKS2 container."""
     version = SYS / "class/tpm/tpm0/tpm_version_major"
     if not version.is_file() or version.read_text().strip() != "2":
+        return
+    if not secure_boot_status()["secure_boot"]:
+        print("Deferred TPM2 enrollment: enable Secure Boot, reboot, then run chezmoi apply again.")
         return
     if shutil.which("systemd-cryptenroll") is None:
         raise FileNotFoundError(
@@ -195,25 +258,30 @@ def configure_tpm2_unlock(container: Path, uuid: str, parser: Path, state: Path)
     ):
         print("Root LUKS container is not LUKS2; TPM2 automatic unlock was not configured.")
         return
-    published = subprocess.run(
-        ["cryptsetup", "luksDump", "--dump-json-metadata", str(container)],
-        check=True,
-        capture_output=True,
-        text=True,
-    ).stdout
-    value = cast("object", json.loads(published))
-    if not isinstance(value, dict):
-        raise ValueError("Unexpected LUKS metadata while checking TPM2 enrollment.")
-    tokens = cast("dict[str, object]", value).get("tokens")
-    enrolled = isinstance(tokens, dict) and any(
-        isinstance(token, dict) and cast("dict[str, object]", token).get("type") == "systemd-tpm2"
-        for token in tokens.values()
-    )
-    publish_limine_fragment(
-        parser, state, "30-tpm2-unlock.conf", f"rd.luks.options={uuid}=tpm2-device=auto"
-    )
-    if enrolled:
+    if tpm2_unlocks(container):
+        publish_limine_fragment(
+            parser, state, "30-tpm2-unlock.conf", f"rd.luks.options={uuid}=tpm2-device=auto"
+        )
         return
+    # Do not silently enroll a different policy through systemd's automatic discovery.
+    for name in (
+        ETC / "systemd/tpm2-pcr-public-key.pem",
+        RUN / "systemd/tpm2-pcr-public-key.pem",
+        LIB / "systemd/tpm2-pcr-public-key.pem",
+        RUN / "systemd/pcrlock.json",
+        VAR_LIB / "systemd/pcrlock.json",
+    ):
+        try:
+            name.lstat()
+        except FileNotFoundError:
+            continue
+        raise ValueError(f"TPM2 policy file {name} requires manual enrollment.")
+    print(
+        "Authorize a new PIN-less PCR7 TPM2 enrollment with your LUKS passphrase. "
+        "Existing password, recovery, and TPM2 slots will be preserved.",
+        file=sys.stderr,
+        flush=True,
+    )
     _ = subprocess.run(
         [
             "systemd-cryptenroll",
@@ -224,7 +292,14 @@ def configure_tpm2_unlock(container: Path, uuid: str, parser: Path, state: Path)
         ],
         check=True,
     )
-    print("Enrolled PIN-less TPM2 automatic unlocking for the root LUKS container.")
+    if not tpm2_unlocks(container):
+        raise ValueError(
+            "New TPM2 enrollment failed unlock verification; existing credentials preserved."
+        )
+    publish_limine_fragment(
+        parser, state, "30-tpm2-unlock.conf", f"rd.luks.options={uuid}=tpm2-device=auto"
+    )
+    print("Verified PIN-less TPM2 automatic unlocking for the root LUKS container.")
 
 
 def desired_hooks(previous: list[str], encrypted: bool) -> list[str]:

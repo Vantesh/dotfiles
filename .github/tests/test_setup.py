@@ -238,6 +238,12 @@ def test_nonpersonal_apply_is_isolated(env: dict[str, str], tmp_path: Path) -> N
     stub(env, "pacman-conf", '[ "$*" = --repo-list ] || exit 97; echo chaotic-aur')
     stub(
         env,
+        "systemctl",
+        '[ "$*" = "--user is-enabled noctalia.service" ] || exit 97; echo enabled',
+        log=True,
+    )
+    stub(
+        env,
         "sudo",
         """case "$*" in
     --validate|'--non-interactive true'|'pacman --sync --refresh --sysupgrade --noconfirm') exit 0 ;;
@@ -366,7 +372,9 @@ esac""",
     ] in observed
     assert (tmp_path / "registered").exists()
     assert (tmp_path / "common-greeter").read_text() == "configured\n"
-    assert all(call[0] in ("sudo", "mise", "gsettings", "warp-cli") for call in observed), observed
+    assert all(
+        call[0] in ("sudo", "mise", "gsettings", "warp-cli", "systemctl") for call in observed
+    ), observed
 
 
 def secret_modifier(env: dict[str, str], personal: bool) -> list[str]:
