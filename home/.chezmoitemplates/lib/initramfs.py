@@ -24,6 +24,8 @@ from .secure_boot import secure_boot_status
 SYS = Path("/sys")
 DEV = Path("/dev")
 LIB = Path("/usr/lib")
+RUN = Path("/run")
+VAR_LIB = Path("/var/lib")
 KEYFILE = Path("/crypto_keyfile.bin")
 HEADER = "# Managed systemd base; snapshot hooks belong to Snapper.\n"
 OBSOLETE = {"udev", "encrypt", "keymap", "consolefont", "resume", "btrfs-overlayfs"}
@@ -202,7 +204,7 @@ def tpm2_unlocks(container: Path) -> bool:
         if (
             fields.get("tpm2-pcrs") != [7]
             or fields.get("tpm2-pin", False) is not False
-            or any(key.startswith(("tpm2-pubkey", "tpm2-pcrlock")) for key in fields)
+            or any(key.startswith(("tpm2-pubkey", "tpm2_pubkey", "tpm2-pcrlock")) for key in fields)
         ):
             custom = True
             continue
@@ -263,14 +265,14 @@ def configure_tpm2_unlock(container: Path, uuid: str, parser: Path, state: Path)
         return
     # Do not silently enroll a different policy through systemd's automatic discovery.
     for name in (
-        "/etc/systemd/tpm2-pcr-public-key.pem",
-        "/run/systemd/tpm2-pcr-public-key.pem",
-        "/usr/lib/systemd/tpm2-pcr-public-key.pem",
-        "/run/systemd/pcrlock.json",
-        "/var/lib/systemd/pcrlock.json",
+        ETC / "systemd/tpm2-pcr-public-key.pem",
+        RUN / "systemd/tpm2-pcr-public-key.pem",
+        LIB / "systemd/tpm2-pcr-public-key.pem",
+        RUN / "systemd/pcrlock.json",
+        VAR_LIB / "systemd/pcrlock.json",
     ):
         try:
-            Path(name).lstat()
+            name.lstat()
         except FileNotFoundError:
             continue
         raise ValueError(f"TPM2 policy file {name} requires manual enrollment.")

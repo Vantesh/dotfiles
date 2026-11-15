@@ -115,7 +115,7 @@ def main() -> int:
         status = error.returncode if isinstance(error, subprocess.CalledProcessError) else 1
         try:
             if isinstance(error, subprocess.CalledProcessError):
-                diagnostic = cast("str | None", error.stdout)
+                diagnostic = cast("str | None", error.stdout or error.stderr)
                 reason = (
                     diagnostic.strip().splitlines()[-1]
                     if diagnostic and diagnostic.strip()

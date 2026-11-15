@@ -227,6 +227,22 @@ rm -f "$HOME"/tpm-stale""",
         self.assertFalse(fragment.exists())
         self.assertFalse(any(call[0] == "systemd-cryptenroll" for call in self.logged_calls()))
         self.env["SECURE_BOOT"] = "true"
+        for relative in (
+            "etc/systemd/tpm2-pcr-public-key.pem",
+            "run/systemd/tpm2-pcr-public-key.pem",
+            "usr/lib/systemd/tpm2-pcr-public-key.pem",
+            "run/systemd/pcrlock.json",
+            "var/lib/systemd/pcrlock.json",
+        ):
+            policy_file = self.directory / relative
+            policy_file.parent.mkdir(parents=True, exist_ok=True)
+            policy_file.touch()
+            result = self.configure()
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("requires manual enrollment", result.stderr)
+            self.assertFalse(fragment.exists())
+            self.assertFalse(any(call[0] == "systemd-cryptenroll" for call in self.logged_calls()))
+            policy_file.unlink()
         result = self.configure()
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(
@@ -259,7 +275,8 @@ rm -f "$HOME"/tpm-stale""",
         for failure, pin, policy in (
             ("23", "false", ""),
             ("", "true", ""),
-            ("", "false", ',"tpm2-pubkey":"custom"'),
+            ("", "false", ',"tpm2_pubkey":"custom"'),
+            ("2", "false", ',"tpm2_pubkey_pcrs":[11]'),
         ):
             self.env.update(TPM_PROBE_FAILURE=failure, TPM_PIN=pin, TPM_POLICY=policy)
             result = self.configure()
@@ -1148,6 +1165,8 @@ initramfs.ETC = limine_config.ETC = etc
 initramfs.SYS = home / 'sys'
 initramfs.DEV = home / 'dev'
 initramfs.LIB = home / 'usr/lib'
+initramfs.RUN = home / 'run'
+initramfs.VAR_LIB = home / 'var/lib'
 initramfs.KEYFILE = home / 'crypto_keyfile.bin'
 limine_config.SHARE = home / 'share'
 failure = os.environ.get('FAILURE', '')
@@ -1276,6 +1295,7 @@ def test_boot_order_retries_and_stripped_privileged_environment(
     first = run_setup(env, command)
     if personal:
         assert first.returncode != 0, first.stderr
+        assert "fixture" in first.stderr
         assert events.read_text().splitlines() == ["00"]
         events.unlink()
     else:
@@ -1299,6 +1319,12 @@ def test_boot_order_retries_and_stripped_privileged_environment(
     assert result.returncode == 0, result.stderr
     if personal:
         assert events.read_text().splitlines() == ["00", "13"]
+        stub(env, "findmnt", "echo 'findmnt fixture failure' >&2; exit 24")
+        boot_id.write_text("third-boot\n")
+        failed = run_setup(env, command)
+        assert failed.returncode != 0
+        assert "findmnt fixture failure" in failed.stderr
+        assert "exit 24" in failed.stderr
     else:
         assert not events.exists()
 
