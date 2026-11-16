@@ -7,6 +7,8 @@ After=wayland-session-waitenv.service
 
 [Service]
 Type=notify
+# UWSM keeps logind session variables out of the shared user environment.
+EnvironmentFile=%t/uwsm/env_session.conf
 ExecStart=/usr/bin/noctalia
 Restart=on-failure
 
