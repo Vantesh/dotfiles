@@ -3,7 +3,7 @@
 margin_edge = 3
 margin_opposite_edge = 3
 margin_ends = 3
-thickness = 32
+thickness = 30
 font_weight = 400
 padding = 5
 radius = 10
