@@ -31,7 +31,7 @@ hl.window_rule({ match = { class = "^(org\\.kde\\.kdialog)$", title = "^(mpv pla
 -- === Opacity ===
 hl.window_rule({
   name = "tag-opaque",
-  match = { class = "^(foot|equibop|imv|[Bb]rave(-browser)?|mpv|vlc|celluloid|zoom|org\\.kde\\.kdenlive|com\\.obsproject\\.Studio|com\\.github\\.PintaProject\\.Pinta|org\\.gnome\\.NautilusPreviewer)$" },
+  match = { class = "^(foot|equibop|imv|[Bb]rave(-browser)?|mpv|vlc|celluloid|zoom|org\\.kde\\.kdenlive|com\\.obsproject\\.Studio|com\\.github\\.PintaProject\\.Pinta)$" },
   tag = "+opaque",
 })
 hl.window_rule({ name = "fx-opaque", match = { tag = "opaque" }, opaque = true })
@@ -131,7 +131,11 @@ hl.window_rule({
   center = true,
   size = { "monitor_w*0.6", "monitor_h*0.65" },
 })
-hl.window_rule({ match = { class = "^(org\\.gnome\\.Nautilus)$", initial_title = "^(Loading…|Home)$" }, float = true, center = true, size = { "monitor_w*0.8", "monitor_h*0.8" } })
+hl.window_rule({ match = { class = "^(dev\\.noctalia\\.luciole)$" }, float = true, center = true, size = { "monitor_w*0.8", "monitor_h*0.8" } })
+-- File chooser windows use host-supplied titles; keep them at the previous picker size.
+hl.window_rule({ match = { class = "^(dev\\.noctalia\\.luciole)$", title = "negative:^Luciole$" }, float = true, center = true, size = { "monitor_w*0.6", "monitor_h*0.6" } })
+-- Terminals opened from Luciole share its floating geometry.
+hl.window_rule({ match = { class = "^(dev\\.noctalia\\.luciole\\.terminal)$" }, float = true, center = true, size = { "monitor_w*0.8", "monitor_h*0.8" } })
 
 -- Desktop utilities and named terminal windows.
 hl.window_rule({ match = { title = "^(.*GParted)$" }, float = true, center = true, size = { "monitor_w*0.6", "monitor_h*0.55" } })

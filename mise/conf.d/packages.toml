@@ -30,8 +30,7 @@
 "pacman:imv" = { env = "packages" }
 "pacman:mpv" = { env = "packages" }
 "pacman:evince" = { env = "packages" }
-"pacman:nautilus" = { env = "packages" }
-"aur:nautilus-my-computer" = { env = "packages" }
+"aur:luciole-git" = { env = "packages" }
 "pacman:gvfs-mtp" = { env = "packages" }
 "pacman:libcanberra" = { env = "packages" }
 "pacman:greetd" = { env = "packages" }

@@ -29,6 +29,10 @@ output_path = "$XDG_CONFIG_HOME/atuin/themes/noctalia.toml"
 input_path = "$XDG_CONFIG_HOME/noctalia/templates/television.toml"
 output_path = "$XDG_CONFIG_HOME/television/themes/noctalia.toml"
 
+[theme.templates.user.luciole]
+input_path = "$XDG_CONFIG_HOME/noctalia/templates/luciole.toml"
+output_path = "$XDG_CONFIG_HOME/luciole/colors.toml"
+
 [theme.templates.user.obsidian]
 input_path = "obsidian/obsidian.css"
 output_path = "~/Documents/Obsidian/.obsidian/snippets/noctalia.css"
