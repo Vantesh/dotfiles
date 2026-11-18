@@ -1,5 +1,5 @@
 [theme.templates]
-builtin_ids = ["btop", "cava", "gtk3", "gtk4", "hyprland", "kitty", "kcolorscheme"]
+builtin_ids = ["btop", "cava", "gtk3", "gtk4", "hyprland", "kitty", "kcolorscheme", "luciole"]
 community_ids = ["fastfetch", "bat", "lazygit", "yazi", "spotifast", "obsidian", "zapfast", "starship", "chromium-based"]
 
 [theme.templates.user.cursors]
@@ -28,10 +28,6 @@ output_path = "$XDG_CONFIG_HOME/atuin/themes/noctalia.toml"
 [theme.templates.user.television]
 input_path = "$XDG_CONFIG_HOME/noctalia/templates/television.toml"
 output_path = "$XDG_CONFIG_HOME/television/themes/noctalia.toml"
-
-[theme.templates.user.luciole]
-input_path = "$XDG_CONFIG_HOME/noctalia/templates/luciole.toml"
-output_path = "$XDG_CONFIG_HOME/luciole/colors.toml"
 
 [theme.templates.user.obsidian]
 input_path = "obsidian/obsidian.css"
