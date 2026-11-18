@@ -42,7 +42,7 @@ def prepare_snapshot_boot(state: Path) -> None:
             request_rebuild(state)
             _ = publish_config(config, content)
     settings = {
-        "MAX_SNAPSHOT_ENTRIES": "10",
+        "MAX_SNAPSHOT_ENTRIES": "15",
         "SNAPSHOT_FORMAT_CHOICE": "8",
         "TERMINAL": "xdg-terminal-exec",
         "TERMINAL_ARG": "--title=FloatingTerm",

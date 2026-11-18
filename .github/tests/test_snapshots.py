@@ -17,10 +17,11 @@ from test_setup import env as env
 HOOK = "run_onchange_before_05_snapshots.py.tmpl"
 SETTINGS = {
     "NUMBER_CLEANUP": "yes",
-    "NUMBER_LIMIT": "10",
+    "NUMBER_LIMIT": "20",
     "TIMELINE_CREATE": "no",
+    "TIMELINE_CLEANUP": "no",
     "EMPTY_PRE_POST_CLEANUP": "yes",
-    "EMPTY_PRE_POST_MIN_AGE": "1800",
+    "EMPTY_PRE_POST_MIN_AGE": "3600",
 }
 
 
