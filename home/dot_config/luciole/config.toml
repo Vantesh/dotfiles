@@ -3,12 +3,16 @@ schema_version = 1
 [browser]
 terminal_command = "xdg-terminal-exec --app-id=dev.noctalia.luciole.terminal"
 view_mode = "grid"
-show_hidden = false
+show_hidden = true
+show_permanent_deletion = true
 show_preview = false
 show_sidebar = true
+sidebar_width = 161
 always_show_tab_bar = false
-background_opacity = 0.9
+compact_menus = false
+background_opacity = 0.85
 density = "comfortable"
+grid_icon_size = 48
 directories_first = true
 filename_truncation = "end"
 sort_by = "name"
