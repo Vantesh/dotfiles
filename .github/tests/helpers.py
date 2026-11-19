@@ -12,7 +12,13 @@ from typing import override
 ROOT = Path(__file__).resolve().parents[2]
 LIB = ROOT / "home/.chezmoitemplates/lib"
 SCRIPTS = ROOT / "home/.chezmoiscripts/linux"
+LOGIN_MANAGER = ROOT / "home/.chezmoitemplates/login-manager"
 CHEZMOI = shutil.which("chezmoi")
+
+
+def copy_login_manager(source: Path) -> None:
+    """Add the greeter templates that both display-manager hooks depend on."""
+    shutil.copytree(LOGIN_MANAGER, source / ".chezmoitemplates/login-manager", dirs_exist_ok=True)
 
 
 class ScriptCase(unittest.TestCase):

@@ -9,6 +9,10 @@
 # mise/conf.d/firewall.toml: {{ if .personal }}{{ include "../mise/conf.d/firewall.toml" | sha256sum }}{{ else }}disabled{{ end }}
 # OFFLINE: {{ if .personal }}{{ if env "OFFLINE" }}1{{ else }}0{{ end }}{{ else }}disabled{{ end }}
 # mise/conf.d/login-shell.toml: {{ include "../mise/conf.d/login-shell.toml" | sha256sum }}
+# greetd config: {{ include ".chezmoitemplates/login-manager/config.toml" | sha256sum }}
+# greetd PAM: {{ include ".chezmoitemplates/login-manager/greetd.pam" | sha256sum }}
+# greeter settings: {{ include ".chezmoitemplates/login-manager/greeter.toml" | sha256sum }}
+# personal greeter output: {{ if .personal }}{{ include ".chezmoitemplates/login-manager/greeter-output.toml" | sha256sum }}{{ else }}disabled{{ end }}
 """Let Mise converge system/user services and Fish for the selected profile."""
 
 import os

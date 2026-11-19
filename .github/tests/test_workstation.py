@@ -5,7 +5,7 @@ import shutil
 from pathlib import Path
 
 import pytest
-from helpers import CHEZMOI, ROOT, SCRIPTS
+from helpers import CHEZMOI, ROOT, SCRIPTS, copy_login_manager
 from test_setup import calls, render_python, run_setup, stub
 from test_setup import env as env
 
@@ -68,6 +68,7 @@ def test_chezmoi_applies_workstation_tasks_in_both_profiles(
     scripts.mkdir(parents=True)
     shutil.copytree(ROOT / "mise", repository / "mise")
     shutil.copytree(ROOT / "home/.chezmoitemplates/lib", templates / "lib")
+    copy_login_manager(repository / "home")
     # This is the real apply path, including its actual fixed Fish path check.
     shutil.copy(SCRIPTS / HOOK, scripts / HOOK)
     config = tmp_path / "chezmoi.json"
@@ -119,6 +120,32 @@ def test_workstation_tasks_reject_root(workstation: dict[str, str]) -> None:
 
 
 @pytest.mark.parametrize("personal", [False, True], ids=["nonpersonal", "personal"])
+def test_greeter_changes_rerun_service_convergence(
+    env: dict[str, str], tmp_path: Path, personal: bool
+) -> None:
+    source = tmp_path / "source/home"
+    copy_login_manager(source)
+    shutil.copytree(ROOT / "mise", source.parent / "mise")
+    scripts = source / ".chezmoiscripts/linux"
+    scripts.mkdir(parents=True)
+    shutil.copy(SCRIPTS / HOOK, scripts / HOOK)
+
+    def render() -> str:
+        return render_python(env, HOOK, personal=personal, source=source).read_text()
+
+    before = render()
+    templates = source / ".chezmoitemplates/login-manager"
+    names = ["config.toml", "greetd.pam", "greeter.toml"]
+    if personal:
+        names.append("greeter-output.toml")
+    for name in names:
+        original = (templates / name).read_text()
+        (templates / name).write_text(original + "\n# fixture change\n")
+        assert render() != before, name
+        (templates / name).write_text(original)
+
+
+@pytest.mark.parametrize("personal", [False, True], ids=["nonpersonal", "personal"])
 def test_locate_remains_personal_and_preserves_unrelated_settings(
     workstation: dict[str, str], tmp_path: Path, personal: bool
 ) -> None:
@@ -127,6 +154,7 @@ def test_locate_remains_personal_and_preserves_unrelated_settings(
     scripts.mkdir(parents=True)
     shutil.copytree(ROOT / "mise", source.parent / "mise")
     shutil.copytree(ROOT / "home/.chezmoitemplates/lib", source / ".chezmoitemplates/lib")
+    copy_login_manager(source)
     updatedb = tmp_path / "etc/updatedb.conf"
     updatedb.parent.mkdir()
     updatedb.write_text('# preserve\nPRUNENAMES=".git cache"\nOTHER="keep"\n')

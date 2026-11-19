@@ -9,7 +9,7 @@ import subprocess
 from pathlib import Path
 
 import pytest
-from helpers import CHEZMOI, ROOT, SCRIPTS
+from helpers import CHEZMOI, ROOT, SCRIPTS, copy_login_manager
 from test_setup import PYTHON, calls, render_python, run_setup, stub
 from test_setup import env as env
 from test_workstation import workstation as workstation
@@ -53,6 +53,7 @@ def test_chezmoi_registers_warp_after_services_without_connecting(
     scripts.mkdir(parents=True)
     shutil.copytree(ROOT / "mise", repository / "mise")
     shutil.copytree(ROOT / "home/.chezmoitemplates/lib", source / ".chezmoitemplates/lib")
+    copy_login_manager(source)
     for name in ("run_onchange_after_04_services.py.tmpl", WARP):
         shutil.copy(SCRIPTS / name, scripts / name)
     config = tmp_path / "chezmoi.json"
