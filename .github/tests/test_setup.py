@@ -258,7 +258,7 @@ esac""",
         """case "$*" in
 '--env packages bootstrap packages status --json')
     echo '{"pacman":{"available":true,"packages":[{"state":"missing"}]}}' ;;
-'--env packages bootstrap packages apply --yes --quiet'|'--quiet --env  bootstrap --only services,user --yes') exit 0 ;;
+'--env packages bootstrap packages apply --yes --quiet'|'--quiet --env  bootstrap --only services,user,files --yes') exit 0 ;;
 *) exit 97 ;;
 esac""",
         log=True,
@@ -342,7 +342,7 @@ esac""",
     assert [call for call in observed if call[0] == "mise"] == [
         ["mise", "--env", "packages", "bootstrap", "packages", "status", "--json"],
         ["mise", "--env", "packages", "bootstrap", "packages", "apply", "--yes", "--quiet"],
-        ["mise", "--quiet", "--env", "", "bootstrap", "--only", "services,user", "--yes"],
+        ["mise", "--quiet", "--env", "", "bootstrap", "--only", "services,user,files", "--yes"],
     ]
     assert [call[1:] for call in observed if call[0] == "warp-cli"] == [
         ["--accept-tos", "registration", "show"],

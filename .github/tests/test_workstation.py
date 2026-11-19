@@ -102,7 +102,7 @@ def test_chezmoi_applies_workstation_tasks_in_both_profiles(
         "personal" if personal else "",
         "bootstrap",
         "--only",
-        "services,firewall,user" if personal else "services,user",
+        "services,firewall,user,files" if personal else "services,user,files",
         "--yes",
     ]
     recorded = calls(workstation)

@@ -10,6 +10,7 @@ enabled = [
 [plugin_settings."levi/warp"]
 panel_layer = "overlay"
 panel_placement = "floating"
+manage_daemon = true
 
 
 [plugin_settings."vantesh/topgrade-updater"]

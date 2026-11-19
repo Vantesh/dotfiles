@@ -9,11 +9,14 @@
 # mise/conf.d/firewall.toml: {{ if .personal }}{{ include "../mise/conf.d/firewall.toml" | sha256sum }}{{ else }}disabled{{ end }}
 # OFFLINE: {{ if .personal }}{{ if env "OFFLINE" }}1{{ else }}0{{ end }}{{ else }}disabled{{ end }}
 # mise/conf.d/login-shell.toml: {{ include "../mise/conf.d/login-shell.toml" | sha256sum }}
+# mise/conf.d/noctalia.toml: {{ include "../mise/conf.d/noctalia.toml" | sha256sum }}
+# mise/conf.d/pacman-hooks.toml: {{ include "../mise/conf.d/pacman-hooks.toml" | sha256sum }}
+# mise/conf.d/reflector.toml: {{ include "../mise/conf.d/reflector.toml" | sha256sum }}
 # greetd config: {{ include ".chezmoitemplates/login-manager/config.toml" | sha256sum }}
 # greetd PAM: {{ include ".chezmoitemplates/login-manager/greetd.pam" | sha256sum }}
 # greeter settings: {{ include ".chezmoitemplates/login-manager/greeter.toml" | sha256sum }}
 # personal greeter output: {{ if .personal }}{{ include ".chezmoitemplates/login-manager/greeter-output.toml" | sha256sum }}{{ else }}disabled{{ end }}
-"""Let Mise converge system/user services and Fish for the selected profile."""
+"""Publish Mise system files, then converge system/user services and Fish."""
 
 import os
 import re
@@ -158,7 +161,7 @@ def main() -> int:
                 "personal" if PERSONAL else "",
                 "bootstrap",
                 "--only",
-                "services,firewall,user" if PERSONAL else "services,user",
+                "services,firewall,user,files" if PERSONAL else "services,user,files",
                 "--yes",
             ],
             cwd=working_tree,
