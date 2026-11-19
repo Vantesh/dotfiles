@@ -238,12 +238,6 @@ def test_nonpersonal_apply_is_isolated(env: dict[str, str], tmp_path: Path) -> N
     stub(env, "pacman-conf", '[ "$*" = --repo-list ] || exit 97; echo chaotic-aur')
     stub(
         env,
-        "systemctl",
-        '[ "$*" = "--user is-enabled noctalia.service" ] || exit 97; echo enabled',
-        log=True,
-    )
-    stub(
-        env,
         "sudo",
         """case "$*" in
     --validate|'--non-interactive true'|'pacman --sync --refresh --sysupgrade --noconfirm') exit 0 ;;

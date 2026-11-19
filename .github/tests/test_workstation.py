@@ -41,17 +41,6 @@ def workstation(env: dict[str, str]) -> dict[str, str]:
 exit "${MISE_STATUS:-0}"''',
         log=True,
     )
-    stub(
-        env,
-        "systemctl",
-        """case "$*" in
-    '--user is-enabled noctalia.service')
-        if [ -f "$HOME/noctalia-enabled" ]; then echo enabled; else echo disabled; exit 1; fi ;;
-    '--user enable noctalia.service') touch "$HOME/noctalia-enabled" ;;
-    *) exit 97 ;;
-esac""",
-        log=True,
-    )
     for command in ("rbw", "sbctl", "busctl", "ufw", "chsh", "updatedb"):
         stub(env, command, "exit 97", log=True)
     stub(
@@ -116,11 +105,7 @@ def test_chezmoi_applies_workstation_tasks_in_both_profiles(
         "--yes",
     ]
     recorded = calls(workstation)
-    assert recorded == [
-        expected,
-        ["systemctl", "--user", "is-enabled", "noctalia.service"],
-        ["systemctl", "--user", "enable", "noctalia.service"],
-    ]
+    assert recorded == [expected]
 
 
 def test_workstation_tasks_reject_root(workstation: dict[str, str]) -> None:
@@ -181,9 +166,6 @@ esac""",
     expected = ".git cache .snapshots" if personal else ".git cache"
     assert updatedb.read_text() == f'# preserve\nPRUNENAMES="{expected}"\nOTHER="keep"\n'
     recorded = calls(workstation)
-    assert [call for call in recorded if call[:3] == ["systemctl", "--user", "enable"]] == [
-        ["systemctl", "--user", "enable", "noctalia.service"]
-    ]
     assert any(call[0] == "sudo" for call in recorded) == personal
     assert not any(call[0] == "updatedb" for call in recorded)
     if personal:

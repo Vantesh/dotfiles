@@ -56,22 +56,6 @@ def exclude_snapshots_from_locate() -> None:
             raise
 
 
-def enable_noctalia() -> None:
-    """Enable Noctalia for the next login without starting or stopping the running shell.
-
-    Mise always enforces a service state, so it cannot manage this unit without
-    stopping a live session.
-    """
-    unit = "noctalia.service"
-    state = subprocess.run(
-        ["systemctl", "--user", "is-enabled", unit], capture_output=True, text=True, check=False
-    )
-    if state.stdout.strip() in ("enabled", "enabled-runtime", "static", "alias"):
-        return
-    _ = subprocess.run(["systemctl", "--user", "enable", unit], check=True)
-    logger.info("Enabled {} for the next login.", unit)
-
-
 def terminate(_signum: int, _frame: object) -> None:
     raise SystemExit(143)
 
@@ -177,7 +161,6 @@ def main() -> int:
             env=env,
             check=True,
         )
-        enable_noctalia()
         if PERSONAL:
             avatar = Path.home() / ".local/share/avatars/profile.png"
             if avatar.is_file() and os.access(avatar, os.R_OK) and avatar.stat().st_size:
