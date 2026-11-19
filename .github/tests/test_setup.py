@@ -238,12 +238,6 @@ def test_nonpersonal_apply_is_isolated(env: dict[str, str], tmp_path: Path) -> N
     stub(env, "pacman-conf", '[ "$*" = --repo-list ] || exit 97; echo chaotic-aur')
     stub(
         env,
-        "systemctl",
-        '[ "$*" = "--user is-enabled noctalia.service" ] || exit 97; echo enabled',
-        log=True,
-    )
-    stub(
-        env,
         "sudo",
         """case "$*" in
     --validate|'--non-interactive true'|'pacman --sync --refresh --sysupgrade --noconfirm') exit 0 ;;
@@ -264,7 +258,7 @@ esac""",
         """case "$*" in
 '--env packages bootstrap packages status --json')
     echo '{"pacman":{"available":true,"packages":[{"state":"missing"}]}}' ;;
-'--env packages bootstrap packages apply --yes --quiet'|'--quiet --env  bootstrap --only services,user --yes') exit 0 ;;
+'--env packages bootstrap packages apply --yes --quiet'|'--quiet --env  bootstrap --only services,user,files --yes') exit 0 ;;
 *) exit 97 ;;
 esac""",
         log=True,
@@ -348,7 +342,7 @@ esac""",
     assert [call for call in observed if call[0] == "mise"] == [
         ["mise", "--env", "packages", "bootstrap", "packages", "status", "--json"],
         ["mise", "--env", "packages", "bootstrap", "packages", "apply", "--yes", "--quiet"],
-        ["mise", "--quiet", "--env", "", "bootstrap", "--only", "services,user", "--yes"],
+        ["mise", "--quiet", "--env", "", "bootstrap", "--only", "services,user,files", "--yes"],
     ]
     assert [call[1:] for call in observed if call[0] == "warp-cli"] == [
         ["--accept-tos", "registration", "show"],

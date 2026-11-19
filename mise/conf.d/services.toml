@@ -31,6 +31,10 @@ state = "stopped"
 enabled = false
 masked = true
 
+[bootstrap.services."greetd.service"]
+state = "unchanged"
+enabled = true
+
 # Device registration is common; setup never connects the tunnel.
 [bootstrap.services."warp-svc.service"]
 state = "running"
@@ -40,29 +44,28 @@ enabled = true
 scope = "user"
 state = "running"
 enabled = true
-masked = false
 
 [bootstrap.services."gnome-keyring-daemon.service"]
 scope = "user"
 state = "running"
 enabled = true
-masked = false
 
 [bootstrap.services."mpris-proxy.service"]
 scope = "user"
 state = "running"
 enabled = true
-masked = false
 
+[bootstrap.services."noctalia.service"]
+scope = "user"
+state = "unchanged"
+enabled = true
 
 [bootstrap.services."udiskie.service"]
 scope = "user"
 state = "running"
 enabled = true
-masked = false
 
 [bootstrap.services."spotifast-suspend-inhibit.service"]
 scope = "user"
 state = "running"
 enabled = true
-masked = false

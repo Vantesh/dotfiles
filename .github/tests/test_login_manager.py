@@ -129,11 +129,6 @@ if args[0] == "is-enabled":
 if args[0] == "--runtime": args.pop(0)
 if args[0] == "disable":
     units[name] = "disabled"
-elif args[0] == "enable" and name == "greetd.service":
-    if os.environ.get("FAIL_ENABLE"):
-        print("display-manager.service already points to unexpected.service", file=sys.stderr)
-        sys.exit(23)
-    units[name] = "enabled"
 else:
     sys.exit(97)
 path.write_text(json.dumps(units))
@@ -220,7 +215,7 @@ def test_greeter_configs_profiles_and_next_boot_only_transition(
     assert json.loads((tmp_path / "units.json").read_text()) == {
         "sddm.service": "disabled",
         "ly@tty2.service": "disabled",
-        "greetd.service": "enabled",
+        "greetd.service": "disabled",
     }
     assert [call for call in calls(login) if call[0] == "systemctl" and "disable" in call] == [
         ["systemctl", "disable", "sddm.service"],
@@ -286,30 +281,25 @@ def test_installed_units_allow_fresh_setup_and_ignore_aliases(
     command = chezmoi_command(login, False)
     result = run_setup(login, command)
     assert result.returncode == 0, result.stderr
-    assert json.loads((tmp_path / "units.json").read_text())["greetd.service"] == "enabled"
+    assert (
+        json.loads((tmp_path / "units.json").read_text())["greetd.service"]
+        == units["greetd.service"]
+    )
     assert [
         call for call in calls(login) if call[0] == "systemctl" and "disable" in call
     ] == disabled
 
 
-@pytest.mark.parametrize(
-    "failure,diagnostic",
-    [
-        ("FAIL_ENABLE", "display-manager.service already points to unexpected.service"),
-        ("FAIL_DISCOVERY", "Failed to list unit files: Permission denied"),
-    ],
-)
 def test_systemctl_failure_preserves_exit_and_is_retried(
-    login: dict[str, str], tmp_path: Path, failure: str, diagnostic: str
+    login: dict[str, str], tmp_path: Path
 ) -> None:
     command = chezmoi_command(login, False)
-    login[failure] = "1"
+    login["FAIL_DISCOVERY"] = "1"
     failed = run_setup(login, command)
     assert failed.returncode != 0
     assert "exit 23" in failed.stderr
-    assert diagnostic in failed.stderr
-    assert "greetd is enabled" not in failed.stderr
-    login.pop(failure)
+    assert "Failed to list unit files: Permission denied" in failed.stderr
+    login.pop("FAIL_DISCOVERY")
     result = run_setup(login, command)
     assert result.returncode == 0, result.stderr
-    assert json.loads((tmp_path / "units.json").read_text())["greetd.service"] == "enabled"
+    assert json.loads((tmp_path / "units.json").read_text())["greetd.service"] == "disabled"

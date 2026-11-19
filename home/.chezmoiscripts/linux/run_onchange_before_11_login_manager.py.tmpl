@@ -200,17 +200,6 @@ def configure_login(source_dir: Path, personal: str, username: str) -> None:
             if state not in ("disabled", "static", "indirect", "enabled-runtime"):
                 result.check_returncode()
                 raise ValueError(f"Unexpected enablement after disabling {name}: {state}")
-    current = subprocess.run(
-        ["systemctl", "is-enabled", "greetd.service"], capture_output=True, text=True, check=False
-    )
-    if current.stdout.strip() != "enabled":
-        _ = subprocess.run(
-            ["systemctl", "enable", "greetd.service"], check=True, capture_output=True, text=True
-        )
-        _ = subprocess.run(["systemctl", "is-enabled", "--quiet", "greetd.service"], check=True)
-        print(
-            "greetd is enabled for the next boot; running sessions are unchanged. Reboot deliberately when ready."
-        )
 
 
 def terminate(_signum: int, _frame: object) -> None:
