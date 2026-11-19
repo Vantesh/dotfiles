@@ -148,7 +148,7 @@ hl.window_rule({
   match = { class = "^dev\\.noctalia\\.Noctalia$" },
   float = true,
   center = true,
-  size = { 1080, 920 },
+  size = { "monitor_w*0.5625", "monitor_h*0.85" },
 })
 
 -- === Authentication and password-manager windows ===

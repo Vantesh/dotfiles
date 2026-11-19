@@ -7,4 +7,3 @@ enabled = true
 scope = "user"
 state = "running"
 enabled = true
-masked = false

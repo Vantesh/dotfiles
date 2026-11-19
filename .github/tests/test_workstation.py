@@ -5,7 +5,7 @@ import shutil
 from pathlib import Path
 
 import pytest
-from helpers import CHEZMOI, ROOT, SCRIPTS
+from helpers import CHEZMOI, ROOT, SCRIPTS, copy_login_manager
 from test_setup import calls, render_python, run_setup, stub
 from test_setup import env as env
 
@@ -41,17 +41,6 @@ def workstation(env: dict[str, str]) -> dict[str, str]:
 exit "${MISE_STATUS:-0}"''',
         log=True,
     )
-    stub(
-        env,
-        "systemctl",
-        """case "$*" in
-    '--user is-enabled noctalia.service')
-        if [ -f "$HOME/noctalia-enabled" ]; then echo enabled; else echo disabled; exit 1; fi ;;
-    '--user enable noctalia.service') touch "$HOME/noctalia-enabled" ;;
-    *) exit 97 ;;
-esac""",
-        log=True,
-    )
     for command in ("rbw", "sbctl", "busctl", "ufw", "chsh", "updatedb"):
         stub(env, command, "exit 97", log=True)
     stub(
@@ -79,6 +68,7 @@ def test_chezmoi_applies_workstation_tasks_in_both_profiles(
     scripts.mkdir(parents=True)
     shutil.copytree(ROOT / "mise", repository / "mise")
     shutil.copytree(ROOT / "home/.chezmoitemplates/lib", templates / "lib")
+    copy_login_manager(repository / "home")
     # This is the real apply path, including its actual fixed Fish path check.
     shutil.copy(SCRIPTS / HOOK, scripts / HOOK)
     config = tmp_path / "chezmoi.json"
@@ -112,15 +102,11 @@ def test_chezmoi_applies_workstation_tasks_in_both_profiles(
         "personal" if personal else "",
         "bootstrap",
         "--only",
-        "services,firewall,user" if personal else "services,user",
+        "services,firewall,user,files" if personal else "services,user,files",
         "--yes",
     ]
     recorded = calls(workstation)
-    assert recorded == [
-        expected,
-        ["systemctl", "--user", "is-enabled", "noctalia.service"],
-        ["systemctl", "--user", "enable", "noctalia.service"],
-    ]
+    assert recorded == [expected]
 
 
 def test_workstation_tasks_reject_root(workstation: dict[str, str]) -> None:
@@ -134,6 +120,32 @@ def test_workstation_tasks_reject_root(workstation: dict[str, str]) -> None:
 
 
 @pytest.mark.parametrize("personal", [False, True], ids=["nonpersonal", "personal"])
+def test_greeter_changes_rerun_service_convergence(
+    env: dict[str, str], tmp_path: Path, personal: bool
+) -> None:
+    source = tmp_path / "source/home"
+    copy_login_manager(source)
+    shutil.copytree(ROOT / "mise", source.parent / "mise")
+    scripts = source / ".chezmoiscripts/linux"
+    scripts.mkdir(parents=True)
+    shutil.copy(SCRIPTS / HOOK, scripts / HOOK)
+
+    def render() -> str:
+        return render_python(env, HOOK, personal=personal, source=source).read_text()
+
+    before = render()
+    templates = source / ".chezmoitemplates/login-manager"
+    names = ["config.toml", "greetd.pam", "greeter.toml"]
+    if personal:
+        names.append("greeter-output.toml")
+    for name in names:
+        original = (templates / name).read_text()
+        (templates / name).write_text(original + "\n# fixture change\n")
+        assert render() != before, name
+        (templates / name).write_text(original)
+
+
+@pytest.mark.parametrize("personal", [False, True], ids=["nonpersonal", "personal"])
 def test_locate_remains_personal_and_preserves_unrelated_settings(
     workstation: dict[str, str], tmp_path: Path, personal: bool
 ) -> None:
@@ -142,6 +154,7 @@ def test_locate_remains_personal_and_preserves_unrelated_settings(
     scripts.mkdir(parents=True)
     shutil.copytree(ROOT / "mise", source.parent / "mise")
     shutil.copytree(ROOT / "home/.chezmoitemplates/lib", source / ".chezmoitemplates/lib")
+    copy_login_manager(source)
     updatedb = tmp_path / "etc/updatedb.conf"
     updatedb.parent.mkdir()
     updatedb.write_text('# preserve\nPRUNENAMES=".git cache"\nOTHER="keep"\n')
@@ -181,9 +194,6 @@ esac""",
     expected = ".git cache .snapshots" if personal else ".git cache"
     assert updatedb.read_text() == f'# preserve\nPRUNENAMES="{expected}"\nOTHER="keep"\n'
     recorded = calls(workstation)
-    assert [call for call in recorded if call[:3] == ["systemctl", "--user", "enable"]] == [
-        ["systemctl", "--user", "enable", "noctalia.service"]
-    ]
     assert any(call[0] == "sudo" for call in recorded) == personal
     assert not any(call[0] == "updatedb" for call in recorded)
     if personal:
