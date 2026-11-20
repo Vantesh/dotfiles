@@ -114,8 +114,7 @@ def configure_gtk(source_dir: Path) -> None:
 
 def colloid_is_complete(icons: Path) -> bool:
     return all(
-        (icons / name / "index.theme").is_file()
-        and (icons / name / "icon-theme.cache").is_file()
+        (icons / name / "index.theme").is_file() and (icons / name / "icon-theme.cache").is_file()
         for name in ("Colloid", "Colloid-Light", "Colloid-Dark")
     )
 
@@ -148,7 +147,16 @@ def install_colloid_and_xcursors() -> None:
         work = Path(directory)
         logger.info("Installing Colloid icon themes system-wide.")
         _ = subprocess.run(
-            ["git", "clone", "--depth", "1", "--single-branch", "--", COLLOID_REPO, str(work / "colloid")],
+            [
+                "git",
+                "clone",
+                "--depth",
+                "1",
+                "--single-branch",
+                "--",
+                COLLOID_REPO,
+                str(work / "colloid"),
+            ],
             check=True,
         )
         run_logged(
