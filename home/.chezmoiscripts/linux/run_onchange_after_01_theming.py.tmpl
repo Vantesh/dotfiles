@@ -23,10 +23,10 @@ FONT_NAME = {{ cat .font.ui.name .font.ui.size | toJson }}
 ROOT_CONFIG = Path("/root/.config")
 GTK_THEME = "adw-gtk3-dark"
 GTK_COLOR_SCHEME = "prefer-dark"
-CURSOR_THEME = "MacTahoe-dark" if GTK_COLOR_SCHEME == "prefer-dark" else "MacTahoe-light"
+CURSOR_THEME = "MacTahoe-dark-cursors" if GTK_COLOR_SCHEME == "prefer-dark" else "MacTahoe-cursors"
 CURSOR_SIZE = "24"
-MACTAHOE_REPO = "https://github.com/vinceliuice/MacTahoe-icon-theme.git"
-MACTAHOE_VARIANTS = ("MacTahoe", "MacTahoe-light", "MacTahoe-dark")
+COLLOID_REPO = "https://github.com/vinceliuice/Colloid-icon-theme.git"
+MACTAHOE_CURSORS_REPO = "https://github.com/Vantesh/mactahoe-hyprcursor"
 SF_PRO_URL = "https://devimages-cdn.apple.com/design/resources/download/SF-Pro.dmg"
 
 
@@ -112,77 +112,97 @@ def configure_gtk(source_dir: Path) -> None:
         logger.info(message)
 
 
-def mactahoe_is_complete(icons: Path) -> bool:
+def colloid_is_complete(icons: Path) -> bool:
     return all(
         (icons / name / "index.theme").is_file()
         and (icons / name / "icon-theme.cache").is_file()
-        and (icons / name / "apps").is_dir()
-        and (icons / name / "cursors").is_dir()
-        for name in MACTAHOE_VARIANTS
+        for name in ("Colloid", "Colloid-Light", "Colloid-Dark")
     )
 
 
-def install_mactahoe_icons() -> None:
+def xcursor_is_complete(icons: Path) -> bool:
+    return all((icons / name).is_dir() for name in ("MacTahoe-cursors", "MacTahoe-dark-cursors"))
+
+
+def install_colloid_and_xcursors() -> None:
     from lib.provision_logging import run_logged
 
-    icons = Path(os.environ.get("XDG_DATA_HOME") or Path.home() / ".local/share") / "icons"
+    system_icons = Path("/usr/share/icons")
     completion = (
         Path(os.environ.get("XDG_STATE_HOME") or Path.home() / ".local/state")
-        / "chezmoi/mactahoe-installed"
+        / "chezmoi/desktop-themes-installed"
     )
     if os.environ.get("OFFLINE"):
         return
     if (
         completion.is_file()
-        and completion.read_text() == MACTAHOE_REPO + "\n"
-        and mactahoe_is_complete(icons)
+        and completion.read_text() == COLLOID_REPO + "\n" + MACTAHOE_CURSORS_REPO + "\n"
+        and colloid_is_complete(system_icons)
+        and xcursor_is_complete(system_icons)
     ):
         return
-    for command in ("git", "gtk-update-icon-cache", "bash"):
+    for command in ("git", "gtk-update-icon-cache", "bash", "curl", "tar"):
         if shutil.which(command) is None:
-            raise FileNotFoundError(f"Required MacTahoe command missing: {command}")
-    completion.unlink(missing_ok=True)
-    # Upstream contains unquoted paths. Both clone and destination alias must
-    # remain space-free, even with a custom TMPDIR or XDG data directory.
-    with tempfile.TemporaryDirectory(prefix="chezmoi-mactahoe-", dir="/tmp") as directory:
+            raise FileNotFoundError(f"Required desktop theme command missing: {command}")
+    with tempfile.TemporaryDirectory(prefix="chezmoi-desktop-themes-", dir="/tmp") as directory:
         work = Path(directory)
-        icons.mkdir(parents=True, exist_ok=True)
-        (work / "icons").symlink_to(icons, target_is_directory=True)
-        logger.info("Installing MacTahoe icon themes.")
+        logger.info("Installing Colloid icon themes system-wide.")
         _ = subprocess.run(
-            [
-                "git",
-                "-c",
-                "core.symlinks=true",
-                "clone",
-                "--depth",
-                "1",
-                "--single-branch",
-                "--",
-                MACTAHOE_REPO,
-                str(work / "source"),
-            ],
+            ["git", "clone", "--depth", "1", "--single-branch", "--", COLLOID_REPO, str(work / "colloid")],
             check=True,
         )
         run_logged(
-            ["bash", str(work / "source/install.sh"), "--dest", str(work / "icons")],
-            "Install MacTahoe icon themes",
+            ["sudo", "bash", str(work / "colloid/install.sh"), "--dest", "/usr/share/icons"],
+            "Install Colloid icon themes",
         )
-        # A failed/partial upstream install must remain eligible for retry.
-        if not mactahoe_is_complete(icons):
-            raise ValueError(
-                f"MacTahoe installation is incomplete; verify default/light/dark themes in {icons}"
+
+        for asset, name in (
+            ("MacTahoe-cursors.tar.gz", "MacTahoe-cursors"),
+            ("MacTahoe-dark-cursors.tar.gz", "MacTahoe-dark-cursors"),
+        ):
+            archive = work / asset
+            _ = subprocess.run(
+                [
+                    "curl",
+                    "--fail",
+                    "--location",
+                    "--retry",
+                    "3",
+                    "--output",
+                    str(archive),
+                    f"https://github.com/Vantesh/mactahoe-hyprcursor/releases/latest/download/{asset}",
+                ],
+                check=True,
             )
+            extract = work / name
+            extract.mkdir()
+            run_logged(
+                ["tar", "--extract", "--gzip", "--file", str(archive), "--directory", str(extract)],
+                f"Extract {name} Xcursor theme",
+            )
+            run_logged(
+                ["sudo", "mkdir", "-p", "/usr/share/icons"],
+                f"Prepare /usr/share/icons for {name}",
+            )
+            run_logged(
+                ["sudo", "cp", "-a", str(extract), f"/usr/share/icons/{name}"],
+                f"Install {name} Xcursor theme system-wide",
+            )
+
+        if not colloid_is_complete(system_icons):
+            raise ValueError(f"Colloid installation is incomplete; verify themes in {system_icons}")
+        if not xcursor_is_complete(system_icons):
+            raise ValueError(f"Xcursor installation is incomplete; verify themes in {system_icons}")
         completion.parent.mkdir(parents=True, exist_ok=True)
         with tempfile.NamedTemporaryFile(mode="w", dir=completion.parent, delete=False) as stage:
             stage_path = Path(stage.name)
             try:
-                _ = stage.write(MACTAHOE_REPO + "\n")
+                _ = stage.write(COLLOID_REPO + "\n" + MACTAHOE_CURSORS_REPO + "\n")
                 stage.flush()
                 os.replace(stage_path, completion)
             finally:
                 stage_path.unlink(missing_ok=True)
-    logger.info("Installed the default MacTahoe themes in {}.", icons)
+    logger.info("Installed Colloid and MacTahoe Xcursor themes in {}.", system_icons)
 
 
 def sf_pro_is_complete(fonts: Path, manifest: Path) -> bool:
@@ -357,7 +377,7 @@ def main() -> int:
         if os.geteuid() == 0:
             raise ValueError("Run desktop provisioning as the regular account.")
         configure_gtk(source_dir)
-        install_mactahoe_icons()
+        install_colloid_and_xcursors()
         install_sf_pro_text()
         return 0
     except (OSError, ValueError, subprocess.CalledProcessError) as error:

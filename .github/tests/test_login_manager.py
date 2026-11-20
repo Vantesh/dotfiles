@@ -193,6 +193,7 @@ def test_greeter_configs_profiles_and_next_boot_only_transition(
         "password_style": "random",
         "scheme_selector_position": "hidden",
     }
+    assert settings["cursor"] == {"theme": "MacTahoe-dark-cursors", "size": 24}
     assert settings["idle"] == {"timeout": 600}
     assert ("output" in settings) == (personal and matching)
     if personal and matching:
