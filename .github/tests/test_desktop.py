@@ -124,9 +124,10 @@ def desktop_command(tmp_path: Path, personal: bool) -> list[str]:
     text = (SCRIPTS / HOOK).read_text()
     text = text.replace('Path("/root/.config")', f"Path({str(tmp_path / 'root-config')!r})")
     text = text.replace('Path("/usr/share/icons")', f"Path({str(tmp_path / 'usr-share-icons')!r})")
-    text = text.replace('"/usr/share/icons"', repr(str(tmp_path / 'usr-share-icons')))
-    text = text.replace('f"/usr/share/icons/{name}"', 'f"' + str(tmp_path / 'usr-share-icons') + '/{name}"')
-    text = text.replace('"/usr/share/icons"', repr(str(tmp_path / 'usr-share-icons')))
+    text = text.replace('"/usr/share/icons"', repr(str(tmp_path / "usr-share-icons")))
+    text = text.replace(
+        'f"/usr/share/icons/{name}"', 'f"' + str(tmp_path / "usr-share-icons") + '/{name}"'
+    )
     text = text.replace("if os.geteuid() != 0:", "if False:")
     (scripts / HOOK).write_text(text)
     shutil.copytree(ROOT / "home/.chezmoitemplates/lib", source / ".chezmoitemplates/lib")
