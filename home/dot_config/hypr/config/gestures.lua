@@ -1,3 +1,4 @@
+local H = require("helpers")
 local show_desktop = require("scripts.show_desktop")
 local toggle_float = require("scripts.toggle_float")
 
@@ -22,16 +23,15 @@ end
 
 update_horizontal_gesture()
 
-for _, event in ipairs({
+H.on_events({
   "hyprland.start", "config.reloaded", "config.props_refreshed",
   "monitor.focused", "workspace.active", "workspace.special_active", "window.active",
-}) do
-  hl.on(event, update_horizontal_gesture)
-end
+}, update_horizontal_gesture)
+
 hl.gesture({ fingers = 4, direction = "down", action = show_desktop.toggle })
 hl.gesture({ fingers = 3, direction = "pinch", mods = "CTRL", action = toggle_float.toggle })
 hl.gesture({ fingers = 3, direction = "swipe", mods = "ALT", action = "resize" })
 hl.gesture({ fingers = 3, direction = "swipe", mods = "CTRL", action = "move" })
 hl.gesture({ fingers = 4, direction = "up", action = function()
-  hl.exec_cmd("noctalia msg window-switcher")
+  hl.exec_cmd(H.ipc("window-switcher"))
 end })

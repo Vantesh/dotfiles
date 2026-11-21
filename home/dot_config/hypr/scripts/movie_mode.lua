@@ -1,10 +1,10 @@
 local M = {}
-local apps = require("config.apps")
+local H = require("helpers")
 local monitors = require("config.monitors")
 local wake_settings
 
 local function notify(message)
-  hl.exec_cmd(apps.launcher .. ' -- notify-send --app-name=Hyprland --expire-time=3000 "Movie mode" "' .. message .. '"')
+  H.notify("Movie mode", message)
 end
 
 local function suspend_input_wake()
@@ -50,14 +50,7 @@ function M.toggle()
 
   hl.dispatch(hl.dsp.dpms({ monitor = external, action = "on" }))
   hl.dispatch(hl.dsp.focus({ monitor = external }))
-  if type(external.x) == "number" and type(external.y) == "number"
-    and type(external.width) == "number" and type(external.height) == "number"
-    and type(external.scale) == "number" and external.scale > 0 then
-    hl.dispatch(hl.dsp.cursor.move({
-      x = external.x + external.width / external.scale / 2,
-      y = external.y + external.height / external.scale / 2,
-    }))
-  end
+  H.center_cursor(external)
   suspend_input_wake()
   hl.dispatch(hl.dsp.dpms({ monitor = laptop, action = "off" }))
   notify("On: laptop display off, external monitor focused")

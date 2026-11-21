@@ -1,5 +1,6 @@
 {{ if .personal -}}
 local apps = require("config.apps")
+local H = require("helpers")
 local monitors = require("config.monitors")
 local show_desktop = require("scripts.show_desktop")
 
@@ -54,9 +55,9 @@ hl.workspace_rule({
 })
 
 {{ if .personal -}}
-local spotify_rule = hl.window_rule({
-  name = "spotify-workspace",
-  match = { class = "^([Ss]potify|[Ss]potifast|[Ss]poticast)$" },
+local music_rule = hl.window_rule({
+  name = "music-workspace",
+  match = { class = "^spotifast$" },
   workspace = tostring(LAPTOP_WORKSPACE) .. " silent",
   no_initial_focus = true,
   enabled = dual_display,
@@ -71,8 +72,8 @@ local function update_rules(connected)
     rule:set_enabled(connected)
   end
 
-  if spotify_rule then
-    spotify_rule:set_enabled(connected)
+  if music_rule then
+    music_rule:set_enabled(connected)
   end
 end
 
@@ -101,15 +102,12 @@ local function move_workspaces(external_monitor, laptop_monitor)
   end
 end
 
-local function move_spotify()
+local function move_music()
   for _, window in ipairs(hl.get_windows() or {}) do
-    local is_spotify = type(window.class) == "string"
-      and (window.class:match("^[Ss]potify$")
-              or window.class:match("^[Ss]potifast$")
-              or window.class:match("^[Ss]poticast$"))
+    local is_music = window.class == "spotifast"
     local workspace = window.workspace
 
-    if is_spotify and workspace and workspace.id ~= LAPTOP_WORKSPACE then
+    if is_music and workspace and workspace.id ~= LAPTOP_WORKSPACE then
       hl.dispatch(hl.dsp.window.move({
         window = window,
         workspace = tostring(LAPTOP_WORKSPACE),
@@ -130,7 +128,7 @@ local function place_workspaces()
   local previous_workspace = hl.get_active_workspace()
 
   move_workspaces(external_monitor, laptop_monitor)
-  move_spotify()
+  move_music()
 
   if not show_desktop.is_desktop_workspace(laptop_monitor.active_workspace) then
     laptop_monitor:set_workspace(tostring(LAPTOP_WORKSPACE))
@@ -139,23 +137,8 @@ local function place_workspaces()
   focus_workspace(previous_workspace)
 end
 
-local function center_cursor(monitor)
-  for _, field in ipairs({ "x", "y", "width", "height", "scale" }) do
-    if type(monitor[field]) ~= "number" then return end
-  end
-  if monitor.scale <= 0 then return end
-
-  hl.dispatch(hl.dsp.cursor.move({
-    x = monitor.x + monitor.width / monitor.scale / 2,
-    y = monitor.y + monitor.height / monitor.scale / 2,
-  }))
-end
-
 local function defer(callback)
-  hl.timer(callback, {
-    timeout = PLACEMENT_DELAY,
-    type = "oneshot",
-  })
+  H.defer(callback, PLACEMENT_DELAY)
 end
 
 local function schedule_placement(workspace)
@@ -163,14 +146,12 @@ local function schedule_placement(workspace)
   defer(place_workspaces)
 end
 
-for _, event in ipairs({
+H.on_events({
   "config.reloaded",
   "monitor.added",
   "monitor.removed",
   "workspace.created",
-}) do
-  hl.on(event, schedule_placement)
-end
+}, schedule_placement)
 
 hl.on("hyprland.start", function()
   defer(function()
@@ -183,11 +164,11 @@ hl.on("hyprland.start", function()
         monitor = external_monitor,
       }))
       focus_workspace(EXTERNAL_WORKSPACE)
-      center_cursor(external_monitor)
+      H.center_cursor(external_monitor)
     end
 
     -- Config reloads cancel Lua timers; keep the login delay outside them.
-    hl.exec_cmd("sleep 5 && exec " .. apps.launcher .. " -- " .. apps.music)
+    hl.exec_cmd("sleep 5 && exec " .. H.launch(apps.music))
   end)
 end)
 {{ end -}}

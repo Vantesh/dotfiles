@@ -1,47 +1,43 @@
 -- Hyprland keybinds (0.55+)
 
 local apps = require("config.apps")
-
-local terminal = apps.launcher .. " -- " .. apps.terminal
-local function floating_terminal(title)
-  return terminal .. " --title='" .. title .. "'"
-end
-local ipc = apps.launcher .. " -- " .. apps.desktopShell .. " msg "
+local H = require("helpers")
+local monitors = require("config.monitors")
 
 -- === Applications ===
-hl.bind("SUPER + SPACE", hl.dsp.exec_cmd(ipc .. "panel-toggle launcher"), { description = "Open app launcher" })
-hl.bind("ALT + SPACE", hl.dsp.exec_cmd(ipc .. "panel-toggle launcher"), { description = "Open app launcher" })
+hl.bind("SUPER + SPACE", hl.dsp.exec_cmd(H.ipc("panel-toggle launcher")), { description = "Open app launcher" })
+hl.bind("ALT + SPACE", hl.dsp.exec_cmd(H.ipc("panel-toggle launcher")), { description = "Open app launcher" })
 
-hl.bind("SUPER + RETURN", hl.dsp.exec_cmd(terminal), { description = "Open terminal" })
-hl.bind("SUPER + B", hl.dsp.exec_cmd(apps.launcher .. " -- " .. apps.browser), { description = "Open web browser" })
-hl.bind("SUPER + E", hl.dsp.exec_cmd(apps.launcher .. " -- " .. apps.fileManager), { description = "Open file manager" })
-hl.bind("SUPER + C", hl.dsp.exec_cmd(apps.launcher .. " -- " .. apps.editor), { description = "Open code editor" })
-hl.bind("SUPER + M", hl.dsp.exec_cmd(apps.launcher .. " -- " .. apps.music), { description = "Open music player" })
+hl.bind("SUPER + RETURN", hl.dsp.exec_cmd(H.terminal), { description = "Open terminal" })
+hl.bind("SUPER + B", hl.dsp.exec_cmd(H.launch(apps.browser)), { description = "Open web browser" })
+hl.bind("SUPER + E", hl.dsp.exec_cmd(H.launch(apps.fileManager)), { description = "Open file manager" })
+hl.bind("SUPER + C", hl.dsp.exec_cmd(H.launch(apps.editor)), { description = "Open code editor" })
+hl.bind("SUPER + M", hl.dsp.exec_cmd(H.launch(apps.music)), { description = "Open music player" })
 
 
-hl.bind("SUPER + SHIFT + RETURN", hl.dsp.exec_cmd(floating_terminal("FloatingTerm")),
+hl.bind("SUPER + SHIFT + RETURN", hl.dsp.exec_cmd(H.floating_terminal("FloatingTerm")),
   { description = "Toggle floating terminal" })
-hl.bind("SUPER + SHIFT + E", hl.dsp.exec_cmd(floating_terminal("Yazi") .. " -- yazi"),
+hl.bind("SUPER + SHIFT + E", hl.dsp.exec_cmd(H.floating_terminal("Yazi") .. " -- yazi"),
   { description = "Toggle Yazi" })
 
 -- === Desktop Shell ===
-hl.bind("SUPER + ALT + SPACE", hl.dsp.exec_cmd(ipc .. "panel-toggle control-center"),
+hl.bind("SUPER + ALT + SPACE", hl.dsp.exec_cmd(H.ipc("panel-toggle control-center")),
   { description = "Open control center" })
-hl.bind("SUPER + N", hl.dsp.exec_cmd(ipc .. "panel-toggle noctalia/notes:panel"),
+hl.bind("SUPER + N", hl.dsp.exec_cmd(H.ipc("panel-toggle noctalia/notes:panel")),
   { description = "Open notes" })
-hl.bind("SUPER + comma", hl.dsp.exec_cmd(ipc .. "panel-toggle launcher /emo "), { description = "Open emoji picker" })
-hl.bind("SUPER + V", hl.dsp.exec_cmd(ipc .. "panel-toggle clipboard"), { description = "Open clipboard manager" })
-hl.bind("SUPER + W", hl.dsp.exec_cmd(ipc .. "panel-toggle wallpaper"), { description = "Open wallpaper picker" })
+hl.bind("SUPER + comma", hl.dsp.exec_cmd(H.ipc("panel-toggle launcher /emo ")), { description = "Open emoji picker" })
+hl.bind("SUPER + V", hl.dsp.exec_cmd(H.ipc("panel-toggle clipboard")), { description = "Open clipboard manager" })
+hl.bind("SUPER + W", hl.dsp.exec_cmd(H.ipc("panel-toggle wallpaper")), { description = "Open wallpaper picker" })
 
 
-hl.bind("SUPER + CTRL + SHIFT + D", hl.dsp.exec_cmd(ipc .. "clipboard-clear"),
+hl.bind("SUPER + CTRL + SHIFT + D", hl.dsp.exec_cmd(H.ipc("clipboard-clear")),
   { description = "Clear clipboard history" })
-hl.bind("SUPER + CTRL + SHIFT + SPACE", hl.dsp.exec_cmd(ipc .. "wallpaper-random"),
+hl.bind("SUPER + CTRL + SHIFT + SPACE", hl.dsp.exec_cmd(H.ipc("wallpaper-random")),
   { description = "Set random wallpaper" })
 
 -- === Window Management ===
-hl.bind("SUPER + TAB", hl.dsp.exec_cmd(ipc .. "window-switcher hold"), { description = "Open window switcher" })
-hl.bind("ALT + TAB", hl.dsp.exec_cmd(ipc .. "window-switcher hold"), { description = "Switch windows" })
+hl.bind("SUPER + TAB", hl.dsp.exec_cmd(H.ipc("window-switcher hold")), { description = "Open window switcher" })
+hl.bind("ALT + TAB", hl.dsp.exec_cmd(H.ipc("window-switcher hold")), { description = "Switch windows" })
 
 
 hl.bind("SUPER + LEFT", hl.dsp.focus({ direction = "l" }), { description = "Move focus left" })
@@ -153,23 +149,24 @@ hl.bind("SUPER + CTRL + ALT + Left", hl.dsp.window.move({ workspace = "r-1" }),
   { description = "Move window to previous relative workspace" })
 
 -- === System & Session ===
-hl.bind("SUPER + L", hl.dsp.exec_cmd(apps.launcher .. " -- loginctl lock-session $XDG_SESSION_ID"), { description = "Lock screen" })
-hl.bind("SUPER + ALT + DELETE", hl.dsp.exec_cmd(ipc .. "session logout"), { description = "Logout" })
-hl.bind("XF86PowerOff", hl.dsp.exec_cmd(ipc .. "panel-toggle session"), { description = "Open power menu" })
-hl.bind("SUPER + Escape", hl.dsp.exec_cmd(ipc .. "panel-toggle session"), { description = "Open session menu" })
+hl.bind("SUPER + L", hl.dsp.exec_cmd(H.launch("loginctl lock-session $XDG_SESSION_ID")), { description = "Lock screen" })
+hl.bind("SUPER + ALT + DELETE", hl.dsp.exec_cmd(H.ipc("session logout")), { description = "Logout" })
+hl.bind("XF86PowerOff", hl.dsp.exec_cmd(H.ipc("panel-toggle session")), { description = "Open power menu" })
+hl.bind("SUPER + Escape", hl.dsp.exec_cmd(H.ipc("panel-toggle session")), { description = "Open session menu" })
 
 hl.bind("SUPER + F1", require("scripts.gamemode").toggle, { description = "Toggle game mode" })
-{{ if .personal -}}
-hl.bind("SUPER + F12", require("scripts.movie_mode").toggle, { description = "Toggle movie mode" })
-{{ end -}}
-hl.bind("SUPER + CTRL + I", hl.dsp.exec_cmd(ipc .. "caffeine-toggle"),
+-- Movie mode targets the personal laptop and external-monitor setup.
+if type(monitors) == "table" then
+  hl.bind("SUPER + F12", require("scripts.movie_mode").toggle, { description = "Toggle movie mode" })
+end
+hl.bind("SUPER + CTRL + I", hl.dsp.exec_cmd(H.ipc("caffeine-toggle")),
   { description = "Toggle idle inhibitor" })
-hl.bind("SUPER + SHIFT + N", hl.dsp.exec_cmd(ipc .. "nightlight-force-toggle"), { description = "Toggle forced night light" })
+hl.bind("SUPER + SHIFT + N", hl.dsp.exec_cmd(H.ipc("nightlight-force-toggle")), { description = "Toggle forced night light" })
 
 -- === Display ===
-hl.bind("XF86MonBrightnessUp", hl.dsp.exec_cmd(ipc .. "brightness-up current 5"),
+hl.bind("XF86MonBrightnessUp", hl.dsp.exec_cmd(H.ipc("brightness-up current 5")),
   { repeating = true, locked = true, description = "Increase brightness" })
-hl.bind("XF86MonBrightnessDown", hl.dsp.exec_cmd(ipc .. "brightness-down current 5"),
+hl.bind("XF86MonBrightnessDown", hl.dsp.exec_cmd(H.ipc("brightness-down current 5")),
   { repeating = true, locked = true, description = "Decrease brightness" })
 
 
@@ -179,50 +176,50 @@ hl.bind("SUPER + BackSpace", require("scripts.zoom").reset, { repeating = true, 
 
 -- === Screenshots & Recording ===
 -- Saving and clipboard copying follow Noctalia's shared screenshot settings.
-hl.bind("Print", hl.dsp.exec_cmd(ipc .. "screenshot-region"), { description = "Screenshot region" })
-hl.bind("SUPER + S", hl.dsp.exec_cmd(ipc .. "screenshot-region"), { description = "Screenshot region" })
-hl.bind("SUPER + Print", hl.dsp.exec_cmd(ipc .. "screenshot-fullscreen"), { description = "Screenshot focused monitor" })
-hl.bind("CTRL + Print", hl.dsp.exec_cmd(ipc .. "screenshot-fullscreen pick"),
+hl.bind("Print", hl.dsp.exec_cmd(H.ipc("screenshot-region")), { description = "Screenshot region" })
+hl.bind("SUPER + S", hl.dsp.exec_cmd(H.ipc("screenshot-region")), { description = "Screenshot region" })
+hl.bind("SUPER + Print", hl.dsp.exec_cmd(H.ipc("screenshot-fullscreen")), { description = "Screenshot focused monitor" })
+hl.bind("CTRL + Print", hl.dsp.exec_cmd(H.ipc("screenshot-fullscreen pick")),
   { description = "Pick monitor to screenshot" })
-hl.bind("SHIFT + Print", hl.dsp.exec_cmd(ipc .. "screenshot-fullscreen all"),
+hl.bind("SHIFT + Print", hl.dsp.exec_cmd(H.ipc("screenshot-fullscreen all")),
   { description = "Screenshot all monitors" })
-hl.bind("ALT + Print", hl.dsp.exec_cmd(ipc .. "screenshot-annotate"),
+hl.bind("ALT + Print", hl.dsp.exec_cmd(H.ipc("screenshot-annotate")),
   { description = "Freeze screen and annotate screenshot" })
-hl.bind("SUPER + SHIFT + S", hl.dsp.exec_cmd(ipc .. "screenshot-annotate"),
+hl.bind("SUPER + SHIFT + S", hl.dsp.exec_cmd(H.ipc("screenshot-annotate")),
   { description = "Freeze screen and annotate screenshot" })
 
-hl.bind("SUPER + G", hl.dsp.exec_cmd(ipc .. "plugin noctalia/screen_recorder:service all toggle"),
+hl.bind("SUPER + G", hl.dsp.exec_cmd(H.ipc("plugin noctalia/screen_recorder:service all toggle")),
   { description = "Toggle screen recorder" })
 
 -- === Audio & Media ===
-hl.bind("XF86AudioRaiseVolume", hl.dsp.exec_cmd(ipc .. "volume-up 5"),
+hl.bind("XF86AudioRaiseVolume", hl.dsp.exec_cmd(H.ipc("volume-up 5")),
   { repeating = true, locked = true, description = "Increase volume" })
-hl.bind("XF86AudioLowerVolume", hl.dsp.exec_cmd(ipc .. "volume-down 5"),
+hl.bind("XF86AudioLowerVolume", hl.dsp.exec_cmd(H.ipc("volume-down 5")),
   { repeating = true, locked = true, description = "Decrease volume" })
-hl.bind("XF86AudioMute", hl.dsp.exec_cmd(ipc .. "volume-mute"),
+hl.bind("XF86AudioMute", hl.dsp.exec_cmd(H.ipc("volume-mute")),
   { repeating = true, locked = true, description = "Toggle audio mute" })
-hl.bind("XF86AudioMicMute", hl.dsp.exec_cmd(ipc .. "mic-mute"),
+hl.bind("XF86AudioMicMute", hl.dsp.exec_cmd(H.ipc("mic-mute")),
   { repeating = true, locked = true, description = "Toggle microphone mute" })
 
 
-hl.bind("XF86AudioNext", hl.dsp.exec_cmd(ipc .. "media next"), { locked = true, description = "Next media track" })
-hl.bind("XF86AudioPause", hl.dsp.exec_cmd(ipc .. "media toggle"),
+hl.bind("XF86AudioNext", hl.dsp.exec_cmd(H.ipc("media next")), { locked = true, description = "Next media track" })
+hl.bind("XF86AudioPause", hl.dsp.exec_cmd(H.ipc("media toggle")),
   { locked = true, description = "Pause/play media" })
-hl.bind("XF86AudioPlay", hl.dsp.exec_cmd(ipc .. "media toggle"), { locked = true, description = "Play media" })
-hl.bind("XF86AudioPrev", hl.dsp.exec_cmd(ipc .. "media previous"),
+hl.bind("XF86AudioPlay", hl.dsp.exec_cmd(H.ipc("media toggle")), { locked = true, description = "Play media" })
+hl.bind("XF86AudioPrev", hl.dsp.exec_cmd(H.ipc("media previous")),
   { locked = true, description = "Previous media track" })
-hl.bind("XF86AudioStop", hl.dsp.exec_cmd(ipc .. "media stop"), { locked = true, description = "Stop media" })
+hl.bind("XF86AudioStop", hl.dsp.exec_cmd(H.ipc("media stop")), { locked = true, description = "Stop media" })
 
 -- === Help & Utilities ===
-hl.bind("SUPER + slash", hl.dsp.exec_cmd(ipc .. "settings-open"), { description = "Open Noctalia settings" })
+hl.bind("SUPER + slash", hl.dsp.exec_cmd(H.ipc("settings-open")), { description = "Open Noctalia settings" })
 hl.bind("XF86RFKill",
   hl.dsp.exec_cmd(
-    apps.launcher .. [[ -- sh -c 'case "$(rfkill list)" in *"Soft blocked: yes"*) notify-send "rfkill" "Airplane mode is on" -u critical --icon wifi;; esac']]),
+    H.launch([[sh -c 'case "$(rfkill list)" in *"Soft blocked: yes"*) notify-send "rfkill" "Airplane mode is on" -u critical --icon wifi;; esac']])),
   { repeating = true, locked = true, description = "Toggle airplane mode" })
 
-hl.bind("SUPER + U", hl.dsp.exec_cmd(ipc .. "plugin vantesh/topgrade-updater:service all update"),
+hl.bind("SUPER + U", hl.dsp.exec_cmd(H.ipc("plugin vantesh/topgrade-updater:service all update")),
   { description = "Update system" })
-hl.bind("CTRL + ALT + DELETE", hl.dsp.exec_cmd(apps.launcher .. " -- missioncenter"),
+hl.bind("CTRL + ALT + DELETE", hl.dsp.exec_cmd(H.launch("missioncenter")),
   { description = "Open Mission Center" })
-hl.bind("SUPER + F2", hl.dsp.exec_cmd(ipc .. "panel-toggle vantesh/hyprbinds:cheatsheet"),
+hl.bind("SUPER + F2", hl.dsp.exec_cmd(H.ipc("panel-toggle vantesh/hyprbinds:cheatsheet")),
   { description = "Open keybinds help" })
