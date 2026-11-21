@@ -7,5 +7,9 @@ scheme = "Synced"
 password_style = "random"
 scheme_selector_position = "hidden"
 
+[cursor]
+theme = "MacTahoe-dark-cursors"
+size = 24
+
 [idle]
 timeout = 600

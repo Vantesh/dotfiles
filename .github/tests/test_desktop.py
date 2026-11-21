@@ -14,7 +14,7 @@ HOOK = "run_onchange_after_01_theming.py.tmpl"
 
 @pytest.fixture
 def desktop(env: dict[str, str], tmp_path: Path) -> dict[str, str]:
-    for name in ("install", "mkdir"):
+    for name in ("install", "mkdir", "cp"):
         executable = shutil.which(name)
         assert executable is not None
         (Path(env["PATH"]) / name).symlink_to(executable)
@@ -27,6 +27,25 @@ def desktop(env: dict[str, str], tmp_path: Path) -> dict[str, str]:
         log=True,
     )
     stub(env, "fc-cache", "exit 0", log=True)
+    stub(
+        env,
+        "tar",
+        """directory=
+archive=
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --directory) shift; directory=$1 ;;
+        --file) shift; archive=$1 ;;
+    esac
+    shift
+done
+name=${archive##*/}
+name=${name%.tar.gz}
+mkdir -p "$directory/$name/cursors"
+touch "$directory/$name/index.theme"
+""",
+        log=True,
+    )
     stub(
         env,
         "gsettings",
@@ -48,6 +67,18 @@ esac""",
         """case "$1" in
     --validate) exit 0 ;;
     --non-interactive) shift; unset CHEZMOI_SOURCE_DIR CHEZMOI_WORKING_TREE DOTFILES_PERSONAL_ENABLED; exec "$@" ;;
+    bash)
+        shift
+        bash "$@"
+        ;;
+    mkdir)
+        shift
+        mkdir "$@"
+        ;;
+    cp)
+        shift
+        cp -a "$@"
+        ;;
     *) exit 97 ;;
 esac""",
         log=True,
@@ -59,9 +90,9 @@ esac""",
 mkdir -p "$source"
 cat > "$source/install.sh" <<'INSTALL'
 set -eu
-[ "$1" = --dest ] || exit 97
-for name in MacTahoe MacTahoe-light MacTahoe-dark; do
-    mkdir -p "$2/$name/apps" "$2/$name/cursors"
+[ "${1:-}" = --dest ] || exit 97
+for name in Colloid Colloid-Light Colloid-Dark; do
+    mkdir -p "$2/$name"
     printf 'fixture icon theme\\n' > "$2/$name/index.theme"
     gtk-update-icon-cache "$2/$name"
 done
@@ -72,7 +103,14 @@ INSTALL""",
         env,
         "curl",
         """while [ "$#" -gt 0 ]; do
-    if [ "$1" = --output ]; then shift; printf 'fixture dmg\\n' > "$1"; fi
+    if [ "$1" = --output ]; then
+        shift
+        if [[ "$1" == *MacTahoe-cursors.tar.gz ]] || [[ "$1" == *MacTahoe-dark-cursors.tar.gz ]]; then
+            printf 'fixture cursor archive\\n' > "$1"
+        else
+            printf 'fixture dmg\\n' > "$1"
+        fi
+    fi
     shift
 done""",
         log=True,
@@ -100,6 +138,11 @@ def desktop_command(tmp_path: Path, personal: bool) -> list[str]:
     scripts.mkdir(parents=True)
     text = (SCRIPTS / HOOK).read_text()
     text = text.replace('Path("/root/.config")', f"Path({str(tmp_path / 'root-config')!r})")
+    text = text.replace('Path("/usr/share/icons")', f"Path({str(tmp_path / 'usr-share-icons')!r})")
+    text = text.replace('"/usr/share/icons"', repr(str(tmp_path / "usr-share-icons")))
+    text = text.replace(
+        'f"/usr/share/icons/{name}"', 'f"' + str(tmp_path / "usr-share-icons") + '/{name}"'
+    )
     text = text.replace("if os.geteuid() != 0:", "if False:")
     (scripts / HOOK).write_text(text)
     shutil.copytree(ROOT / "home/.chezmoitemplates/lib", source / ".chezmoitemplates/lib")
@@ -165,7 +208,7 @@ def test_root_gtk_mirror_applies_to_every_profile_and_is_safe_to_reapply(
     assert {path: path.stat().st_mtime_ns for path in root_times} == root_times
 
 
-def test_mactahoe_partial_install_retries_with_space_free_paths(
+def test_desktop_themes_partial_install_retries_with_space_free_paths(
     desktop: dict[str, str], tmp_path: Path
 ) -> None:
     desktop["XDG_DATA_HOME"] = str(tmp_path / "data with spaces")
@@ -175,13 +218,17 @@ def test_mactahoe_partial_install_retries_with_space_free_paths(
     command = desktop_command(tmp_path, False)
     result = run_setup(desktop, command)
     assert result.returncode != 0
-    completion = Path(desktop["XDG_STATE_HOME"]) / "chezmoi/mactahoe-installed"
+    completion = Path(desktop["XDG_STATE_HOME"]) / "chezmoi/desktop-themes-installed"
     assert not completion.exists()
     assert not any(call[0] == "curl" for call in calls(desktop))
     desktop.pop("ICON_CACHE_STATUS")
     result = run_setup(desktop, command)
     assert result.returncode == 0, result.stderr
     assert completion.exists()
+    for name in ("MacTahoe-cursors", "MacTahoe-dark-cursors"):
+        theme = tmp_path / "usr-share-icons" / name
+        assert (theme / "index.theme").is_file()
+        assert (theme / "cursors").is_dir()
     for call in calls(desktop):
         if call[0] == "git":
             assert " " not in call[-1]
