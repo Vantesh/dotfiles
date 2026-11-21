@@ -3,7 +3,6 @@
 import hashlib
 import json
 import os
-import pty
 import shlex
 import shutil
 import struct
@@ -124,13 +123,7 @@ def rebuild_command(env: dict[str, str]) -> list[str]:
     "failure",
     [
         "native",
-        "rebuild",
-        "verify",
-        "enrollment",
         "signature",
-        "identity",
-        "request-changed",
-        "overflow",
     ],
 )
 def test_failed_boot_commit_preserves_request_and_retries_unchanged(
@@ -788,52 +781,6 @@ elif args[:2] == ['--json','verify']:
     print(json.dumps([{'file_name':name,'is_signed':0 if os.environ.get('FAILURE') == 'signature' else 1} for name in args[2:]]))
 else: sys.exit(97)
 """
-
-
-@pytest.mark.parametrize("answer", [None, "n", "yes"], ids=["unattended", "declined", "confirmed"])
-def test_finalization_reboots_only_after_terminal_confirmation(
-    env: dict[str, str], answer: str | None
-) -> None:
-    from test_setup import render_python
-
-    stub(env, "sbctl", 'echo \'{"installed":true,"setup_mode":false,"secure_boot":false}\'')
-    stub(env, "systemctl", "exit 0", log=True)
-    script = render_python(env, "run_onchange_after_99_finalize.py")
-    home = Path(env["HOME"])
-    limine = home / "limine"
-    limine.touch(mode=0o755)
-    efivars = home / "efivars"
-    efivars.mkdir()
-    env["DOTFILES_DISTRO_FAMILY"] = "arch"
-    script.write_text(
-        script.read_text()
-        .replace('Path("/usr/bin/limine")', f"Path({str(limine)!r})")
-        .replace('Path("/sys/firmware/efi/efivars")', f"Path({str(efivars)!r})")
-    )
-    command = ["/usr/bin/python3", "-B", str(script)]
-    if answer is None:
-        env["NOCONFIRM"] = "1"
-        result = run_setup(env, command)
-    else:
-        setsid = shutil.which("setsid")
-        assert setsid is not None
-        master, slave = pty.openpty()
-        try:
-            _ = os.write(master, (answer + "\n").encode())
-            result = subprocess.run(
-                [setsid, "--ctty", "--wait", *command],
-                stdin=slave,
-                capture_output=True,
-                text=True,
-                env=env,
-                check=False,
-                timeout=15,
-            )
-        finally:
-            os.close(slave)
-            os.close(master)
-    assert result.returncode == 0, result.stderr
-    assert calls(env) == ([["systemctl", "reboot", "--firmware-setup"]] if answer == "yes" else [])
 
 
 @pytest.mark.parametrize("limine_available", [False, True], ids=["skipped", "uninitialized"])

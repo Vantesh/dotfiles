@@ -12,6 +12,8 @@ from typing import cast
 
 from loguru import logger
 
+LOCK_TIMEOUT = 10800
+
 
 def configure_bitwarden() -> int:
     # Vault diagnostics and config can contain personal data; never log them.
@@ -87,9 +89,9 @@ def configure_bitwarden() -> int:
             return result.returncode
         logger.info("Configured Bitwarden email.")
 
-    if config.get("lock_timeout") != 10800:
+    if config.get("lock_timeout") != LOCK_TIMEOUT:
         result = subprocess.run(
-            ["rbw", "config", "set", "lock_timeout", "10800"],
+            ["rbw", "config", "set", "lock_timeout", str(LOCK_TIMEOUT)],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )

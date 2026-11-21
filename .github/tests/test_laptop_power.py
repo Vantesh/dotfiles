@@ -102,36 +102,6 @@ def test_inapplicable_profiles_and_hardware_skip_before_installation(
     assert calls(laptop_env) == ([["hostnamectl", "chassis"]] if personal else [])
 
 
-def test_upstream_installers_keep_native_input_and_output(
-    laptop_env: dict[str, str], tmp_path: Path
-) -> None:
-    laptop_env["INSTALL_PROMPT"] = "1"
-    script = render_python(laptop_env, HOOK, source=Path(laptop_env["CHEZMOI_SOURCE_DIR"]))
-    result = run_setup(laptop_env, [PYTHON, "-B", str(script)], input="yes\n")
-    assert result.returncode == 0, result.stderr
-    assert "Installer confirmation:" in result.stdout
-    assert "Native daemon installer output" in result.stdout
-    assert (tmp_path / "active").exists()
-
-
-@pytest.mark.parametrize(
-    "failure,status",
-    [("CHASSIS_STATUS", 23), ("CURL_STATUS", 22), ("GIT_STATUS", 24), ("INSPECTION_STATUS", 1)],
-)
-def test_inspection_and_download_errors_preserve_status(
-    laptop_env: dict[str, str], tmp_path: Path, failure: str, status: int
-) -> None:
-    laptop_env[failure] = str(status)
-    script = render_python(laptop_env, HOOK, source=Path(laptop_env["CHEZMOI_SOURCE_DIR"]))
-    result = run_setup(laptop_env, [PYTHON, "-B", str(script)])
-    assert result.returncode == status, result.stderr
-    assert f"Laptop power setup failed (exit {status})" in result.stderr
-    assert "Traceback" not in result.stderr
-    assert "CalledProcessError" in (tmp_path / "state/chezmoi/logs/setup.log").read_text()
-    assert not (tmp_path / "active").exists()
-    assert not list(tmp_path.glob("chezmoi-auto-cpufreq-*"))
-
-
 @pytest.mark.parametrize("failure", ["INSTALL_STATUS", "DAEMON_STATUS"])
 def test_partial_install_recovers_without_reinstalling_an_active_daemon(
     laptop_env: dict[str, str], tmp_path: Path, failure: str

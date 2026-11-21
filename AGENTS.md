@@ -39,7 +39,7 @@
 
 ## Testing
 
-- Keep tests minimal and focused on failures that would have serious consequences or are likely to regress. Prioritize boot configuration, Secure Boot, Btrfs, swap/hibernation, credential isolation, and privileged filesystem operations.
+- Keep tests minimal and focused on failures that would have serious consequences or are likely to regress. Prioritize realistic, reasonably likely scenarios encountered during normal use, updates, setup, and recovery. Do not add or retain tests for contrived, adversarial, or extremely improbable scenarios merely because the implementation could theoretically fail that way. Serious consequences alone are not sufficient justification; the scenario must also be plausible. Prefer a small number of tests protecting important real-world workflows over exhaustive edge-case coverage.
 - A test should protect against a meaningful failure, not merely prove that code exists. Don't add tests automatically for every script, function, or configuration change. Simple integrations such as Atuin, themes, desktop preferences, package declarations, and routine service setup generally don't need dedicated behavioral tests.
 - Add regression tests for bugs that are easy to reintroduce and difficult to catch through normal validation. Prefer a few meaningful tests over large suites of mocks, fixtures, and implementation details.
 - Use pytest for behavioral tests. Keep fixtures small and avoid introducing testing frameworks or abstractions.

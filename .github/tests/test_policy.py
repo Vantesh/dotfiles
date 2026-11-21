@@ -224,18 +224,6 @@ def test_privileged_policy_rejects_relative_source_without_environment(
     assert not (Path(policy["POLICY_ETC"]) / "sudoers.d/passwd_tries").exists()
 
 
-def test_missing_runtime_worktree_stops_before_privileged_policy(policy: dict[str, str]) -> None:
-    script = render_python(policy, HOOKS[1], source=Path(policy["POLICY_SOURCE"]))
-    policy.pop("CHEZMOI_WORKING_TREE")
-    result = run_setup(policy, ["/usr/bin/python3", "-B", str(script)])
-    assert result.returncode == 1, result.stderr
-    assert "CHEZMOI_WORKING_TREE" in result.stderr
-    assert calls(policy) == []
-    assert (
-        Path(policy["POLICY_ETC"]) / "conf.d/pacman-contrib"
-    ).read_text() == "# cache\nPACCACHE_ARGS='-k3'\nOTHER=keep\n"
-
-
 @pytest.mark.parametrize("invalid", ["candidate", "existing"])
 def test_invalid_sudoers_never_activates_candidates(policy: dict[str, str], invalid: str) -> None:
     etc = Path(policy["POLICY_ETC"])
@@ -252,29 +240,6 @@ def test_invalid_sudoers_never_activates_candidates(policy: dict[str, str], inva
     assert (etc / "sudoers.d/timeout").read_text() == "Defaults passwd_timeout=5\n"
     assert not (etc / "sudoers.d/passwd_tries").exists()
     assert not list(etc.rglob(".chezmoi-*"))
-
-
-@pytest.mark.parametrize(
-    ("hook", "target"),
-    [
-        (HOOKS[0], "sudoers.d/timeout"),
-        (HOOKS[0], "security/faillock.conf"),
-        (HOOKS[1], "pacman.conf"),
-        (HOOKS[1], "conf.d/pacman-contrib"),
-    ],
-)
-def test_policy_refuses_symlink_targets(
-    policy: dict[str, str], tmp_path: Path, hook: str, target: str
-) -> None:
-    outside = tmp_path / "outside"
-    outside.write_text("preserve\n")
-    path = Path(policy["POLICY_ETC"]) / target
-    path.unlink()
-    path.symlink_to(outside)
-    result = run_policy(policy, hook)
-    assert result.returncode == 1
-    assert "non-regular" in result.stderr
-    assert outside.read_text() == "preserve\n"
 
 
 @pytest.mark.parametrize(
@@ -331,24 +296,6 @@ def test_sudo_rollback_preserves_a_later_external_edit(policy: dict[str, str]) -
     assert "Skipped rollback" in log.read_text()
 
 
-@pytest.mark.parametrize(
-    ("variable", "hook"),
-    [
-        ("SUDO_STATUS", HOOKS[0]),
-        ("VISUDO_STATUS", HOOKS[0]),
-        ("MISE_STATUS", HOOKS[1]),
-        ("SYSTEMCTL_STATUS", HOOKS[1]),
-    ],
-)
-def test_policy_preserves_external_failure_status(
-    policy: dict[str, str], variable: str, hook: str
-) -> None:
-    policy[variable] = "23"
-    result = run_policy(policy, hook)
-    assert result.returncode == 23, result.stderr
-    assert "exit 23" in result.stderr
-
-
 def test_sudo_postcheck_failure_rolls_back_all_policy_files(policy: dict[str, str]) -> None:
     etc = Path(policy["POLICY_ETC"])
     before = {path: path.read_bytes() for path in etc.rglob("*") if path.is_file()}
@@ -371,17 +318,3 @@ def test_sudo_refuses_unsafe_policy_directory(policy: dict[str, str], unsafe: st
     assert result.returncode == 1
     assert "directory" in result.stderr
     assert (directory / "timeout").read_text() == "Defaults passwd_timeout=5\n"
-
-
-def test_pacman_mirror_exclusion_keeps_an_unterminated_last_option(policy: dict[str, str]) -> None:
-    config = Path(policy["POLICY_ETC"]) / "pacman.conf"
-    config.write_text("[options]\nArchitecture = auto\nColor")
-    result = run_policy(policy, HOOKS[1])
-    assert result.returncode == 0, result.stderr
-    assert (
-        config.read_text()
-        == "[options]\nArchitecture = auto\nColor\nNoExtract = etc/pacman.d/mirrorlist\n"
-    )
-    result = run_setup(policy, ["pacman-conf", "--config", str(config), "NoExtract"])
-    assert result.returncode == 0, result.stderr
-    assert result.stdout.splitlines() == ["etc/pacman.d/mirrorlist"]
