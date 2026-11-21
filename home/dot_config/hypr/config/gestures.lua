@@ -4,13 +4,8 @@ local toggle_float = require("scripts.toggle_float")
 
 local horizontal_action
 
-local function is_scrolling()
-  local workspace = hl.get_active_special_workspace() or hl.get_active_workspace()
-  return workspace and workspace.tiled_layout == "scrolling"
-end
-
 local function update_horizontal_gesture()
-  local action = is_scrolling() and "scroll_move" or "workspace"
+  local action = H.active_layout() == "scrolling" and "scroll_move" or "workspace"
   if action == horizontal_action then return end
 
   -- Native gestures cannot share a binding; replace it when the layout changes.

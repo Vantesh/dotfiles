@@ -115,6 +115,23 @@ function M.float_window_centered(window, width_fraction, height_fraction, monito
   return true
 end
 
+--- Layout of the active workspace, including special workspaces.
+function M.active_layout()
+  local workspace = hl.get_active_special_workspace() or hl.get_active_workspace()
+  return workspace and workspace.tiled_layout
+end
+
+--- Layout message that only runs when the active workspace uses `layout`.
+--- Layout messages go to whatever layout is active, so e.g. a scrolling-only
+--- message on a dwindle workspace raises "Unknown dwindle layoutmsg".
+function M.layout_msg(layout, message)
+  return function()
+    if M.active_layout() == layout then
+      hl.dispatch(hl.dsp.layout(message))
+    end
+  end
+end
+
 -- === Window rules ===
 
 --- Centered floating window rule with monitor-relative dimensions.
