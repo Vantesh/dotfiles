@@ -204,7 +204,7 @@ esac""",
     'open --type')
         [ "$*" = "open --type luks2 --test-passphrase --token-only --token-id=0 --batch-mode $HOME/dev/block/8:2" ] || exit 97
         [ -z "$TPM_PROBE_FAILURE" ] || exit "$TPM_PROBE_FAILURE"
-        [ ! -f "$HOME/tpm-stale" ] || exit 2 ;;
+        [ ! -f "$HOME/tpm-stale" ] || exit 1 ;;
     *) exit 97 ;;
 esac""",
             log=True,
@@ -214,7 +214,8 @@ esac""",
             r"""[ "$1" = --tpm2-device=auto ] || exit 97
 [ "$2" = --tpm2-pcrs=7 ] || exit 97
 [ "$3" = --tpm2-with-pin=no ] || exit 97
-[ "$4" = "$HOME/dev/block/8:2" ] || exit 97
+[ "$4" = --wipe-slot=tpm2 ] || exit 97
+[ "$5" = "$HOME/dev/block/8:2" ] || exit 97
 touch "$HOME"/tpm-enrolled
 rm -f "$HOME"/tpm-stale""",
             log=True,
@@ -259,6 +260,7 @@ rm -f "$HOME"/tpm-stale""",
                     "--tpm2-device=auto",
                     "--tpm2-pcrs=7",
                     "--tpm2-with-pin=no",
+                    "--wipe-slot=tpm2",
                     str(container),
                 ]
             ],
