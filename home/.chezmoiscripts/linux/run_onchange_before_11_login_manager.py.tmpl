@@ -2,6 +2,7 @@
 # profile: {{ .personal | toJson }}
 # greetd config: {{ include ".chezmoitemplates/login-manager/config.toml" | sha256sum }}
 # greetd PAM: {{ include ".chezmoitemplates/login-manager/greetd.pam" | sha256sum }}
+# passwd PAM: {{ include ".chezmoitemplates/login-manager/passwd.pam" | sha256sum }}
 # greeter settings: {{ include ".chezmoitemplates/login-manager/greeter.toml" | sha256sum }}
 # personal output: {{ if .personal }}{{ include ".chezmoitemplates/login-manager/greeter-output.toml" | sha256sum }}{{ else }}disabled{{ end }}
 """Configure Noctalia Greeter and select greetd for the next deliberate reboot."""
@@ -22,6 +23,7 @@ from loguru import logger
 
 GREETD_CONFIG = Path("/etc/greetd/config.toml")
 GREETD_PAM = Path("/etc/pam.d/greetd")
+PASSWD_PAM = Path("/etc/pam.d/passwd")
 GREETER_DIR = Path("/var/lib/noctalia-greeter")
 PACKAGED_SESSION = Path("/usr/share/wayland-sessions/hyprland-uwsm.desktop")
 SESSION_OVERRIDE = Path("/usr/local/share/wayland-sessions/hyprland-uwsm.desktop")
@@ -107,7 +109,7 @@ def configure_login(source_dir: Path, personal: str, username: str) -> None:
     if pwd.getpwnam(username).pw_uid == 0:
         raise ValueError("Appearance synchronization requires a regular account.")
     _ = subprocess.run(
-        ["pacman", "--query", "--", "greetd", "noctalia-greeter", "gnome-keyring"],
+        ["pacman", "--query", "--", "greetd", "noctalia-greeter", "oo7"],
         check=True,
         stdout=subprocess.DEVNULL,
     )
@@ -133,7 +135,7 @@ def configure_login(source_dir: Path, personal: str, username: str) -> None:
     with tempfile.TemporaryDirectory(prefix="chezmoi-greetd-") as temporary:
         configs = [
             snapshot_config(path, Path(temporary) / str(index))
-            for index, path in enumerate((GREETD_CONFIG, GREETD_PAM, SESSION_OVERRIDE))
+            for index, path in enumerate((GREETD_CONFIG, GREETD_PAM, PASSWD_PAM, SESSION_OVERRIDE))
         ]
         try:
             for config, content in zip(
@@ -141,6 +143,7 @@ def configure_login(source_dir: Path, personal: str, username: str) -> None:
                 (
                     (templates / "config.toml").read_bytes(),
                     (templates / "greetd.pam").read_bytes(),
+                    (templates / "passwd.pam").read_bytes(),
                     session.encode(),
                 ),
                 strict=True,

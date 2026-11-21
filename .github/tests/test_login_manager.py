@@ -42,10 +42,17 @@ def login(env: dict[str, str], tmp_path: Path) -> dict[str, str]:
             }
         )
     )
+    (tmp_path / "etc/pam.d/passwd").write_text(
+        "#%PAM-1.0\n"
+        "auth\t\tinclude\t\tsystem-auth\n"
+        "account\t\tinclude\t\tsystem-auth\n"
+        "password\tinclude\t\tsystem-auth\n"
+    )
     text = (SCRIPTS / HOOK).read_text()
     for target in (
         "/etc/greetd/config.toml",
         "/etc/pam.d/greetd",
+        "/etc/pam.d/passwd",
         "/var/lib/noctalia-greeter",
         "/usr/share/wayland-sessions/hyprland-uwsm.desktop",
         "/usr/local/share/wayland-sessions/hyprland-uwsm.desktop",
@@ -177,7 +184,15 @@ def test_greeter_configs_profiles_and_next_boot_only_transition(
     pam = (tmp_path / "etc/pam.d/greetd").read_text()
     assert pam == (LOGIN_MANAGER / "greetd.pam").read_text()
     assert "auth       include      system-local-login" in pam
-    assert "session    optional     pam_gnome_keyring.so auto_start" in pam
+    assert "session    optional     pam_oo7.so auto_start" in pam
+    passwd = (tmp_path / "etc/pam.d/passwd").read_text()
+    assert passwd == (LOGIN_MANAGER / "passwd.pam").read_text()
+    assert [line.split() for line in passwd.splitlines() if "system-auth" in line] == [
+        ["auth", "include", "system-auth"],
+        ["account", "include", "system-auth"],
+        ["password", "include", "system-auth"],
+    ]
+    assert "password    optional    pam_oo7.so" in passwd
     packaged = (tmp_path / "usr/share/wayland-sessions/hyprland-uwsm.desktop").read_text()
     packaged_name = next(
         line.removeprefix("Name=") for line in packaged.splitlines() if line.startswith("Name=")
@@ -214,11 +229,14 @@ def test_greeter_configs_profiles_and_next_boot_only_transition(
     ]
     previous = calls(login)
     before = greeter_path.stat().st_mtime_ns
+    passwd_path = tmp_path / "etc/pam.d/passwd"
+    passwd_before = passwd_path.stat().st_mtime_ns
     # Explicit reapplication also preserves the managed file and service state.
     script = render_python(login, HOOK, personal=personal, source=Path(login["LOGIN_SOURCE"]))
     repeated = run_setup(login, [PYTHON, "-B", str(script)])
     assert repeated.returncode == 0, repeated.stderr
     assert greeter_path.stat().st_mtime_ns == before
+    assert passwd_path.stat().st_mtime_ns == passwd_before
     subsequent = calls(login)[len(previous) :]
     assert all(
         "enable" not in call and "disable" not in call

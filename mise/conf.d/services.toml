@@ -40,16 +40,6 @@ enabled = true
 state = "running"
 enabled = true
 
-[bootstrap.services."gnome-keyring-daemon.socket"]
-scope = "user"
-state = "running"
-enabled = true
-
-[bootstrap.services."gnome-keyring-daemon.service"]
-scope = "user"
-state = "running"
-enabled = true
-
 [bootstrap.services."mpris-proxy.service"]
 scope = "user"
 state = "running"
