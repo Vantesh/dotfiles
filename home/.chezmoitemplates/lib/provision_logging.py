@@ -10,6 +10,9 @@ from pathlib import Path
 
 from loguru import logger
 
+LOG_ROTATION_BYTES = 5 * 1024 * 1024
+LOG_RETENTION = 5
+
 
 def configure_logging() -> int:
     logger.remove()
@@ -60,8 +63,8 @@ def configure_logging() -> int:
         level="DEBUG",
         colorize=False,
         format="[{time:YYYY-MM-DD HH:mm:ss}] [{level}] [{file.name}:{line}] {message}",
-        rotation=5 * 1024 * 1024,
-        retention=5,
+        rotation=LOG_ROTATION_BYTES,
+        retention=LOG_RETENTION,
         delay=True,
         opener=private_log_file,
         diagnose=False,

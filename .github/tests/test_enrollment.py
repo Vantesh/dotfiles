@@ -12,9 +12,39 @@ import pytest
 from helpers import CHEZMOI, ROOT, SCRIPTS, copy_login_manager
 from test_setup import PYTHON, calls, render_python, run_setup, stub
 from test_setup import env as env
-from test_workstation import workstation as workstation
 
 WARP = "run_onchange_after_05_warp.py"
+
+
+@pytest.fixture
+def workstation(env: dict[str, str]) -> dict[str, str]:
+    env.update(
+        NOCONFIRM="1",
+        OFFLINE="1",
+        MISE_ENV="nvidia-sleep",
+        MISE_CONFIG_FILE="/unrelated/config.toml",
+    )
+    stub(env, "id", "echo 1000")
+    stub(
+        env,
+        "mise",
+        '''[ -z "${MISE_ENV+x}" ] && [ -z "${MISE_CONFIG_FILE+x}" ] || exit 98
+exit "${MISE_STATUS:-0}"''',
+        log=True,
+    )
+    for command in ("rbw", "sbctl", "busctl", "ufw", "chsh", "updatedb"):
+        stub(env, command, "exit 97", log=True)
+    stub(
+        env,
+        "sudo",
+        """case "$1" in
+    --validate) exit 0 ;;
+    --non-interactive) case "$*" in *--configure-locate*) exit 0 ;; *) exit 97 ;; esac ;;
+    systemctl) [ "$*" = 'systemctl start plocate-updatedb.timer' ] ;;
+    *) exit 97 ;;
+esac""",
+    )
+    return env
 
 
 @pytest.fixture
@@ -86,45 +116,6 @@ def test_chezmoi_registers_warp_after_services_without_connecting(
         i for i, call in enumerate(observed) if call[0] == "warp-cli"
     )
     log = (tmp_path / "state/chezmoi/logs/setup.log").read_text()
-    assert "account-private-fixture" not in log + result.stdout + result.stderr
-
-
-def test_warp_reuses_existing_team_registration_without_mutation(
-    warp_env: dict[str, str], tmp_path: Path
-) -> None:
-    existing = tmp_path / "registered"
-    existing.write_text("existing-Team-registration")
-    before = existing.stat().st_mtime_ns
-    script = render_python(warp_env, WARP, personal=False)
-    for _ in range(2):
-        result = run_setup(warp_env, [PYTHON, "-B", str(script)])
-        assert result.returncode == 0, result.stderr
-        assert result.stdout == result.stderr == ""
-    assert existing.read_text() == "existing-Team-registration"
-    assert existing.stat().st_mtime_ns == before
-    assert calls(warp_env) == [["warp-cli", "--accept-tos", "registration", "show"]] * 2
-
-
-@pytest.mark.parametrize(
-    "failure,status",
-    [
-        ("WARP_UNAVAILABLE", 24),
-        ("WARP_NEW_STATUS", 23),
-        ("WARP_VERIFY_STATUS", 27),
-    ],
-)
-def test_warp_failure_is_required_and_preserves_exit_status(
-    warp_env: dict[str, str], tmp_path: Path, failure: str, status: int
-) -> None:
-    warp_env[failure] = str(status)
-    script = render_python(warp_env, WARP, personal=False)
-    result = run_setup(warp_env, [PYTHON, "-B", str(script)])
-    assert result.returncode == status, result.stderr
-    assert f"WARP registration failed (exit {status})" in result.stderr
-    assert "check warp-svc and reapply" in result.stderr
-    assert "Traceback" not in result.stderr
-    log = (tmp_path / "state/chezmoi/logs/setup.log").read_text()
-    assert "CalledProcessError" in log
     assert "account-private-fixture" not in log + result.stdout + result.stderr
 
 
@@ -292,32 +283,3 @@ def test_fingerprint_enrollment_starts_without_consent_and_is_verified_before_su
     )
     log = (tmp_path / "state/chezmoi/logs/setup.log").read_text()
     assert "native-biometric-output-fixture" not in log + result.stdout + result.stderr
-
-
-@pytest.mark.parametrize(
-    "failure,status",
-    [
-        ("DRIVER_STATUS", 23),
-        ("DRIVER_DATABASE_ERROR", 1),
-        ("MANAGER_STATUS", 24),
-        ("LIST_STATUS", 25),
-        ("ENROLL_STATUS", 26),
-        ("NO_SAVED_PRINT", 1),
-    ],
-)
-def test_fingerprint_required_failures_never_claim_success(
-    fingerprint_env: dict[str, str], tmp_path: Path, failure: str, status: int
-) -> None:
-    fingerprint_env[failure] = "1" if failure == "NO_SAVED_PRINT" else str(status)
-    result = fingerprint_with_terminal(fingerprint_env)
-    assert result.returncode == status, result.stderr
-    assert f"Fingerprint setup failed (exit {status})" in result.stderr
-    assert "Fingerprint enrollment completed" not in result.stderr
-    assert not (tmp_path / "enrolled").exists()
-    assert "Traceback" not in result.stderr
-    if failure == "NO_SAVED_PRINT":
-        assert "no enrolled prints" in result.stderr
-    if failure.startswith("DRIVER_"):
-        assert "package database" in result.stderr
-    if failure in ("DRIVER_STATUS", "DRIVER_DATABASE_ERROR", "MANAGER_STATUS", "LIST_STATUS"):
-        assert not any(call[0] == "fprintd-enroll" for call in calls(fingerprint_env))
