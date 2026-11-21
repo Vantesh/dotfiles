@@ -21,6 +21,13 @@ gsettings set org.gnome.desktop.interface cursor-theme "$xcursor_theme"
 gsettings set org.gnome.desktop.interface cursor-size "$cursor_size"
 gsettings set org.gnome.desktop.interface icon-theme "$icon_theme"
 
+qtengine_config="${XDG_CONFIG_HOME:-$HOME/.config}/qtengine/config.json"
+if [ -f "$qtengine_config" ]; then
+  qtengine_tmp="${qtengine_config}.tmp"
+  jq --arg theme "$icon_theme" '.theme.iconTheme = $theme' "$qtengine_config" > "$qtengine_tmp"
+  mv "$qtengine_tmp" "$qtengine_config"
+fi
+
 if [ -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" ]; then
   hyprctl setcursor "$hyprcursor_theme" "$cursor_size"
 fi

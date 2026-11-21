@@ -19,9 +19,6 @@ def desktop(env: dict[str, str], tmp_path: Path) -> dict[str, str]:
         assert executable is not None
         (Path(env["PATH"]) / name).symlink_to(executable)
     (tmp_path / "preferences").mkdir()
-    desktop_system_icons = tmp_path / "usr-share-icons"
-    desktop_system_icons.mkdir()
-    env["SYSTEM_ICONS"] = str(desktop_system_icons)
     stub(env, "rbw", "exit 97", log=True)
     stub(
         env,
@@ -30,7 +27,25 @@ def desktop(env: dict[str, str], tmp_path: Path) -> dict[str, str]:
         log=True,
     )
     stub(env, "fc-cache", "exit 0", log=True)
-    stub(env, "tar", 'mkdir -p "${@: -1}"; touch "${@: -1}/index.theme"', log=True)
+    stub(
+        env,
+        "tar",
+        """directory=
+archive=
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --directory) shift; directory=$1 ;;
+        --file) shift; archive=$1 ;;
+    esac
+    shift
+done
+name=${archive##*/}
+name=${name%.tar.gz}
+mkdir -p "$directory/$name/cursors"
+touch "$directory/$name/index.theme"
+""",
+        log=True,
+    )
     stub(
         env,
         "gsettings",
@@ -210,6 +225,10 @@ def test_desktop_themes_partial_install_retries_with_space_free_paths(
     result = run_setup(desktop, command)
     assert result.returncode == 0, result.stderr
     assert completion.exists()
+    for name in ("MacTahoe-cursors", "MacTahoe-dark-cursors"):
+        theme = tmp_path / "usr-share-icons" / name
+        assert (theme / "index.theme").is_file()
+        assert (theme / "cursors").is_dir()
     for call in calls(desktop):
         if call[0] == "git":
             assert " " not in call[-1]

@@ -120,7 +120,10 @@ def colloid_is_complete(icons: Path) -> bool:
 
 
 def xcursor_is_complete(icons: Path) -> bool:
-    return all((icons / name).is_dir() for name in ("MacTahoe-cursors", "MacTahoe-dark-cursors"))
+    return all(
+        (icons / name / "index.theme").is_file() and (icons / name / "cursors").is_dir()
+        for name in ("MacTahoe-cursors", "MacTahoe-dark-cursors")
+    )
 
 
 def install_colloid_and_xcursors() -> None:
@@ -164,6 +167,10 @@ def install_colloid_and_xcursors() -> None:
             "Install Colloid icon themes",
         )
 
+        run_logged(
+            ["sudo", "mkdir", "-p", "/usr/share/icons"],
+            "Prepare /usr/share/icons for Xcursor themes",
+        )
         for asset, name in (
             ("MacTahoe-cursors.tar.gz", "MacTahoe-cursors"),
             ("MacTahoe-dark-cursors.tar.gz", "MacTahoe-dark-cursors"),
@@ -182,18 +189,19 @@ def install_colloid_and_xcursors() -> None:
                 ],
                 check=True,
             )
-            extract = work / name
-            extract.mkdir()
             run_logged(
-                ["tar", "--extract", "--gzip", "--file", str(archive), "--directory", str(extract)],
+                ["tar", "--extract", "--gzip", "--file", str(archive), "--directory", str(work)],
                 f"Extract {name} Xcursor theme",
             )
             run_logged(
-                ["sudo", "mkdir", "-p", "/usr/share/icons"],
-                f"Prepare /usr/share/icons for {name}",
-            )
-            run_logged(
-                ["sudo", "cp", "-a", str(extract), f"/usr/share/icons/{name}"],
+                [
+                    "sudo",
+                    "cp",
+                    "-aT",
+                    "--no-preserve=ownership",
+                    str(work / name),
+                    f"/usr/share/icons/{name}",
+                ],
                 f"Install {name} Xcursor theme system-wide",
             )
 
@@ -420,3 +428,4 @@ def main() -> int:
 if __name__ == "__main__":
     status = main()
     sys.exit(status if status >= 0 else 128 - status)
+# hey
