@@ -139,6 +139,12 @@ hl.window_rule({
   float = true,
 })
 
+hl.window_rule({ match = { class = "^(dev\\.noctalia\\.luciole)$" }, float = true, center = true, size = { "monitor_w*0.8", "monitor_h*0.8" } })
+-- File chooser windows use host-supplied titles; keep them at the previous picker size.
+hl.window_rule({ match = { class = "^(dev\\.noctalia\\.luciole)$", title = "negative:^Luciole$" }, float = true, center = true, size = { "monitor_w*0.6", "monitor_h*0.6" } })
+-- Terminals opened from Luciole share its floating geometry.
+hl.window_rule({ match = { class = "^(dev\\.noctalia\\.luciole\\.terminal)$" }, float = true, center = true, size = { "monitor_w*0.8", "monitor_h*0.8" } })
+
 -- === Generic dialogs ===
 
 -- File selection, downloads and file operations.

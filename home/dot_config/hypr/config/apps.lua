@@ -2,7 +2,7 @@ return {
   launcher = "uwsm-app",
   terminal = "xdg-terminal-exec",
   browser = "brave",
-  fileManager = "nautilus",
+  fileManager = "luciole",
   editor = "zeditor",
 
   desktopShell = "noctalia",
