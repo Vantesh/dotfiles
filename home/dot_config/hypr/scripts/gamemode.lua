@@ -1,6 +1,8 @@
 -- Toggle "game mode": kills animations, blur, shadows, rounding, gaps and
 -- opacity effects in one hl.config() call, and hides the Noctalia bars.
 
+local H = require("helpers")
+
 local M = {}
 
 function M.toggle()
@@ -9,8 +11,8 @@ function M.toggle()
     if game_mode_on then
         -- restore everything from the config files
         hl.dispatch(hl.dsp.reload_config())
-        hl.exec_cmd("noctalia msg bar-show")
-        hl.exec_cmd([[notify-send --app-name="Hyprland" --expire-time=3000 "Gamemode" "Default settings restored"]])
+        hl.exec_cmd(H.ipc("bar-show"))
+        H.notify("Gamemode", "Default settings restored")
         return
     end
 
@@ -32,8 +34,8 @@ function M.toggle()
         },
     })
 
-    hl.exec_cmd("noctalia msg bar-hide")
-    hl.exec_cmd([[notify-send --app-name="Hyprland" --expire-time=3000 "Gamemode" "Animations and blur disabled"]])
+    hl.exec_cmd(H.ipc("bar-hide"))
+    H.notify("Gamemode", "Animations and blur disabled")
 end
 
 return M
