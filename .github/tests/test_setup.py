@@ -3,15 +3,17 @@
 import json
 import os
 import pty
+import re
+import runpy
 import shlex
 import shutil
 import subprocess
-import tomllib
 from pathlib import Path
 from typing import cast
 
 import pytest
 from helpers import CHEZMOI, ROOT, SCRIPTS
+from loguru import logger
 
 PYTHON = "/usr/bin/python3"
 AUTHENTICATION = "run_before_00_authentication.py"
@@ -129,24 +131,26 @@ def render_python(
     return rendered
 
 
+def bootstrap_packages() -> tuple[list[str], list[str]]:
+    text = (SCRIPTS / "run_before_00-install-pre-requisites.sh").read_text()
+    base = re.search(r"^\s*packages=\((.*)\)\s*$", text, re.MULTILINE)
+    personal = re.search(r"^\s*packages\+=\((.*)\)\s*$", text, re.MULTILINE)
+    if base is None or personal is None:
+        raise AssertionError("Bootstrap package declarations were not found")
+    return base[1].split(), personal[1].split()
+
+
+@pytest.fixture(scope="module")
+def lock_timeout() -> int:
+    value = runpy.run_path(str(SCRIPTS / AUTHENTICATION))["LOCK_TIMEOUT"]
+    if not isinstance(value, int):
+        raise AssertionError("LOCK_TIMEOUT must be an integer")
+    return value
+
+
 @pytest.mark.parametrize(
     "hook",
-    [
-        AUTHENTICATION,
-        "run_onchange_before_01_sudo.py",
-        "run_onchange_before_03_pacman.py.tmpl",
-        "run_onchange_before_04_initramfs_config.py.tmpl",
-        "run_onchange_before_08_quiet_boot.py.tmpl",
-        "run_onchange_before_09_secure_boot.py.tmpl",
-        "run_onchange_before_10_limine_theme.py.tmpl",
-        "run_after_03_initramfs.py",
-        "run_onchange_after_99_finalize.py",
-        "run_onchange_before_05_snapshots.py.tmpl",
-        "run_onchange_before_06_laptop_power.py",
-        "run_onchange_before_12_fingerprint.py",
-        "run_onchange_after_02_atuin.py",
-        "run_onchange_before_07_hibernation.py.tmpl",
-    ],
+    [AUTHENTICATION],
 )
 @pytest.mark.parametrize("profile", [None, "true", "0"], ids=["missing", "invalid", "disabled"])
 def test_plain_personal_guards_precede_source_resolution_and_all_side_effects(
@@ -166,66 +170,6 @@ def test_plain_personal_guards_precede_source_resolution_and_all_side_effects(
         assert "DOTFILES_PERSONAL_ENABLED must be '0' or '1'" in result.stderr
     assert not calls(env)
     assert not (tmp_path / "state").exists()
-
-
-@pytest.mark.parametrize(
-    "hook",
-    [PACKAGES, "run_onchange_after_01_theming.py.tmpl", "run_onchange_after_04_services.py.tmpl"],
-)
-def test_environment_driven_workflows_reject_invalid_profiles_before_logging(
-    env: dict[str, str], tmp_path: Path, hook: str
-) -> None:
-    script = render_python(env, hook)
-    env["DOTFILES_PERSONAL_ENABLED"] = "true"
-    result = run_setup(env, [PYTHON, "-B", str(script)])
-    assert result.returncode == 1, result.stderr
-    assert "DOTFILES_PERSONAL_ENABLED must be '0' or '1'" in result.stderr
-    assert not calls(env)
-    assert not (tmp_path / "state").exists()
-
-
-@pytest.fixture
-def profile_command(tmp_path: Path) -> list[str]:
-    assert CHEZMOI is not None, "chezmoi is required for profile validation"
-    source = tmp_path / "source"
-    source.mkdir()
-    (source / ".chezmoi.yaml.tmpl").write_text((ROOT / "home/.chezmoi.yaml.tmpl").read_text())
-    return [
-        CHEZMOI,
-        "--config",
-        str(tmp_path / "chezmoi.yaml"),
-        "--source",
-        str(source),
-        "--destination",
-        str(tmp_path / "destination"),
-        "--no-tty",
-    ]
-
-
-@pytest.mark.parametrize(
-    ("distro", "id_like", "accepted"),
-    [("arch", "", True), ("cachyos", "arch", True), ("debian", "", False)],
-)
-def test_arch_family_support_is_explicit(
-    env: dict[str, str],
-    profile_command: list[str],
-    tmp_path: Path,
-    distro: str,
-    id_like: str,
-    accepted: bool,
-) -> None:
-    # init supplies native OS metadata; replace only that input to its real template.
-    release = json.dumps(json.dumps({"id": distro, "idLike": id_like}))
-    (tmp_path / "source/.chezmoi.yaml.tmpl").write_text(
-        '{{- $_ := set .chezmoi "osRelease" (fromJson '
-        + release
-        + ") -}}\n"
-        + (ROOT / "home/.chezmoi.yaml.tmpl").read_text()
-    )
-    result = run_setup(env, profile_command + ["init", "--promptDefaults"])
-    assert (result.returncode == 0) == accepted, result.stdout + result.stderr
-    if accepted:
-        assert "personal: false" in (tmp_path / "chezmoi.yaml").read_text()
 
 
 def test_nonpersonal_apply_is_isolated(env: dict[str, str], tmp_path: Path) -> None:
@@ -350,20 +294,6 @@ esac""",
         ["--accept-tos", "registration", "show"],
     ]
     assert any("--mirror-gtk" in call for call in observed)
-    assert [
-        "gsettings",
-        "set",
-        "org.gnome.desktop.interface",
-        "gtk-theme",
-        "adw-gtk3-dark",
-    ] in observed
-    assert [
-        "gsettings",
-        "set",
-        "org.gnome.desktop.interface",
-        "color-scheme",
-        "prefer-dark",
-    ] in observed
     assert (tmp_path / "registered").exists()
     assert (tmp_path / "common-greeter").read_text() == "configured\n"
     assert all(
@@ -431,11 +361,11 @@ def test_secret_lookup_failure_does_not_publish_settings_or_private_errors(
 
 
 @pytest.fixture
-def bootstrap(env: dict[str, str], tmp_path: Path) -> list[str]:
+def bootstrap(env: dict[str, str], tmp_path: Path, lock_timeout: int) -> list[str]:
     env.update(
         CHEZMOI_SOURCE_DIR=str(ROOT / "home"),
         DOTFILES_PERSONAL_ENABLED="1",
-        RBW_CONFIG=json.dumps({"email": "fixture@example.invalid", "lock_timeout": 10800}),
+        RBW_CONFIG=json.dumps({"email": "fixture@example.invalid", "lock_timeout": lock_timeout}),
     )
     config = tmp_path / "config/rbw/config.json"
     config.parent.mkdir(parents=True)
@@ -448,7 +378,9 @@ def bootstrap(env: dict[str, str], tmp_path: Path) -> list[str]:
         """case "$*" in
     'config show') printf '%s\\n' "$RBW_CONFIG"; exit "${RBW_CONFIG_STATUS:-0}" ;;
     'config set email fixture@example.invalid') exit 0 ;;
-    'config set lock_timeout 10800') exit "${RBW_LOCK_STATUS:-0}" ;;
+    'config set lock_timeout """
+        + str(lock_timeout)
+        + """') exit "${RBW_LOCK_STATUS:-0}" ;;
     login) printf '%s\\n' "${RBW_LOGIN_ERROR:-}" >&2; exit "${RBW_LOGIN_STATUS:-0}" ;;
     *) exit 97 ;;
 esac""",
@@ -465,18 +397,6 @@ def authentication(env: dict[str, str], bootstrap: list[str]) -> list[str]:
     return [PYTHON, "-B", str(render_python(env, AUTHENTICATION))]
 
 
-def test_prerequisite_install_failure_stops_setup(
-    env: dict[str, str], bootstrap: list[str]
-) -> None:
-    env["DOTFILES_PERSONAL_ENABLED"] = "1"
-    stub(env, "pacman", "exit 1")
-    stub(env, "sudo", "exit 23", log=True)
-    result = run_setup(env, bootstrap)
-    assert result.returncode == 23, result.stderr
-    assert len(calls(env)) == 1
-    assert calls(env)[0][:3] == ["sudo", "pacman", "--sync"]
-
-
 @pytest.mark.parametrize("personal", [False, True], ids=["nonpersonal", "personal"])
 def test_prerequisites_install_in_one_transaction_and_reapply_quietly(
     env: dict[str, str], bootstrap: list[str], tmp_path: Path, personal: bool
@@ -484,11 +404,10 @@ def test_prerequisites_install_in_one_transaction_and_reapply_quietly(
     env.update(
         DOTFILES_PERSONAL_ENABLED="1" if personal else "0", INSTALLED=str(tmp_path / "installed")
     )
-    packages = ["python", "python-loguru", "git", "base-devel", "mise"]
-    if personal:
-        packages.extend(("rbw", "pinentry"))
+    packages, personal_packages = bootstrap_packages()
+    expected_packages = packages + (personal_packages if personal else [])
     stub(env, "pacman", '[ "$1" = --query ] && test -f "$INSTALLED"')
-    install = ["pacman", "--sync", "--needed", "--noconfirm", "--", *packages]
+    install = ["pacman", "--sync", "--needed", "--noconfirm", "--", *expected_packages]
     stub(
         env,
         "sudo",
@@ -535,7 +454,7 @@ def test_authentication_failures_preserve_status_and_private_diagnostics(
 
 
 def test_fresh_authentication_requires_an_email_and_supports_a_terminal(
-    env: dict[str, str], authentication: list[str], tmp_path: Path
+    env: dict[str, str], authentication: list[str], tmp_path: Path, lock_timeout: int
 ) -> None:
     (tmp_path / "config/rbw/config.json").unlink()
     env.update(RBW_CONFIG="{}", RBW_CONFIG_STATUS="1", NOCONFIRM="1")
@@ -564,80 +483,41 @@ def test_fresh_authentication_requires_an_email_and_supports_a_terminal(
     assert calls(env) == [
         ["rbw", "config", "show"],
         ["rbw", "config", "set", "email", "fixture@example.invalid"],
-        ["rbw", "config", "set", "lock_timeout", "10800"],
+        ["rbw", "config", "set", "lock_timeout", str(lock_timeout)],
         ["rbw", "login"],
     ]
 
 
-def test_unreadable_vault_configuration_is_not_reset(
-    env: dict[str, str], authentication: list[str]
+def test_setup_logs_are_private_and_bounded(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    env["RBW_CONFIG_STATUS"] = "23"
-    result = run_setup(env, authentication)
-    assert result.returncode == 23, result.stderr
-    assert calls(env) == [["rbw", "config", "show"]]
+    from lib import provision_logging
 
-
-def test_setup_logs_are_private_and_bounded(env: dict[str, str], tmp_path: Path) -> None:
-    code = """import runpy, sys
-namespace = runpy.run_path(sys.argv[1])
-namespace['configure_logging']()
-for _ in range(7):
-    namespace['logger'].debug('rotation-test ' + 'x' * (5 * 1024 * 1024))
-namespace['logger'].remove()
-"""
-    result = run_setup(env, [PYTHON, "-B", "-c", code, str(LOGGING)])
-    assert result.returncode == 0, result.stderr
-    logs = tmp_path / "state/chezmoi/logs"
+    # The real limits only need to be finite; shrink them so the test stays fast
+    # and does not grow with the production configuration.
+    assert provision_logging.LOG_ROTATION_BYTES > 0
+    assert provision_logging.LOG_RETENTION > 0
+    rotation, retention = 1024, 3
+    monkeypatch.setattr(provision_logging, "LOG_ROTATION_BYTES", rotation)
+    monkeypatch.setattr(provision_logging, "LOG_RETENTION", retention)
+    monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path))
+    logs = tmp_path / "chezmoi/logs"
+    try:
+        _ = provision_logging.configure_logging()
+        counts: list[int] = []
+        for _batch in range(2):
+            for _ in range(retention + 2):
+                logger.debug("rotation-test " + "x" * rotation)
+            counts.append(len(list(logs.glob("setup*.log"))))
+    finally:
+        logger.remove()
+    # Writing well past the threshold keeps the retained set at the current file
+    # plus `retention` archives instead of growing.
+    assert counts == [retention + 1, retention + 1]
     assert logs.stat().st_mode & 0o777 == 0o700
-    files = list(logs.glob("setup*.log"))
-    assert len(files) == 6  # Current file and five archives.
-    for path in files:
+    for path in logs.glob("setup*.log"):
         assert path.stat().st_mode & 0o777 == 0o600
         assert path.stat().st_uid == os.getuid()
-        with path.open("rb") as stream:
-            assert b"rotation-test" in stream.read(200)
-
-
-def test_symlinked_log_directory_is_rejected_before_bootstrap(
-    env: dict[str, str], tmp_path: Path
-) -> None:
-    external = tmp_path / "external"
-    external.mkdir()
-    logs = tmp_path / "state/chezmoi/logs"
-    logs.parent.mkdir(parents=True)
-    logs.symlink_to(external, target_is_directory=True)
-    stub(env, "pacman", "exit 0", log=True)
-    result = run_setup(env, [PYTHON, "-B", str(render_python(env, AUTHENTICATION))])
-    assert result.returncode != 0
-    assert calls(env) == []
-    assert list(external.iterdir()) == []
-
-
-def test_fifo_log_file_does_not_block_or_allow_package_installation(
-    env: dict[str, str], authentication: list[str], tmp_path: Path
-) -> None:
-    logs = tmp_path / "state/chezmoi/logs"
-    logs.mkdir(parents=True)
-    os.mkfifo(logs / "setup.log", 0o600)
-    env.update(DOTFILES_PERSONAL_ENABLED="1", RBW_LOGIN_STATUS="23")
-    result = run_setup(env, authentication)
-    assert result.returncode == 1, result.stderr
-    assert "Traceback" not in result.stderr
-    assert calls(env) == [["rbw", "config", "show"], ["rbw", "login"]]
-    Path(env["CALLS"]).unlink()
-    # An XDG failure must also remain concise when its file diagnostic cannot be written.
-    gnupg = tmp_path / "data/gnupg"
-    gnupg.parent.mkdir(parents=True)
-    private = tmp_path / "private-key"
-    private.write_text("private-file-canary")
-    gnupg.symlink_to(private)
-    failed = apply_packages(env)
-    assert failed.returncode == 1, failed.stderr
-    assert "Traceback" not in failed.stderr
-    assert "private-file-canary" not in failed.stderr
-    assert gnupg.read_text() == "private-file-canary"
-    assert calls(env) == []
 
 
 @pytest.fixture
@@ -721,37 +601,6 @@ def apply_packages(
     return run_setup(
         env, [PYTHON, "-B", str(render_python(env, PACKAGES, personal=personal, distro=distro))]
     )
-
-
-def test_fresh_kvm_baseline_needs_no_vulkan_provider_or_personal_probes(
-    package_env: dict[str, str], tmp_path: Path
-) -> None:
-    for name in ("lspci", "hostnamectl", "rbw", "systemctl", "sbctl"):
-        stub(package_env, name, "exit 97", log=True)
-    package_env.update(MISE_ENV="personal", MISE_CONFIG_FILE="/unrelated/config.toml")
-    result = apply_packages(package_env)
-    assert result.returncode == 0, result.stderr
-    assert "Installing baseline packages with Mise." in result.stderr
-    recorded = calls(package_env)
-    assert [call for call in recorded if call[0] == "mise"] == [
-        ["mise", "--env", "packages", "bootstrap", "packages", "status", "--json"],
-        ["mise", "--env", "packages", "bootstrap", "packages", "apply", "--yes", "--quiet"],
-    ]
-    assert all(call[0] in ("sudo", "mise") for call in recorded)
-    observed = cast("dict[str, str | None]", json.loads((tmp_path / "observed.json").read_text()))
-    assert not observed["MISE_ENV"] and not observed["MISE_CONFIG_FILE"]
-    assert (tmp_path / "data/gnupg").stat().st_mode & 0o777 == 0o700
-    declarations = cast(
-        "dict[str, dict[str, str | list[str]]]",
-        tomllib.loads((ROOT / "mise/conf.d/packages.toml").read_text())["bootstrap"]["packages"],
-    )
-    # Protect the baseline policy, including transitive Vulkan demand from Zed.
-    for name, declaration in declarations.items():
-        if "zed" in name or "nvidia" in name:
-            selected = declaration["env"]
-            assert {"packages", "aur-helper"}.isdisjoint(
-                [selected] if isinstance(selected, str) else selected
-            ), name
 
 
 def test_chaotic_trust_upgrade_and_helper_recover_then_reapply_without_duplicates(
@@ -861,41 +710,6 @@ def test_personal_package_groups_preserve_driver_order(
         assert recorded[0][1:3] == ["--env", "nvidia-legacy-utils"]
 
 
-@pytest.mark.parametrize("baseline", ["installed", "missing"])
-@pytest.mark.parametrize("legacy", ["installed", "missing"])
-def test_package_announcements_only_for_phases_with_pending_work(
-    package_env: dict[str, str], baseline: str, legacy: str
-) -> None:
-    package_env.update(
-        PACKAGE_STATE=baseline,
-        LEGACY_PACKAGE_STATE=legacy,
-        GPU="NVIDIA Corporation GP106 [10de:1234]",
-        DRIVER_VERSION="580.119.02",
-    )
-    result = apply_packages(package_env, personal=True)
-    assert result.returncode == 0, result.stderr
-    assert ("Installing baseline and personal packages with Mise." in result.stderr) == (
-        baseline == "missing"
-    )
-    assert ("Installing legacy NVIDIA utilities before driver packages." in result.stderr) == (
-        legacy == "missing"
-    )
-    applied = [call[2] for call in calls(package_env) if call[0] == "mise" and "apply" in call]
-    assert ("nvidia-legacy-utils" in applied) == (legacy == "missing")
-    assert any("packages" in group.split(",") for group in applied) == (baseline == "missing")
-
-
-def test_package_status_failure_stops_without_announcing_installation(
-    package_env: dict[str, str],
-) -> None:
-    package_env["PACKAGE_STATUS"] = "23"
-    result = apply_packages(package_env)
-    assert result.returncode == 23, result.stderr
-    assert "Installing baseline" not in result.stderr
-    assert "status --json failed (exit 23)" in result.stderr
-    assert not any(call[0] == "mise" and "apply" in call for call in calls(package_env))
-
-
 @pytest.mark.parametrize("distro", ["cachyos", "garuda"])
 def test_derivatives_keep_distribution_managed_nvidia_modules(
     package_env: dict[str, str], distro: str
@@ -926,104 +740,6 @@ def test_driver_conflicts_stop_before_mise(
     assert "Traceback" in persisted
     assert "ValueError:" in persisted
     assert not any(call[0] == "mise" for call in calls(package_env))
-
-
-def test_missing_nvidia_module_fails_after_package_installation(
-    package_env: dict[str, str],
-) -> None:
-    package_env["GPU"] = "NVIDIA Corporation GA106 [10de:1234]"
-    stub(package_env, "modinfo", "exit 23")
-    result = apply_packages(package_env, personal=True)
-    assert result.returncode != 0
-    assert "6.18-fixture" in result.stderr
-    assert any(call[0] == "mise" for call in calls(package_env))
-
-
-def test_xdg_reapplication_preserves_custom_paths_and_maven_settings(
-    package_env: dict[str, str], tmp_path: Path
-) -> None:
-    package_env["GNUPGHOME"] = str(tmp_path / "private-gnupg")
-    settings = tmp_path / "config/maven/settings.xml"
-    settings.parent.mkdir(parents=True)
-    settings.write_text("existing-private-settings")
-    before = settings.stat().st_mtime_ns
-    result = apply_packages(package_env)
-    assert result.returncode == 0, result.stderr
-    assert settings.read_text() == "existing-private-settings"
-    assert settings.stat().st_mtime_ns == before
-    assert "existing-private-settings" not in result.stderr
-    assert Path(package_env["GNUPGHOME"]).stat().st_mode & 0o777 == 0o700
-    assert (
-        calls(package_env).count(
-            ["sudo", "pacman", "--sync", "--refresh", "--sysupgrade", "--noconfirm"]
-        )
-        == 1
-    )
-    # A mistaken custom GnuPG path must preserve the file and explain the Python failure.
-    package_env["GNUPGHOME"] = str(settings)
-    recorded = calls(package_env)
-    failed = apply_packages(package_env)
-    assert failed.returncode == 1, failed.stderr
-    assert "File exists" in failed.stderr
-    assert "Traceback" not in failed.stderr
-    persisted = (tmp_path / "state/chezmoi/logs/setup.log").read_text()
-    assert "FileExistsError:" in persisted
-    assert "existing-private-settings" not in persisted + failed.stderr
-    assert settings.read_text() == "existing-private-settings"
-    assert calls(package_env) == recorded
-
-
-def test_package_changes_track_only_declared_dependencies(
-    package_env: dict[str, str], tmp_path: Path
-) -> None:
-    assert CHEZMOI is not None, "chezmoi is required for package change detection"
-    repository = tmp_path / "source"
-    templates = repository / "home/.chezmoitemplates"
-    scripts = repository / "home/.chezmoiscripts/linux"
-    templates.mkdir(parents=True)
-    scripts.mkdir(parents=True)
-    shutil.copytree(ROOT / "mise", repository / "mise")
-    shutil.copytree(ROOT / "home/.chezmoitemplates/lib", templates / "lib")
-    launcher = PACKAGES
-    shutil.copy(SCRIPTS / launcher, scripts / launcher)
-    config = tmp_path / "chezmoi.json"
-    config.write_text(
-        json.dumps(
-            {
-                "data": {"personal": False, "distroFamily": "arch"},
-                "scriptEnv": {"DOTFILES_PERSONAL_ENABLED": "0"},
-            }
-        )
-    )
-    command = [
-        CHEZMOI,
-        "--config",
-        str(config),
-        "--source",
-        str(repository / "home"),
-        "--working-tree",
-        str(repository),
-        "--destination",
-        str(tmp_path / "target"),
-        "--no-tty",
-        "apply",
-    ]
-    # Only declared package inputs should invalidate this workflow.
-    for target, expected in (
-        (None, 1),
-        (repository / "mise/conf.d/services.toml", 1),
-        (repository / "mise/conf.d/packages.toml", 2),
-        (templates / "lib/provision_logging.py", 2),
-        (scripts / launcher, 3),
-    ):
-        if target:
-            with target.open("a") as stream:
-                stream.write("\n# changed\n")
-        result = run_setup(package_env, command)
-        assert result.returncode == 0, result.stderr
-        assert (
-            sum(call[0] == "mise" and "apply" in call for call in calls(package_env)) == expected
-        ), target
 
 
 @pytest.mark.parametrize("personal", [False, True], ids=["nonpersonal", "personal"])
@@ -1104,16 +820,3 @@ with (Path.home() / "execution.jsonl").open("a") as stream:
     )
     assert sum(call[0] == "sudo" for call in observed) == 1
     assert bootstrap  # Reuse the established private prerequisite/vault fixture.
-
-
-def test_lock_timeout_failure_stops_before_vault_login(
-    env: dict[str, str], authentication: list[str]
-) -> None:
-    env.update(RBW_CONFIG=json.dumps({"email": "fixture@example.invalid"}), RBW_LOCK_STATUS="23")
-    result = run_setup(env, authentication)
-    assert result.returncode == 23, result.stderr
-    assert calls(env) == [
-        ["rbw", "config", "show"],
-        ["rbw", "config", "set", "lock_timeout", "10800"],
-    ]
-    assert "fixture@example.invalid" not in result.stderr

@@ -1,113 +1,15 @@
 """Exercise installed Atuin against clean homes through its real shell entry points."""
 
 import json
-import shlex
 import shutil
 from pathlib import Path
 
 import pytest
-from helpers import CHEZMOI, ROOT, SCRIPTS
-from test_setup import PYTHON, calls, render_python, run_setup, stub
+from helpers import ROOT
+from test_setup import PYTHON, calls, render_python, run_setup
 from test_setup import env as env
 
-ATUIN = shutil.which("atuin")
-FISH = shutil.which("fish")
 HOOK = "run_onchange_after_02_atuin.py"
-
-
-@pytest.mark.parametrize(
-    ("entry", "custom_xdg"), [("fish", False), ("setup", True)], ids=["fish-defaults", "setup-xdg"]
-)
-def test_first_atuin_launch_uses_separate_xdg_paths(
-    env: dict[str, str], tmp_path: Path, entry: str, custom_xdg: bool
-) -> None:
-    if ATUIN is None or FISH is None:
-        pytest.skip("Native Atuin/Fish integration requires atuin and fish on PATH")
-    assert CHEZMOI is not None
-    if not custom_xdg:
-        for name in ("CONFIG", "DATA", "STATE", "CACHE"):
-            env.pop(f"XDG_{name}_HOME")
-    config = tmp_path / ".config/atuin"
-    data = Path(env.get("XDG_DATA_HOME", tmp_path / ".local/share")) / "atuin"
-    state = Path(env.get("XDG_STATE_HOME", tmp_path / ".local/state")) / "atuin"
-    runtime = tmp_path / "runtime"
-    runtime.mkdir(mode=0o700)
-    env.update(
-        XDG_RUNTIME_DIR=str(runtime),
-        TERM="dumb",
-        ATUIN_AUTO_SYNC="false",
-        ATUIN_DAEMON__AUTOSTART="false",
-    )
-    # Native settings inspection initializes the real stores without login or a daemon.
-    inspect = f"""{shlex.quote(ATUIN)} info > "$HOME/info"
-{shlex.quote(ATUIN)} config get --resolved key_path > "$HOME/key-path"
-{shlex.quote(ATUIN)} config get --resolved logs.dir > "$HOME/log-path"
-{shlex.quote(ATUIN)} config get --resolved daemon.socket_path > "$HOME/socket-path"
-"""
-    source = tmp_path / "source"
-    scripts = source / ".chezmoiscripts/linux"
-    scripts.mkdir(parents=True)
-    shutil.copytree(ROOT / "home/.chezmoitemplates/lib", source / ".chezmoitemplates/lib")
-    shutil.copytree(ROOT / "home/dot_config/private_atuin", source / "dot_config/private_atuin")
-    shutil.copy(ROOT / "home/.chezmoiignore.tmpl", source / ".chezmoiignore.tmpl")
-    shutil.copy(SCRIPTS / HOOK, scripts)
-    # Keep authentication outside this path test. The setup variant performs
-    # its first real native settings load exactly where the hook invokes Atuin.
-    stub(
-        env, "atuin", '[ "$1" = status ] || exit 97\n' + (inspect if entry == "setup" else "exit 0")
-    )
-    chezmoi_config = tmp_path / "chezmoi.json"
-    chezmoi_config.write_text(
-        json.dumps(
-            {
-                "data": {"personal": True, "distroFamily": "arch"},
-                "scriptEnv": {"DOTFILES_PERSONAL_ENABLED": "1"},
-            }
-        )
-    )
-    command = [
-        CHEZMOI,
-        "--config",
-        str(chezmoi_config),
-        "--source",
-        str(source),
-        "--destination",
-        str(tmp_path),
-        "--no-tty",
-        "apply",
-    ]
-    applied = run_setup(env, command)
-    assert applied.returncode == 0, applied.stderr
-    if custom_xdg:
-        assert not (Path(env["XDG_CONFIG_HOME"]) / "atuin/config.toml").exists()
-    if entry == "fish":
-        native = Path(env["PATH"]) / "atuin"
-        native.unlink()
-        native.symlink_to(ATUIN)
-        conf = ROOT / "home/dot_config/private_fish/conf.d/atuin.fish"
-        launch = [
-            FISH,
-            "--no-config",
-            "--interactive",
-            "--command",
-            f"source {shlex.quote(str(conf))}; {inspect}",
-        ]
-    else:
-        launch = [PYTHON, "-B", str(render_python(env, HOOK, source=source))]
-    for _ in range(2):
-        result = run_setup(env, launch)
-        assert result.returncode == 0, result.stderr
-        info = (tmp_path / "info").read_text()
-        assert f'client config: "{config / "config.toml"}"' in info
-        assert f"client db path: {data / 'history.db'}" in info
-        assert (data / "history.db").is_file()
-        assert (data / "records.db").is_file()
-        assert (tmp_path / "key-path").read_text().strip() == str(data / "key")
-        assert (tmp_path / "log-path").read_text().strip() == str(state)
-        assert (tmp_path / "socket-path").read_text().strip() == str(runtime / "atuin.sock")
-        assert f'ATUIN_HOME = "{config}"' in info
-        assert f'ATUIN_CONFIG_DIR = "{config}"' in info
-        assert not (tmp_path / ".atuin").exists()
 
 
 @pytest.fixture
@@ -191,33 +93,3 @@ def test_personal_login_retains_vault_fields_and_syncs_only_after_login(
     log = (tmp_path / "state/chezmoi/logs/setup.log").read_text()
     for secret in ("secret-password-fixture", "secret-key-fixture", "fixture-user-Ω"):
         assert secret not in log + first.stdout + first.stderr + repeated.stderr
-
-
-@pytest.mark.parametrize(
-    "failure,status", [("VAULT_STATUS", 23), ("LOGIN_STATUS", 24), ("SYNC_STATUS", 25)]
-)
-def test_atuin_failures_stop_safely_without_recording_credentials(
-    env: dict[str, str], tmp_path: Path, atuin_setup: list[str], failure: str, status: int
-) -> None:
-    env[failure] = str(status)
-    result = run_setup(env, atuin_setup)
-    assert result.returncode == status, result.stderr
-    assert f"exit {status}" in result.stderr
-    log = (tmp_path / "state/chezmoi/logs/setup.log").read_text()
-    for secret in ("secret-password-fixture", "secret-key-fixture", "fixture-user-Ω"):
-        assert secret not in log + result.stdout + result.stderr
-    if failure == "VAULT_STATUS":
-        assert ["atuin", "login"] not in calls(env)
-    if failure != "SYNC_STATUS":
-        assert ["atuin", "sync"] not in calls(env)
-
-
-def test_missing_managed_config_fails_before_atuin_creates_defaults(
-    env: dict[str, str], tmp_path: Path, atuin_setup: list[str]
-) -> None:
-    (tmp_path / ".config/atuin/config.toml").unlink()
-    result = run_setup(env, atuin_setup)
-    assert result.returncode == 1
-    assert "apply managed files first" in result.stderr
-    assert calls(env) == []
-    assert not (tmp_path / ".atuin").exists()

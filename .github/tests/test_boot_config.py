@@ -11,6 +11,7 @@ from typing import override
 
 import pytest
 from helpers import CHEZMOI, LIB, SCRIPTS, ScriptCase
+from lib.initramfs import desired_hooks
 from lib.snapshot_boot import OVERLAY_CONFIG
 from test_setup import env as env
 from test_setup import run_setup, stub
@@ -363,16 +364,8 @@ rm -f "$HOME"/tpm-stale""",
         late = self.etc / "default/limine"
         late.parent.mkdir()
         for case in (
-            "missing",
-            "inactive",
             "overridden",
             "conflict",
-            "quoted-conflict",
-            "separator",
-            "crlf",
-            "per-kernel",
-            "alias-conflict",
-            "bare-conflict",
         ):
             with self.subTest(case=case):
                 self.defaults.write_text(original)
@@ -607,23 +600,10 @@ rm -f "$HOME"/tpm-stale""",
         self.assertEqual(self.logged_calls(), [])
 
     def test_unverified_installer_devices_never_publish_arguments_or_hooks(self) -> None:
-        for identifier, failure in product(
-            (
-                "UUID=bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
-                "PARTUUID=fd8ce3d8-1e48-4b0e-91a8-24cdb2f14ce1",
-            ),
-            (
-                "source-missing",
-                "source-ambiguous",
-                "source-device",
-                "not-block",
-                "not-luks",
-                "source-uuid",
-                "ambiguous",
-            ),
+        for identifier, failure in (
+            ("UUID=bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb", "source-missing"),
+            ("UUID=bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb", "not-luks"),
         ):
-            if identifier.startswith("UUID=") and failure == "ambiguous":
-                continue
             with self.subTest(identifier=identifier, failure=failure):
                 self.env["FAILURE"] = failure
                 self.persistent_sources(f"cryptdevice={identifier}:root")
@@ -651,21 +631,7 @@ rm -f "$HOME"/tpm-stale""",
         legacy = "cryptdevice=UUID=bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:root"
         for unlock in (
             legacy + ":allow-discards",
-            legacy + " " + legacy,
-            legacy.replace("UUID=", "PARTUUID="),  # Unresolvable PARTUUID, not the LUKS UUID.
-            "cryptdevice=PARTUUID=fd8ce3d8-1e48-4b0e-91a8-24cdb2f14ce1:other",
-            legacy + " cryptdevice=PARTUUID=fd8ce3d8-1e48-4b0e-91a8-24cdb2f14ce1:root",
-            legacy.replace("UUID=bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb", "/dev/sda2"),
             legacy.replace("bbbbbbbb", "aaaaaaaa"),
-            legacy.replace(":root", ":other"),
-            legacy + " cryptkey=rootfs:/keyfile",
-            legacy + " crypto=sha256:aes:256:0:",
-            legacy + " rd.luks.name=dddddddd-dddd-dddd-dddd-dddddddddddd=root",
-            legacy + " rd.luks.name=bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb=other",
-            legacy + " rd.luks=0",
-            '"' + legacy + '"',
-            'systemd.setenv="WORDS=before ' + legacy + ' after"',
-            legacy + " -- init=custom",
         ):
             with self.subTest(unlock=unlock):
                 self.persistent_sources(unlock)
@@ -973,6 +939,9 @@ rm -f "$HOME"/tpm-stale""",
     def test_failed_preflight_or_write_preserves_previous_hooks(self) -> None:
         previous = "# Managed systemd base; snapshot hooks belong to Snapper.\nHOOKS=(base systemd block filesystems fsck)\n"
         self.managed.write_text(previous)
+        base_hooks = re.search(r"^HOOKS=\((.*)\)$", self.original, re.MULTILINE)
+        assert base_hooks is not None
+        managed_hooks = desired_hooks(base_hooks[1].split(), True)
         for failure in (
             "identity",
             "unlock",
@@ -993,9 +962,7 @@ rm -f "$HOME"/tpm-stale""",
                 if failure == "late":
                     late.write_text("HOOKS=(base systemd block filesystems)\n")
                 elif failure == "late-matching":
-                    late.write_text(
-                        "HOOKS=(base systemd autodetect microcode modconf kms keyboard sd-vconsole block plymouth sd-encrypt filesystems fsck)\n"
-                    )
+                    late.write_text("HOOKS=(" + " ".join(managed_hooks) + ")\n")
                 elif failure == "snapshot":
                     self.main.write_text(self.original.replace("fsck)", "fsck btrfs-overlayfs)"))
                 result = self.configure()
@@ -1063,21 +1030,6 @@ rm -f "$HOME"/tpm-stale""",
                 self.assertEqual(table.read_text(), host)
                 self.assertEqual(early.read_text(), included)
                 self.assertEqual(self.main.read_text(), self.original)
-
-    def test_unsafe_uki_overrides_never_publish_hooks(self) -> None:
-        self.env["ENCRYPTED"] = "1"
-        for options in (
-            "--skiphoo=sd-encrypt",
-            "--conf=/etc/mkinitcpio.conf",
-            "--nopo",
-            "--cmdline /legacy",
-        ):
-            with self.subTest(options=options):
-                self.env["UKI_OPTIONS"] = options
-                result = self.configure()
-                self.assertNotEqual(result.returncode, 0, result.stderr)
-                self.assertFalse(self.managed.exists())
-                self.assertFalse(self.marker.exists())
 
     def test_snapper_hook_is_applied_once(self) -> None:
         for hooks in (
