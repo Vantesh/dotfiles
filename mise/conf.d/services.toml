@@ -35,17 +35,11 @@ masked = true
 state = "unchanged"
 enabled = true
 
-# Device registration is common; setup never connects the tunnel.
 [bootstrap.services."warp-svc.service"]
 state = "running"
 enabled = true
 
 [bootstrap.services."oo7-daemon.service"]
-scope = "user"
-state = "running"
-enabled = true
-
-[bootstrap.services."oo7-portal.service"]
 scope = "user"
 state = "running"
 enabled = true
