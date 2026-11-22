@@ -227,7 +227,9 @@ def tpm2_unlocks(container: Path) -> bool:
         )
         if result.returncode == 0:
             return True
-        if result.returncode != 2:
+        # A stale TPM2 policy fails as 1 (EPERM) or 2 (bad passphrase);
+        # anything else is an unexpected cryptsetup failure.
+        if result.returncode not in (1, 2):
             result.check_returncode()
     if custom:
         raise ValueError(
@@ -278,7 +280,7 @@ def configure_tpm2_unlock(container: Path, uuid: str, parser: Path, state: Path)
         raise ValueError(f"TPM2 policy file {name} requires manual enrollment.")
     print(
         "Authorize a new PIN-less PCR7 TPM2 enrollment with your LUKS passphrase. "
-        "Existing password, recovery, and TPM2 slots will be preserved.",
+        "Existing password and recovery slots will be preserved; TPM2 enrollments will be replaced.",
         file=sys.stderr,
         flush=True,
     )
@@ -288,6 +290,7 @@ def configure_tpm2_unlock(container: Path, uuid: str, parser: Path, state: Path)
             "--tpm2-device=auto",
             "--tpm2-pcrs=7",
             "--tpm2-with-pin=no",
+            "--wipe-slot=tpm2",
             str(container),
         ],
         check=True,

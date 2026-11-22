@@ -14,6 +14,7 @@
 # mise/conf.d/reflector.toml: {{ include "../mise/conf.d/reflector.toml" | sha256sum }}
 # greetd config: {{ include ".chezmoitemplates/login-manager/config.toml" | sha256sum }}
 # greetd PAM: {{ include ".chezmoitemplates/login-manager/greetd.pam" | sha256sum }}
+# passwd PAM: {{ include ".chezmoitemplates/login-manager/passwd.pam" | sha256sum }}
 # greeter settings: {{ include ".chezmoitemplates/login-manager/greeter.toml" | sha256sum }}
 # personal greeter output: {{ if .personal }}{{ include ".chezmoitemplates/login-manager/greeter-output.toml" | sha256sum }}{{ else }}disabled{{ end }}
 """Publish Mise system files, then converge system/user services and Fish."""

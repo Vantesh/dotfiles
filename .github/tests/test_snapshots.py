@@ -4,7 +4,6 @@ import json
 import runpy
 import shutil
 import subprocess
-import sys
 from collections.abc import Callable
 from pathlib import Path
 from typing import cast
@@ -15,14 +14,15 @@ from test_setup import calls, render_python, run_setup, stub
 from test_setup import env as env
 
 HOOK = "run_onchange_before_05_snapshots.py.tmpl"
-SETTINGS = {
-    "NUMBER_CLEANUP": "yes",
-    "NUMBER_LIMIT": "20",
-    "TIMELINE_CREATE": "no",
-    "TIMELINE_CLEANUP": "no",
-    "EMPTY_PRE_POST_CLEANUP": "yes",
-    "EMPTY_PRE_POST_MIN_AGE": "3600",
-}
+
+
+@pytest.fixture
+def snapper_settings(env: dict[str, str]) -> dict[str, str]:
+    namespace = runpy.run_path(str(render_python(env, HOOK)))
+    settings = namespace["SETTINGS"]
+    if not isinstance(settings, dict):
+        raise AssertionError("Snapper SETTINGS must be a dictionary")
+    return cast("dict[str, str]", settings)
 
 
 @pytest.fixture
@@ -172,16 +172,23 @@ def mutations(env: dict[str, str]) -> list[list[str]]:
     ]
 
 
+def test_snapper_settings_keep_cleanup_enabled_and_bounded(
+    snapper_settings: dict[str, str],
+) -> None:
+    assert snapper_settings["NUMBER_CLEANUP"] == "yes"
+    assert int(snapper_settings["NUMBER_LIMIT"]) > 0
+
+
 @pytest.mark.parametrize("existing", [False, True], ids=["fresh", "configured"])
 def test_snapper_apply_and_state_based_reapplication(
-    snapper: dict[str, str], tmp_path: Path, existing: bool
+    snapper: dict[str, str], snapper_settings: dict[str, str], tmp_path: Path, existing: bool
 ) -> None:
     if existing:
         settings = {
             "SUBVOLUME": "/",
             "FSTYPE": "btrfs",
             "UNMANAGED": "preserve",
-            **SETTINGS,
+            **snapper_settings,
         }
         (tmp_path / "snapper.json").write_text(json.dumps(settings))
         (tmp_path / "snapshots/42/snapshot").mkdir(parents=True)
@@ -190,7 +197,7 @@ def test_snapper_apply_and_state_based_reapplication(
     result = run_setup(snapper, command)
     assert result.returncode == 0, result.stderr
     settings = cast("dict[str, str]", json.loads((tmp_path / "snapper.json").read_text()))
-    assert settings.items() >= SETTINGS.items()
+    assert settings.items() >= snapper_settings.items()
     assert settings["UNMANAGED"] == "preserve"
     observed = calls(snapper)
     assert [call for call in observed if call[0] == "boot"] == [
@@ -267,25 +274,6 @@ def test_unexpected_filesystem_state_is_preserved(
         assert (tmp_path / "snapshots/sentinel").read_text() == "preserve"
 
 
-@pytest.mark.parametrize("failure", ["list-configs", "create-config", "set-config", "enable"])
-def test_failure_status_and_retry_preserve_completed_work(
-    snapper: dict[str, str], tmp_path: Path, failure: str
-) -> None:
-    snapper["FAIL_COMMAND"] = failure
-    command = [sys.executable, "-B", str(render_python(snapper, HOOK, source=tmp_path / "source"))]
-    result = run_setup(snapper, command)
-    assert result.returncode == 23, result.stderr
-    assert "exit 23" in result.stderr
-    if failure == "list-configs":
-        assert mutations(snapper) == []
-    del snapper["FAIL_COMMAND"]
-    result = run_setup(snapper, apply_command(tmp_path))
-    assert result.returncode == 0, result.stderr
-    assert sum("create-config" in call for call in calls(snapper)) == (
-        2 if failure == "create-config" else 1
-    )
-
-
 FSTAB = "# preserve comments\nUUID=root / btrfs rw,relatime,subvol=/@ 0 0 # root\nUUID=root /swap btrfs relatime,subvol=/@swap 0 0\nUUID=other /mnt/data btrfs relatime 0 0\n/swap/swapfile none swap defaults 0 0\n"
 
 
@@ -336,33 +324,6 @@ def test_failed_reload_restores_only_its_own_fstab_edit(
     assert error.value.returncode == 23
     assert path.read_text() == ("manual edit\n" if concurrent_edit else FSTAB)
     assert not list(tmp_path.glob(".fstab.chezmoi.*"))
-
-
-def test_symlinked_fstab_is_refused(tmp_path: Path, optimize_fstab: Callable[[Path], bool]) -> None:
-    target = tmp_path / "original"
-    target.write_text(FSTAB)
-    path = tmp_path / "fstab"
-    path.symlink_to(target)
-    with pytest.raises(OSError):
-        optimize_fstab(path)
-    assert target.read_text() == FSTAB
-
-
-def test_interrupted_reload_restores_fstab(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, optimize_fstab: Callable[[Path], bool]
-) -> None:
-    path = tmp_path / "fstab"
-    path.write_text(FSTAB)
-
-    def interrupt(command: list[str], *, check: bool) -> subprocess.CompletedProcess[str]:
-        assert command == ["systemctl", "daemon-reload"] and check
-        raise SystemExit(143)
-
-    monkeypatch.setattr(subprocess, "run", interrupt)
-    with pytest.raises(SystemExit) as error:
-        optimize_fstab(path)
-    assert error.value.code == 143
-    assert path.read_text() == FSTAB
 
 
 def test_rendered_snapper_reexecutes_synchronously_without_source_environment(

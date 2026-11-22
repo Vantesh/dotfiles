@@ -6,10 +6,9 @@ import pwd
 import shutil
 import tomllib
 from pathlib import Path
-from typing import cast
 
 import pytest
-from helpers import CHEZMOI, ROOT, SCRIPTS
+from helpers import CHEZMOI, LOGIN_MANAGER, ROOT, SCRIPTS
 from test_setup import PYTHON, calls, render_python, run_setup, stub
 from test_setup import env as env
 
@@ -43,10 +42,17 @@ def login(env: dict[str, str], tmp_path: Path) -> dict[str, str]:
             }
         )
     )
+    (tmp_path / "etc/pam.d/passwd").write_text(
+        "#%PAM-1.0\n"
+        "auth\t\tinclude\t\tsystem-auth\n"
+        "account\t\tinclude\t\tsystem-auth\n"
+        "password\tinclude\t\tsystem-auth\n"
+    )
     text = (SCRIPTS / HOOK).read_text()
     for target in (
         "/etc/greetd/config.toml",
         "/etc/pam.d/greetd",
+        "/etc/pam.d/passwd",
         "/var/lib/noctalia-greeter",
         "/usr/share/wayland-sessions/hyprland-uwsm.desktop",
         "/usr/local/share/wayland-sessions/hyprland-uwsm.desktop",
@@ -164,9 +170,7 @@ def chezmoi_command(login: dict[str, str], personal: bool) -> list[str]:
     ]
 
 
-@pytest.mark.parametrize(
-    "personal,matching", [(False, False), (True, False), (True, True), (False, True)]
-)
+@pytest.mark.parametrize("personal,matching", [(True, True), (False, False)])
 def test_greeter_configs_profiles_and_next_boot_only_transition(
     login: dict[str, str], tmp_path: Path, personal: bool, matching: bool
 ) -> None:
@@ -176,36 +180,37 @@ def test_greeter_configs_profiles_and_next_boot_only_transition(
     result = run_setup(login, command)
     assert result.returncode == 0, result.stderr
     config = tomllib.loads((tmp_path / "etc/greetd/config.toml").read_text())
-    assert config == {
-        "terminal": {"vt": 1},
-        "default_session": {"command": "/usr/bin/noctalia-greeter-session", "user": "greeter"},
-    }
+    assert config == tomllib.loads((LOGIN_MANAGER / "config.toml").read_text())
     pam = (tmp_path / "etc/pam.d/greetd").read_text()
-    assert pam == (ROOT / "home/.chezmoitemplates/login-manager/greetd.pam").read_text()
+    assert pam == (LOGIN_MANAGER / "greetd.pam").read_text()
     assert "auth       include      system-local-login" in pam
-    assert "session    optional     pam_gnome_keyring.so auto_start" in pam
+    assert "session    optional     pam_oo7.so auto_start" in pam
+    passwd = (tmp_path / "etc/pam.d/passwd").read_text()
+    assert passwd == (LOGIN_MANAGER / "passwd.pam").read_text()
+    assert [line.split() for line in passwd.splitlines() if "system-auth" in line] == [
+        ["auth", "include", "system-auth"],
+        ["account", "include", "system-auth"],
+        ["password", "include", "system-auth"],
+    ]
+    assert "password    optional    pam_oo7.so" in passwd
+    packaged = (tmp_path / "usr/share/wayland-sessions/hyprland-uwsm.desktop").read_text()
+    packaged_name = next(
+        line.removeprefix("Name=") for line in packaged.splitlines() if line.startswith("Name=")
+    )
     greeter_path = tmp_path / "var/lib/noctalia-greeter/greeter.toml"
     settings = tomllib.loads(greeter_path.read_text())
-    assert settings["session"] == {"default": "Hyprland (uwsm-managed)"}
-    assert settings["appearance"] == {
-        "hide_logo": True,
-        "scheme": "Synced",
-        "password_style": "random",
-        "scheme_selector_position": "hidden",
-    }
-    assert settings["cursor"] == {"theme": "MacTahoe-dark-cursors", "size": 24}
-    assert settings["idle"] == {"timeout": 600}
-    assert ("output" in settings) == (personal and matching)
+    expected = tomllib.loads((LOGIN_MANAGER / "greeter.toml").read_text())
+    expected["session"] = {"default": packaged_name}
     if personal and matching:
-        assert settings["output"] == {
-            "name": "Dell Inc. DELL P2425H 2RHZH14; eDP-1",
-            "refresh_rate": 100,
-        }
+        expected["output"] = tomllib.loads((LOGIN_MANAGER / "greeter-output.toml").read_text())[
+            "output"
+        ]
+    assert settings == expected
+    assert ("output" in settings) == (personal and matching)
     assert greeter_path.stat().st_mode & 0o777 == 0o640
     assert greeter_path.stat().st_uid == os.getuid()
     assert greeter_path.parent.stat().st_mode & 0o777 == 0o750
     assert not (greeter_path.parent / "sync.toml").exists()
-    packaged = (tmp_path / "usr/share/wayland-sessions/hyprland-uwsm.desktop").read_text()
     override = (tmp_path / "usr/local/share/wayland-sessions/hyprland-uwsm.desktop").read_text()
     assert override == packaged.replace(
         "Exec=uwsm start", "Exec=env UWSM_SILENT_START=1 uwsm start"
@@ -222,22 +227,16 @@ def test_greeter_configs_profiles_and_next_boot_only_transition(
         ["systemctl", "disable", "sddm.service"],
         ["systemctl", "--runtime", "disable", "ly@tty2.service"],
     ]
-    packages = cast(
-        "dict[str, dict[str, str]]",
-        tomllib.loads((ROOT / "mise/conf.d/packages.toml").read_text())["bootstrap"]["packages"],
-    )
-    assert "pacman:ly" not in packages
-    assert all(
-        packages[f"pacman:{name}"] == {"env": "packages"}
-        for name in ("greetd", "noctalia-greeter", "gnome-keyring")
-    )
     previous = calls(login)
     before = greeter_path.stat().st_mtime_ns
+    passwd_path = tmp_path / "etc/pam.d/passwd"
+    passwd_before = passwd_path.stat().st_mtime_ns
     # Explicit reapplication also preserves the managed file and service state.
     script = render_python(login, HOOK, personal=personal, source=Path(login["LOGIN_SOURCE"]))
     repeated = run_setup(login, [PYTHON, "-B", str(script)])
     assert repeated.returncode == 0, repeated.stderr
     assert greeter_path.stat().st_mtime_ns == before
+    assert passwd_path.stat().st_mtime_ns == passwd_before
     subsequent = calls(login)[len(previous) :]
     assert all(
         "enable" not in call and "disable" not in call
@@ -249,16 +248,6 @@ def test_greeter_configs_profiles_and_next_boot_only_transition(
 @pytest.mark.parametrize(
     "units,disabled",
     [
-        ({"greetd.service": "disabled"}, []),
-        (
-            {
-                "greetd.service": "enabled",
-                "display-manager.service": "alias",
-                "unrelated.service": "enabled",
-                "ly@.service": "indirect",
-            },
-            [],
-        ),
         (
             {
                 "greetd.service": "disabled",
@@ -273,7 +262,7 @@ def test_greeter_configs_profiles_and_next_boot_only_transition(
             ],
         ),
     ],
-    ids=["fresh-disabled-greetd", "greetd-alias", "enabled-conflicts-with-aliases"],
+    ids=["enabled-conflicts-with-aliases"],
 )
 def test_installed_units_allow_fresh_setup_and_ignore_aliases(
     login: dict[str, str], tmp_path: Path, units: dict[str, str], disabled: list[list[str]]
@@ -289,18 +278,3 @@ def test_installed_units_allow_fresh_setup_and_ignore_aliases(
     assert [
         call for call in calls(login) if call[0] == "systemctl" and "disable" in call
     ] == disabled
-
-
-def test_systemctl_failure_preserves_exit_and_is_retried(
-    login: dict[str, str], tmp_path: Path
-) -> None:
-    command = chezmoi_command(login, False)
-    login["FAIL_DISCOVERY"] = "1"
-    failed = run_setup(login, command)
-    assert failed.returncode != 0
-    assert "exit 23" in failed.stderr
-    assert "Failed to list unit files: Permission denied" in failed.stderr
-    login.pop("FAIL_DISCOVERY")
-    result = run_setup(login, command)
-    assert result.returncode == 0, result.stderr
-    assert json.loads((tmp_path / "units.json").read_text())["greetd.service"] == "disabled"

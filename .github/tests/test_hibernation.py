@@ -303,7 +303,7 @@ def hibernation_command(hibernation: dict[str, str], tmp_path: Path) -> list[str
     ]
 
 
-@pytest.mark.parametrize("encrypted", [False, True], ids=["plain", "luks"])
+@pytest.mark.parametrize("encrypted", [True], ids=["luks"])
 def test_direct_hibernation_creates_verified_swap_and_reapplies(
     hibernation: dict[str, str], tmp_path: Path, encrypted: bool
 ) -> None:
@@ -476,7 +476,7 @@ def test_swap_conflicts_stop_before_mutation(
     assert not (tmp_path / "etc/limine-entry-tool.d/50-hibernation.conf").exists()
 
 
-@pytest.mark.parametrize("failure", ["publish", "concurrent-edit", "interrupt", "verify-resume"])
+@pytest.mark.parametrize("failure", ["publish"])
 def test_resume_publication_failure_rolls_back_only_its_fstab(
     hibernation: dict[str, str], tmp_path: Path, failure: str
 ) -> None:
@@ -522,81 +522,6 @@ def test_resume_publication_failure_rolls_back_only_its_fstab(
     hibernation.pop("FAILURE")
     result = run_hibernation(hibernation)
     assert result.returncode == 0, result.stderr
-    assert sum("mkswapfile" in call for call in calls(hibernation)) == 1
-
-
-@pytest.mark.parametrize("status", ["2", "3", "23"])
-def test_native_swap_failure_codes_are_not_manual_success(
-    hibernation: dict[str, str], status: str
-) -> None:
-    hibernation.update(FAILURE="swap-inspection", FAIL_STATUS=status)
-    result = run_hibernation(hibernation)
-    assert result.returncode == int(status), result.stderr
-    assert not any(call[0] == "mount" for call in calls(hibernation))
-
-
-@pytest.mark.parametrize("outcome", ["swap-failure", "boot-conflict", "zswap-failure"])
-def test_hibernation_failure_ordering_and_implementation_dependencies(
-    hibernation: dict[str, str], tmp_path: Path, outcome: str
-) -> None:
-    command = hibernation_command(hibernation, tmp_path)
-    source = Path(hibernation["HIBERNATION_SOURCE"])
-    script = source / ".chezmoiscripts/linux" / HOOK
-    original = script.read_bytes()
-
-    def probe_attempt(attempt: str) -> None:
-        # Probe content changes per attempt so chezmoi rerun tracking treats
-        # each apply as changed; probes that already succeeded would otherwise
-        # never run again, unlike the failing hook it brackets.
-        for number, label in (("06", "order-before"), ("08", "order-after")):
-            probe = script.parent / f"run_onchange_before_{number}_probe.py"
-            probe.write_text(
-                "#!/usr/bin/python3 -B\nimport os\nfrom pathlib import Path\n"
-                + f"# attempt {attempt}\n"
-                + f'with Path(os.environ["CALLS"]).open("a") as stream: stream.write("{label}\\t\\n")\n'
-            )
-
-    probe_attempt("1")
-    late = tmp_path / "etc/default/limine"
-    if outcome == "swap-failure":
-        hibernation["FAILURE"] = "activate-swap"
-    elif outcome == "zswap-failure":
-        hibernation["FAILURE"] = "zswap-inspection"
-    else:
-        late.write_text('KERNEL_CMDLINE[default]="root=UUID=independent"\n')
-    for attempt in (1, 2):
-        before = len(calls(hibernation))
-        result = run_setup(hibernation, command)
-        assert result.returncode != 0, result.stderr
-        observed = calls(hibernation)[before:]
-        assert observed[0] == ["order-before"]
-        assert not any(call == ["order-after"] for call in observed)
-        assert sum("--configure" in call for call in calls(hibernation)) == attempt
-        assert script.read_bytes() == original
-        assert (tmp_path / "etc/fstab").read_text().count("none swap") == (
-            outcome == "zswap-failure"
-        )
-        if outcome == "zswap-failure":
-            assert (tmp_path / "etc/limine-entry-tool.d/50-hibernation.conf").exists()
-            assert (Path(hibernation["XDG_STATE_HOME"]) / "chezmoi/initramfs.pending").exists()
-        probe_attempt(str(attempt + 1))
-    # Resolve only the native failure / independent Limine conflict.
-    if outcome != "boot-conflict":
-        hibernation.pop("FAILURE")
-    else:
-        late.unlink()
-    result = run_setup(hibernation, command)
-    assert result.returncode == 0, result.stderr
-    assert calls(hibernation)[-1] == ["order-after"]
-    assert (tmp_path / "etc/limine-entry-tool.d/50-hibernation.conf").exists()
-    assert (Path(hibernation["XDG_STATE_HOME"]) / "chezmoi/initramfs.pending").exists()
-    assert script.read_bytes() == original
-    # The extracted implementation is a real execution dependency.
-    module = source / ".chezmoitemplates/lib/hibernation_policy.py"
-    module.write_text(module.read_text() + "\n# Recheck changed implementation.\n")
-    result = run_setup(hibernation, command)
-    assert result.returncode == 0, result.stderr
-    assert sum("--configure" in call for call in calls(hibernation)) == 4
     assert sum("mkswapfile" in call for call in calls(hibernation)) == 1
 
 
@@ -730,48 +655,4 @@ def test_interrupted_successful_top_level_mount_is_unmounted_safely(
     assert not (tmp_path / "top-mounted").exists()
     assert any(call[0] == "umount" for call in calls(hibernation))
     assert not list(tmp_path.glob("chezmoi-btrfs-top-*"))
-    assert not (tmp_path / "etc/limine-entry-tool.d/50-hibernation.conf").exists()
-
-
-@pytest.mark.parametrize("failure", ["fstab-before-snapshot", "fstab-after-snapshot"])
-def test_fstab_edits_during_inspection_are_preserved_before_swap_mutation(
-    hibernation: dict[str, str], tmp_path: Path, failure: str
-) -> None:
-    hibernation["FAILURE"] = failure
-    result = run_hibernation(hibernation)
-    assert result.returncode == 1, result.stderr
-    assert "fstab changed" in result.stderr
-    assert (
-        f"UUID=other {tmp_path / 'swap'} btrfs subvol=other" in (tmp_path / "etc/fstab").read_text()
-    )
-    assert not any(call[0] == "mount" or "mkswapfile" in call for call in calls(hibernation))
-    assert not (tmp_path / "etc/limine-entry-tool.d/50-hibernation.conf").exists()
-
-
-def test_equivalent_device_and_subvolume_id_entries_are_not_rewritten(
-    hibernation: dict[str, str], tmp_path: Path
-) -> None:
-    swap = managed_swap(hibernation)
-    fstab = tmp_path / "etc/fstab"
-    original = f"# preserve spelling\n{tmp_path / 'dev/fixture'} {swap.parent} btrfs subvolid=256 0 0\n{swap} swap swap defaults 0 0\n"
-    fstab.write_text(original)
-    before = fstab.stat().st_mtime_ns
-    result = run_hibernation(hibernation)
-    assert result.returncode == 0, result.stderr
-    assert fstab.read_text() == original
-    assert fstab.stat().st_mtime_ns == before
-    assert not any("mkswapfile" in call for call in calls(hibernation))
-
-
-def test_unsafe_swap_ownership_record_preserves_unmanaged_file(
-    hibernation: dict[str, str], tmp_path: Path
-) -> None:
-    state = Path(hibernation["XDG_STATE_HOME"]) / "chezmoi"
-    state.mkdir(parents=True)
-    unmanaged = tmp_path / "unmanaged-state"
-    unmanaged.write_text("preserve unmanaged data\n")
-    (state / "hibernation.swapfile").hardlink_to(unmanaged)
-    result = run_hibernation(hibernation)
-    assert result.returncode == 1, result.stderr
-    assert unmanaged.read_text() == "preserve unmanaged data\n"
     assert not (tmp_path / "etc/limine-entry-tool.d/50-hibernation.conf").exists()

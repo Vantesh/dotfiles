@@ -8,7 +8,8 @@
 "pacman:accountsservice" = { env = "packages" }
 "pacman:xdg-desktop-portal-gtk" = { env = "packages" }
 "pacman:xdg-autostart" = { env = "packages" }
-"pacman:gnome-keyring" = { env = "packages" }
+"pacman:oo7" = { env = "packages" }
+"pacman:libsecret" = { env = "packages" }
 "pacman:networkmanager" = { env = "packages" }
 "pacman:cloudflare-warp-bin" = { env = "packages" }
 "pacman:bluez" = { env = "packages" }

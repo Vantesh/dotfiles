@@ -40,12 +40,12 @@ enabled = true
 state = "running"
 enabled = true
 
-[bootstrap.services."gnome-keyring-daemon.socket"]
+[bootstrap.services."oo7-daemon.service"]
 scope = "user"
 state = "running"
 enabled = true
 
-[bootstrap.services."gnome-keyring-daemon.service"]
+[bootstrap.services."oo7-portal.service"]
 scope = "user"
 state = "running"
 enabled = true
