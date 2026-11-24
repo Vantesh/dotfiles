@@ -282,7 +282,7 @@ hl.window_rule({
   float = true,
   center = true,
   pin = true,
-  size = { 600, 400 },
+  size = { "monitor_w*0.4", "monitor_h*0.5" },
 })
 
 -- Picture-in-picture keeps its aspect ratio and position.
