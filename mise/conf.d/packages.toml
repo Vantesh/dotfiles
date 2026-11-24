@@ -3,6 +3,9 @@
 "pacman:paru" = { env = "aur-helper" }
 
 # Core
+"pacman:hyprland" = { env = "packages" }
+"pacman:xdg-desktop-portal-hyprland" = { env = "packages" }
+"pacman:kitty" = { env = "packages" }
 "pacman:fish" = { env = "packages" }
 "pacman:uwsm" = { env = "packages" }
 "pacman:accountsservice" = { env = "packages" }
@@ -48,12 +51,6 @@
 "pacman:systemd-ukify" = { env = "packages" }
 "pacman:noctalia" = { env = "packages" }
 "pacman:jq" = { env = "packages" }
-
-# Desktop
-"pacman:hyprland" = { env = "packages" }
-"pacman:mission-center" = { env = "packages" }
-"pacman:xdg-desktop-portal-hyprland" = { env = "packages" }
-"pacman:kitty" = { env = "packages" }
 
 # CLI tools
 "pacman:fastfetch" = { env = "packages" }
