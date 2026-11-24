@@ -6,28 +6,16 @@ default_outgoing = "allow"
 exclusive = false
 
 [[bootstrap.linux.firewall.rules]]
-name = "allow-53317-udp"
+name = "localsend-udp"
 action = "allow"
 protocol = "udp"
 port = 53317
 
 [[bootstrap.linux.firewall.rules]]
-name = "allow-53317-tcp"
+name = "localsend-tcp"
 action = "allow"
 protocol = "tcp"
 port = 53317
-
-[[bootstrap.linux.firewall.rules]]
-name = "https"
-action = "allow"
-protocol = "tcp"
-port = 443
-
-[[bootstrap.linux.firewall.rules]]
-name = "http"
-action = "allow"
-protocol = "tcp"
-port = 80
 
 [[bootstrap.linux.firewall.rules]]
 name = "ssh"
