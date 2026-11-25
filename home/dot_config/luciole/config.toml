@@ -1,0 +1,22 @@
+[browser]
+terminal_command = "xdg-terminal-exec --app-id=dev.noctalia.luciole.terminal"
+view_mode = "grid"
+show_hidden = true
+single_window = true
+show_permanent_deletion = true
+show_preview = false
+show_sidebar = true
+always_show_tab_bar = false
+compact_menus = false
+background_opacity = 0.85
+density = "comfortable"
+grid_icon_size = 64
+directories_first = true
+filename_truncation = "end"
+sort_by = "name"
+sort_descending = false
+hidden_last = true
+sidebar_width = 250
+chooser_hidden_last = true
+chooser_show_hidden = true
+

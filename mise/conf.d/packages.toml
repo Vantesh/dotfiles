@@ -9,7 +9,6 @@
 "pacman:fish" = { env = "packages" }
 "pacman:uwsm" = { env = "packages" }
 "pacman:accountsservice" = { env = "packages" }
-"pacman:xdg-desktop-portal-gtk" = { env = "packages" }
 "pacman:xdg-autostart" = { env = "packages" }
 "pacman:oo7" = { env = "packages" }
 "pacman:libsecret" = { env = "packages" }
@@ -34,8 +33,7 @@
 "pacman:imv" = { env = "packages" }
 "pacman:mpv" = { env = "packages" }
 "pacman:evince" = { env = "packages" }
-"pacman:nautilus" = { env = "packages" }
-"aur:nautilus-my-computer" = { env = "packages" }
+"pacman:luciole-git" = { env = "packages" }
 "pacman:gvfs-mtp" = { env = "packages" }
 "pacman:libcanberra" = { env = "packages" }
 "pacman:greetd" = { env = "packages" }

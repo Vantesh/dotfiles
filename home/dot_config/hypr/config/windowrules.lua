@@ -17,6 +17,8 @@ local BRAVE_CLASSES = {
 local BRAVE_CLASS_PATTERN = "^([Bb]rave(-browser)?)$"
 local OBSIDIAN_CLASS_PATTERN = "^([Oo]bsidian|md\\.obsidian\\.Obsidian)$"
 local QB_CLASS = "^(org\\.qbittorrent\\.qBittorrent)$"
+local LUCIOLE_CLASS = "^(dev\\.noctalia\\.luciole)$"
+local LUCIOLE_TERMINAL_CLASS = "^(dev\\.noctalia\\.luciole\\.terminal)$"
 
 -- === Global behavior ===
 
@@ -118,9 +120,7 @@ centered_float("float-large", {
   class = "^(auto-cpufreq-gtk|nvidia-settings|localsend|org\\.localsend\\.localsend_app|org\\.gnome\\.Evince|mpv)$",
 }, "0.7", "0.7")
 
-centered_float("float-medium", {
-  class = "^(xdg-desktop-portal-gtk)$",
-}, "0.5", "0.5")
+
 
 centered_float("float-small", {
   class = "^(udiskie)$",
@@ -138,6 +138,22 @@ hl.window_rule({
   match = { class = QB_CLASS },
   float = true,
 })
+
+-- Luciole launcher: main window, file chooser windows and spawned terminals.
+centered_float("luciole-main", {
+  class = LUCIOLE_CLASS,
+}, "0.8", "0.8")
+
+-- File chooser windows use host-supplied titles; keep them at the previous picker size.
+centered_float("luciole-dialog", {
+  class = LUCIOLE_CLASS,
+  title = "negative:^Luciole$",
+}, "0.6", "0.6")
+
+-- Terminals opened from Luciole share its floating geometry.
+centered_float("luciole-terminal", {
+  class = LUCIOLE_TERMINAL_CLASS,
+}, "0.7", "0.7")
 
 -- === Generic dialogs ===
 
@@ -187,12 +203,6 @@ centered_float("obsidian-settings", {
   class = OBSIDIAN_CLASS_PATTERN,
   initial_title = "^Settings - Obsidian.*$",
 }, "0.6", "0.65")
-
--- File manager.
-centered_float(nil, {
-  class = "^(org\\.gnome\\.Nautilus)$",
-  initial_title = "^(Loading…|Home)$",
-}, "0.8", "0.8")
 
 -- System utilities.
 centered_float(nil, {
