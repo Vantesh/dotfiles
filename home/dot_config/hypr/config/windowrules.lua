@@ -20,6 +20,12 @@ local QB_CLASS = "^(org\\.qbittorrent\\.qBittorrent)$"
 local LUCIOLE_CLASS = "^(dev\\.noctalia\\.luciole)$"
 local LUCIOLE_TERMINAL_CLASS = "^(dev\\.noctalia\\.luciole\\.terminal)$"
 
+-- File manager and its helper windows. To swap the file manager, only these
+-- three patterns (and the geometry below) need to change.
+local FILE_MANAGER_CLASS = "^(dev\\.noctalia\\.luciole)$"
+local FILE_MANAGER_CHOOSER_CLASS = "^(dev\\.noctalia\\.luciole-chooser)$"
+local FILE_MANAGER_TERMINAL_CLASS = "^(dev\\.noctalia\\.luciole\\.terminal)$"
+
 -- === Global behavior ===
 
 -- Full-width scrolling columns on the laptop; floating geometry is unaffected.
@@ -120,8 +126,6 @@ centered_float("float-large", {
   class = "^(auto-cpufreq-gtk|nvidia-settings|localsend|org\\.localsend\\.localsend_app|org\\.gnome\\.Evince|mpv)$",
 }, "0.7", "0.7")
 
-
-
 centered_float("float-small", {
   class = "^(udiskie)$",
 }, "0.3", "0.4")
@@ -139,30 +143,22 @@ hl.window_rule({
   float = true,
 })
 
--- Luciole launcher: main window, file chooser windows and spawned terminals.
-centered_float("luciole-main", {
-  class = LUCIOLE_CLASS,
+-- File manager: main window, file chooser and spawned terminals.
+centered_float("file-manager-main", {
+  class = FILE_MANAGER_CLASS,
 }, "0.8", "0.8")
 
--- File chooser windows use host-supplied titles; keep them at the previous picker size.
-centered_float("luciole-dialog", {
-  class = LUCIOLE_CLASS,
-  title = "negative:^Luciole$",
-}, "0.6", "0.6")
+centered_float("file-manager-chooser", {
+  class = FILE_MANAGER_CHOOSER_CLASS,
+}, "0.65", "0.65")
 
--- Terminals opened from Luciole share its floating geometry.
-centered_float("luciole-terminal", {
-  class = LUCIOLE_TERMINAL_CLASS,
+centered_float("file-manager-terminal", {
+  class = FILE_MANAGER_TERMINAL_CLASS,
 }, "0.7", "0.7")
 
 -- === Generic dialogs ===
 
--- File selection, downloads and file operations.
-centered_float(nil, {
-  title = "^(Open File|Select a File|Choose wallpaper|Open Folder|Save As|Library|File Upload|.*Save File.*|.*Save Folder.*|.*Save Image.*|.*Open As.*|.*Open Network Stream.*|.*Choose Files.*|.*Downloads -.*|File Operation Progress|Downloads.*|Choose Directory|Where do you want to save the.*)$",
-}, "0.55", "0.55")
-
--- Confirmation, warning and error dialogs take priority over file-dialog sizing.
+-- Confirmation, warning and error dialogs.
 centered_float(nil, {
   title = "^(.*File Already Exists.*|.*Confirm to replace files.*|.*Confirm to delete files.*|Rename.*|Delete.*|Move to Trash.*|.*Confirmation.*|.*Warning.*|.*Error.*)$",
 }, "0.2", "0.15")
