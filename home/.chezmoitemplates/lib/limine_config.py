@@ -198,7 +198,7 @@ def publish_limine_fragment(parser: Path, state: Path, name: str, params: str) -
 
 def configure_quiet_boot(parser: Path, state: Path, *, plymouth: bool) -> None:
     ensure_limine_defaults(parser, state)
-    params = "quiet loglevel=3 systemd.show_status=auto rd.udev.log_level=3 vt.cur_default=1 systemd.tpm2_measured_os=0"
+    params = "quiet loglevel=3 systemd.show_status=auto rd.udev.log_level=3 vt.cur_default=1"
     if plymouth:
         params += " splash"
     publish_limine_fragment(parser, state, "20-quiet-boot.conf", params)

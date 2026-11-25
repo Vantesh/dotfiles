@@ -309,16 +309,25 @@ hl.window_rule({
 
 -- === Dynamic behavior ===
 
--- Initial-title rules cannot catch sign-in windows that start as Untitled.
+-- Initial-title rules cannot catch sign-in popups that start as Untitled.
+-- Only windows that were *created* as a popup (initial title "Untitled - Brave") are
+-- floated. A sign-in page opened in the same tab changes the main window's
+-- title too, but that window never started as "Untitled", so it stays tiled.
 local BRAVE_SIGN_IN_TITLES = {
   ["Sign in - Google Accounts - Brave"] = true,
   ["PayPal - Brave"] = true,
 }
+-- Brave appends its name, so popups start as "Untitled - Brave".
+local BRAVE_POPUP_INITIAL_TITLE_PATTERN = "^Untitled"
 
 local function float_brave_sign_in(window)
   if not window or window.floating then return end
   if not BRAVE_CLASSES[window.class] then return end
   if not BRAVE_SIGN_IN_TITLES[window.title] then return end
+
+  local initial_title = window.initial_title or window.initialTitle
+  if type(initial_title) ~= "string" then return end
+  if not initial_title:find(BRAVE_POPUP_INITIAL_TITLE_PATTERN) then return end
 
   H.float_window_centered(window, 0.3, 0.7)
 end
