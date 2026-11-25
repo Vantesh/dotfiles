@@ -23,7 +23,6 @@ def running_daemon(env: dict[str, str], show: list[str]) -> Generator[None]:
     if subprocess.run(active, check=False).returncode == 0:
         yield
         return
-    logger.info("Starting {} temporarily to register WARP.", UNIT)
     _ = subprocess.run(["systemctl", "start", UNIT], check=True)
     try:
         # The daemon accepts IPC a moment after systemd reports it started.
