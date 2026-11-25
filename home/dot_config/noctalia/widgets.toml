@@ -28,9 +28,6 @@ group_by_workspace = true
 hide_empty_workspaces = true
 only_active_workspace = true
 
-[widget.tray]
-match_adjacent_spacing = true
-
 [widget.widget]
 type = "vantesh/topgrade-updater:topgrade-updater"
 hide_on_empty = true
