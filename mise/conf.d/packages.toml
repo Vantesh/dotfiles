@@ -5,6 +5,7 @@
 # Core
 "pacman:hyprland" = { env = "packages" }
 "pacman:xdg-desktop-portal-hyprland" = { env = "packages" }
+"pacman:xdg-user-dirs" = { env = "packages" }
 "pacman:kitty" = { env = "packages" }
 "pacman:fish" = { env = "packages" }
 "pacman:uwsm" = { env = "packages" }
