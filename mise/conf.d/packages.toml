@@ -9,7 +9,7 @@
 "pacman:fish" = { env = "packages" }
 "pacman:uwsm" = { env = "packages" }
 "pacman:accountsservice" = { env = "packages" }
-"pacman:xdg-autostart" = { env = "packages" }
+"pacman:xdg-desktop-portal-gtk" = { env = "packages" }
 "pacman:oo7" = { env = "packages" }
 "pacman:libsecret" = { env = "packages" }
 "pacman:networkmanager" = { env = "packages" }
@@ -17,11 +17,7 @@
 "pacman:bluez" = { env = "packages" }
 "pacman:bluez-utils" = { env = "packages" }
 "pacman:udiskie" = { env = "packages" }
-"pacman:ntfs-3g" = { env = "packages" }
 "pacman:exfatprogs" = { env = "packages" }
-"pacman:dosfstools" = { env = "packages" }
-"pacman:mtools" = { env = "packages" }
-"pacman:f2fs-tools" = { env = "packages" }
 "pacman:reflector" = { env = "packages" }
 "pacman:wget" = { env = "packages" }
 "pacman:man-db" = { env = "packages" }
@@ -45,7 +41,6 @@
 "pacman:wl-clipboard" = { env = "packages" }
 "pacman:xdg-terminal-exec" = { env = "packages" }
 "pacman:gpu-screen-recorder" = { env = "packages" }
-"pacman:archlinux-xdg-menu" = { env = "packages" }
 "pacman:systemd-ukify" = { env = "packages" }
 "pacman:noctalia" = { env = "packages" }
 "pacman:jq" = { env = "packages" }

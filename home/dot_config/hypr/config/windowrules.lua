@@ -17,6 +17,8 @@ local BRAVE_CLASSES = {
 local BRAVE_CLASS_PATTERN = "^([Bb]rave(-browser)?)$"
 local OBSIDIAN_CLASS_PATTERN = "^([Oo]bsidian|md\\.obsidian\\.Obsidian)$"
 local QB_CLASS = "^(org\\.qbittorrent\\.qBittorrent)$"
+local LUCIOLE_CLASS = "^(dev\\.noctalia\\.luciole)$"
+local LUCIOLE_TERMINAL_CLASS = "^(dev\\.noctalia\\.luciole\\.terminal)$"
 
 -- File manager and its helper windows. To swap the file manager, only these
 -- three patterns (and the geometry below) need to change.
