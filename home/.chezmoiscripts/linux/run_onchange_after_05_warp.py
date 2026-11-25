@@ -23,8 +23,8 @@ def running_daemon(env: dict[str, str], show: list[str]) -> Generator[None]:
     if subprocess.run(active, check=False).returncode == 0:
         yield
         return
-    _ = subprocess.run(["systemctl", "start", UNIT], check=True)
     try:
+        _ = subprocess.run(["systemctl", "start", UNIT], check=True)
         # The daemon accepts IPC a moment after systemd reports it started.
         for _attempt in range(DAEMON_WAIT_SECONDS):
             answer = subprocess.run(show, env=env, capture_output=True, text=True, check=False)
