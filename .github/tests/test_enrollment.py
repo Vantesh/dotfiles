@@ -69,7 +69,39 @@ def warp_env(workstation: dict[str, str]) -> dict[str, str]:
 esac""",
         log=True,
     )
+    # Noctalia owns warp-svc, so it may legitimately be stopped when setup runs.
+    stub(
+        workstation,
+        "systemctl",
+        """case "$*" in
+    'is-active --quiet warp-svc.service') [ "$(cat "$HOME/warp-active" 2>/dev/null)" = 1 ] ;;
+    'start warp-svc.service') echo 1 > "$HOME/warp-active" ;;
+    'stop warp-svc.service') echo 0 > "$HOME/warp-active" ;;
+    *) exit 97 ;;
+esac""",
+        log=True,
+    )
     return workstation
+
+
+@pytest.mark.parametrize("running", [False, True], ids=["stopped", "running"])
+@pytest.mark.parametrize("fails", [False, True], ids=["registers", "fails"])
+def test_warp_registration_leaves_the_service_state_unchanged(
+    warp_env: dict[str, str], tmp_path: Path, running: bool, fails: bool
+) -> None:
+    state = tmp_path / "warp-active"
+    if running:
+        state.write_text("1\n")
+    warp_env["WARP_NEW_STATUS"] = "1" if fails else "0"
+    script = render_python(warp_env, WARP)
+    result = run_setup(warp_env, [PYTHON, "-B", str(script)])
+    assert result.returncode == (1 if fails else 0), result.stderr
+    assert (state.is_file() and state.read_text() == "1\n") == running
+    systemctl = [call[1:] for call in calls(warp_env) if call[0] == "systemctl"]
+    if running:
+        assert systemctl == [["is-active", "--quiet", "warp-svc.service"]]
+    else:
+        assert systemctl[1:] == [["start", "warp-svc.service"], ["stop", "warp-svc.service"]]
 
 
 @pytest.mark.parametrize("personal", [False, True], ids=["nonpersonal", "personal"])

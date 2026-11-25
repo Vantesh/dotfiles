@@ -250,6 +250,7 @@ esac""",
 esac""",
         log=True,
     )
+    stub(env, "systemctl", '[ "$*" = "is-active --quiet warp-svc.service" ] || exit 97', log=True)
     command = [
         CHEZMOI,
         "--config",
