@@ -2,57 +2,45 @@
 """Install upstream auto-cpufreq on personal laptops; upstream owns its daemon."""
 
 import configparser
-import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
 from pathlib import Path
-from typing import cast
 
 from loguru import logger
 
 AUTO_CPUFREQ_BIN = Path("/usr/local/bin/auto-cpufreq")
+AUTO_CPUFREQ_VERSION = {{ .externalAssets.autoCpufreq.version | toJson }}
+AUTO_CPUFREQ_COMMIT = {{ .externalAssets.autoCpufreq.commit | toJson }}
 
 
 def install_auto_cpufreq() -> None:
-    result = subprocess.run(
-        [
-            "curl",
-            "--fail",
-            "--location",
-            "--silent",
-            "--show-error",
-            "--max-time",
-            "60",
-            "https://api.github.com/repos/AdnanHodzic/auto-cpufreq/releases/latest",
-        ],
-        check=True,
-        stdout=subprocess.PIPE,
-        text=True,
-    )
-    release = cast("dict[str, object]", json.loads(result.stdout))
-    version = release["tag_name"]
-    if not isinstance(version, str) or not version.strip():
-        raise ValueError("GitHub returned an invalid auto-cpufreq release tag.")
+    from lib.artifact_verification import verify_git_commit
+
     directory = Path(tempfile.mkdtemp(prefix="chezmoi-auto-cpufreq-"))
+    privileged = False
     try:
         checkout = directory / "auto-cpufreq"
-        logger.info("Installing auto-cpufreq {} from upstream.", version)
-        # Dunamai's strict versioning requires the full release history.
+        logger.info("Installing auto-cpufreq {} from upstream.", AUTO_CPUFREQ_VERSION)
+        # Dunamai's strict versioning requires the release history reachable from
+        # the tag. The tag is only a convenience: HEAD must match the full SHA.
         _ = subprocess.run(
             [
                 "git",
                 "clone",
                 "--single-branch",
                 "--branch",
-                version,
+                AUTO_CPUFREQ_VERSION,
                 "--",
                 "https://github.com/AdnanHodzic/auto-cpufreq.git",
                 str(checkout),
             ],
             check=True,
         )
+        verify_git_commit(checkout, AUTO_CPUFREQ_COMMIT, f"auto-cpufreq {AUTO_CPUFREQ_VERSION}")
+        privileged = True
         _ = subprocess.run(
             ["sudo", "bash", str(checkout / "auto-cpufreq-installer"), "--install"],
             check=True,
@@ -60,10 +48,14 @@ def install_auto_cpufreq() -> None:
     finally:
         failed = sys.exception() is not None
         try:
-            # The root-run build can leave root-owned files in this private checkout.
-            _ = subprocess.run(
-                ["sudo", "rm", "--recursive", "--force", "--", str(directory)], check=True
-            )
+            if privileged:
+                # The root-run build can leave root-owned files in this checkout.
+                _ = subprocess.run(
+                    ["sudo", "rm", "--recursive", "--force", "--", str(directory)],
+                    check=True,
+                )
+            else:
+                shutil.rmtree(directory)
         except OSError, subprocess.CalledProcessError:
             if not failed:
                 raise

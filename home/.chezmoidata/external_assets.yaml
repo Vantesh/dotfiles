@@ -1,0 +1,56 @@
+# External artifacts installed by Chezmoi. Renovate updates the immutable
+# version/reference and checksum pairs together; never update one alone.
+externalAssets:
+  autoCpufreq:
+    # renovate: datasource=github-tags packageName=AdnanHodzic/auto-cpufreq depName=auto-cpufreq versioning=semver
+    version: "v3.2.0"
+    commit: "35d8015afc1bc2c4b30526828dddde4c53925976"
+
+  colloidIconTheme:
+    # renovate: datasource=github-tags packageName=vinceliuice/Colloid-icon-theme depName=colloid-icon-theme versioning=regex:^(?<major>\d{4})-(?<minor>\d{2})-(?<patch>\d{2})$
+    version: "2026-08-10"
+    commit: "e3a8f89fac888af715233f8f8ef0a5b1e350f0dd"
+
+  fisher:
+    # renovate: datasource=github-tags packageName=jorgebucaran/fisher depName=fisher versioning=semver
+    version: "4.4.8"
+    commit: "a04308be92daa6cfecdbb0ca58b1e8508664cff2"
+
+  macTahoeCursorLight:
+    # renovate: datasource=github-release-attachments packageName=Vantesh/mactahoe-hyprcursor depName=mactahoe-cursor-light versioning=loose
+    version: "v1.0.2-839848b9a8a3"
+    sha256: "a2fa0a4c643df9a60362b2d0db76c0aa2aa53d12a3ee9ee50b2268e3520e7b08"
+
+  macTahoeCursorDark:
+    # renovate: datasource=github-release-attachments packageName=Vantesh/mactahoe-hyprcursor depName=mactahoe-cursor-dark versioning=loose
+    version: "v1.0.2-839848b9a8a3"
+    sha256: "fbd229bc53f8c503dafd7dcece496cdaa19af634c62c7caabcec1c4e4d30b701"
+
+  macTahoeHyprcursorLight:
+    # renovate: datasource=github-release-attachments packageName=Vantesh/mactahoe-hyprcursor depName=mactahoe-hyprcursor-light versioning=loose
+    version: "v1.0.2-839848b9a8a3"
+    sha256: "a1f2f1ed6ec3dcedaedee9898a3582fbac80fe0a56e1cff6374fc9030ee07c2c"
+
+  macTahoeHyprcursorDark:
+    # renovate: datasource=github-release-attachments packageName=Vantesh/mactahoe-hyprcursor depName=mactahoe-hyprcursor-dark versioning=loose
+    version: "v1.0.2-839848b9a8a3"
+    sha256: "1c059c82cdf8a068135ee23a9757927da79f42d58566cdb1a3e94f65223acc62"
+
+  appleColorEmoji:
+    # renovate: datasource=github-release-attachments packageName=samuelngs/apple-emoji-ttf depName=apple-color-emoji versioning=regex:^macos-(?<major>\d+)-(?<minor>\d{8})-[0-9a-f]+$
+    version: "macos-26-20260722-484daf4e"
+    sha256: "e37c7af6265ac4a0af6d57bc65e86109a776d9966e8343334557f63da482516f"
+
+  mapleMonoNerdFont:
+    # Use GitHub's digest for exactly MapleMono-NF-unhinted.zip. The digest-only
+    # .sha256 sidecar is not used, because its own digest is not the zip digest.
+    # renovate: datasource=custom.maple-mono packageName=subframe7536/maple-font depName=maple-mono versioning=loose
+    version: "v7.9"
+    sha256: "8248d6260660be1066b5ebe90d25131582df8383f38db1c284dd1f2dc9d2b46e"
+
+  # Apple publishes no versioned URL or checksum manifest for this image.
+  # Renovate is intentionally not configured; update the URL and checksum after
+  # reviewing a new upstream image.
+  sfProText:
+    url: "https://devimages-cdn.apple.com/design/resources/download/SF-Pro.dmg"
+    sha256: "b27fe6622f1fa96a707c73dca6666d439c35b312d5b1d47e0e2980e618eb4b28"

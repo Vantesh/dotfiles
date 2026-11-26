@@ -9,7 +9,7 @@ from helpers import CHEZMOI, ROOT, SCRIPTS
 from test_setup import PYTHON, calls, render_python, run_setup, stub
 from test_setup import env as env
 
-HOOK = "run_onchange_before_06_laptop_power.py"
+HOOK = "run_onchange_before_06_laptop_power.py.tmpl"
 
 
 @pytest.fixture
@@ -18,6 +18,7 @@ def laptop_env(env: dict[str, str], tmp_path: Path) -> dict[str, str]:
     source = tmp_path / "source"
     scripts = source / ".chezmoiscripts/linux"
     scripts.mkdir(parents=True)
+    shutil.copytree(ROOT / "home/.chezmoidata", source / ".chezmoidata")
     shutil.copytree(ROOT / "home/.chezmoitemplates/lib", source / ".chezmoitemplates/lib")
     script = (
         (SCRIPTS / HOOK)
@@ -44,7 +45,13 @@ def laptop_env(env: dict[str, str], tmp_path: Path) -> dict[str, str]:
     stub(
         env,
         "git",
-        '''[ "${GIT_STATUS:-0}" = 0 ] || exit "$GIT_STATUS"
+        '''if [ "${1:-}" = "-C" ]; then
+    shift 2
+    [ "${1:-}" = "rev-parse" ] || exit 97
+    printf '%s\\n' "${GIT_HEAD:-35d8015afc1bc2c4b30526828dddde4c53925976}"
+    exit 0
+fi
+[ "${GIT_STATUS:-0}" = 0 ] || exit "$GIT_STATUS"
 for checkout do :; done
 /usr/bin/mkdir -p "$checkout"
 /usr/bin/cp "$HOME/installer" "$checkout/auto-cpufreq-installer"''',
@@ -100,6 +107,18 @@ def test_inapplicable_profiles_and_hardware_skip_before_installation(
     assert result.returncode == 0, result.stderr
     assert result.stdout == result.stderr == ""
     assert calls(laptop_env) == ([["hostnamectl", "chassis"]] if personal else [])
+
+
+def test_commit_mismatch_blocks_the_privileged_installer(
+    laptop_env: dict[str, str], tmp_path: Path
+) -> None:
+    laptop_env["GIT_HEAD"] = "0" * 40
+    script = render_python(laptop_env, HOOK, source=Path(laptop_env["CHEZMOI_SOURCE_DIR"]))
+    result = run_setup(laptop_env, [PYTHON, "-B", str(script)])
+    assert result.returncode != 0
+    assert "Git commit mismatch" in result.stderr
+    assert not any(call[0] == "sudo" for call in calls(laptop_env))
+    assert not (tmp_path / "auto-cpufreq").exists()
 
 
 @pytest.mark.parametrize("failure", ["INSTALL_STATUS", "DAEMON_STATUS"])

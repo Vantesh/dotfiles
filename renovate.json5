@@ -1,0 +1,72 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    ":dependencyDashboard",
+    ":semanticCommits",
+    ":timezone(UTC)"
+  ],
+  "labels": ["dependencies"],
+  "automerge": false,
+  "platformAutomerge": false,
+  "prConcurrentLimit": 5,
+  "packageRules": [
+    {
+      "description": "Never merge installers that run with sudo automatically",
+      "matchPackageNames": [
+        "vinceliuice/Colloid-icon-theme",
+        "AdnanHodzic/auto-cpufreq"
+      ],
+      "addLabels": ["privileged-installer"],
+      "automerge": false
+    },
+    {
+      "description": "MacTahoe assets are installed system-wide and must move together",
+      "matchPackageNames": ["Vantesh/mactahoe-hyprcursor"],
+      "groupName": "MacTahoe Hyprcursor release",
+      "addLabels": ["privileged-installer"],
+      "automerge": false
+    }
+  ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Update pinned release artifacts and their SHA-256 pairs",
+      "managerFilePatterns": ["/^home\\/\\.chezmoidata\\/external_assets\\.yaml$/"],
+      "matchStrings": [
+        "datasource=(?<datasource>\\S+) packageName=(?<packageName>\\S+) depName=(?<depName>\\S+) versioning=(?<versioning>\\S+)\\n    version: \"(?<currentValue>[^\"]+)\"\\n    sha256: \"(?<currentDigest>[0-9a-f]{64})\""
+      ],
+      "autoReplaceStringTemplate": "datasource={{{datasource}}} packageName={{{packageName}}} depName={{{depName}}} versioning={{{versioning}}}\n    version: \"{{{newValue}}}\"\n    sha256: \"{{{newDigest}}}\""
+    },
+    {
+      "customType": "regex",
+      "description": "Update pinned Git tags and their immutable commit pairs",
+      "managerFilePatterns": ["/^home\\/\\.chezmoidata\\/external_assets\\.yaml$/"],
+      "matchStrings": [
+        "datasource=(?<datasource>\\S+) packageName=(?<packageName>\\S+) depName=(?<depName>\\S+) versioning=(?<versioning>\\S+)\\n    version: \"(?<currentValue>[^\"]+)\"\\n    commit: \"(?<currentDigest>[0-9a-f]{40})\""
+      ],
+      "autoReplaceStringTemplate": "datasource={{{datasource}}} packageName={{{packageName}}} depName={{{depName}}} versioning={{{versioning}}}\n    version: \"{{{newValue}}}\"\n    commit: \"{{{newDigest}}}\""
+    },
+    {
+      "customType": "regex",
+      "description": "Track the immutable ModernGlass mpv script commit",
+      "managerFilePatterns": ["/^home\\/\\.chezmoiexternals\\/10-mpv\\.yaml\\.tmpl$/"],
+      "matchStrings": ["ModernGlass/(?<currentDigest>[0-9a-f]{40})"],
+      "currentValueTemplate": "main",
+      "datasourceTemplate": "git-refs",
+      "packageNameTemplate": "https://github.com/Demetter/ModernGlass",
+      "depNameTemplate": "ModernGlass mpv scripts",
+      "versioningTemplate": "loose"
+    }
+  ],
+  "customDatasources": {
+    "maple-mono": {
+      "defaultRegistryUrlTemplate": "https://api.github.com/repos/{{packageName}}/releases?per_page=100",
+      "format": "json",
+      "transformTemplates": [
+        "{\"releases\": $append([], $filter($, function($r) { $r.draft = false and $r.prerelease = false and $count($r.assets[name = \"MapleMono-NF-unhinted.zip\"]) = 1 and $type($r.assets[name = \"MapleMono-NF-unhinted.zip\"].digest) = \"string\" }))}",
+        "{\"releases\": $append([], $map($filter(releases, function($r) { $count($match($r.assets[name = \"MapleMono-NF-unhinted.zip\"].digest, /^sha256:[0-9a-f]{64}$/)) = 1 }), function($r) { {\"version\": $r.tag_name, \"digest\": $substringAfter($r.assets[name = \"MapleMono-NF-unhinted.zip\"].digest, \"sha256:\"), \"releaseTimestamp\": $r.published_at, \"changelogUrl\": $r.html_url} }))}"
+      ]
+    }
+  }
+}
