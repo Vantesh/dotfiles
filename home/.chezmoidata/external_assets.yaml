@@ -37,8 +37,9 @@ externalAssets:
     sha256: "e37c7af6265ac4a0af6d57bc65e86109a776d9966e8343334557f63da482516f"
 
   mapleMonoNerdFont:
-    # Upstream publishes a digest-only .sha256 file. Renovate maps that file to
-    # itself instead of the zip, so update the zip digest manually.
+    # Use GitHub's digest for exactly MapleMono-NF-unhinted.zip. The digest-only
+    # .sha256 sidecar is not used, because its own digest is not the zip digest.
+    # renovate: datasource=custom.maple-mono packageName=subframe7536/maple-font depName=maple-mono versioning=loose
     version: "v7.9"
     sha256: "8248d6260660be1066b5ebe90d25131582df8383f38db1c284dd1f2dc9d2b46e"
 

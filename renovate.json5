@@ -73,5 +73,15 @@
       "depNameTemplate": "ModernGlass mpv scripts",
       "versioningTemplate": "loose"
     }
-  ]
+  ],
+  "customDatasources": {
+    "maple-mono": {
+      "defaultRegistryUrlTemplate": "https://api.github.com/repos/{{packageName}}/releases?per_page=100",
+      "format": "json",
+      "transformTemplates": [
+        "{\"releases\": $append([], $filter($, function($r) { $r.draft = false and $r.prerelease = false and $count($r.assets[name = \"MapleMono-NF-unhinted.zip\"]) = 1 and $type($r.assets[name = \"MapleMono-NF-unhinted.zip\"].digest) = \"string\" }))}",
+        "{\"releases\": $append([], $map($filter(releases, function($r) { $count($match($r.assets[name = \"MapleMono-NF-unhinted.zip\"].digest, /^sha256:[0-9a-f]{64}$/)) = 1 }), function($r) { {\"version\": $r.tag_name, \"digest\": $substringAfter($r.assets[name = \"MapleMono-NF-unhinted.zip\"].digest, \"sha256:\"), \"releaseTimestamp\": $r.published_at, \"changelogUrl\": $r.html_url} }))}"
+      ]
+    }
+  }
 }
