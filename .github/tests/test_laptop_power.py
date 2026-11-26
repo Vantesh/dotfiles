@@ -9,7 +9,7 @@ from helpers import CHEZMOI, ROOT, SCRIPTS
 from test_setup import PYTHON, calls, render_python, run_setup, stub
 from test_setup import env as env
 
-HOOK = "run_onchange_before_06_laptop_power.py"
+HOOK = "run_onchange_before_06_laptop_power.py.tmpl"
 
 
 @pytest.fixture
@@ -18,6 +18,7 @@ def laptop_env(env: dict[str, str], tmp_path: Path) -> dict[str, str]:
     source = tmp_path / "source"
     scripts = source / ".chezmoiscripts/linux"
     scripts.mkdir(parents=True)
+    shutil.copytree(ROOT / "home/.chezmoidata", source / ".chezmoidata")
     shutil.copytree(ROOT / "home/.chezmoitemplates/lib", source / ".chezmoitemplates/lib")
     script = (
         (SCRIPTS / HOOK)

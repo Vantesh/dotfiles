@@ -5,7 +5,7 @@ import re
 from helpers import ROOT
 
 AFFECTED = (
-    ROOT / "home/.chezmoiscripts/linux/run_onchange_before_06_laptop_power.py",
+    ROOT / "home/.chezmoiscripts/linux/run_onchange_before_06_laptop_power.py.tmpl",
     ROOT / "home/.chezmoiscripts/linux/run_onchange_after_01_theming.py.tmpl",
     ROOT / "home/.chezmoiexternals/00-cursors.yaml.tmpl",
     ROOT / "home/.chezmoiexternals/00-fonts.yaml.tmpl",
@@ -24,6 +24,15 @@ def test_affected_dependencies_do_not_use_floating_release_urls() -> None:
         assert "gitHubLatestReleaseAssetURL" not in source, path
 
 
+def test_laptop_power_reads_its_pins_from_external_assets() -> None:
+    template = (
+        ROOT / "home/.chezmoiscripts/linux/run_onchange_before_06_laptop_power.py.tmpl"
+    ).read_text()
+    assert "{{ .externalAssets.autoCpufreq.version | toJson }}" in template
+    assert "{{ .externalAssets.autoCpufreq.commit | toJson }}" in template
+    assert COMMIT.search(template) is None
+
+
 def test_declared_versions_commits_and_checksums_are_immutable() -> None:
     assets = (ROOT / "home/.chezmoidata/external_assets.yaml").read_text()
     versions = re.findall(r'^\s+version: "([^"]+)"$', assets, re.MULTILINE)
@@ -33,11 +42,6 @@ def test_declared_versions_commits_and_checksums_are_immutable() -> None:
     assert all(version not in ("latest", "main", "master") for version in versions)
     assert commits and all(COMMIT.fullmatch(commit) for commit in commits)
     assert checksums and all(SHA256.fullmatch(checksum) for checksum in checksums)
-
-    power = (ROOT / "home/.chezmoiscripts/linux/run_onchange_before_06_laptop_power.py").read_text()
-    power_commit = re.search(r'AUTO_CPUFREQ_COMMIT = "([^"]+)"', power)
-    assert power_commit is not None
-    assert COMMIT.fullmatch(power_commit[1])
 
     fisher = (ROOT / "home/dot_config/private_fish/config.fish.tmpl").read_text()
     plugins = (ROOT / "home/dot_config/private_fish/fish_plugins.tmpl").read_text()

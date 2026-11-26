@@ -1,6 +1,11 @@
 # External artifacts installed by Chezmoi. Renovate updates the immutable
 # version/reference and checksum pairs together; never update one alone.
 externalAssets:
+  autoCpufreq:
+    # renovate: datasource=github-tags packageName=AdnanHodzic/auto-cpufreq depName=auto-cpufreq versioning=semver
+    version: "v3.2.0"
+    commit: "35d8015afc1bc2c4b30526828dddde4c53925976"
+
   colloidIconTheme:
     # renovate: datasource=github-tags packageName=vinceliuice/Colloid-icon-theme depName=colloid-icon-theme versioning=regex:^(?<major>\d{4})-(?<minor>\d{2})-(?<patch>\d{2})$
     version: "2026-08-10"

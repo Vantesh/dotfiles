@@ -12,9 +12,8 @@ from pathlib import Path
 from loguru import logger
 
 AUTO_CPUFREQ_BIN = Path("/usr/local/bin/auto-cpufreq")
-# renovate: datasource=github-tags packageName=AdnanHodzic/auto-cpufreq depName=auto-cpufreq versioning=semver
-AUTO_CPUFREQ_VERSION = "v3.2.0"
-AUTO_CPUFREQ_COMMIT = "35d8015afc1bc2c4b30526828dddde4c53925976"
+AUTO_CPUFREQ_VERSION = {{ .externalAssets.autoCpufreq.version | toJson }}
+AUTO_CPUFREQ_COMMIT = {{ .externalAssets.autoCpufreq.commit | toJson }}
 
 
 def install_auto_cpufreq() -> None:

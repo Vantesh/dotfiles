@@ -49,21 +49,6 @@
     },
     {
       "customType": "regex",
-      "description": "Update the auto-cpufreq release tag and verified commit",
-      "managerFilePatterns": [
-        "/^home\\/\\.chezmoiscripts\\/linux\\/run_onchange_before_06_laptop_power\\.py$/"
-      ],
-      "matchStrings": [
-        "# renovate: datasource=github-tags packageName=AdnanHodzic/auto-cpufreq depName=auto-cpufreq versioning=semver\\nAUTO_CPUFREQ_VERSION = \"(?<currentValue>[^\"]+)\"\\nAUTO_CPUFREQ_COMMIT = \"(?<currentDigest>[0-9a-f]{40})\""
-      ],
-      "autoReplaceStringTemplate": "# renovate: datasource=github-tags packageName=AdnanHodzic/auto-cpufreq depName=auto-cpufreq versioning=semver\nAUTO_CPUFREQ_VERSION = \"{{{newValue}}}\"\nAUTO_CPUFREQ_COMMIT = \"{{{newDigest}}}\"",
-      "datasourceTemplate": "github-tags",
-      "packageNameTemplate": "AdnanHodzic/auto-cpufreq",
-      "depNameTemplate": "auto-cpufreq",
-      "versioningTemplate": "semver"
-    },
-    {
-      "customType": "regex",
       "description": "Track the immutable ModernGlass mpv script commit",
       "managerFilePatterns": ["/^home\\/\\.chezmoiexternals\\/10-mpv\\.yaml\\.tmpl$/"],
       "matchStrings": ["ModernGlass/(?<currentDigest>[0-9a-f]{40})"],
