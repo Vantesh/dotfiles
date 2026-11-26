@@ -37,7 +37,10 @@ externalAssets:
     sha256: "c95fba338de86b1cb78115fb0d820c61e6fad22093b0806729fe016d0fbcc714"
 
   appleColorEmoji:
-    # renovate: datasource=github-release-attachments packageName=samuelngs/apple-emoji-ttf depName=apple-color-emoji versioning=regex:^macos-(?<major>\d+)-(?<minor>\d{8})-[0-9a-f]+$
+    # Use GitHub's digest for exactly AppleColorEmoji-Linux.ttf. The
+    # github-release-attachments datasource would download ~450 MB of release
+    # assets to hash them on every uncached lookup.
+    # renovate: datasource=custom.apple-emoji packageName=samuelngs/apple-emoji-ttf depName=apple-color-emoji versioning=regex:^macos-(?<major>\d+)-(?<minor>\d{8})-[0-9a-f]+$
     version: "macos-26-20260722-484daf4e"
     sha256: "e37c7af6265ac4a0af6d57bc65e86109a776d9966e8343334557f63da482516f"
 

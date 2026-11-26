@@ -1,45 +1,50 @@
-
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
     "config:recommended",
-    ":dependencyDashboard",
     ":semanticCommits",
-    ":timezone(UTC)",
     "helpers:pinGitHubActionDigests"
   ],
-  "labels": ["dependencies"],
-  "automerge": false,
-  "platformAutomerge": false,
+  timezone: "Africa/Nairobi",
+  minimumReleaseAge: "1 day",
+  internalChecksFilter: "strict",
+  labels: ["dependencies"],
+  automerge: false,
   automergeType: "pr",
+  platformAutomerge: false,
   prHourlyLimit: 0,
-  "prConcurrentLimit": 5,
-  "packageRules": [
+  prConcurrentLimit: 5,
+  packageRules: [
     {
-      description: "Automatically merge non-major updates after successful checks",
-      matchUpdateTypes: ["patch", "minor", "digest", "pin"],
-      automerge: true,
+      description: "Automerge non-major updates once checks pass (later rules below override this)",
+      matchUpdateTypes: ["patch", "minor", "digest", "pin", "pinDigest"],
+      automerge: true
     },
     {
-      description: "Identify major updates requiring manual review",
+      description: "Digest/pin updates (e.g. ModernGlass git-refs) have no release timestamp; without this they are held forever under Renovate 42+",
+      matchUpdateTypes: ["digest", "pin", "pinDigest"],
+      minimumReleaseAgeBehaviour: "timestamp-optional"
+    },
+    {
+      description: "Major updates always need manual review",
       matchUpdateTypes: ["major"],
       addLabels: ["major-update"],
-      automerge: false,
+      automerge: false
     },
     {
       description: "Identify GitHub Actions updates",
       matchManagers: ["github-actions"],
-      addLabels: ["github-actions"],
+      addLabels: ["github-actions"]
     },
     {
       description: "Identify external release artifact pins",
-      matchFileNames: ["/^home\\/\\.chezmoidata\\/external_assets\\.yaml$/"],
-      addLabels: ["external-assets"],
+      matchFileNames: ["home/.chezmoidata/external_assets.yaml"],
+      addLabels: ["external-assets"]
     },
     {
       description: "Identify immutable Git source pins",
       matchPackageNames: ["ModernGlass mpv scripts"],
-      addLabels: ["git-source"],
+      addLabels: ["git-source"]
     },
     {
       description: "Identify Renovate CLI updates",
@@ -47,7 +52,7 @@
       addLabels: ["tooling"],
     },
     {
-      description: "Never automatically merge installers that run with sudo",
+      description: "Never automerge installers that run with sudo (must stay after the automerge rule)",
       "matchPackageNames": [
         "vinceliuice/Colloid-icon-theme",
         "AdnanHodzic/auto-cpufreq"
@@ -61,13 +66,19 @@
       "groupName": "MacTahoe Hyprcursor release",
       "addLabels": ["privileged-installer"],
       "automerge": false
+    },
+    {
+      description: "Do not track the intentionally floating Arch Linux container image",
+      matchManagers: ["github-actions"],
+      matchPackageNames: ["archlinux"],
+      enabled: false,
     }
   ],
   "customManagers": [
     {
       "customType": "regex",
       "description": "Update pinned release artifacts and their SHA-256 pairs",
-      "managerFilePatterns": ["/^home\\/\\.chezmoidata\\/external_assets\\.yaml$/"],
+      managerFilePatterns: ["home/.chezmoidata/external_assets.yaml"],
       "matchStrings": [
         "datasource=(?<datasource>\\S+) packageName=(?<packageName>\\S+) depName=(?<depName>\\S+) versioning=(?<versioning>\\S+)\\n    version: \"(?<currentValue>[^\"]+)\"\\n    sha256: \"(?<currentDigest>[0-9a-f]{64})\""
       ],
@@ -76,33 +87,32 @@
     {
       "customType": "regex",
       "description": "Update pinned Git tags and their immutable commit pairs",
-      "managerFilePatterns": ["/^home\\/\\.chezmoidata\\/external_assets\\.yaml$/"],
+      managerFilePatterns: ["home/.chezmoidata/external_assets.yaml"],
       "matchStrings": [
         "datasource=(?<datasource>\\S+) packageName=(?<packageName>\\S+) depName=(?<depName>\\S+) versioning=(?<versioning>\\S+)\\n    version: \"(?<currentValue>[^\"]+)\"\\n    commit: \"(?<currentDigest>[0-9a-f]{40})\""
       ],
       "autoReplaceStringTemplate": "datasource={{{datasource}}} packageName={{{packageName}}} depName={{{depName}}} versioning={{{versioning}}}\n    version: \"{{{newValue}}}\"\n    commit: \"{{{newDigest}}}\""
     },
     {
-      "customType": "regex",
-      "description": "Track the immutable ModernGlass mpv script commit",
-      "managerFilePatterns": ["/^home\\/\\.chezmoiexternals\\/10-mpv\\.yaml\\.tmpl$/"],
-      "matchStrings": ["ModernGlass/(?<currentDigest>[0-9a-f]{40})"],
-      "currentValueTemplate": "main",
-      "datasourceTemplate": "git-refs",
-      "packageNameTemplate": "https://github.com/Demetter/ModernGlass",
-      "depNameTemplate": "ModernGlass mpv scripts",
-      "versioningTemplate": "loose"
+      customType: "regex",
+      description: "Track the immutable ModernGlass mpv script commit",
+      managerFilePatterns: ["home/.chezmoiexternals/10-mpv.yaml.tmpl"],
+      matchStrings: ["ModernGlass/(?<currentDigest>[0-9a-f]{40})"],
+      currentValueTemplate: "main",
+      datasourceTemplate: "git-refs",
+      packageNameTemplate: "https://github.com/Demetter/ModernGlass",
+      depNameTemplate: "ModernGlass mpv scripts",
     },
     {
-      "customType": "regex",
-      "description": "Update the pinned Renovate CLI used by CI",
-      "managerFilePatterns": ["/^\\.github\\/workflows\\/ci-dots\\.yaml$/"],
-      "matchStrings": ["renovate@(?<currentValue>\\d+\\.\\d+\\.\\d+)"],
-      "datasourceTemplate": "npm",
-      "depNameTemplate": "renovate",
-      "versioningTemplate": "semver",
-      "autoReplaceStringTemplate": "renovate@{{{newValue}}}"
-    }
+      customType: "regex",
+      description: "Update the pinned Renovate CLI used by CI",
+      managerFilePatterns: [".github/workflows/ci-dots.yaml"],
+      matchStrings: ["renovate@(?<currentValue>\\d+\\.\\d+\\.\\d+)"],
+      datasourceTemplate: "npm",
+      depNameTemplate: "renovate",
+      versioningTemplate: "semver",
+      autoReplaceStringTemplate: "renovate@{{{newValue}}}",
+    },
   ],
   "customDatasources": {
     "maple-mono": {
@@ -112,6 +122,14 @@
         "{\"releases\": $append([], $filter($, function($r) { $r.draft = false and $r.prerelease = false and $count($r.assets[name = \"MapleMono-NF-unhinted.zip\"]) = 1 and $type($r.assets[name = \"MapleMono-NF-unhinted.zip\"].digest) = \"string\" }))}",
         "{\"releases\": $append([], $map($filter(releases, function($r) { $count($match($r.assets[name = \"MapleMono-NF-unhinted.zip\"].digest, /^sha256:[0-9a-f]{64}$/)) = 1 }), function($r) { {\"version\": $r.tag_name, \"digest\": $substringAfter($r.assets[name = \"MapleMono-NF-unhinted.zip\"].digest, \"sha256:\"), \"releaseTimestamp\": $r.published_at, \"changelogUrl\": $r.html_url} }))}"
       ]
-    }
-  }
+    },
+    "apple-emoji": {
+      defaultRegistryUrlTemplate: "https://api.github.com/repos/{{packageName}}/releases?per_page=100",
+      format: "json",
+      transformTemplates: [
+        '{"releases": $append([], $filter($, function($r) { $r.draft = false and $r.prerelease = false and $count($r.assets[name = "AppleColorEmoji-Linux.ttf"]) = 1 and $type($r.assets[name = "AppleColorEmoji-Linux.ttf"].digest) = "string" }))}',
+        '{"releases": $append([], $map($filter(releases, function($r) { $count($match($r.assets[name = "AppleColorEmoji-Linux.ttf"].digest, /^sha256:[0-9a-f]{64}$/)) = 1 }), function($r) { {"version": $r.tag_name, "digest": $substringAfter($r.assets[name = "AppleColorEmoji-Linux.ttf"].digest, "sha256:"), "releaseTimestamp": $r.published_at, "changelogUrl": $r.html_url} }))}',
+      ],
+    },
+  },
 }
