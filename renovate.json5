@@ -67,12 +67,6 @@
       "addLabels": ["privileged-installer"],
       "automerge": false
     },
-    {
-      description: "Do not track the intentionally floating Arch Linux container image",
-      matchManagers: ["github-actions"],
-      matchPackageNames: ["archlinux"],
-      enabled: false,
-    }
   ],
   "customManagers": [
     {

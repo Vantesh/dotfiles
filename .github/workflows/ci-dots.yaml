@@ -23,7 +23,7 @@ jobs:
   test-dotfiles:
     name: Arch Linux
     runs-on: ubuntu-latest
-    container: archlinux:latest
+    container: archlinux@sha256:375a401bb3c6376b37f40b6dfa25067db37ec78d0b7af67ae6315f43a0184a9d
     timeout-minutes: 15
 
     defaults:
