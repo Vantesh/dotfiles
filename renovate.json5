@@ -4,7 +4,8 @@
     "config:recommended",
     ":dependencyDashboard",
     ":semanticCommits",
-    ":timezone(UTC)"
+    ":timezone(UTC)",
+    "helpers:pinGitHubActionDigests"
   ],
   "labels": ["dependencies"],
   "automerge": false,
@@ -57,6 +58,16 @@
       "packageNameTemplate": "https://github.com/Demetter/ModernGlass",
       "depNameTemplate": "ModernGlass mpv scripts",
       "versioningTemplate": "loose"
+    },
+    {
+      "customType": "regex",
+      "description": "Update the pinned Renovate CLI used by CI",
+      "managerFilePatterns": ["/^\\.github\\/workflows\\/ci-dots\\.yaml$/"],
+      "matchStrings": ["renovate@(?<currentValue>\\d+\\.\\d+\\.\\d+)"],
+      "datasourceTemplate": "npm",
+      "depNameTemplate": "renovate",
+      "versioningTemplate": "semver",
+      "autoReplaceStringTemplate": "renovate@{{{newValue}}}"
     }
   ],
   "customDatasources": {

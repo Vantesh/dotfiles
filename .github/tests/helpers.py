@@ -1,6 +1,7 @@
 """Temporary homes, command stubs, and isolated setup-template rendering."""
 
 import json
+import re
 import shlex
 import shutil
 import subprocess
@@ -14,6 +15,34 @@ LIB = ROOT / "home/.chezmoitemplates/lib"
 SCRIPTS = ROOT / "home/.chezmoiscripts/linux"
 LOGIN_MANAGER = ROOT / "home/.chezmoitemplates/login-manager"
 CHEZMOI = shutil.which("chezmoi")
+
+
+def renovate_version() -> str:
+    """Read the Renovate version pinned by the CI workflow.
+
+    The workflow is the single source of truth; Renovate's custom manager
+    updates it, and local npx execution follows automatically.
+    """
+    workflow = (ROOT / ".github/workflows/ci-dots.yaml").read_text()
+    match = re.search(r"renovate@(\d+\.\d+\.\d+)", workflow)
+    if match is None:
+        raise RuntimeError("CI workflow does not pin a Renovate version")
+    return match.group(1)
+
+
+def renovate_command(*arguments: str) -> list[str]:
+    """Return the pinned Renovate command executed through npx."""
+    npx = shutil.which("npx")
+    if npx is None:
+        raise RuntimeError("npx is required to run the Renovate tests; install Node.js and npm")
+    return [
+        npx,
+        "--yes",
+        f"--package=renovate@{renovate_version()}",
+        "--",
+        "renovate",
+        *arguments,
+    ]
 
 
 def copy_login_manager(source: Path) -> None:
