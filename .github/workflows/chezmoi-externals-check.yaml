@@ -48,7 +48,7 @@ jobs:
 
             echo "Validating $tmpl"
 
-            if ! output=$(chezmoi execute-template < "$tmpl"); then
+            if ! output=$(chezmoi --source "$GITHUB_WORKSPACE/home" execute-template < "$tmpl"); then
               echo "::error file=$tmpl::Template rendering failed"
               failed=1
               continue
