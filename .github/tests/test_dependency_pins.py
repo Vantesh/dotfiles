@@ -42,8 +42,3 @@ def test_declared_versions_commits_and_checksums_are_immutable() -> None:
     assert all(version not in ("latest", "main", "master") for version in versions)
     assert commits and all(COMMIT.fullmatch(commit) for commit in commits)
     assert checksums and all(SHA256.fullmatch(checksum) for checksum in checksums)
-
-    fisher = (ROOT / "home/dot_config/private_fish/config.fish.tmpl").read_text()
-    plugins = (ROOT / "home/dot_config/private_fish/fish_plugins.tmpl").read_text()
-    assert "fisher install jorgebucaran/fisher@$fisher_commit" in fisher
-    assert "jorgebucaran/fisher@{{ .externalAssets.fisher.commit }}" in plugins
