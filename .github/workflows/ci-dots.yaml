@@ -8,6 +8,7 @@ on:
       - "mise/**"
       - "ruff.toml"
       - "pyproject.toml"
+      - "renovate.json5"
       - ".github/tests/**"
       - ".github/workflows/ci-dots.yaml"
 
@@ -31,7 +32,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           persist-credentials: false
 
@@ -42,14 +43,22 @@ jobs:
         run: |
           set -euo pipefail
           pacman -Syu --noconfirm --needed \
-            bash chezmoi diffutils git git-delta python python-loguru \
+            bash chezmoi diffutils git git-delta nodejs npm python python-loguru \
             python-pytest ruff shellcheck sudo util-linux uv atuin fish
           uv tool install --python /usr/bin/python3 --with pytest --with loguru pyrefly
+          # Pin Renovate so config validation and manager tests are reproducible.
+          # Local tests read this version for the npx fallback.
+          npm install --global --no-fund --no-audit renovate@44.263.5
 
           # Provisioning tests exercise regular-account guards, not a root login.
           useradd --create-home --user-group ci
           chown -R ci:ci "$GITHUB_WORKSPACE"
           install -d -o ci -g ci "$RUNNER_TEMP/dotfiles-ci/home"
+
+      - name: Validate Renovate configuration
+        run: |
+          set -euo pipefail
+          renovate-config-validator --strict --no-global renovate.json5
 
       - name: Configure isolated home
         run: |
