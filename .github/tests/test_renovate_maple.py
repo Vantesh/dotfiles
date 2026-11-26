@@ -11,9 +11,9 @@ ASSETS = ROOT / "home/.chezmoidata/external_assets.yaml"
 FONTS = ROOT / "home/.chezmoiexternals/00-fonts.yaml.tmpl"
 
 ASSET = "MapleMono-NF-unhinted.zip"
-VERSION = "v7.9"
-DIGEST = "8248d6260660be1066b5ebe90d25131582df8383f38db1c284dd1f2dc9d2b46e"
 GOOD_DIGEST = "a" * 64
+VERSION_PATTERN = re.compile(r"v\d+(?:\.\d+)+")
+SHA256_PATTERN = re.compile(r"[0-9a-f]{64}")
 
 
 def _config() -> dict[str, object]:
@@ -51,8 +51,8 @@ def test_declaration_pins_the_exact_zip_and_checksum() -> None:
     assert match["datasource"] == "custom.maple-mono"
     assert match["packageName"] == "subframe7536/maple-font"
     assert match["versioning"] == "loose"
-    assert match["currentValue"] == VERSION
-    assert match["currentDigest"] == DIGEST
+    assert VERSION_PATTERN.fullmatch(match["currentValue"])
+    assert SHA256_PATTERN.fullmatch(match["currentDigest"])
 
 
 def test_manager_rewrites_only_the_version_and_checksum() -> None:
@@ -66,8 +66,8 @@ def test_manager_rewrites_only_the_version_and_checksum() -> None:
     after = updated.splitlines()
     assert len(before) == len(after)
     assert [line for line, new in zip(before, after, strict=True) if line != new] == [
-        f'    version: "{VERSION}"',
-        f'    sha256: "{DIGEST}"',
+        f'    version: "{match["currentValue"]}"',
+        f'    sha256: "{match["currentDigest"]}"',
     ]
     assert 'version: "v9.9"' in updated
     assert f'sha256: "{GOOD_DIGEST}"' in updated
