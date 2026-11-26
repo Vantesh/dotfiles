@@ -1,18 +1,23 @@
 {{- if and (eq .chezmoi.os "linux") (not (env "OFFLINE")) -}}
 {{- $fontDir := ".local/share/fonts" -}}
 {{- $refresh := "336h" -}}
+{{- $assets := .externalAssets -}}
 
 {{/* Apple Color Emoji for Linux */}}
 "{{ $fontDir }}/emojis/AppleColorEmoji.ttf":
   type: file
-  url: {{ gitHubLatestReleaseAssetURL "samuelngs/apple-emoji-ttf" "AppleColorEmoji-Linux.ttf" | quote }}
+  url: "https://github.com/samuelngs/apple-emoji-ttf/releases/download/{{ $assets.appleColorEmoji.version }}/AppleColorEmoji-Linux.ttf"
   refreshPeriod: {{ $refresh | quote }}
+  checksum:
+    sha256: {{ $assets.appleColorEmoji.sha256 | quote }}
 
-{{/* Maple Mono Nerd Font */}}
+{{/* Maple Mono Nerd Font; upstream publishes MapleMono-NF-unhinted.sha256. */}}
 "{{ $fontDir }}/MapleMono":
   type: archive
-  url: {{ gitHubLatestReleaseAssetURL "subframe7536/maple-font" "MapleMono-NF-unhinted.zip" | quote }}
+  url: "https://github.com/subframe7536/maple-font/releases/download/{{ $assets.mapleMonoNerdFont.version }}/MapleMono-NF-unhinted.zip"
   refreshPeriod: {{ $refresh | quote }}
+  checksum:
+    sha256: {{ $assets.mapleMonoNerdFont.sha256 | quote }}
   include:
     - "*.ttf"
 

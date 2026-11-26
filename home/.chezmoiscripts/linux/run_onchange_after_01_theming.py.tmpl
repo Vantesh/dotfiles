@@ -26,8 +26,33 @@ GTK_COLOR_SCHEME = "prefer-dark"
 CURSOR_THEME = "MacTahoe-dark-cursors" if GTK_COLOR_SCHEME == "prefer-dark" else "MacTahoe-cursors"
 CURSOR_SIZE = "24"
 COLLOID_REPO = "https://github.com/vinceliuice/Colloid-icon-theme.git"
-MACTAHOE_CURSORS_REPO = "https://github.com/Vantesh/mactahoe-hyprcursor"
-SF_PRO_URL = "https://devimages-cdn.apple.com/design/resources/download/SF-Pro.dmg"
+COLLOID_VERSION = {{ .externalAssets.colloidIconTheme.version | toJson }}
+COLLOID_COMMIT = {{ .externalAssets.colloidIconTheme.commit | toJson }}
+MACTAHOE_REPO = "https://github.com/Vantesh/mactahoe-hyprcursor"
+MACTAHOE_CURSOR_VERSION = {{ .externalAssets.macTahoeCursorLight.version | toJson }}
+MACTAHOE_CURSOR_SHA256 = {{ .externalAssets.macTahoeCursorLight.sha256 | toJson }}
+MACTAHOE_DARK_CURSOR_VERSION = {{ .externalAssets.macTahoeCursorDark.version | toJson }}
+MACTAHOE_DARK_CURSOR_SHA256 = {{ .externalAssets.macTahoeCursorDark.sha256 | toJson }}
+SF_PRO_URL = {{ .externalAssets.sfProText.url | toJson }}
+SF_PRO_SHA256 = {{ .externalAssets.sfProText.sha256 | toJson }}
+
+
+def desktop_theme_pins() -> str:
+    return (
+        "\n".join(
+            (
+                COLLOID_REPO,
+                COLLOID_VERSION,
+                COLLOID_COMMIT,
+                MACTAHOE_REPO,
+                MACTAHOE_CURSOR_VERSION,
+                MACTAHOE_CURSOR_SHA256,
+                MACTAHOE_DARK_CURSOR_VERSION,
+                MACTAHOE_DARK_CURSOR_SHA256,
+            )
+        )
+        + "\n"
+    )
 
 
 def mirror_root_gtk(config_home: Path, theme: str, prefer_dark: bool) -> None:
@@ -127,6 +152,7 @@ def xcursor_is_complete(icons: Path) -> bool:
 
 
 def install_colloid_and_xcursors() -> None:
+    from lib.artifact_verification import verify_git_commit, verify_sha256
     from lib.provision_logging import run_logged
 
     system_icons = Path("/usr/share/icons")
@@ -138,7 +164,7 @@ def install_colloid_and_xcursors() -> None:
         return
     if (
         completion.is_file()
-        and completion.read_text() == COLLOID_REPO + "\n" + MACTAHOE_CURSORS_REPO + "\n"
+        and completion.read_text() == desktop_theme_pins()
         and colloid_is_complete(system_icons)
         and xcursor_is_complete(system_icons)
     ):
@@ -156,24 +182,33 @@ def install_colloid_and_xcursors() -> None:
                 "--depth",
                 "1",
                 "--single-branch",
+                "--branch",
+                COLLOID_VERSION,
                 "--",
                 COLLOID_REPO,
                 str(work / "colloid"),
             ],
             check=True,
         )
+        verify_git_commit(work / "colloid", COLLOID_COMMIT, f"Colloid icon theme {COLLOID_VERSION}")
         run_logged(
             ["sudo", "bash", str(work / "colloid/install.sh"), "--dest", "/usr/share/icons"],
             "Install Colloid icon themes",
         )
 
-        run_logged(
-            ["sudo", "mkdir", "-p", "/usr/share/icons"],
-            "Prepare /usr/share/icons for Xcursor themes",
-        )
-        for asset, name in (
-            ("MacTahoe-cursors.tar.gz", "MacTahoe-cursors"),
-            ("MacTahoe-dark-cursors.tar.gz", "MacTahoe-dark-cursors"),
+        for version, asset, name, checksum in (
+            (
+                MACTAHOE_CURSOR_VERSION,
+                "MacTahoe-cursors.tar.gz",
+                "MacTahoe-cursors",
+                MACTAHOE_CURSOR_SHA256,
+            ),
+            (
+                MACTAHOE_DARK_CURSOR_VERSION,
+                "MacTahoe-dark-cursors.tar.gz",
+                "MacTahoe-dark-cursors",
+                MACTAHOE_DARK_CURSOR_SHA256,
+            ),
         ):
             archive = work / asset
             _ = subprocess.run(
@@ -185,9 +220,14 @@ def install_colloid_and_xcursors() -> None:
                     "3",
                     "--output",
                     str(archive),
-                    f"https://github.com/Vantesh/mactahoe-hyprcursor/releases/latest/download/{asset}",
+                    f"{MACTAHOE_REPO}/releases/download/{version}/{asset}",
                 ],
                 check=True,
+            )
+            verify_sha256(archive, checksum, f"{name} Xcursor theme")
+            run_logged(
+                ["sudo", "mkdir", "-p", "/usr/share/icons"],
+                "Prepare /usr/share/icons for Xcursor themes",
             )
             run_logged(
                 ["tar", "--extract", "--gzip", "--file", str(archive), "--directory", str(work)],
@@ -213,7 +253,7 @@ def install_colloid_and_xcursors() -> None:
         with tempfile.NamedTemporaryFile(mode="w", dir=completion.parent, delete=False) as stage:
             stage_path = Path(stage.name)
             try:
-                _ = stage.write(COLLOID_REPO + "\n" + MACTAHOE_CURSORS_REPO + "\n")
+                _ = stage.write(desktop_theme_pins())
                 stage.flush()
                 os.replace(stage_path, completion)
             finally:
@@ -221,13 +261,13 @@ def install_colloid_and_xcursors() -> None:
     logger.info("Installed Colloid and MacTahoe Xcursor themes in {}.", system_icons)
 
 
-def sf_pro_is_complete(fonts: Path, manifest: Path) -> bool:
+def sf_pro_is_complete(fonts: Path, manifest: Path, source_checksum: str) -> bool:
     if not manifest.is_file():
         return False
     records = manifest.read_text().splitlines()
-    if not records:
+    if len(records) < 2 or records[0] != f"# source-sha256 {source_checksum}":
         return False
-    for record in records:
+    for record in records[1:]:
         digest, separator, name = record.partition("  ")
         if (
             not separator
@@ -248,11 +288,12 @@ def sf_pro_is_complete(fonts: Path, manifest: Path) -> bool:
 
 
 def install_sf_pro_text() -> None:
+    from lib.artifact_verification import verify_sha256
     from lib.provision_logging import run_logged
 
     fonts = Path.home() / ".local/share/fonts/SF-Pro-Text"
     manifest = fonts / ".installed.sha256"
-    if sf_pro_is_complete(fonts, manifest) or os.environ.get("OFFLINE"):
+    if sf_pro_is_complete(fonts, manifest, SF_PRO_SHA256) or os.environ.get("OFFLINE"):
         return
     for command in ("7z", "fc-cache", "curl", "bsdtar", "install"):
         if shutil.which(command) is None:
@@ -281,6 +322,7 @@ def install_sf_pro_text() -> None:
             ],
             check=True,
         )
+        verify_sha256(work / "SF-Pro.dmg", SF_PRO_SHA256, "SF Pro font image")
         run_logged(
             ["7z", "e", "-y", f"-o{work}", str(work / "SF-Pro.dmg"), "SFProFonts.pkg"],
             "Extract SF Pro font package",
@@ -341,6 +383,7 @@ def install_sf_pro_text() -> None:
         ) as stage:
             stage_path = Path(stage.name)
             try:
+                _ = stage.write(f"# source-sha256 {SF_PRO_SHA256}\n")
                 for font in extracted_fonts:
                     with (fonts / font.name).open("rb") as stream:
                         _ = stage.write(
