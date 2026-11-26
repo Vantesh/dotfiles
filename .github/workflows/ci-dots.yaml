@@ -10,7 +10,7 @@ on:
       - "pyproject.toml"
       - "renovate.json5"
       - ".github/tests/**"
-      - ".github/workflows/ci-dots.yaml"
+      - ".github/workflows/**"
 
 permissions:
   contents: read
