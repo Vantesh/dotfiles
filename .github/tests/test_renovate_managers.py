@@ -12,6 +12,9 @@ import pytest
 from helpers import ROOT, renovate_command
 
 CONFIG = ROOT / "renovate.json5"
+ASSETS = ROOT / "home/.chezmoidata/external_assets.yaml"
+FONTS = ROOT / "home/.chezmoiexternals/00-fonts.yaml.tmpl"
+
 SHA256 = re.compile(r"[0-9a-f]{64}")
 SEMVER = re.compile(r"\d+\.\d+\.\d+")
 
@@ -30,6 +33,11 @@ EXTERNAL_ASSETS = r"""externalAssets:
     # renovate: datasource=github-release-attachments packageName=samuelngs/apple-emoji-ttf depName=apple-color-emoji versioning=regex:^macos-(?<major>\d+)-(?<minor>\d{8})-[0-9a-f]+$
     version: "macos-26-20260722-484daf4e"
     sha256: "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+
+  mapleMonoNerdFont:
+    # renovate: datasource=custom.maple-mono packageName=subframe7536/maple-font depName=maple-mono versioning=loose
+    version: "v7.1.0"
+    sha256: "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
 
   autoCpufreq:
     # renovate: datasource=github-tags packageName=AdnanHodzic/auto-cpufreq depName=auto-cpufreq versioning=semver
@@ -212,6 +220,31 @@ def test_release_attachments_extract_apple_color_emoji(
     )
     assert f'version: "{dependency["currentValue"]}"' in dependency["replaceString"]
     assert f'sha256: "{dependency["currentDigest"]}"' in dependency["replaceString"]
+
+
+def test_custom_datasource_extracts_maple_mono_version_and_checksum(
+    extracted: dict[str, Dependency],
+) -> None:
+    dependency = _dependency(extracted, "maple-mono")
+
+    assert dependency["packageName"] == "subframe7536/maple-font"
+    assert dependency["datasource"] == "custom.maple-mono"
+    assert dependency["versioning"] == "loose"
+    assert dependency["currentValue"] == "v7.1.0"
+    assert dependency["currentDigest"] == (
+        "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+    )
+    assert f'version: "{dependency["currentValue"]}"' in dependency["replaceString"]
+    assert f'sha256: "{dependency["currentDigest"]}"' in dependency["replaceString"]
+
+
+def test_maple_mono_install_uses_the_pinned_version_and_checksum() -> None:
+    text = FONTS.read_text()
+
+    assert (
+        'releases/download/{{ $assets.mapleMonoNerdFont.version }}/MapleMono-NF-unhinted.zip"'
+    ) in text
+    assert "sha256: {{ $assets.mapleMonoNerdFont.sha256 | quote }}" in text
 
 
 @pytest.mark.parametrize(
