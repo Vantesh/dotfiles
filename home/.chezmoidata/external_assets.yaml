@@ -18,23 +18,23 @@ externalAssets:
 
   macTahoeCursorLight:
     # renovate: datasource=github-release-attachments packageName=Vantesh/mactahoe-hyprcursor depName=mactahoe-cursor-light versioning=loose
-    version: "v1.0.2-839848b9a8a3"
-    sha256: "a2fa0a4c643df9a60362b2d0db76c0aa2aa53d12a3ee9ee50b2268e3520e7b08"
+    version: "v1.0.3-839848b9a8a3"
+    sha256: "ec8c301cfe390752cc883f1157d4dc248d27c9437342b40339e7847b7e53350d"
 
   macTahoeCursorDark:
     # renovate: datasource=github-release-attachments packageName=Vantesh/mactahoe-hyprcursor depName=mactahoe-cursor-dark versioning=loose
-    version: "v1.0.2-839848b9a8a3"
-    sha256: "fbd229bc53f8c503dafd7dcece496cdaa19af634c62c7caabcec1c4e4d30b701"
+    version: "v1.0.3-839848b9a8a3"
+    sha256: "e00f6c578f8ddf8b31009f3c68945a78afd1e29cf23901efc72e773ae03ab391"
 
   macTahoeHyprcursorLight:
     # renovate: datasource=github-release-attachments packageName=Vantesh/mactahoe-hyprcursor depName=mactahoe-hyprcursor-light versioning=loose
-    version: "v1.0.2-839848b9a8a3"
-    sha256: "a1f2f1ed6ec3dcedaedee9898a3582fbac80fe0a56e1cff6374fc9030ee07c2c"
+    version: "v1.0.3-839848b9a8a3"
+    sha256: "b4156a51c28075bb137baa0e9d0d84a7c6e01b3d81d9056360edc8b81fe64296"
 
   macTahoeHyprcursorDark:
     # renovate: datasource=github-release-attachments packageName=Vantesh/mactahoe-hyprcursor depName=mactahoe-hyprcursor-dark versioning=loose
-    version: "v1.0.2-839848b9a8a3"
-    sha256: "1c059c82cdf8a068135ee23a9757927da79f42d58566cdb1a3e94f65223acc62"
+    version: "v1.0.3-839848b9a8a3"
+    sha256: "c95fba338de86b1cb78115fb0d820c61e6fad22093b0806729fe016d0fbcc714"
 
   appleColorEmoji:
     # renovate: datasource=github-release-attachments packageName=samuelngs/apple-emoji-ttf depName=apple-color-emoji versioning=regex:^macos-(?<major>\d+)-(?<minor>\d{8})-[0-9a-f]+$
