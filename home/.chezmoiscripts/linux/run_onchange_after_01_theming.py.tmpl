@@ -172,6 +172,7 @@ def install_colloid_and_xcursors() -> None:
     for command in ("git", "gtk-update-icon-cache", "bash", "curl", "tar"):
         if shutil.which(command) is None:
             raise FileNotFoundError(f"Required desktop theme command missing: {command}")
+    completion.unlink(missing_ok=True)
     with tempfile.TemporaryDirectory(prefix="chezmoi-desktop-themes-", dir="/tmp") as directory:
         work = Path(directory)
         logger.info("Installing Colloid icon themes system-wide.")
