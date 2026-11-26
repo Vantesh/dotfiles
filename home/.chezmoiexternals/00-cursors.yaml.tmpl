@@ -1,7 +1,6 @@
 {{ if not (env "OFFLINE") }}
 {{- if eq .chezmoi.os "linux" }}
 
-{{- $refresh := "744h" }}
 {{- $hypr := .externalAssets }}
 
 # MacTahoe icon-theme cursors are installed with the icon themes themselves.
@@ -9,7 +8,6 @@
   url: "https://github.com/Vantesh/mactahoe-hyprcursor/releases/download/{{ $hypr.macTahoeHyprcursorLight.version }}/MacTahoe-hyprcursor.tar.gz"
   type: archive
   stripComponents: 1
-  refreshPeriod: {{ $refresh | quote }}
   checksum:
     sha256: {{ $hypr.macTahoeHyprcursorLight.sha256 | quote }}
 
@@ -17,7 +15,6 @@
   url: "https://github.com/Vantesh/mactahoe-hyprcursor/releases/download/{{ $hypr.macTahoeHyprcursorDark.version }}/MacTahoe-dark-hyprcursor.tar.gz"
   type: archive
   stripComponents: 1
-  refreshPeriod: {{ $refresh | quote }}
   checksum:
     sha256: {{ $hypr.macTahoeHyprcursorDark.sha256 | quote }}
 
