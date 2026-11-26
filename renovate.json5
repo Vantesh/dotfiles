@@ -1,3 +1,4 @@
+
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
@@ -10,10 +11,43 @@
   "labels": ["dependencies"],
   "automerge": false,
   "platformAutomerge": false,
+  automergeType: "pr",
+  prHourlyLimit: 0,
   "prConcurrentLimit": 5,
   "packageRules": [
     {
-      "description": "Never merge installers that run with sudo automatically",
+      description: "Automatically merge non-major updates after successful checks",
+      matchUpdateTypes: ["patch", "minor", "digest", "pin"],
+      automerge: true,
+    },
+    {
+      description: "Identify major updates requiring manual review",
+      matchUpdateTypes: ["major"],
+      addLabels: ["major-update"],
+      automerge: false,
+    },
+    {
+      description: "Identify GitHub Actions updates",
+      matchManagers: ["github-actions"],
+      addLabels: ["github-actions"],
+    },
+    {
+      description: "Identify external release artifact pins",
+      matchFileNames: ["/^home\\/\\.chezmoidata\\/external_assets\\.yaml$/"],
+      addLabels: ["external-assets"],
+    },
+    {
+      description: "Identify immutable Git source pins",
+      matchPackageNames: ["ModernGlass mpv scripts"],
+      addLabels: ["git-source"],
+    },
+    {
+      description: "Identify Renovate CLI updates",
+      matchPackageNames: ["renovate"],
+      addLabels: ["tooling"],
+    },
+    {
+      description: "Never automatically merge installers that run with sudo",
       "matchPackageNames": [
         "vinceliuice/Colloid-icon-theme",
         "AdnanHodzic/auto-cpufreq"
