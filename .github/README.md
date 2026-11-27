@@ -70,24 +70,70 @@ sudo limine-update
 
 ## Development
 
-The setup installs its runtime dependencies. For development and testing, install the additional tools:
+Development tooling is isolated from system provisioning and bootstrap.
+
+Mise manages the development tools and Python environment. The repository automatically selects this environment through `.miserc.toml`.
+
+**Run the development workflow:**
 
 ```bash
-sudo pacman -S --needed python-pytest ruff shellcheck uv
-uv tool install --python /usr/bin/python3 --with pytest --with loguru pyrefly
+mise run dev
 ```
 
-Keep uv's tool executable directory (normally `~/.local/bin`) on `PATH`. Pyrefly uses the strict Python 3.14 configuration in `pyproject.toml`; its tool environment includes pytest and Loguru for import resolution.
+This formats Python code and runs the full validation suite.
 
-Run `pyrefly check` for source type checks, or `pyrefly dump-config --max-files all` to inspect source coverage. The full validator also checks the rendered Python templates for both profiles and rejects missing source coverage.
-
-Run validation from the repository root:
+**Run validation without formatting:**
 
 ```bash
-python3 -B .github/tests/validate.py
+mise run check
 ```
 
-This checks Python formatting and linting, types, tests, Chezmoi templates, shell scripts and Mise configuration. It does not change the running system.
+| Command | Purpose |
+|---|---|
+| `mise run dev` | Format and validate |
+| `mise run check` | Validate without modifying files |
+
+Both commands use the same Mise-managed toolchain. CI runs `mise run check`.
+
+**Development environment**
+
+- Python 3.14, uv, Ruff, Pyrefly and ShellCheck.
+- pytest and Loguru installed into the repository's `.venv`.
+- Exact versions declared in `mise/config.development.toml`.
+- `pyproject.toml` holds Pyrefly and pytest configuration.
+- Renovate tracks Mise tools and the Python package versions.
+
+No separate requirements file, uv project or development lockfile is needed.
+
+### Shell integration
+
+Bash and Fish startup files activate Mise automatically.
+
+If Mise asks you to trust the repository configuration, run:
+
+```bash
+mise trust
+```
+
+For Zsh, add this to `~/.zshrc`:
+
+```zsh
+eval "$(mise activate zsh)"
+```
+
+For editors and GUI applications that do not read shell startup files, use shims:
+
+```bash
+eval "$(mise activate bash --shims)"
+```
+
+Fish equivalent:
+
+```fish
+mise activate fish --shims | source
+```
+
+Development tools are selected only inside this repository. CI does not depend on shell activation.
 
 ## Credits
 
