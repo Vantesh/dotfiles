@@ -21,7 +21,7 @@ from loguru import logger
 # Font data is unavailable during init; keep font-data edits live on each apply.
 FONT_NAME = {{ cat .font.ui.name .font.ui.size | toJson }}
 ROOT_CONFIG = Path("/root/.config")
-GTK_THEME = "adw-gtk3-dark"
+GTK_THEME = "adw-gtk3"
 GTK_COLOR_SCHEME = "prefer-dark"
 CURSOR_THEME = "MacTahoe-dark-cursors" if GTK_COLOR_SCHEME == "prefer-dark" else "MacTahoe-cursors"
 CURSOR_SIZE = "24"

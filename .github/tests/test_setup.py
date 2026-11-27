@@ -273,7 +273,6 @@ esac""",
     for common in (
         "mimeapps.list",
         "qtengine/config.json",
-        "gtk-3.0/gtk.css",
         "kitty/kitty.conf",
     ):
         assert (tmp_path / ".config" / common).is_file()
