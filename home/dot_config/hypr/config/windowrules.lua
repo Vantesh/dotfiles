@@ -220,7 +220,7 @@ centered_float("noctalia-settings", {
 
 -- Named terminal windows opened by dotfiles helpers.
 centered_float(nil, {
-  initial_title = "^(FloatingTerm|Yazi|System Update|btop)$",
+  initial_title = "^(FloatingTerm|Yazi|System Update)$",
 }, "0.8", "0.8")
 
 -- === Authentication and password managers ===

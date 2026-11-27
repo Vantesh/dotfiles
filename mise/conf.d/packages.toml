@@ -48,7 +48,6 @@
 
 # CLI tools
 "pacman:fastfetch" = { env = "packages" }
-"pacman:btop" = { env = "packages" }
 "pacman:starship" = { env = "packages" }
 "pacman:zoxide" = { env = "packages" }
 "pacman:fd" = { env = "packages" }
@@ -105,6 +104,7 @@
 "pacman:brave-bin" = { env = "packages" }
 "aur:spotifast-bin" = { env = "packages" }
 "pacman:localsend" = { env = "packages" }
+"pacman:mission-center" = { env = "packages" }
 "pacman:zapfast" = { env = "packages" }
 
 # Personal hardware groups selected by the package phase; never part of the baseline.

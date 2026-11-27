@@ -1,5 +1,5 @@
 [theme.templates]
-builtin_ids = ["btop", "cava", "gtk3", "gtk4", "hyprland", "kitty", "kcolorscheme", "luciole"]
+builtin_ids = ["cava", "gtk3", "gtk4", "hyprland", "kitty", "kcolorscheme", "luciole"]
 community_ids = ["fastfetch", "bat", "lazygit", "yazi", "spotifast", "obsidian", "zapfast", "starship", "chromium-based"]
 
 [theme.templates.user.theme]

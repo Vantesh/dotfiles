@@ -162,5 +162,5 @@ hl.bind("XF86RFKill",
   hl.dsp.exec_cmd(H.launch([[sh -c 'case "$(rfkill list)" in *"Soft blocked: yes"*) notify-send "rfkill" "Airplane mode is on" -u critical --icon wifi;; esac']])),
   { repeating = true, locked = true, description = "Toggle airplane mode" })
 hl.bind("SUPER + U", hl.dsp.exec_cmd(H.ipc("plugin vantesh/topgrade-updater:service all update")), { description = "Update system" })
-hl.bind("CTRL + ALT + DELETE", hl.dsp.exec_cmd(H.floating_terminal("btop") .. " -- btop"), { description = "Open resource monitor" })
+hl.bind("CTRL + ALT + DELETE", hl.dsp.exec_cmd(H.launch("missioncenter")), { description = "Open resource monitor" })
 hl.bind("SUPER + F2", hl.dsp.exec_cmd(H.ipc("panel-toggle vantesh/hyprbinds:cheatsheet")), { description = "Open keybinds help" })
