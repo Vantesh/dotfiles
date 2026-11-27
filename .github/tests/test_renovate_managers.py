@@ -5,6 +5,7 @@ import os
 import re
 import shutil
 import subprocess
+import tomllib
 from pathlib import Path
 from typing import TypedDict, cast
 
@@ -12,6 +13,7 @@ import pytest
 from helpers import ROOT, renovate_command
 
 CONFIG = ROOT / "renovate.json5"
+DEV_CONFIG = ROOT / "mise/config.development.toml"
 ASSETS = ROOT / "home/.chezmoidata/external_assets.yaml"
 FONTS = ROOT / "home/.chezmoiexternals/00-fonts.yaml.tmpl"
 
@@ -66,7 +68,7 @@ jobs:
   test:
     steps:
       - run: |
-          uv tool install --python /usr/bin/python3 --with pytest --with loguru pyrefly
+          mise install --yes
           npm install --global --no-fund --no-audit renovate@9.8.7
 """
 
@@ -96,7 +98,9 @@ def _renovate_environment(tmp_path: Path) -> dict[str, str]:
     }
 
 
-def _run_renovate(repository: Path, tmp_path: Path) -> dict[str, Dependency]:
+def _run_renovate_package_files(
+    repository: Path, tmp_path: Path
+) -> dict[str, list[dict[str, object]]]:
     environment = _renovate_environment(tmp_path)
     result = subprocess.run(
         renovate_command(
@@ -122,15 +126,19 @@ def _run_renovate(repository: Path, tmp_path: Path) -> dict[str, Dependency]:
             continue
         if record.get("msg") != "Extracted dependencies":
             continue
-        package_files = cast("dict[str, list[dict[str, object]]]", record["packageFiles"])
-        dependencies = [
-            cast("Dependency", dependency)
-            for package_file in package_files.get("regex", [])
-            for dependency in cast("list[object]", package_file["deps"])
-        ]
-        return {dependency["depName"]: dependency for dependency in dependencies}
+        return cast("dict[str, list[dict[str, object]]]", record["packageFiles"])
 
     raise AssertionError(f"Renovate did not report extracted dependencies:\n{result.stdout}")
+
+
+def _run_renovate(repository: Path, tmp_path: Path) -> dict[str, Dependency]:
+    package_files = _run_renovate_package_files(repository, tmp_path)
+    dependencies = [
+        cast("Dependency", dependency)
+        for package_file in package_files.get("regex", [])
+        for dependency in cast("list[object]", package_file["deps"])
+    ]
+    return {dependency["depName"]: dependency for dependency in dependencies}
 
 
 def test_renovate_subprocess_shares_npm_cache(
@@ -180,6 +188,35 @@ def production_extracted(
     )
     _ = shutil.copyfile(CONFIG, repository / "renovate.json5")
     return _run_renovate(repository, tmp_path)
+
+
+@pytest.fixture(scope="module")
+def production_package_files(
+    tmp_path_factory: pytest.TempPathFactory,
+) -> dict[str, list[dict[str, object]]]:
+    tmp_path = tmp_path_factory.mktemp("renovate-production-package-files")
+    repository = tmp_path / "repository"
+    for relative in (
+        ".github/workflows/ci-dots.yaml",
+        "renovate.json5",
+        ".miserc.toml",
+        "mise/config.development.toml",
+        "mise/config.toml",
+        "mise/config.personal.toml",
+        "mise/config.nvidia-sleep.toml",
+        "pyproject.toml",
+    ):
+        source = ROOT / relative
+        if not source.exists():
+            continue
+        target = repository / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        _ = shutil.copyfile(source, target)
+    for path in sorted((ROOT / "mise/conf.d").glob("*.toml")):
+        target = repository / path.relative_to(ROOT)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        _ = shutil.copyfile(path, target)
+    return _run_renovate_package_files(repository, tmp_path)
 
 
 def _dependency(dependencies: dict[str, Dependency], name: str) -> Dependency:
@@ -323,3 +360,69 @@ def test_production_workflow_extracts_renovate_cli(
     assert SEMVER.fullmatch(renovate["currentValue"])
     assert renovate["replaceString"] == f"renovate@{renovate['currentValue']}"
     assert renovate["replaceString"] in workflow
+
+
+def test_production_mise_manager_extracts_all_development_tools(
+    production_package_files: dict[str, list[dict[str, object]]],
+) -> None:
+    config = cast("dict[str, object]", tomllib.loads(DEV_CONFIG.read_text()))
+    tools = cast("dict[str, object]", config["tools"])
+
+    mise_files = production_package_files.get("mise", [])
+    assert [f["packageFile"] for f in mise_files] == ["mise/config.development.toml"]
+    assert mise_files[0].get("lockFiles", []) == []
+
+    deps = cast("list[dict[str, object]]", mise_files[0]["deps"])
+    by_name = {str(dep["depName"]): dep for dep in deps}
+    assert set(by_name) == set(tools)
+
+    datasources = {
+        "python": "github-tags",
+        "uv": "github-releases",
+        "ruff": "github-releases",
+        "pypi:pyrefly": "pypi",
+        "shellcheck": "github-releases",
+    }
+    current_values = {name: str(value) for name, value in tools.items()}
+    for name, dep in by_name.items():
+        assert dep["datasource"] == datasources[name]
+        assert dep["currentValue"] == current_values[name]
+        assert "lockedVersion" not in dep
+
+
+def test_production_mise_deps_pins_are_extracted_without_extra_manifests(
+    production_package_files: dict[str, list[dict[str, object]]],
+) -> None:
+    assert "pep621" not in production_package_files
+    assert "pip_requirements" not in production_package_files
+
+    config = DEV_CONFIG.read_text()
+    regex_files = [
+        file
+        for file in production_package_files.get("regex", [])
+        if file["packageFile"] == "mise/config.development.toml"
+    ]
+    assert len(regex_files) == 1
+
+    deps = cast("list[dict[str, object]]", regex_files[0]["deps"])
+    by_name = {str(dep["depName"]): dep for dep in deps}
+    assert set(by_name) == {"pytest", "loguru"}
+
+    for name, version in (("pytest", "9.2.0"), ("loguru", "0.8.0")):
+        dep = by_name[name]
+        replace_string = str(dep["replaceString"])
+        assert dep["datasource"] == "pypi"
+        assert dep["currentValue"] == version
+        assert replace_string == f"{name}=={version}"
+        assert replace_string in config
+
+
+def test_production_mise_bootstrap_configs_are_not_extracted(
+    production_package_files: dict[str, list[dict[str, object]]],
+) -> None:
+    mise_files = {str(file["packageFile"]) for file in production_package_files.get("mise", [])}
+    assert "mise/config.development.toml" in mise_files
+    assert not any(path.startswith("mise/conf.d/") for path in mise_files)
+    assert "mise/config.toml" not in mise_files
+    assert "mise/config.personal.toml" not in mise_files
+    assert "mise/config.nvidia-sleep.toml" not in mise_files

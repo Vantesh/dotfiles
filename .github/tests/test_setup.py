@@ -35,6 +35,9 @@ def env(tmp_path: Path) -> dict[str, str]:
         "TMPDIR": str(tmp_path),
         "CALLS": str(tmp_path / "calls"),
         "NO_COLOR": "1",
+        # Runtime scripts use /usr/bin/python3; expose Mise's development Loguru
+        # to those subprocesses so tests do not depend on a host Python package.
+        "PYTHONPATH": str(next((ROOT / ".venv/lib").glob("python*/site-packages"), "")),
         **{
             f"XDG_{name}_HOME": str(tmp_path / name.lower())
             for name in ("CONFIG", "DATA", "CACHE", "STATE")

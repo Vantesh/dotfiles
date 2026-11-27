@@ -47,7 +47,7 @@ def main():
             missing.append("shellcheck")
         raise SystemExit(
             f"Missing validation tools: {', '.join(missing)}. "
-            + "These must be installed separately before running validation."
+            + "Run `mise run check` to install and provide them."
         )
     subprocess.run(["ruff", "check", "."], cwd=ROOT, check=True)
     subprocess.run(["ruff", "format", "--check", "."], cwd=ROOT, check=True)

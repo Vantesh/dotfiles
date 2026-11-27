@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - "home/**"
+      - ".miserc.toml"
       - "mise/**"
       - "ruff.toml"
       - "pyproject.toml"
@@ -37,15 +38,13 @@ jobs:
           persist-credentials: false
 
       - name: Install validation toolchain
-        env:
-          UV_TOOL_DIR: /opt/ci-tools
-          UV_TOOL_BIN_DIR: /usr/local/bin
         run: |
           set -euo pipefail
+          # Mise installs all development tools and Python packages; system Python is
+          # only a prerequisite for provisioning-style test fixtures.
           pacman -Syu --noconfirm --needed \
-            bash chezmoi diffutils git git-delta nodejs npm python python-loguru \
-            python-pytest ruff shellcheck sudo util-linux uv atuin fish
-          uv tool install --python /usr/bin/python3 --with pytest --with loguru pyrefly
+            bash chezmoi diffutils git git-delta mise nodejs npm python \
+            sudo util-linux atuin fish
           # Pin Renovate so config validation and manager tests are reproducible.
           # Local tests read this version for the npx fallback.
           npm install --global --no-fund --no-audit renovate@45.0.2
@@ -76,13 +75,18 @@ jobs:
 
       - name: Test and lint setup scripts
         shell: runuser --user ci --preserve-environment -- bash --noprofile --norc -e -o pipefail {0}
+        env:
+          MISE_CONFIG_DIR: /dev/null
+          MISE_SYSTEM_CONFIG_DIR: /dev/null
+          MISE_TRUSTED_CONFIG_PATHS: ${{ github.workspace }}
         run: |
           set -euo pipefail
-          if ! command -v python3 >/dev/null; then
-            echo "Missing validation prerequisite: python3. Provide the tools separately." >&2
+          if ! command -v mise >/dev/null; then
+            echo "Missing validation prerequisite: mise. Provide the tools separately." >&2
             exit 1
           fi
-          python3 -B .github/tests/validate.py
+          mise run check
+          git diff --exit-code
 
       - name: Apply and verify dotfiles
         shell: runuser --user ci --preserve-environment -- bash --noprofile --norc -e -o pipefail {0}

@@ -99,6 +99,16 @@
     },
     {
       customType: "regex",
+      description: "Update Python development packages declared in the Mise deps provider",
+      managerFilePatterns: ["mise/config.development.toml"],
+      matchStrings: [
+        "\\b(?<depName>[a-z0-9][a-z0-9._-]*)==(?<currentValue>[0-9][0-9A-Za-z.+-]*)\\b",
+      ],
+      datasourceTemplate: "pypi",
+      autoReplaceStringTemplate: "{{{depName}}}=={{{newValue}}}",
+    },
+    {
+      customType: "regex",
       description: "Update the pinned Renovate CLI used by CI",
       managerFilePatterns: [".github/workflows/ci-dots.yaml"],
       matchStrings: ["renovate@(?<currentValue>\\d+\\.\\d+\\.\\d+)"],

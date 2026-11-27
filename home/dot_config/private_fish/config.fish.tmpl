@@ -2,6 +2,10 @@ if not status is-interactive
     return
 end
 
+if type -q mise
+    mise activate fish | source
+end
+
 if not type -q fisher
     set -l fisher_version {{ .externalAssets.fisher.version | toJson }}
     set -l fisher_commit {{ .externalAssets.fisher.commit | toJson }}

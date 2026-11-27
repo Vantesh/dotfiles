@@ -1,0 +1,37 @@
+# Repository development tools and tasks. Not used by Chezmoi bootstrap or fresh-install provisioning.
+# The repository's .miserc.toml selects this config automatically via Mise's native
+# environment selection; no explicit --env flag or manual Python activation is needed.
+
+[settings]
+experimental = true
+python.venv_stdlib = true
+
+[tools]
+python = "3.14"
+uv = "0.13.10"
+ruff = "0.17.6"
+"pypi:pyrefly" = "1.5.0"
+shellcheck = "0.11.0"
+
+[env]
+_.python.venv = { path = ".venv", create = true }
+
+# Mise owns the install: it provides uv and the venv, then runs this command.
+# Versions exist only here, so local development and CI resolve identically.
+[deps.python]
+auto = true
+description = "Install Python development packages with Mise-managed uv"
+sources = ["mise/config.development.toml"]
+outputs = [".venv"]
+run = "uv pip install pytest==9.2.0 loguru==0.8.0"
+
+[tasks.dev]
+description = "Format, validate, and test the repository"
+run = [
+    "ruff format .",
+    { task = "check" },
+]
+
+[tasks.check]
+description = "Validate and test the repository without changing tracked files"
+run = ["python3 -B .github/tests/validate.py"]
