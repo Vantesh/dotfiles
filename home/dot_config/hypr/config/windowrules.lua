@@ -2,6 +2,7 @@
 -- Rules apply top to bottom; later matches override earlier properties.
 
 local H = require("helpers")
+local apps = require("config.apps")
 local centered_float = H.centered_float
 
 -- === Match patterns ===
@@ -97,7 +98,7 @@ hl.window_rule({
 -- Keep the system awake during media playback; browsers only while fullscreen.
 hl.window_rule({
   name = "idle-inhibit-media",
-  match = { class = "^(mpv|spotifast)$" },
+  match = { class = "^(mpv|" .. apps.music .. ")$" },
   idle_inhibit = "focus",
 })
 hl.window_rule({

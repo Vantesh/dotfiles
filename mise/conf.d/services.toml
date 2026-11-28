@@ -58,8 +58,3 @@ enabled = true
 scope = "user"
 state = "running"
 enabled = true
-
-[bootstrap.services."spotifast-suspend-inhibit.service"]
-scope = "user"
-state = "running"
-enabled = true

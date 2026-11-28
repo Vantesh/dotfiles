@@ -102,7 +102,7 @@
 "pacman:obsidian" = { env = "packages" }
 "pacman:qbittorrent" = { env = "packages" }
 "pacman:brave-bin" = { env = "packages" }
-"aur:spotifast-bin" = { env = "packages" }
+"pacman:sonora" = { env = "packages" }
 "pacman:localsend" = { env = "packages" }
 "pacman:mission-center" = { env = "packages" }
 "pacman:zapfast" = { env = "packages" }
