@@ -6,9 +6,6 @@ PS1='\[\e[32m\]\u\[\e[37m\]@\[\e[36m\]\h\[\e[37m\] in \[\e[35m\]\w\n\[\e[32m\]\$
 
 # shellcheck disable=SC1091
 [[ -f "$HOME/.config/shell/exportsrc" ]] && source "$HOME/.config/shell/exportsrc"
-if command -v mise >/dev/null 2>&1; then
-    eval "$(mise activate bash)"
-fi
 # shellcheck disable=SC1091
 [[ -f "$HOME/.config/shell/aliasrc" ]] && source "$HOME/.config/shell/aliasrc"
 # shellcheck disable=SC1091
@@ -60,6 +57,11 @@ shopt -s cmdhist
 
 # Record each line as it gets issued
 PROMPT_COMMAND='history -a'
+
+# Install Mise's prompt hook after the history hook so both remain active.
+if command -v mise >/dev/null 2>&1; then
+    eval "$(mise activate bash)"
+fi
 
 # Huge history. Doesn't appear to slow things down, so why not?
 HISTSIZE=500000

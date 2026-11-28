@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import importlib.util
 import re
+import shutil
 import tomllib
 from pathlib import Path
 from typing import cast
@@ -234,6 +236,29 @@ def test_interactive_shells_activate_mise_once_and_ci_does_not() -> None:
     workflow = CI_WORKFLOW.read_text()
 
     assert bash.count('eval "$(mise activate bash)"') == 1
+    assert bash.index('eval "$(mise activate bash)"') > bash.index("PROMPT_COMMAND='history -a'")
     assert fish.count("mise activate fish | source") == 1
     assert "activate bash" not in workflow
     assert "activate fish" not in workflow
+
+
+def test_validator_names_system_tool_prerequisite(monkeypatch: pytest.MonkeyPatch) -> None:
+    path = ROOT / ".github/tests/validate.py"
+    spec = importlib.util.spec_from_file_location("validator", path)
+    assert spec is not None and spec.loader is not None
+    validator = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(validator)
+
+    real_which = shutil.which
+
+    def missing_chezmoi(name: str) -> str | None:
+        return None if name == "chezmoi" else real_which(name)
+
+    monkeypatch.setattr(validator.shutil, "which", missing_chezmoi)
+    with pytest.raises(SystemExit) as error:
+        validator.main()
+
+    message = str(error.value)
+    assert "Missing validation tools: chezmoi" in message
+    assert "Install chezmoi separately" in message
+    assert "mise run check" in message

@@ -45,9 +45,14 @@ def main():
     if missing or shellcheck is None:
         if shellcheck is None:
             missing.append("shellcheck")
+        system_missing = [tool for tool in missing if tool in ("chezmoi", "bash")]
+        system_guidance = (
+            f"Install {', '.join(system_missing)} separately; " if system_missing else ""
+        )
         raise SystemExit(
             f"Missing validation tools: {', '.join(missing)}. "
-            + "Run `mise run check` to install and provide them."
+            + system_guidance
+            + "Run `mise run check` to provide development tools."
         )
     subprocess.run(["ruff", "check", "."], cwd=ROOT, check=True)
     subprocess.run(["ruff", "format", "--check", "."], cwd=ROOT, check=True)
