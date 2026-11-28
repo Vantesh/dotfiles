@@ -47,7 +47,7 @@ jobs:
             sudo util-linux atuin fish
           # Pin Renovate so config validation and manager tests are reproducible.
           # Local tests read this version for the npx fallback.
-          npm install --global --no-fund --no-audit renovate@45.0.2
+          npm install --global --no-fund --no-audit renovate@45.1.0
 
           # Provisioning tests exercise regular-account guards, not a root login.
           useradd --create-home --user-group ci
