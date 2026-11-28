@@ -31,7 +31,7 @@ Each tool has its own role:
 
 - **Chezmoi:** Managed files, templates, profiles and apply lifecycle in [home/](../home/).
 - **Mise:** Tool versions, packages, services and tasks in [mise/](../mise/).
-- **Python (target):** Reusable provisioning implementation in [src/dotfiles/](../src/dotfiles/) as the migration progresses.
+- **Python (target):** Reusable provisioning implementation will move into `src/dotfiles/` as the migration progresses.
 
 To review or apply changes:
 
