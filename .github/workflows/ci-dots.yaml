@@ -40,10 +40,10 @@ jobs:
       - name: Install validation toolchain
         run: |
           set -euo pipefail
-          # Mise installs all development tools and Python packages; system Python is
-          # only a prerequisite for provisioning-style test fixtures.
+          # Mise installs development tools and packages; system Python and
+          # python-loguru are prerequisites for provisioning-style test fixtures.
           pacman -Syu --noconfirm --needed \
-            bash chezmoi diffutils git git-delta mise nodejs npm python \
+            bash chezmoi diffutils git git-delta mise nodejs npm python python-loguru \
             sudo util-linux atuin fish
           # Pin Renovate so config validation and manager tests are reproducible.
           # Local tests read this version for the npx fallback.

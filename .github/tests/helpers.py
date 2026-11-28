@@ -89,9 +89,6 @@ class ScriptCase(unittest.TestCase):
             "CALLS": str(self.calls),
             "NO_COLOR": "1",
             "CHEZMOI_SOURCE_DIR": str(ROOT / "home"),
-            # Runtime scripts use /usr/bin/python3; expose Mise's development
-            # Loguru to those subprocesses without a host Python package.
-            "PYTHONPATH": str(next((ROOT / ".venv/lib").glob("python*/site-packages"), "")),
             **{
                 f"XDG_{name}_HOME": str(self.directory / name.lower())
                 for name in ("CONFIG", "DATA", "CACHE", "STATE")

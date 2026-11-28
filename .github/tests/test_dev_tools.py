@@ -181,7 +181,9 @@ def test_repository_selects_development_environment_automatically() -> None:
     assert "mise run check" in workflow
     assert "MISE_AUTO_ENV" not in workflow
     assert "MISE_TRUSTED_CONFIG_PATHS: ${{ github.workspace }}" in workflow
-    assert "python-loguru" not in workflow
+    # Provisioning scripts run under /usr/bin/python3 even after sudo resets the
+    # environment, so CI needs the host package rather than the Mise venv.
+    assert "python-loguru" in workflow
     assert "python-pytest" not in workflow
 
     for path in (DEV_CONFIG, BASH_CONFIG, FISH_CONFIG, CI_WORKFLOW, README):

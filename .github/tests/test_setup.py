@@ -26,7 +26,9 @@ def env(tmp_path: Path) -> dict[str, str]:
     commands = tmp_path / "bin"
     commands.mkdir()
     for name in ("bash", "cat", "chmod", "env", "git", "ln", "python3", "sleep", "test", "touch"):
-        executable = shutil.which(name)
+        # Chezmoi runs scripts through PATH, so expose the shebang interpreter
+        # instead of Mise's venv Python, which loses its site-packages via a symlink.
+        executable = Path("/usr/bin/python3") if name == "python3" else shutil.which(name)
         assert executable is not None, f"Required test utility not found: {name}"
         (commands / name).symlink_to(executable)
     env = {
@@ -35,9 +37,6 @@ def env(tmp_path: Path) -> dict[str, str]:
         "TMPDIR": str(tmp_path),
         "CALLS": str(tmp_path / "calls"),
         "NO_COLOR": "1",
-        # Runtime scripts use /usr/bin/python3; expose Mise's development Loguru
-        # to those subprocesses so tests do not depend on a host Python package.
-        "PYTHONPATH": str(next((ROOT / ".venv/lib").glob("python*/site-packages"), "")),
         **{
             f"XDG_{name}_HOME": str(tmp_path / name.lower())
             for name in ("CONFIG", "DATA", "CACHE", "STATE")

@@ -80,7 +80,7 @@ def snapper(env: dict[str, str], tmp_path: Path) -> dict[str, str]:
         "sudo",
         """case "$1" in
     --validate) exit 0 ;;
-    --non-interactive) shift; unset CHEZMOI_SOURCE_DIR DOTFILES_PERSONAL_ENABLED; exec "$@" ;;
+    --non-interactive) shift; unset PYTHONPATH CHEZMOI_SOURCE_DIR DOTFILES_PERSONAL_ENABLED; exec "$@" ;;
     test)
         [ "$3" = /.snapshots ] || exit 97
         exec /usr/bin/test "$2" "$HOME/snapshots" ;;
@@ -349,9 +349,9 @@ def test_rendered_snapper_reexecutes_synchronously_without_source_environment(
         "sudo",
         """case "$1" in
     --validate) exit 0 ;;
-    --non-interactive) shift; unset CHEZMOI_SOURCE_DIR DOTFILES_PERSONAL_ENABLED; exec "$@" ;;
+    --non-interactive) shift; unset PYTHONPATH CHEZMOI_SOURCE_DIR DOTFILES_PERSONAL_ENABLED; exec "$@" ;;
     */python|*/python3)
-        unset CHEZMOI_SOURCE_DIR CHEZMOI_WORKING_TREE CHEZMOI_OS_RELEASE_ID DOTFILES_PERSONAL_ENABLED
+        unset PYTHONPATH CHEZMOI_SOURCE_DIR CHEZMOI_WORKING_TREE CHEZMOI_OS_RELEASE_ID DOTFILES_PERSONAL_ENABLED
         exec "$@" ;;
     test)
         [ "$3" = /.snapshots ] || exit 97

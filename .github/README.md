@@ -105,6 +105,8 @@ Both commands use the same Mise-managed toolchain. CI runs `mise run check`.
 
 No separate requirements file, uv project or development lockfile is needed.
 
+Provisioning hooks run under `/usr/bin/python3`, including after sudo resets the environment. Install the pacman `python` and `python-loguru` packages for local validation; the bootstrap installer and CI already do this. The Mise `.venv` is not available to those processes.
+
 ### Shell integration
 
 Bash and Fish startup files activate Mise automatically.
