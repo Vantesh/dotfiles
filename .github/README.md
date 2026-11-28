@@ -8,10 +8,10 @@ Built for my own machines, not as a general-purpose installer.
 
 Start with a fresh Arch-based installation, network access and a regular user with sudo access.
 
-\`\`\`bash
+```bash
 sudo pacman -Syu --needed chezmoi
 chezmoi init --apply vantesh
-\`\`\`
+```
 
 Setup asks whether this is a personal installation:
 
@@ -31,55 +31,54 @@ Each tool has its own role:
 
 - **Chezmoi:** Managed files, templates, profiles and apply lifecycle in [home/](../home/).
 - **Mise:** Tool versions, packages, services and tasks in [mise/](../mise/).
-- **Python:** Reusable provisioning implementation in [src/dotfiles/](../src/dotfiles/).
+- **Python (target):** Reusable provisioning implementation in [src/dotfiles/](../src/dotfiles/) as the migration progresses.
 
 To review or apply changes:
 
-\`\`\`bash
+```bash
 chezmoi diff
 chezmoi apply --dry-run --verbose
 chezmoi apply
-\`\`\`
+```
 
-Edit configuration in the Chezmoi source directory (\`chezmoi cd\`). Failed setup scripts can be retried with \`chezmoi apply\`.
+Edit configuration in the Chezmoi source directory (`chezmoi cd`). Failed setup scripts can be retried with `chezmoi apply`.
 
-Logs are stored at \`~/.local/state/chezmoi/logs/setup.log\`, or under \`$XDG_STATE_HOME\` when set.
+Logs are stored at `~/.local/state/chezmoi/logs/setup.log`, or under `$XDG_STATE_HOME` when set.
 
-\`OFFLINE=1\` skips supported external downloads, not package installation. \`NOCONFIRM=1\` skips optional prompts and fingerprint enrollment.
+`OFFLINE=1` skips supported external downloads, not package installation. `NOCONFIRM=1` skips optional prompts and fingerprint enrollment.
 
 Personal fingerprint setup starts native capture automatically for an unenrolled,
-supported Goodix 27c6:5395 reader. Follow \`fprintd-enroll\`'s touch/lift instructions;
+supported Goodix 27c6:5395 reader. Follow `fprintd-enroll`'s touch/lift instructions;
 there is no separate confirmation. Existing prints are preserved. Unsupported or
-unavailable readers, CI, \`NOCONFIRM=1\` and sessions without a terminal skip capture.
+unavailable readers, CI, `NOCONFIRM=1` and sessions without a terminal skip capture.
 
 ## Boot configuration
 
-Personal setup supports Btrfs with the \`@\` root subvolume, Snapper and hibernation on supported laptops. Existing unmanaged swap and resume settings are left alone.
+Personal setup supports Btrfs with the `@` root subvolume, Snapper and hibernation on supported laptops. Existing unmanaged swap and resume settings are left alone.
 
 Secure Boot setup requires UEFI Setup Mode with Secure Boot disabled. The installer creates and enrolls keys automatically when needed, including Microsoft and supported firmware certificates.
 
 **Enable Secure Boot in firmware only after setup finishes and the boot files are verified.**
 
-The EFI partition is normally mounted at \`/boot\`, outside Btrfs snapshots. Restoring a snapshot doesn't restore the matching kernel or initramfs.
+The EFI partition is normally mounted at `/boot`, outside Btrfs snapshots. Restoring a snapshot doesn't restore the matching kernel or initramfs.
 
 Rebuild boot files with:
 
-\`\`\`bash
+```bash
 sudo limine-update
-\`\`\`
+```
 
 ## Development
 
-The development environment is managed by Mise and uv:
+The Python/Mise project migration is in progress. The target workflow is:
 
 - Mise selects Python, uv, Ruff and BasedPyright versions.
-- uv creates the project environment and installs the locked Python dependencies.
-- \`pyproject.toml\` defines project metadata, dependencies and Python tool configuration.
-- \`uv.lock\` records the resolved Python dependency versions.
+- uv creates the project environment and installs locked dependencies.
+- `pyproject.toml` defines project metadata, dependencies and Python tool configuration.
+- `uv.lock` records the resolved Python dependency versions.
+- Project Python commands run through `uv run`.
 
-Use Mise tasks for the documented development workflow. Python commands run through \`uv run\`, so manual environment activation and hardcoded \`.venv\` paths are unnecessary.
-
-See [AGENTS.md](../AGENTS.md), [architecture.md](../docs/architecture.md) and [migration-plan.md](../docs/migration-plan.md) for development constraints and migration details.
+Until the migration is complete, use the existing `mise run dev` and `mise run check` commands. The target architecture and migration sequence are documented in [AGENTS.md](../AGENTS.md), [architecture.md](../docs/architecture.md) and [migration-plan.md](../docs/migration-plan.md).
 
 ## Shell integration
 
@@ -87,27 +86,27 @@ Bash and Fish startup files activate Mise automatically.
 
 If Mise asks you to trust the repository configuration, run:
 
-\`\`\`bash
+```bash
 mise trust
-\`\`\`
+```
 
-For Zsh, add this to \`~/.zshrc\`:
+For Zsh, add this to `~/.zshrc`:
 
-\`\`\`zsh
+```zsh
 eval "$(mise activate zsh)"
-\`\`\`
+```
 
 For editors and GUI applications that do not read shell startup files, use shims:
 
-\`\`\`bash
+```bash
 eval "$(mise activate bash --shims)"
-\`\`\`
+```
 
 Fish equivalent:
 
-\`\`\`fish
+```fish
 mise activate fish --shims | source
-\`\`\`
+```
 
 Development tools are selected only inside this repository. CI must not depend on shell activation.
 
