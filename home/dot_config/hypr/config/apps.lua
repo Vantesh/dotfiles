@@ -6,5 +6,5 @@ return {
   editor = "zeditor",
 
   desktopShell = "noctalia",
-  music = "spotifast",
+  music = "sonora",
 }

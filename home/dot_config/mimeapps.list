@@ -458,7 +458,7 @@ x-scheme-handler/zed=dev.zed.Zed.desktop
 application/x-bittorrent=org.qbittorrent.qBittorrent.desktop
 x-scheme-handler/magnet=org.qbittorrent.qBittorrent.desktop
 
-x-scheme-handler/spotify=spotifast.desktop
+x-scheme-handler/spotify=sonora.desktop
 
 application/x-wine-extension-ini=nvim.desktop
 text/x-ini=nvim.desktop

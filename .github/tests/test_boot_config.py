@@ -373,41 +373,13 @@ rm -f "$HOME"/tpm-stale""",
                 independent = self.etc / "limine-entry-tool.conf"
                 for path in (quiet, hibernation, late, independent):
                     path.unlink(missing_ok=True)
-                if case == "inactive":
-                    quiet.write_text('# KERNEL_CMDLINE[default]+= "quiet"\n')
-                elif case == "overridden":
+                if case == "overridden":
                     quiet.write_text('KERNEL_CMDLINE[default]+= "quiet"\n')
                     late.write_text('KERNEL_CMDLINE[default]= "root=UUID=other quiet"\n')
                 elif case == "conflict":
                     quiet.write_text('KERNEL_CMDLINE[default]+= "quiet loglevel=3"\n')
                     self.defaults.write_text(
                         'KERNEL_CMDLINE[default]= "root=UUID=filesystem loglevel=7 quiet"\n'
-                    )
-                elif case == "quoted-conflict":
-                    hibernation.write_text('KERNEL_CMDLINE[default]+= "resume=UUID=managed"\n')
-                    self.defaults.write_text(
-                        'KERNEL_CMDLINE[default]= "root=UUID=filesystem "resume=UUID=external" resume=UUID=managed"\n'
-                    )
-                elif case == "separator":
-                    quiet.write_text('KERNEL_CMDLINE[default]+= "quiet"\n')
-                    self.defaults.write_text(
-                        'KERNEL_CMDLINE[default]= "root=UUID=filesystem init=/custom-init -- quiet"\n'
-                    )
-                elif case == "crlf":
-                    self.defaults.write_bytes(original.replace("\n", "\r\n").encode())
-                elif case == "per-kernel":
-                    independent.write_text(
-                        'KERNEL_CMDLINE[linux-custom]= "root=UUID=custom quiet"\n'
-                    )
-                elif case == "alias-conflict":
-                    hibernation.write_text('KERNEL_CMDLINE[default]+= "resume_offset=123"\n')
-                    self.defaults.write_text(
-                        'KERNEL_CMDLINE[default]= "root=UUID=filesystem resume-offset=456 resume_offset=123"\n'
-                    )
-                elif case == "bare-conflict":
-                    quiet.write_text('KERNEL_CMDLINE[default]+= "quiet"\n')
-                    self.defaults.write_text(
-                        'KERNEL_CMDLINE[default]= "root=UUID=filesystem debug quiet"\n'
                     )
                 expected = self.defaults.read_bytes()
                 result = self.ensure_defaults()

@@ -1,6 +1,6 @@
 [theme.templates]
 builtin_ids = ["cava", "gtk3", "gtk4", "hyprland", "kitty", "kcolorscheme", "luciole"]
-community_ids = ["fastfetch", "bat", "lazygit", "yazi", "spotifast", "obsidian", "zapfast", "starship", "chromium-based"]
+community_ids = ["fastfetch", "bat", "lazygit", "yazi", "sonora", "obsidian", "zapfast", "starship", "chromium-based", "hyprtoolkit"]
 
 [theme.templates.user.theme]
 input_path = "$XDG_CONFIG_HOME/noctalia/templates/theme.sh"

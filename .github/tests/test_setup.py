@@ -304,65 +304,6 @@ esac""",
     ), observed
 
 
-def secret_modifier(env: dict[str, str], personal: bool) -> list[str]:
-    assert CHEZMOI is not None, "chezmoi is required for profile validation"
-    home = Path(env["HOME"])
-    config = home / "render.json"
-    config.write_text("{}")
-    rendered = run_setup(
-        env,
-        [
-            CHEZMOI,
-            "--config",
-            str(config),
-            "--source",
-            str(ROOT / "home"),
-            "--destination",
-            str(home),
-            "--override-data",
-            json.dumps({"personal": personal}),
-            "execute-template",
-        ],
-        input=(ROOT / "home/dot_config/spotifast/modify_settings.json.tmpl").read_text(),
-    )
-    assert rendered.returncode == 0, rendered.stderr
-    script = home / "settings.py"
-    script.write_text(rendered.stdout)
-    return [PYTHON, "-B", str(script)]
-
-
-@pytest.mark.parametrize("personal", [False, True], ids=["nonpersonal", "personal"])
-def test_personal_secret_is_fetched_once_and_never_in_nonpersonal_mode(
-    env: dict[str, str], personal: bool
-) -> None:
-    stub(
-        env,
-        "rbw",
-        '[ "$*" = "get --field client_id spotify" ] || exit 97; echo fixture-client-id',
-        log=True,
-    )
-    command = secret_modifier(env, personal)
-    applied = run_setup(env, command, input="{}")
-    assert applied.returncode == 0, applied.stderr
-    settings = cast("dict[str, object]", json.loads(applied.stdout))
-    assert settings.get("web_client_id") == ("fixture-client-id" if personal else None)
-    repeated = run_setup(env, command, input=applied.stdout)
-    assert repeated.returncode == 0, repeated.stderr
-    assert repeated.stdout == applied.stdout
-    assert calls(env) == ([["rbw", "get", "--field", "client_id", "spotify"]] if personal else [])
-
-
-def test_secret_lookup_failure_does_not_publish_settings_or_private_errors(
-    env: dict[str, str],
-) -> None:
-    stub(env, "rbw", "echo private-vault-canary >&2; exit 23")
-    result = run_setup(env, secret_modifier(env, True), input="{}")
-    assert result.returncode != 0
-    assert result.stdout == ""
-    assert "private-vault-canary" not in result.stderr
-    assert "23" in result.stderr
-
-
 @pytest.fixture
 def bootstrap(env: dict[str, str], tmp_path: Path, lock_timeout: int) -> list[str]:
     env.update(

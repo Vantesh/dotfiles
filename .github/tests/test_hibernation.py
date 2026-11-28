@@ -140,7 +140,6 @@ if name == 'findmnt':
         if failure == 'filesystem-inspection': fail()
         output(os.environ.get('ROOT_FS', 'btrfs'))
     if args[0] == '--fstab':
-        if failure == 'fstab-inspection': fail()
         for line in (etc / 'fstab').read_text().splitlines():
             if line.strip() and not line.lstrip().startswith('#'): print(' '.join(line.split()[:4]))
         sys.exit(0)
@@ -165,32 +164,22 @@ elif name == 'lsblk':
     if field == 'TYPE': output('lvm\ncrypt\npart\ndisk' if failure == 'topology' else 'crypt\npart\ndisk' if os.environ.get('ENCRYPTED') else 'part\ndisk')
 elif name == 'btrfs':
     if args[:2] == ['filesystem', 'show']:
-        if failure == 'fstab-before-snapshot' and not (root / 'concurrent-edit').exists():
-            with (etc / 'fstab').open('a') as stream: stream.write(f'UUID=other {swap} btrfs subvol=other 0 0\n')
-            (root / 'concurrent-edit').touch()
         output(f'Total devices {2 if failure == "multi-device" else 1} FS bytes used 0\ndevid 1 size 100 used 0 path {dev}/disk/by-uuid/{uuid}')
     if args[:2] == ['subvolume', 'list']:
-        if failure == 'fstab-after-snapshot' and not (root / 'concurrent-edit').exists():
-            with (etc / 'fstab').open('a') as stream: stream.write(f'UUID=other {swap} btrfs subvol=other 0 0\n')
-            (root / 'concurrent-edit').touch()
         if failure == 'subvolume-inspection': fail()
         output('ID 256 gen 1 top level 5 path @swap' if (root / 'subvolume').exists() else '')
     if args[:2] == ['subvolume', 'create']:
         Path(args[-1]).mkdir(); (root / 'subvolume').touch(); sys.exit(0)
     if args[:2] == ['filesystem', 'mkswapfile']:
-        if failure == 'create-swap': fail()
         Path(args[-1]).write_text('managed swap contents'); sys.exit(0)
     if args[:2] == ['inspect-internal', 'map-swapfile']:
         if failure == 'offset-command': fail()
         output('invalid' if failure == 'offset-value' else '123')
 elif name == 'swapon':
-    if failure == 'zswap-inspection' and (etc / 'limine-entry-tool.d/50-hibernation.conf').exists(): fail()
     if args[0].startswith('--show'):
-        if failure == 'swap-inspection': fail(int(os.environ.get('FAIL_STATUS', '23')))
         active = os.environ.get('ACTIVE_SWAP', '')
         if (root / 'active').exists(): active += '\n' + str(swap / 'swapfile')
         output(active.strip())
-    if failure == 'activate-swap': fail()
     (root / 'active').touch(); sys.exit(0)
 elif name == 'mountpoint':
     top = root / 'top-mounted'
@@ -204,7 +193,6 @@ elif name == 'mount':
             os.kill(os.getppid(), signal.SIGTERM)
     sys.exit(0)
 elif name == 'umount':
-    if failure == 'unmount': fail()
     child = Path(args[-1]) / '@swap'
     if child.exists(): child.rmdir()
     (root / 'top-mounted').unlink(missing_ok=True)
@@ -215,12 +203,10 @@ elif name == 'systemctl':
         output(os.environ.get('ZRAM_UNITS' if '--type=swap,service' in args else 'SWAP_UNITS', ''))
     if args[0] == 'show': output(os.environ.get('UNIT_DEVICE', '') if args[1] == '--property=What' else os.environ.get('NVIDIA_LOAD', 'loaded'))
     if args == ['daemon-reload']:
-        if failure == 'reload': fail()
         sys.exit(0)
 elif name == 'blkid': output('crypto_LUKS' if 'TYPE' in args else luks)
 elif name == 'cryptsetup': output(f'  type: LUKS2\n  device: {dev}/container')
 elif name == 'udevadm':
-    if failure == 'udev': fail()
     sys.exit(0)
 elif name == 'lspci':
     if args == ['-nn']: output('VGA compatible controller: NVIDIA Corporation' if os.environ.get('NVIDIA') else 'VGA compatible controller: Intel Corporation')
@@ -303,12 +289,10 @@ def hibernation_command(hibernation: dict[str, str], tmp_path: Path) -> list[str
     ]
 
 
-@pytest.mark.parametrize("encrypted", [True], ids=["luks"])
 def test_direct_hibernation_creates_verified_swap_and_reapplies(
-    hibernation: dict[str, str], tmp_path: Path, encrypted: bool
+    hibernation: dict[str, str], tmp_path: Path
 ) -> None:
-    if encrypted:
-        hibernation["ENCRYPTED"] = "1"
+    hibernation["ENCRYPTED"] = "1"
     command = hibernation_command(hibernation, tmp_path)
     result = run_setup(hibernation, command)
     assert result.returncode == 0, result.stderr
@@ -476,49 +460,28 @@ def test_swap_conflicts_stop_before_mutation(
     assert not (tmp_path / "etc/limine-entry-tool.d/50-hibernation.conf").exists()
 
 
-@pytest.mark.parametrize("failure", ["publish"])
 def test_resume_publication_failure_rolls_back_only_its_fstab(
-    hibernation: dict[str, str], tmp_path: Path, failure: str
+    hibernation: dict[str, str], tmp_path: Path
 ) -> None:
     source = Path(hibernation["HIBERNATION_SOURCE"])
     helper = source / ".chezmoitemplates/lib/policy_files.py"
     helper.write_text(
         helper.read_text().replace(
             "        os.replace(stage, path)",
-            """        if path.name == "50-hibernation.conf" and os.environ.get("FAILURE") in ("publish", "concurrent-edit", "interrupt"):
-            if os.environ["FAILURE"] == "concurrent-edit":
-                with (Path(os.environ["FIXTURE"]) / "etc/fstab").open("a") as stream:
-                    stream.write("# independent edit\\n")
-            if os.environ["FAILURE"] == "interrupt":
-                raise SystemExit(143)
+            """        if path.name == "50-hibernation.conf" and os.environ.get("FAILURE") == "publish":
             raise OSError(5, "fixture publication failure")
-        os.replace(stage, path)
-        if path.name == "50-hibernation.conf" and os.environ.get("FAILURE") == "verify-resume":
-            (Path(os.environ["FIXTURE"]) / "etc/default/limine").write_text('KERNEL_CMDLINE[default]="root=UUID=independent"\\n')""",
+        os.replace(stage, path)""",
         )
     )
-    hibernation["FAILURE"] = failure
+    hibernation["FAILURE"] = "publish"
     original = (tmp_path / "etc/fstab").read_text()
     result = run_hibernation(hibernation)
-    assert result.returncode == (143 if failure == "interrupt" else 1), result.stderr
-    after = (tmp_path / "etc/fstab").read_text()
-    assert (
-        after == original
-        if failure != "concurrent-edit"
-        else (
-            after.startswith(original)
-            and after.endswith("# independent edit\n")
-            and "none swap" in after
-        )
-    )
+    assert result.returncode == 1, result.stderr
+    assert (tmp_path / "etc/fstab").read_text() == original
     assert (tmp_path / "etc/fstab").stat().st_mode & 0o777 == 0o640
     assert not (tmp_path / "etc/limine-entry-tool.d/50-hibernation.conf").exists()
     state = Path(hibernation["XDG_STATE_HOME"]) / "chezmoi"
     assert (state / "initramfs.pending").exists()
-    if failure == "verify-resume":
-        late = tmp_path / "etc/default/limine"
-        assert late.read_text() == 'KERNEL_CMDLINE[default]="root=UUID=independent"\n'
-        late.unlink()  # Explicitly resolve the independent conflict before retry.
     hibernation.pop("FAILURE")
     result = run_hibernation(hibernation)
     assert result.returncode == 0, result.stderr

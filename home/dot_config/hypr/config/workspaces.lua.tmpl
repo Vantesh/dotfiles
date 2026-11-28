@@ -57,7 +57,7 @@ hl.workspace_rule({
 {{ if .personal -}}
 local music_rule = hl.window_rule({
   name = "music-workspace",
-  match = { class = "^spotifast$" },
+  match = { class = "^" .. apps.music .. "$" },
   workspace = tostring(LAPTOP_WORKSPACE) .. " silent",
   no_initial_focus = true,
   enabled = dual_display,
@@ -104,7 +104,7 @@ end
 
 local function move_music()
   for _, window in ipairs(hl.get_windows() or {}) do
-    local is_music = window.class == "spotifast"
+    local is_music = window.class == apps.music
     local workspace = window.workspace
 
     if is_music and workspace and workspace.id ~= LAPTOP_WORKSPACE then
