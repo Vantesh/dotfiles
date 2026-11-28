@@ -15,6 +15,24 @@ LIB = ROOT / "home/.chezmoitemplates/lib"
 SCRIPTS = ROOT / "home/.chezmoiscripts/linux"
 LOGIN_MANAGER = ROOT / "home/.chezmoitemplates/login-manager"
 CHEZMOI = shutil.which("chezmoi")
+PACKAGE_PIN = re.compile(r"(?P<name>[a-z0-9][a-z0-9._-]*)==(?P<version>[0-9][0-9A-Za-z.+-]*)")
+
+
+def python_package_pins(command: str) -> dict[str, str]:
+    """Extract exact package pins from the Mise deps install command."""
+    parts = command.split()
+    if parts[:3] != ["uv", "pip", "install"]:
+        raise ValueError(f"unexpected package install command: {command!r}")
+    pins: dict[str, str] = {}
+    for pin in parts[3:]:
+        match = PACKAGE_PIN.fullmatch(pin)
+        if match is None:
+            raise ValueError(f"{pin!r} must be an exact package pin")
+        name = match["name"]
+        if name in pins:
+            raise ValueError(f"duplicate package pin: {name}")
+        pins[name] = match["version"]
+    return pins
 
 
 def renovate_version() -> str:

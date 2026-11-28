@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
+import re
 import tomllib
 from pathlib import Path
 from typing import cast
 
 import pytest
-from helpers import ROOT
+from helpers import ROOT, python_package_pins
 
 DEV_CONFIG = ROOT / "mise/config.development.toml"
 MISE_RC = ROOT / ".miserc.toml"
@@ -28,6 +29,7 @@ FORBIDDEN_PROVISIONING_REFERENCES = (
     "mise install",
     "pytest",
 )
+TOOL_VERSION = re.compile(r"[0-9][0-9A-Za-z.+-]*")
 
 
 def _table(data: dict[str, object], name: str) -> dict[str, object]:
@@ -42,7 +44,12 @@ def _section(config: Path, name: str) -> dict[str, object]:
 
 
 def _is_development_config(path: Path, mise_dir: Path) -> bool:
-    parts = [part.removesuffix(".toml") for part in path.relative_to(mise_dir).parts]
+    relative = path.relative_to(mise_dir)
+    # Without env_conf_d, Mise loads every non-hidden conf.d TOML unconditionally,
+    # even names such as config.development.toml.
+    if relative.parts[0] == "conf.d":
+        return False
+    parts = [part.removesuffix(".toml") for part in relative.parts]
     return any(part == "development" or part.endswith(".development") for part in parts)
 
 
@@ -51,7 +58,9 @@ def _bootstrap_configs(root: Path) -> list[Path]:
     return sorted(
         path
         for path in mise_dir.rglob("*.toml")
-        if path.is_file() and not _is_development_config(path, mise_dir)
+        if path.is_file()
+        and not any(part.startswith(".") for part in path.relative_to(mise_dir).parts)
+        and not _is_development_config(path, mise_dir)
     )
 
 
@@ -101,10 +110,11 @@ def test_development_tools_are_pinned_in_isolated_mise_environment() -> None:
 
     assert set(tools) == {"python", "uv", "ruff", "pypi:pyrefly", "shellcheck"}
     assert tools["python"] == "3.14"
-    assert tools["uv"] == "0.13.10"
-    assert tools["ruff"] == "0.17.6"
-    assert tools["pypi:pyrefly"] == "1.5.0"
-    assert tools["shellcheck"] == "0.11.0"
+    for name, value in tools.items():
+        if name == "python":
+            continue
+        assert isinstance(value, str), f"{name} must be a version string"
+        assert TOOL_VERSION.fullmatch(value), f"{name} must be an exact version: {value!r}"
 
     settings = _section(DEV_CONFIG, "settings")
     assert settings["experimental"] is True
@@ -123,12 +133,15 @@ def test_python_packages_are_declared_once_in_mise() -> None:
     assert python["auto"] is True
     assert python["sources"] == ["mise/config.development.toml"]
     assert python["outputs"] == [".venv"]
-    assert python["run"] == "uv pip install pytest==9.2.0 loguru==0.8.0"
+
+    command = python["run"]
+    assert isinstance(command, str)
+    pins = python_package_pins(command)
+    assert set(pins) == {"pytest", "loguru"}
 
     config_text = DEV_CONFIG.read_text()
-    assert config_text.count("pytest==9.2.0") == 1
-    assert config_text.count("loguru==0.8.0") == 1
-    assert "uv pip install" in config_text
+    for name, version in pins.items():
+        assert config_text.count(f"{name}=={version}") == 1
     assert not (ROOT / "requirements.txt").exists()
     assert not (ROOT / "uv.lock").exists()
     assert not list(MISE_DIR.rglob("*.lock"))
@@ -193,18 +206,18 @@ def test_boundary_checks_detect_new_discovered_violations(tmp_path: Path) -> Non
     dev_directory.write_text('[tools]\nruff = "0.17.6"\n')
     similarly_named = tmp_path / "mise/conf.d/development-tools.toml"
     similarly_named.write_text("# ordinary bootstrap configuration\n")
-    config = tmp_path / "mise/conf.d/new-bootstrap-config.toml"
-    config.write_text('[tools]\nruff = "0.17.6"\n')
 
     discovered = _bootstrap_configs(tmp_path)
-    assert dev_only not in discovered, "a .development config must be excluded"
+    assert dev_only in discovered, "unconditional conf.d fragments load during bootstrap"
     assert dev_directory not in discovered, "a development/ config must be excluded"
     assert similarly_named in discovered, "development-tools.toml must remain bootstrap"
 
-    with pytest.raises(AssertionError, match=r"must not declare \[tools\]"):
+    with pytest.raises(AssertionError, match=r"must not declare \[tools\]") as violation:
         _assert_bootstrap_configs(tmp_path)
+    assert str(violation.value).startswith(f"{dev_only}: "), (
+        "the conf.d [tools] declaration must fail the bootstrap boundary check"
+    )
 
-    config.write_text("# bootstrap config without development tools\n")
     script = tmp_path / "home/.chezmoiscripts/linux/run_after_99_probe.py"
     script.parent.mkdir(parents=True)
     script.write_text("import pytest\n")

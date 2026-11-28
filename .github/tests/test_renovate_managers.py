@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import TypedDict, cast
 
 import pytest
-from helpers import ROOT, renovate_command
+from helpers import ROOT, python_package_pins, renovate_command
 
 CONFIG = ROOT / "renovate.json5"
 DEV_CONFIG = ROOT / "mise/config.development.toml"
@@ -408,8 +408,12 @@ def test_production_mise_deps_pins_are_extracted_without_extra_manifests(
     by_name = {str(dep["depName"]): dep for dep in deps}
     assert set(by_name) == {"pytest", "loguru"}
 
-    for name, version in (("pytest", "9.2.0"), ("loguru", "0.8.0")):
-        dep = by_name[name]
+    data = cast("dict[str, object]", tomllib.loads(config))
+    deps_section = cast("dict[str, object]", data["deps"])
+    python = cast("dict[str, object]", deps_section["python"])
+    pins = python_package_pins(cast("str", python["run"]))
+    for name, dep in by_name.items():
+        version = pins[name]
         replace_string = str(dep["replaceString"])
         assert dep["datasource"] == "pypi"
         assert dep["currentValue"] == version
